@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Serapis-Web Home{% endblock %}
+  
+  
+
+<!-- div class="container-fluid">
+  <div class="row-fluid">
+    <div class="span2">
+ -->
+      <!--Sidebar content-->
+<!--  </div>
+    <div class="span10">
+    	<!--Body content-->
+<!--    <div id="container">  -->	
+
+		{% block side_menu %}
+			<p> hello side-menu!</p>
+		{% endblock %}
+ 
+   		{% block sidebar %}
+   			{{ block.super }}
+   		{% endblock%}
+   			
+		{% block content %}
+	
+			<form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+			    {{ form.non_field_errors }}
+			    <div class="fieldWrapper">
+			        {{ form.lane_name.errors }}
+			        <label for="id_lane_name">Lane name:</label>
+			        {{ form.lane_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.library_name.errors }}
+			        <label for="id_library_name">Library name:</label>
+			        {{ form.library_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.sample_name.errors }}
+			        <label for="id_sample_name">Sample name:</label>
+			        {{ form.sample_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.study_name.errors }}
+			        <label for="id_study_name">Study name</label>
+			        {{ form.study_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.individual_name.errors }}
+			        <label for="id_individual_name">Individual name</label>
+			        {{ form.individual_name }}
+			    </div>
+			    
+			    <div class="fieldWrapper">
+			        {{ form.file_field.errors }}
+			        <label for="id_file_field">File to upload:</label>
+			        <input type="file" name="file_field" id="id_file_field" multiple>
+			        <!-- {{ form.individual_name }}  -->
+			    </div>
+			    
+			    <p><input type="submit" value="Submit" /></p>
+			</form>
+		{% endblock %}
+<!-- 	</div>
+	</div>
+	</div>
+</div>
+
+ -->	
+<!-- form action="/serapis/success/" method="post" enctype="multipart/form-data">{% csrf_token %}  -->
+
+<!--  form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+{{ form.as_p }}
+<input type="submit" value="Submit" />
+</form> -->

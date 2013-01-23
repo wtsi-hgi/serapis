@@ -1,0 +1,12 @@
+{% load url from future %}
+
+{% if files_list %}
+    <ul>
+    {% for f in files_list %}
+        <!-- <li><a href="/serapis/33/">{{ f }}</a></li>  -->
+        <li><a href="{% url 'detail' f %}">{{ f }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No polls are available.</p>
+{% endif %}
