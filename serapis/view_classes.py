@@ -21,12 +21,15 @@ class UploadView(FormView):
         #form = UploadForm(self.request.POST or None)
         form = UploadForm(self.request.POST, self.request.FILES)
         
-        if form.is_valid():
-            form.handle_uploaded_file(request.FILES['file_field'])
-            form.submit_task()
-            return HttpResponseRedirect('/serapis/success/')
-        
-        return self.render_to_response(self.get_context_data(form=form))
+        print "type of req files: ----------", type(self.request.FILES)
+        print "and attributes: +++++", dir(self.request.FILES)
+        #if form.is_valid():
+            #form.handle_uploaded_file(request.FILES['file_field'])
+        files_list = form.handle_multi_uploads(self.request.FILES)
+        form.submit_task(files_list)
+        return HttpResponseRedirect('/serapis/success/')
+        # endif
+        #return self.render_to_response(self.get_context_data(form=form))
 
 #    
 #    def form_valid(self, form):
