@@ -14,7 +14,7 @@ urlpatterns = patterns('',
     #url(r'^upload/$', views.upload, name='upload'),
     url(r'^success/$', views.success, name='success'),
     
-    url(r'^/test/$', views.test, name='test'),
+    url(r'^/test/(\d*)/$', views.test, name='test'),
     url(r'^(?P<file_batch_id>\d+)/detail/$', views.detail, name='detail'),
     url(r'^(?P<file_batch_id>\d+)/results/$', views.results, name='results'),
     #url(r'^(?P<file_batch_id>\d+)/*/$', views.results, name='results'),

@@ -17,6 +17,19 @@ def double(x):
 
 
 
+@task
+def calculate_md5():
+    pass
+
+@task
+def parse_BAM_header():
+    pass
+
+@task
+def parse_VCF_header():
+    pass
+
+
 
 
 

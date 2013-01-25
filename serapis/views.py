@@ -58,7 +58,14 @@ def index(request):
     #return HttpResponse(template.render(context))
     
 
-def test(request):
+def test(request, id_default="default"):
+    if request.is_ajax():
+        return HttpResponse("IT IS AJAX! ", id_default)
+    else:
+        return HttpResponse("IT's not AJAX :(", id_default)
+    
+    
+def test2(request):
     file_list = [1, 2, 3]
     context = Context({'files_list' : file_list })
     return render(request, 'serapis/index.html', context)
