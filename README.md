@@ -5,11 +5,11 @@ How to run the project - (on Ubuntu)
 
 1. Install the following:
                                              
-sudo apt-get install python-pip python-dev build-essential
-sudo pip install --upgrade pip
-sudo pip install cython amqp amqplib celery distribute django-celery mongoengine pymongo simplejson
-sudo apt-get install mongodb-server
-sudo apt-get install rabbitmq-server
+	sudo apt-get install python-pip python-dev build-essential
+	sudo pip install --upgrade pip
+	sudo pip install cython amqp amqplib celery distribute django-celery mongoengine pymongo simplejson
+	sudo apt-get install mongodb-server
+	sudo apt-get install rabbitmq-server
 
 2. You need a settings.py file - maybe it would be better to use the one I have, for now, and modify the absolute paths from it, with paths on your machine (will fix this in the future).
 
@@ -37,13 +37,13 @@ Django manages the frontend (view) and communicates with the database (the model
 Browser -> web server (which acts like the Celery-server client) -> saves data in the MongoDB and submits further tasks to be executed remotely (or not) by workers
 
 
-serapis/urls.py - contains url() functions called with 3 parameters:
+- serapis/urls.py - contains url() functions called with 3 parameters:
 		- regex to match the url from request
 		- the name of the function (from views.py file or view_classes.py file) to be called when a request for that url comes in
 		- (optional) name of that url chosen (to distinguish easier between different urls).
 
-views.py - contains functions that get as parameter a request and decide what to do with it further and what HttpResponse to render as response
-views_classes.py - has the same "logical" purpose as views.py, the only difference is that the functions to be called are encapsulated within classes (the framework offers both options - views as functions or as classes, the developer chooses which one he likes
+- views.py - contains functions that get as parameter a request and decide what to do with it further and what HttpResponse to render as response
+- views_classes.py - has the same "logical" purpose as views.py, the only difference is that the functions to be called are encapsulated within classes (the framework offers both options - views as functions or as classes, the developer chooses which one he likes
 		- each class has a 
 				- template_name = field which tells which one is the corresponding html page for that view
 				- form_class = field that tells which one is the corresponding form that gets initialized from that html-page-form
@@ -51,18 +51,19 @@ views_classes.py - has the same "logical" purpose as views.py, the only differen
 
 		- in views.py/view_classes.py there gets initialized (eventually) the corresponding form (if the request contains data)
 
-forms.py - contains forms as classes (that inherit forms.Form)
+- forms.py - contains forms as classes (that inherit forms.Form)
 	 - the fields declared in this kind of classes correspond to fields from the  html page form
 
-tasks.py - file containing the tasks (defined as functions) to be queued and executed on other machines by the workers (processes/threads started on one or more machines, listening to tasks 'coming' from RabbitMQ queues).
+- tasks.py - file containing the tasks (defined as functions) to be queued and executed on other machines by the workers (processes/threads started on one or more machines, listening to tasks 'coming' from RabbitMQ queues).
 
-models.py - Database model used in the application. Each python class defined here corresponds wither to a document or to an EmbeddedDocument ( a document embedded within another document). I tried to put almost everything in a Mongo document, by logically nesting them in embedded documents - to ease the handling of the data from the html forms.
+- models.py - Database model used in the application. Each python class defined here corresponds wither to a document or to an EmbeddedDocument ( a document embedded within another document). I tried to put almost everything in a Mongo document, by logically nesting them in embedded documents - to ease the handling of the data from the html forms.
 
 
 Reqeust -> url searched within urls.py file -> when an entry from urls.py matches, the corresponding view (function or class) is called, which eventually initializes a form with the data submitted from an html form.
 
 
 FAQ
+
 1. How do I declare a function as a task to be put in a queue in order to be run on a worker?
 
 
