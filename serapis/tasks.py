@@ -1,7 +1,7 @@
 from celery import task
 from celery import Celery
 
-
+import pysam
 #@task()
 #def saveFiles(path):
 #    pass
@@ -21,9 +21,25 @@ def double(x):
 def calculate_md5():
     pass
 
-@task
-def parse_BAM_header():
-    pass
+@task()
+def parse_BAM_header(bamfile_path):
+    print "This is my task, to parse the BAM file HEADER!"
+    
+    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PU'}
+    
+    # TODO: PARSE PU
+    
+    bamfile = pysam.Samfile(bamfile_path, "rb" )
+    header = bamfile.header['RG']
+    
+    for header_item in header:
+        for header_RG_item in header_item:
+            if header_RG_item not in HEADER_TAGS:
+                header_item.remove(header_RG_item) 
+    
+    return header
+
+
 
 @task
 def parse_VCF_header():

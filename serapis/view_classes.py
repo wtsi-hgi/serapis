@@ -18,15 +18,16 @@ class UploadView(FormView):
 
 
     def post(self, request, *args, **kwargs):
-        #form = UploadForm(self.request.POST or None)
         form = UploadForm(self.request.POST, self.request.FILES)
-        
-        print "type of req files: ----------", type(self.request.FILES)
-        print "and attributes: +++++", dir(self.request.FILES)
         #if form.is_valid():
-            #form.handle_uploaded_file(request.FILES['file_field'])
         files_list = form.handle_multi_uploads(self.request.FILES)
+        
+#        for f in files_list:
+#            data_dict = form.submit_BAM_check(f)
+#            
         form.submit_task(files_list)
+        
+        #print "DATA FROM BAM FILES HEADER: ", data_dict
         return HttpResponseRedirect('/serapis/success/')
         # endif
         #return self.render_to_response(self.get_context_data(form=form))
