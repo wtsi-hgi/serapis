@@ -58,9 +58,9 @@ class UploadForm(forms.Form):
         #result = (double.delay(file_batch_id)).get()
             
         print "Hello from submit_BAM check on server! BEFORE task submission..."
-        #result = (tasks.parse_BAM_header.delay(bamfile)).get()     
-        #print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
-        #return result
+        result = (tasks.parse_BAM_header.delay(bamfile)).get()     
+        print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
+        return result
         
         
         
@@ -68,24 +68,7 @@ class UploadForm(forms.Form):
 
         
     def handle_uploaded_file(self, files):
-#        with open('/home/ic4/tmp/serapis_dest/name.txt', 'wb+') as destination:
-#            #for chunk in self.file_field.chunks():
-#            for chunk in files.chunks():
-#                destination.write(chunk)
-#            
-                
-#        for upfile in files.getlist('file_field'):
-#            filename = upfile.name
-#            # instead of "filename" specify the full path and filename of your choice here
-#            fd = open(filename, 'w')
-#            #fd.write(upfile['content'])
-#            for chunk in upfile.chunks():
-#                fd.write(chunk)
-#            fd.close()       
-##                
-
         for filename, upfile in files:
-            # instead of "filename" specify the full path and filename of your choice here
             fd = open(filename, 'w')
             for chunk in upfile.chunks():
                 fd.write(chunk)
@@ -98,15 +81,15 @@ class UploadForm(forms.Form):
         #for filename, upfile in files:
         files_list = []
         for upfile in files.getlist('file_field'):
-            #filename = upfile.name
-            print "File uploaded: ", upfile.name
+            filename = upfile.name
+            print "upfile.name = ", upfile.name
             
-#            path="/home/ic4/tmp/serapis_dest/"+filename
-#            files_list.append(path)
-#            fd = open(path, 'w')
-#            for chunk in upfile.chunks():
-#                fd.write(chunk)
-#            fd.close()  
+            path="/home/ic4/tmp/serapis_dest/"+filename
+            files_list.append(path)
+            fd = open(path, 'w')
+            for chunk in upfile.chunks():
+                fd.write(chunk)
+            fd.close()  
         return files_list
     
     
