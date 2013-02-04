@@ -1,12 +1,11 @@
-from celery import task
-from celery import Celery
+from celery import task,chain
 
 import pysam
+#import MySQLdb
 #@task()
 #def saveFiles(path):
 #    pass
 
-#celery = Celery('tasks', backend='amqp')
 
 @task()
 def double(x):
@@ -15,40 +14,172 @@ def double(x):
     print "and result: ", result
     return result
 
+@task()
+def add(x):
+    print "got argument: ", x
+    result = x + 1
+    print "Return result: ", x
+    return result
 
-
-@task
-def calculate_md5():
-    pass
 
 @task()
+def get_folder_content(path):
+    from os import walk
+    files_list = []
+    folders_list = []
+    for (dirpath, dirname, filenames) in walk(path):
+        files_list.extend(filenames)
+        folders_list.extend(dirname)
+        break
+
+
+@task()
+def upload_file(path):
+    
+    pass
+
+
+
+
+#@task(ignore_result=True)
+@task()
 def parse_BAM_header(bamfile_path):
-    print "This is my task, to parse the BAM file HEADER!"
+    print "I am a worker. This is my task, to parse the BAM file HEADER!"
     
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PU'}
     
     # TODO: PARSE PU
     
-    bamfile = pysam.Samfile(bamfile_path, "rb" )
-    header = bamfile.header['RG']
+    def get_header_mdata():
+        bamfile = pysam.Samfile(bamfile_path, "rb" )
+        header = bamfile.header['RG']
     
-    for header_item in header:
-        for header_RG_item in header_item:
-            if header_RG_item not in HEADER_TAGS:
-                header_item.remove(header_RG_item) 
+        for header_grp in header:
+            for header_elem_key in header_grp.keys():
+                if header_elem_key not in HEADER_TAGS:
+                    header_grp.pop(header_elem_key) 
+        
+        return header
     
-    return header
+    def process_json_header(header_json):
+        from collections import defaultdict
+        d = defaultdict(set)
+        for map_json in header_json:
+            for k,v in map_json.items():
+                d[k].add(v)
+        back_to_list = {k:list(v) for k,v in d.items()}
+        return back_to_list
+    
+#    def make_request():
+#        import urllib, urllib2
+#        
+#        url = 'http://localhost:8000/api-rest/insert'
+#
+#        params = urllib.urlencode({
+#          'firstName': 'John',
+#          'lastName': 'Doe'
+#        })
+#    
+#        response = urllib2.urlopen(url, params).read()
+#        return response
+    
+    def make_get_request():
+        import urllib2
+        url = 'http://localhost:8000/api-rest/update'
+        for i in range(10):
+            response = urllib2.urlopen(url).read()
+        return response
+    
+    header_json = get_header_mdata()
+    
+    #return make_get_request()
+    
+    return process_json_header(header_json)
+
+
+#result = parse_BAM_header("/media/ic4-home/SFHS5165323.bam")
+#print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
 
 
 
-@task
-def parse_VCF_header():
-    pass
+
+def callbck(buf):
+    print "Answer received: ", buf
+#
+def curl_test():
+    import pycurl
+    
+    c = pycurl.Curl()
+    #c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/846f71fc-5641-11e1-a98a-3c4a9275d6c6')
+    #c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/')
+    c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/assets/EGAN00001059975')
+    
+    c.setopt(c.HTTPHEADER, ["Accept:application/json", "Cookie:WTSISignOn=UmFuZG9tSVZFF6en9bYhSsWqZIcihQgIwMLJzK0l2sClmLtoqNQg9mHzDXaSDfdC", "Content-type: application/json"])
+    #c.setopt(c.USERPWD, '')
+    c.setopt(c.WRITEFUNCTION, callbck)
+    c.setopt(c.CONNECTTIMEOUT, 10)
+    c.setopt(c.TIMEOUT, 10)
+    c.setopt(c.PROXY, 'localhost')
+    c.setopt(c.PROXYPORT, 3128)#    
+    #c.setopt(c.HTTPPROXYTUNNEL, 1)
+    
+    passw = open('/home/ic4/local/private/other.txt', 'r').read()
+    c.setopt(c.PROXYUSERPWD, "ic4:"+passw)
+    c.perform()
+
+#curl_test()
 
 
 
 
 
+
+def query_seqscape():
+    import httplib
+
+    conn = httplib.HTTPConnection(host='localhost', port=20002)
+    conn.connect()
+    conn.putrequest('GET', 'http://wapiti.com/0_0/requests')
+    headers = {}
+    headers['Content-Type'] = 'application/json'
+    headers['Accept'] = 'application/json'
+    headers['Cookie'] = 'WTSISignOn=UmFuZG9tSVbAPOvZGIyv5Y2AcLw%2FKOLddyjrEOW8%2BeE%2BcKuElNGe6Q%3D%3D'
+    for k in headers:
+        conn.putheader(k, headers[k])
+    conn.endheaders()
+    
+    conn.send(' { "project" : { id : 384 }, "request_type" : { "single_ended_sequencing": { "read_length": 108 } } } ')
+    
+    resp = conn.getresponse()
+    print resp
+#    print resp.status
+#    print resp.reason
+#    print resp.read()
+    
+    conn.close()
+    
+#query_seqscape()
+
+
+
+
+
+
+#@task()
+#def query_seqscape_prohibited():
+#    db = MySQLdb.connect(host="mcs12.internal.sanger.ac.uk",
+#                         port=3379,
+#                         user="warehouse_ro",
+#                         passwd="",
+#                         db="sequencescape_warehouse"
+#                         )
+#    cur = db.cursor()
+#    cur.execute("SELECT * FROM current_studies where internal_id=2120;")
+#
+#    for row in  cur.fetchall():
+#        print row[0]
+#
+#
 
 
 

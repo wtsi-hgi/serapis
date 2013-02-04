@@ -2,7 +2,7 @@
 
 from django.http import HttpResponse, Http404, HttpResponseRedirect
 from django.shortcuts import render
-from serapis.models import FileBatch
+#from serapis.models import FileBatch
 from django.template import Context, loader
 from tasks import double
 #from mongoengine import *
@@ -71,23 +71,24 @@ def test2(request):
     return render(request, 'serapis/index.html', context)
 
 
-
-def detail(request, file_batch_id):
-    file_batch = FileBatch(folderPath='/added/from/view/mongo/testing/db/working')
-    file_batch.nr = file_batch_id
-    file_batch.save()
-    files = FileBatch.objects
-    return HttpResponse("You are looking at fileBatch", len(files))
-
-def results(request, file_batch_id):
-    print 'Result page called!!!'
-    return HttpResponse("You are looking at results")
-
-
-def celery_call(request, file_batch_id):
-    print 'Celery page called!!!'
-    result = (double.delay(file_batch_id)).get()
-    return HttpResponse("Celery task is: %s and result: %s" % (file_batch_id, result))
+#### Working but I deleted FileBatch in the meantime
+#
+#def detail(request, file_batch_id):
+#    file_batch = FileBatch(folderPath='/added/from/view/mongo/testing/db/working')
+#    file_batch.nr = file_batch_id
+#    file_batch.save()
+#    files = FileBatch.objects
+#    return HttpResponse("You are looking at fileBatch", len(files))
+#
+#def results(request, file_batch_id):
+#    print 'Result page called!!!'
+#    return HttpResponse("You are looking at results")
+#
+#
+#def celery_call(request, file_batch_id):
+#    print 'Celery page called!!!'
+#    result = (double.delay(file_batch_id)).get()
+#    return HttpResponse("Celery task is: %s and result: %s" % (file_batch_id, result))
 
 
 #def vote(request, poll_id):
