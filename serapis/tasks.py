@@ -1,25 +1,8 @@
 from celery import task,chain
 
 import pysam
-#import MySQLdb
-#@task()
-#def saveFiles(path):
-#    pass
 
 
-@task()
-def double(x):
-    print "operand received: ", x
-    result = 2 * int(x)
-    print "and result: ", result
-    return result
-
-@task()
-def add(x):
-    print "got argument: ", x
-    result = x + 1
-    print "Return result: ", x
-    return result
 
 
 @task()
@@ -34,17 +17,18 @@ def get_folder_content(path):
 
 
 @task()
-def upload_file(path):
-    
-    pass
-
+def upload_file(file_path):
+    print "HELLO from UPLOAD FILE TASK. Copy this file: ", file_path
+    import time
+    time.sleep(5)
+    return "TOKEN passed."
 
 
 
 #@task(ignore_result=True)
 @task()
 def parse_BAM_header(bamfile_path):
-    print "I am a worker. This is my task, to parse the BAM file HEADER!"
+    print "TASK BAM HEADER. This is my task, to parse the BAM file HEADER!"
     
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PU'}
     

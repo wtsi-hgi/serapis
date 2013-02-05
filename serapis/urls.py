@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, include, url
 
 from serapis import views
-from serapis.view_classes import LoginView, UploadView
+from serapis.view_classes import UploadView
 from django.views.generic import TemplateView
 
     
@@ -9,7 +9,7 @@ from django.views.generic import TemplateView
 urlpatterns = patterns('',
     # class-based views: 
     # url(r'^$', views.login, name='login'),
-    url(r'^$', LoginView.as_view()),
+    
     # url(r'^$', TemplateView.as_view(template_name="login.html")),
     
     url(r'^upload/$', UploadView.as_view()),

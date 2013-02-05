@@ -2,31 +2,36 @@ import json
 
 from serapis import tasks
 from serapis.models import PilotModel
+from models import *
 
-# Gets the list of uploaded files and moves them in the specified area (path)
-# keeps the original file name
-def handle_multi_uploads(files):
-    files_list = []
-    for upfile in files.getlist('file_field'):
-        filename = upfile.name
-        print "upfile.name = ", upfile.name
-        
-        path="/home/ic4/tmp/serapis_dest/"+filename
-        files_list.append(path)
-        fd = open(path, 'w')
-        for chunk in upfile.chunks():
-            fd.write(chunk)
-        fd.close()  
-    return files_list
 
 
 # Gets the list of files, parses header and returns the header info as a DICT
-def submit_BAM_check(bamfile):
-    print "Hello from submit_BAM check on server! BEFORE task submission..."
-    result = (tasks.parse_BAM_header.delay(bamfile)).get()     
-    print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
-    return result
+#def submit_BAM_check(bamfile, msg):
+#    print "Hello from submit_BAM check on server! BEFORE task submission..."
+#    print "I've been passed this token: ", msg
+#    result = (tasks.parse_BAM_header.delay(bamfile)).get()     
+#    print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
+#    return result
 
+
+
+def create_submission(user_id, files_list):
+    # CREATE new submission:
+    submission = Submission()
+    submission.sanger_user_id = user_id
+    submission.save()
+    print "Submission created!", submission._object_key
+
+    # COPY FILES IN IRODS
+    msg = (tasks.upload_file.delay("/home/ic4/data-test/bams/99_2.bam")).get()
+    
+    
+    # PARSE FILE HEADERS
+    result = (tasks.parse_BAM_header.delay("/home/ic4/data-test/bams/99_2.bam")).get()
+    print "END of tasks, I've received the token: ", msg, "and bam HEADERS: ", result
+    
+    return submission._object_key 
 
 
 
@@ -73,3 +78,18 @@ def upload_test(f):
     
     
     
+# Gets the list of uploaded files and moves them in the specified area (path)
+# keeps the original file name
+def handle_multi_uploads(files):
+    files_list = []
+    for upfile in files.getlist('file_field'):
+        filename = upfile.name
+        print "upfile.name = ", upfile.name
+        
+        path="/home/ic4/tmp/serapis_dest/"+filename
+        files_list.append(path)
+        fd = open(path, 'w')
+        for chunk in upfile.chunks():
+            fd.write(chunk)
+        fd.close()  
+    return files_list

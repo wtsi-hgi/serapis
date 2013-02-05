@@ -19,29 +19,35 @@ from rest_framework.views import APIView
 from serapis.models import Submission
 from serializers import ObjectIdEncoder
 
+from os import listdir
+from os.path import isfile, join
+        
+
 
 class CreateSubmission(APIView):
     def post(self, request, user_id, format=None):
-        submission = Submission()
-        print "Data received in request: ", user_id
-        print "Request.BODY: ", request.body
-        print "Request.POST: ", request.POST
+        print "Request.POST: ", request.POST    # dictionary of data received
+        #files_list = request.POST['files']
+        #print "files list from POST request: ", files_list
+        files_list = ["/home/irina"]
+        submission_id = controller.create_submission(user_id, files_list)
         
-        submission.sanger_user_id = user_id
-        submission.save()
-        print "Submission created!", submission._object_key
+        submission_id_serialized = ObjectIdEncoder().encode(submission_id)
+        print "Object serialized : ", submission_id_serialized
         
-        serialized = ObjectIdEncoder().encode(submission._object_key)
-        print "Object serialized : ", serialized
-        return Response(serialized)
+        return Response(submission_id_serialized)
     
+        
         
 class GetFolderContent(APIView):
     def post(self, request, format=None):
         data = request.DATA
         print "Data received - POST request: ", data
+        # CALL getFolder on WORKER...
         return Response({"rasp" : "POST"})
     
+         
+####---------------------- FOR TESTING PURPOSES -----------
          
         
 class MdataInsert(APIView):
@@ -49,9 +55,6 @@ class MdataInsert(APIView):
         myObj = {'sampleID' : 1, 'libID' : 2}
         data_serialized = json.dumps(myObj)
         print "SERIALIZED DATA: ", str(data_serialized)
-        
-        from os import listdir
-        from os.path import isfile, join
         
         file_list = []
         mypath = "/home/ic4/data-test/bams"
@@ -93,10 +96,6 @@ class MdataUpdate(APIView):
 
 #--------------------------------------------------------------------
 
-
-class LoginView(TemplateView):
-    template_name =  "login.html"
-    # success_url = "base.html"
     
     
     
@@ -104,9 +103,6 @@ class UploadView(FormView):
     template_name = "upload.html"
     form_class = UploadForm
     success_url = '/login/'
-    
-
-
     def post(self, request, *args, **kwargs):
         form = UploadForm(self.request.POST, self.request.FILES)
         #if form.is_valid():
