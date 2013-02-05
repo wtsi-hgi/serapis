@@ -10,30 +10,20 @@ serapis-web
         sudo pip install cython amqp amqplib celery distribute django-celery mongoengine pymongo simplejson
         sudo apt-get install mongodb-server
         sudo apt-get install rabbitmq-server
-<<<<<<< HEAD
-	sudo apt-get install curl
+        sudo apt-get install curl
         sudo pip install pycurl
         sudo pip install --upgrade pycurl
-=======
->>>>>>> 7c4f154f19369c0d6c38511430433352b9d9a411
+
 
 2. You need a settings.py file - maybe it would be better to use the one I have, for now, and modify the absolute paths from it, with paths on your machine (will fix this in the future).
 
 3. Start a Celery - worker on your machine:
 
-<<<<<<< HEAD
         python manage.py celery worker --loglevel=info
 
 4. Start the Django server:
 
         python manage.py runserver --noreload
-=======
-	python manage.py celery worker --loglevel=info
-
-4. Start the Django server:
-
-	python manage.py runserver --noreload
->>>>>>> 7c4f154f19369c0d6c38511430433352b9d9a411
 
  // you can start it also without to --noreload, but from my experience, the automatic restart of the server didn't work so well. 
 
@@ -72,11 +62,8 @@ Browser -> web server (which acts like the Celery-server client) -> saves data i
 
 - models.py - Database model used in the application. Each python class defined here corresponds to a document or to an EmbeddedDocument ( a document embedded within another document). I tried to model the data in such a way, that the fields, most of them reside physically in the same document, but to organise them logically in separate entities: the actual document inherits from DynamicDocument (mongoengine class), while the nested types inherit from DynamicEmbeddedDocument. I thought this might ease the handling of the data from the html forms.
 
-<<<<<<< HEAD
-- serapis/templates/serapis - folder containing all the html pages. I have created a `base.html` class with the elements common for all the pages (e.g. header and footer) => all the `.html` files that I wish to contain these common elements should extend `base.html` page - by having on the first line of the file:
-=======
+
 - serapis/templates/serapis - folder containing all the html pages. I have created a base.html class with the elements common for all the pages (e.g. header and footer) => all the .html files that I wish to contain these common elements should extend **base.html** page - by having on the first line of the file:
->>>>>>> 7c4f154f19369c0d6c38511430433352b9d9a411
 
 	{% extends "base.html" %}
 
