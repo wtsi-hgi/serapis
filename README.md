@@ -7,7 +7,7 @@ serapis-web
                                              
         sudo apt-get install python-pip python-dev build-essential
         sudo pip install --upgrade pip
-        sudo pip install cython amqp amqplib celery distribute django-celery mongoengine pymongo simplejson
+        sudo pip install cython amqp amqplib distribute celery django django-celery mongoengine pymongo simplejson djangorestframework markdown
         sudo apt-get install mongodb-server
         sudo apt-get install rabbitmq-server
         sudo apt-get install curl
