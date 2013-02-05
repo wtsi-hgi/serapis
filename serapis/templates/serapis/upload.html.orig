@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
 {% block title %}Serapis-Web Home{% endblock %}
+  
+  
+<<<<<<< HEAD
+	
 
 		{% block side_menu %}
 			<div>
@@ -39,10 +43,26 @@
 			
 			
 			</div>
+=======
+
+<!-- div class="container-fluid">
+  <div class="row-fluid">
+    <div class="span2">
+ -->
+      <!--Sidebar content-->
+<!--  </div>
+    <div class="span10">
+    	<!--Body content-->
+<!--    <div id="container">  -->	
+
+		{% block side_menu %}
+			<p> hello side-menu!</p>
+>>>>>>> origin/master
 		{% endblock %}
  
    		{% block sidebar %}
    			{{ block.super }}
+<<<<<<< HEAD
    		{% endblock %}
    			
 		{% block content %}
@@ -97,7 +117,6 @@
 					    </div>
 				    </p>
 				    <p>
-						 
 					    <div class="fieldWrapper">
 					        {{ form.file_field.errors }}
 					        <label class="control-label" for="id_file_field">File to upload:</label>
@@ -107,21 +126,53 @@
 					    </div>
 				    </p>
 				    <p>
-			     </div>
-				   
-				    	
-				    	<!-- 
-				    	<div>
-				    		<input type="button" class="btn" value='Upload'>
-				    	</div>  
-				    -->
-				    <p>
 					    <div class="controls">
 					    	<input type="submit" class="btn" value="Submit" />
 					    </div>
 				    </p>
-				   
-				
+				</div>
+=======
+   		{% endblock%}
+   			
+		{% block content %}
+	
+			<form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+			    {{ form.non_field_errors }}
+			    <div class="fieldWrapper">
+			        {{ form.lane_name.errors }}
+			        <label for="id_lane_name">Lane name:</label>
+			        {{ form.lane_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.library_name.errors }}
+			        <label for="id_library_name">Library name:</label>
+			        {{ form.library_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.sample_name.errors }}
+			        <label for="id_sample_name">Sample name:</label>
+			        {{ form.sample_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.study_name.errors }}
+			        <label for="id_study_name">Study name</label>
+			        {{ form.study_name }}
+			    </div>
+			    <div class="fieldWrapper">
+			        {{ form.individual_name.errors }}
+			        <label for="id_individual_name">Individual name</label>
+			        {{ form.individual_name }}
+			    </div>
+			    
+			    <div class="fieldWrapper">
+			        {{ form.file_field.errors }}
+			        <label for="id_file_field">File to upload:</label>
+			        <input type="file" name="file_field" id="id_file_field" multiple>
+			        <!-- {{ form.individual_name }}  -->
+			    </div>
+			    
+			    <p><input type="submit" value="Submit" /></p>
+>>>>>>> origin/master
 			</form>
 		{% endblock %}
 <!-- 	</div>

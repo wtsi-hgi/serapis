@@ -12,6 +12,8 @@ setup_loader()
 
 BROKER_URL = 'amqp://guest@localhost:5672'
 
+
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -21,16 +23,6 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-#DATABASES = {
-#        'default' : {
-#             'ENGINE' : 'django_mongodb_engine',
-#             'NAME': 'MetadataDB', 
-#             'HOST': 'localhost',  
-#             'PORT': '27017',
-#             'USER': '',
-#             'PASSWORD': '',
-#             }
-#        }
 
 AUTHENTICATION_BACKENDS = (
     'mongoengine.django.auth.MongoEngineBackend',
@@ -191,7 +183,8 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'serapis'
+    'serapis',
+    'rest_framework'
 )
 
 
