@@ -4,7 +4,6 @@ from django.http import HttpResponse, Http404, HttpResponseRedirect
 from django.shortcuts import render
 #from serapis.models import FileBatch
 from django.template import Context, loader
-from tasks import double
 #from mongoengine import *
 
 from serapis.forms import UploadForm

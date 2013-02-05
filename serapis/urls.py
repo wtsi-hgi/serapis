@@ -20,10 +20,12 @@ urlpatterns = patterns('',
     url(r'^success/$', views.success, name='success'),
     
     url(r'^/test/(\d*)/$', views.test, name='test'),
- #   url(r'^(?P<file_batch_id>\d+)/detail/$', views.detail, name='detail'),
- #   url(r'^(?P<file_batch_id>\d+)/results/$', views.results, name='results'),
-    
-  #  url(r'^(?P<file_batch_id>\d+)/$', views.celery_call, name='celery_call'),
+
+#
+#    url(r'^(?P<file_batch_id>\d+)/detail/$', views.detail, name='detail'),
+#    url(r'^(?P<file_batch_id>\d+)/results/$', views.results, name='results'),
+#    
+#    url(r'^(?P<file_batch_id>\d+)/$', views.celery_call, name='celery_call'),
     
     #url(r'^(?P<file_batch_id>\d+)/$', views.call_thrift, name='call_thrift'),
     

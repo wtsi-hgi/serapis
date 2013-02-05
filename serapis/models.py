@@ -6,6 +6,30 @@ from mongoengine import *
 
 FILE_TYPES = ('BAM', 'VCF')
 
+class PilotModel(DynamicDocument):
+    lane_name = StringField(default="first_lane")
+    study_name = StringField(default="first study")
+    library_name = StringField(default="first library")
+    sample_name = StringField(default="sample")
+    individual_name = StringField(default="individual")
+    # holds the paths to the files to upload
+    file_list = ListField(StringField)
+    
+    
+    
+
+#class PilotModel():
+#    
+#    def __init__(self, lane, study, library, sample, individual, files):
+#        self.lane_name = lane
+#        self.study_name = study
+#        self.library_name = library
+#        self.sample_name = sample
+#        self.individual_name = individual
+#        # holds the paths to the files to upload
+#        self.file_list = files
+        
+    
 
     
     
@@ -121,16 +145,6 @@ class Submission(DynamicDocument):
 
 
 
-
-class PilotModel(DynamicDocument):
-    lane_name = StringField(default="first_lane")
-    study_name = StringField(default="first study")
-    library_name = StringField(default="first library")
-    sample_name = StringField(default="sample")
-    individual_name = StringField(default="individual")
-    # holds the paths to the files to upload
-    file_list = ListField(StringField)
-    
 
      
 
