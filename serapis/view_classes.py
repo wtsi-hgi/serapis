@@ -6,7 +6,6 @@ from serapis.forms import UploadForm
 from serapis import controller
 from serapis import models
 
-from celery import chain
 
 from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
@@ -21,23 +20,72 @@ from serializers import ObjectIdEncoder
 
 from os import listdir
 from os.path import isfile, join
+from bson.objectid import ObjectId
+
         
+
+# Get the submission with this submission_id, if this user is owner
+class GetSubmission(APIView):
+    def get(self, request, user_id, submission_id, format=None):
+        subm_obj_id = ObjectId(submission_id)
+        submission = models.Submission.objects.filter(sanger_user_id=user_id, _id=subm_obj_id)
+        return Response(submission)
+
+
+# Get all submissions of this user_id
+class GetAllUserSubmissions(APIView):
+    def get(self, request, user_id, format=None):
+        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
+        return Response(submission_list)
+
+
+# Get all submissions ever
+class GetAllSubmissions(APIView):
+    def get(self, request):
+        submission_list = models.Submission.objects.all()
+        return Response(submission_list)
+    
+    
+# Get all submissions with this status
+class GetStatusSubmissions(APIView):
+    def get(self, status, request):
+        submission_list = models.Submission.objects.filter(submission_status=status)
+        return Response(submission_list)
+    
+
+# Get all submissions with this status created by this user
+class GetStatusUserSubmissions(APIView):
+    def get(self, request, user_id, status):
+        submission_list = models.Submission.objects.filter(submission_status=status, sanger_user_id=user_id)
+        return Response(submission_list)
+
 
 
 class CreateSubmission(APIView):
     def post(self, request, user_id, format=None):
-        print "Request.POST: ", request.POST    # dictionary of data received
-        #files_list = request.POST['files']
-        #print "files list from POST request: ", files_list
-        files_list = ["/home/irina"]
+        data = request.POST['_content']
+        data_deserial = json.loads(data)
+        files = data_deserial["files"]
+        
+        mypath = "/home/ic4/data-test/bams"
+        files_list = []
+        for f in listdir(mypath):
+            if isfile(join(mypath, f)):
+                files_list.append(f)
+                
         submission_id = controller.create_submission(user_id, files_list)
-        
         submission_id_serialized = ObjectIdEncoder().encode(submission_id)
-        print "Object serialized : ", submission_id_serialized
-        
-        return Response(submission_id_serialized)
+        return Response(submission_id_serialized, status=201)
     
-        
+    
+    def get(self, request, user_id, format=None):
+        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
+        return Response(submission_list)
+    
+    def put(self, request, user_id, format=None):
+
+    
+    
         
 class GetFolderContent(APIView):
     def post(self, request, format=None):
@@ -125,4 +173,11 @@ class UploadView(FormView):
 #        form.submit_task()
 #        return super(UploadView, self).form_valid(form)
 ##    
+
+
+        # This is how you get timestamp of an obj_creation
+        # for obj in submission:
+#            id = obj._object_key['pk']
+#            print "time stamp: ",  id.generation_time
+
     

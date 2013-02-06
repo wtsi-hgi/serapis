@@ -18,8 +18,6 @@ class UploadForm(forms.Form):
 
 
     
-<<<<<<< HEAD
-
         
 #    def handle_uploaded_file(self, files):
 #        for filename, upfile in files:
@@ -30,7 +28,6 @@ class UploadForm(forms.Form):
             
             
    
-=======
     def submit_task(self, files_list):
         #self.handle_uploaded_file()
         print 'submit task called!!!'
@@ -106,7 +103,6 @@ class UploadForm(forms.Form):
                 fd.write(chunk)
             fd.close()  
         return files_list
->>>>>>> 7c4f154f19369c0d6c38511430433352b9d9a411
     
     
 

@@ -5,34 +5,55 @@ from serapis.models import PilotModel
 from models import *
 
 
+submissions_state_map = {}
 
 # Gets the list of files, parses header and returns the header info as a DICT
-#def submit_BAM_check(bamfile, msg):
-#    print "Hello from submit_BAM check on server! BEFORE task submission..."
-#    print "I've been passed this token: ", msg
-#    result = (tasks.parse_BAM_header.delay(bamfile)).get()     
-#    print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
-#    return result
+def submit_BAM_check(bamfile, msg):
+    print "Hello from submit_BAM check on server! BEFORE task submission..."
+    print "I've been passed this token: ", msg
+    result = (tasks.parse_BAM_header.delay(bamfile)).get()     
+    print "Hello from submit_BAM check AFTER TASK SUBMISSION. RESULT: ", result
+    return result
 
 
+
+#def create_submission(user_id, files_list):
+#    tasks.test_task.apply_async((1, ), link=tasks.hello())
+    
 
 def create_submission(user_id, files_list):
     # CREATE new submission:
     submission = Submission()
     submission.sanger_user_id = user_id
+    # submission.files_list = files_list
     submission.save()
-    print "Submission created!", submission._object_key
-
+    submission_id = submission._object_key
+    #submission.save()
+    
+    
     # COPY FILES IN IRODS
-    msg = (tasks.upload_file.delay("/home/ic4/data-test/bams/99_2.bam")).get()
+    async_results_list = []
+    upload_task = tasks.UploadFileTask()
+    for f in files_list:
+        task_id_upload = (upload_task.delay(file_path=f, submission_id=submission._object_key, user_id=user_id))
+        async_results_list.append(task_id_upload)
+    #submissions_state_map[submission_id] = async_results_list
     
-    
+   
     # PARSE FILE HEADERS
-    result = (tasks.parse_BAM_header.delay("/home/ic4/data-test/bams/99_2.bam")).get()
-    print "END of tasks, I've received the token: ", msg, "and bam HEADERS: ", result
+    task_id_header = (tasks.parse_BAM_header.delay("/home/ic4/data-test/bams/99_2.bam")).get()
+    print "END of tasks, I've received the token: ", task_id_upload, "and bam HEADERS: ", task_id_header
     
-    return submission._object_key 
+    return submission_id
+    #return async_results_list
 
+
+#works only for the database backend, according to
+# http://docs.celeryproject.org/en/latest/reference/celery.contrib.abortable.html?highlight=abort#celery.contrib.abortable
+def abort_task(task_id):
+    #abortable_async_result = AbortableAsyncResult(task_id)
+    #bortable_async_result.abort()
+    task_id.abort()
 
 
 def form2json(form, files_list):
