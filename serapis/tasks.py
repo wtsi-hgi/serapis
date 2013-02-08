@@ -34,8 +34,10 @@ class UploadFileTask(Task):
         submission_id = kwargs['submission_id']
         user_id = kwargs['user_id']
         
+        print "I AM A TASK - UPLOAD FILE..."
+        
         import time
-        time.sleep(13)
+        time.sleep(5)
         return "TOKEN passed."
 
 #    def after_return(self, status, retval, task_id, args, kwargs, einfo):
@@ -43,9 +45,11 @@ class UploadFileTask(Task):
 #        submission_id = kwargs['submission_id']
 #        user_id = kwargs['user_id']
 #        
-#        print "AFTER_RETURN STATUS: ", status
+#        print "UPLOAD FILES AFTER_RETURN STATUS: ", status
+#
 #        if status=="SUCCESS":
 #            import requests
+#            print "STATUS has been success"
 #            import urllib2
 #            url = 'http://localhost:8000/api-rest/submissions/'+kwargs['user_id']
 #            response = urllib2.urlopen(url).read()
@@ -114,10 +118,40 @@ def parse_BAM_header(bamfile_path):
 
 
 
-@task
-def parse_VCF_header():
-    pass
+@task()
+def query_seqscape(bam_header):
+    print "QUERYING SEQSCAPE....I got this bam header: ", bam_header
+    import time
+    time.sleep(5)
+    return "RESULT FROM SEQ SCAPE..."
 
+
+
+def query_seqscape2():
+    import httplib
+
+    conn = httplib.HTTPConnection(host='localhost', port=20002)
+    conn.connect()
+    conn.putrequest('GET', 'http://wapiti.com/0_0/requests')
+    headers = {}
+    headers['Content-Type'] = 'application/json'
+    headers['Accept'] = 'application/json'
+    headers['Cookie'] = 'WTSISignOn=UmFuZG9tSVbAPOvZGIyv5Y2AcLw%2FKOLddyjrEOW8%2BeE%2BcKuElNGe6Q%3D%3D'
+    for k in headers:
+        conn.putheader(k, headers[k])
+    conn.endheaders()
+    
+    conn.send(' { "project" : { id : 384 }, "request_type" : { "single_ended_sequencing": { "read_length": 108 } } } ')
+    
+    resp = conn.getresponse()
+    print resp
+#    print resp.status
+#    print resp.reason
+#    print resp.read()
+    
+    conn.close()
+    
+#query_seqscape()
 
 
 
@@ -150,34 +184,9 @@ def curl_test():
 
 
 
-
-
-
-def query_seqscape():
-    import httplib
-
-    conn = httplib.HTTPConnection(host='localhost', port=20002)
-    conn.connect()
-    conn.putrequest('GET', 'http://wapiti.com/0_0/requests')
-    headers = {}
-    headers['Content-Type'] = 'application/json'
-    headers['Accept'] = 'application/json'
-    headers['Cookie'] = 'WTSISignOn=UmFuZG9tSVbAPOvZGIyv5Y2AcLw%2FKOLddyjrEOW8%2BeE%2BcKuElNGe6Q%3D%3D'
-    for k in headers:
-        conn.putheader(k, headers[k])
-    conn.endheaders()
-    
-    conn.send(' { "project" : { id : 384 }, "request_type" : { "single_ended_sequencing": { "read_length": 108 } } } ')
-    
-    resp = conn.getresponse()
-    print resp
-#    print resp.status
-#    print resp.reason
-#    print resp.read()
-    
-    conn.close()
-    
-#query_seqscape()
+@task
+def parse_VCF_header():
+    pass
 
 
 

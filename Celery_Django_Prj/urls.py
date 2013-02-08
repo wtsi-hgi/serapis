@@ -1,6 +1,28 @@
 from django.conf.urls import patterns, include, url
 
- 
+from serapis import controller
+
+print "THIS IS IN URLS.py, ASYNC LIST IS...", controller.async_results_list
+
+import threading
+import time
+def thread_job():
+    thread_lock = threading.RLock()
+    while(True):
+        print "THREAD................"
+        thread_lock.acquire(False)
+        for async in controller.async_results_list:
+            print "ASYNC RESULTS FROM THREAD:..", async.task_name, " status: ", async.state
+        thread_lock.release()
+        time.sleep(3)
+
+thread = threading.Thread(target=thread_job)
+thread.daemon = True
+thread.start()
+
+print "I AM THREAD AND I SHOULD JOIN NOW==========="
+thread.join(10)
+
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin

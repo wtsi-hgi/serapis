@@ -83,6 +83,7 @@ class CreateSubmission(APIView):
         return Response(submission_list)
     
     def put(self, request, user_id, format=None):
+        pass
 
     
     

@@ -13,7 +13,10 @@ urlpatterns = patterns('',
     # (?P<user_id>\w+) is a Python named group containing only words ([a-zA-Z0-9]
     url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.CreateSubmission.as_view()),
     url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.GetAllUserSubmissions.as_view()),
-    url(r'^submissions/user_id=(?P<user_id>\w+)&submission_id=(?P<submission_id>\w+)/$', view_classes.GetSubmission.as_view()),
+    
+    #url(r'^submissions/user_id=(?P<user_id>\w+)&submission_id=(?P<submission_id>\w+)/$', view_classes.GetSubmission.as_view()),
+    url(r'^submissions/(?P<user_id>\w+)/(?P<submission_id>\w+)/$', view_classes.GetSubmission.as_view()),
+    
     url(r'^submissions/user_id=(?P<user_id>\w+)&status=(?P<status>\w+)/$', view_classes.GetStatusUserSubmissions.as_view()),
     url(r'^submissions/status=(?P<status>\w+)/$', view_classes.GetStatusSubmissions.as_view()),
     

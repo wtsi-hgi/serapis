@@ -5,10 +5,10 @@
 from mongoengine import *
 
 FILE_TYPES = ('BAM', 'VCF')
-SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PARTIAL_SUCCESS")
+SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
-FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE")
+FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
 
 class PilotModel(DynamicDocument):
     lane_name = StringField(default="first_lane")
@@ -113,12 +113,19 @@ class Individual(DynamicDocument):
     
     
 class FileSubmitted(DynamicEmbeddedDocument):
+    file_id = ObjectIdField()
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
     file_path_irods = StringField()    
     md5 = StringField()
     #size = IntField()
+    task_ids_list = ListField(StringField())
+    study_list = ListField(StringField())
+    library_list = ListField(Library)
+    Sample_list = ListField(Sample)
+    lane_list = ListField(Lane)
+
 
 
 
@@ -128,11 +135,7 @@ class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
     #task_id = StringField()
-    
     files_list = ListField(FileSubmitted)
-    library_list = ListField(Library)
-    Sample_list = ListField(Sample)
-    lane_list = ListField(Lane)
     
     
 #    
