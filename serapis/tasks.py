@@ -133,7 +133,7 @@ class UploadFileTask(Task):
 
 
 class ParseBAMHeaderTask(Task):
-    def run(self, submission_id, file_path):
+    def run(self, submission_id, file_id):
         #print "TASK BAM HEADER. This is my task, to parse the BAM file HEADER!"
         
         HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PU'}
@@ -141,7 +141,7 @@ class ParseBAMHeaderTask(Task):
         # TODO: PARSE PU
         
         def get_header_mdata():
-            bamfile = pysam.Samfile(file_path, "rb" )
+            bamfile = pysam.Samfile(file_id, "rb" )
             header = bamfile.header['RG']
         
             for header_grp in header:
@@ -187,7 +187,7 @@ class ParseBAMHeaderTask(Task):
         
         result = dict()
         result['submission_id'] = serializers.serialize(submission_id)
-        result['file_path'] = file_path
+        result['file_path'] = file_id
         result['task_result'] = process_json_header(header_json)    # options: INVALID HEADER or the actual header
         result['task_name'] = self.name
         print "RESULT FROM BAM HEADER: ", result

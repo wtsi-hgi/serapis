@@ -39,13 +39,6 @@ def mongo_thread_job():
     
             # QUERY MongoDB:            
             submissions_set = models.Submission.objects.filter(_id=subm_id)
-            
-            print "SIZEEEEEEEEE: ", submissions_set.count()
-#            import simplejson
-#            result = simplejson.dumps(submissions_set, default=encode_model)
-#            print "RESULLLLLLLLLLLT", result
-#            
-            
             submission = submissions_set.get()
             for submitted_file in submission.files_list:
                 if submitted_file.file_path_client == file_path:
