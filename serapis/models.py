@@ -3,13 +3,19 @@
 # Create your models here.
 
 from mongoengine import *
+from mongoengine.base import ObjectIdField
 
 FILE_TYPES = ('BAM', 'VCF')
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
 FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
+FILE_UPLOAD_STATUS = ("SUCCESS", "FAILURE")
+FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
 
+#("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
+
+# ------------------------ TO BE DELETED: ---------------
 class PilotModel(DynamicDocument):
     lane_name = StringField(default="first_lane")
     study_name = StringField(default="first study")
@@ -18,124 +24,136 @@ class PilotModel(DynamicDocument):
     individual_name = StringField(default="individual")
     # holds the paths to the files to upload
     file_list = ListField(StringField)
-    
-    
+
+### ---------------------- THE CORRECT THING: -----------
     
 
-#class PilotModel():
-#    
-#    def __init__(self, lane, study, library, sample, individual, files):
-#        self.lane_name = lane
-#        self.study_name = study
-#        self.library_name = library
-#        self.sample_name = sample
-#        self.individual_name = individual
-#        # holds the paths to the files to upload
-#        self.file_list = files
-        
-    
-
-    
-    
-##------------------------- THIS IS THE ORGANISED WAY ------------------- 
-
-class Study(DynamicDocument):
+class Study(DynamicEmbeddedDocument):
     accession_nr = StringField()
-    #internal_id = IntField() # to be used only for link table
     study_name = StringField() #unique
     study_type = StringField()
     study_title = StringField()
-    description = StringField()
+    study_faculty_sponsor = StringField()
+    study_ena_project_id = StringField()
+    
+    #samples_list = ListField(ReferenceField('Sample'))
+    
+    ######## OPTIONAL FIELDS:
+    #internal_id = IntField() # to be used only for link table
+    #description = StringField()
     # reference_genome = StringField()
-    faculty_sponsor = StringField()
-    ena_project_id = StringField()
     # remove_x_and_autosomes = StringField()
     
-    samples_list = ListField(ReferenceField('Sample'))
-
-        
-class Lane(DynamicEmbeddedDocument):
-    internal_id = IntField() # mine
-    name = StringField() #min
-    barcode = StringField()
-    reads_nr = IntField()
-    bases_nr = IntField()
-    reference_genome = StringField()
+#        
+#class Lane(DynamicEmbeddedDocument):
+#    internal_id = IntField() # mine
+#    name = StringField() #min
+#    barcode = StringField()
+#    reads_nr = IntField()
+#    bases_nr = IntField()
+#    reference_genome = StringField()
     
     
 class Library(DynamicEmbeddedDocument):
-    #internal_id = IntField() # my internal id
-    name = StringField() # min
-    barcode = StringField()
-    sample_internal_id = IntField()
+    library_name = StringField() # min
     library_type = StringField()
-    fragment_size_from = StringField()
-    fragment_size_to = StringField()
-    public_name = StringField()
+    library_public_name = StringField()
+    
     # refField - lane
     # a library is tight to a specific sample
-    lane_list = ListField(EmbeddedDocumentField(Lane))
+    
+    # OPTIONAL:
+    #fragment_size_from = StringField()
+    #fragment_size_to = StringField()
+    #lane_list = ListField(EmbeddedDocumentField(Lane))
+    #library_barcode = StringField()
+    #sample_internal_id = IntField()
+    
 
-
-class Sample(DynamicDocument): # one sample can be member of many studies
+class Sample(DynamicEmbeddedDocument): # one sample can be member of many studies
     # each sample relates to EXACTLY 1 individual
-    accession_nr = StringField()
-    #internal_id = IntField()    # unique
-                                # to be used only for the link table
+    sample_accession_nr = StringField()
     sanger_sample_id = StringField()
     sample_name = StringField() # UNIQUE
-    description = StringField()
-    public_name = StringField()
-    supplier_name = StringField()
-    sample_visibility = StringField()   # CHOICE
-    tissue_type = StringField() 
+    sample_public_name = StringField()
+    sample_tissue_type = StringField() 
+    
+    #library_list = ListField(EmbeddedDocumentField(Library))
+    #study_list = ListField(ReferenceField(Study))
+    
+    
+    # OPTIONAL:
+    # sample_visibility = StringField()   # CHOICE
+    # description = StringField()
+    # supplier_name = StringField()
     # library_tube_id or list of library_tubes
     
-    library_list = ListField(EmbeddedDocumentField(Library))
-    study_list = ListField(ReferenceField(Study))
     
     
-class Individual(DynamicDocument):
+class Individual(DynamicEmbeddedDocument):
     # one Indiv to many samples
-    internal_id = IntField()
-    individual_name = StringField()
     gender = StringField()
     cohort = StringField()
-    country_of_origin = StringField()
     ethnicity = StringField()
     geographical_region = StringField()
     organism = StringField()
-    common_name = StringField()
-    taxon_id = StringField()
-    mother = StringField()
-    father = StringField()
-    samples_list = ListField(ReferenceField(Sample))
+    #samples_list = ListField(ReferenceField(Sample))
+    
+    # OPTIONAL:
+    # individual_name = StringField()
+    # country_of_origin = StringField()
+    # taxon_id = StringField()
+    # mother = StringField()
+    # father = StringField()
+    # common_name = StringField()
     
     
-class FileSubmitted(DynamicEmbeddedDocument):
-    file_id = ObjectIdField()
-    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)
+class SubmittedFile(DynamicEmbeddedDocument):
+    file_id = IntField(required=True)
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
     file_path_irods = StringField()    
     md5 = StringField()
+    
+#    meta = {
+#            'indexes' : ['file_id']
+#            }
+    
+    # STATUSES:
+    file_upload_status = StringField(choices=FILE_UPLOAD_STATUS)
+    file_header_mdata_status = StringField(choices=FILE_MDATA_STATUS)
+    file_seqsc_mdata_status = StringField(choices=FILE_MDATA_STATUS)
+    file_metadata_status = StringField(choices=FILE_MDATA_STATUS)
+    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)
+    
+    
+    study_list = ListField(EmbeddedDocumentField(Study))
+    library_list = ListField(EmbeddedDocumentField(Library))
+    sample_list = ListField(EmbeddedDocumentField(Sample))
+    individuals_list = ListField(EmbeddedDocumentField(Individual))
+    #lane_list = ListField(Lane)
     #size = IntField()
-    task_ids_list = ListField(StringField())
-    study_list = ListField(StringField())
-    library_list = ListField(Library)
-    Sample_list = ListField(Sample)
-    lane_list = ListField(Lane)
-
-
+    
+    #temp field:
+    file_header = DictField()
 
 
 
 class Submission(DynamicDocument):
-    #submission_id = ObjectIdField()
+    #_id = ObjectIdField(required=False, primary_key=True)
+    #_id = ObjectIdField()
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
-    #task_id = StringField()
-    files_list = ListField(FileSubmitted)
+    files_list = ListField(EmbeddedDocumentField(SubmittedFile))
+#    meta = {
+#        'pk' : '_id', 
+#        'id_field' : '_id'
+#    }
+#    
+class TTest(Document):
+    _id = ObjectIdField(primary_key=True)
+    sanger_user_id = StringField()
+    submission_status = StringField()
     
     
 #    

@@ -1,27 +1,27 @@
 from django.conf.urls import patterns, include, url
 
 from serapis import controller
+from serapis import results_processing
 
-print "THIS IS IN URLS.py, ASYNC LIST IS...", controller.async_results_list
+#import threading
+#import time
 
-import threading
-import time
-def thread_job():
-    thread_lock = threading.RLock()
-    while(True):
-        print "THREAD................"
-        thread_lock.acquire(False)
-        for async in controller.async_results_list:
-            print "ASYNC RESULTS FROM THREAD:..", async.task_name, " status: ", async.state
-        thread_lock.release()
-        time.sleep(3)
+from multiprocessing import Process
 
-thread = threading.Thread(target=thread_job)
-thread.daemon = True
-thread.start()
+daemon_process = Process(target=results_processing.mongo_thread_job)
+daemon_process.daemon = True
+daemon_process.start()
+print "PROCESS ID: ", daemon_process.pid
 
-print "I AM THREAD AND I SHOULD JOIN NOW==========="
-thread.join(10)
+
+#thread = threading.Thread(target=results_processing.thread_job)
+#thread.daemon = True
+#thread.start()
+#
+#print "I AM THREAD AND I SHOULD JOIN NOW==========="
+#thread.join(10)
+
+
 
 
 # Uncomment the next two lines to enable the admin:
@@ -37,7 +37,7 @@ urlpatterns = patterns('',
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
     url(r'^serapis/', include('serapis.urls')),
-    
+
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
     

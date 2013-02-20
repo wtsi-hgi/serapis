@@ -7,7 +7,7 @@ from serapis import controller
 from serapis import models
 
 
-from django.http import HttpResponse
+#from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 import json
@@ -21,16 +21,122 @@ from serializers import ObjectIdEncoder
 from os import listdir
 from os.path import isfile, join
 from bson.objectid import ObjectId
+import serializers
+import simplejson
 
         
+        
+        
+#    subm_id_obj = ObjectId(submission_id)
+#    submission_qset = models.Submission.objects(_id=subm_id_obj)
+#    #submission_qset = models.Submission.objects(__raw__={'_id' : ObjectId(submission_id)})
+#    
+#    submission = submission_qset.get()   
 
-# Get the submission with this submission_id, if this user is owner
-class GetSubmission(APIView):
+        
+    
+# ---------------------- HANDLE 1 SUBMISSION -------------
+
+# Get the submission with this submission_id or modify it
+class GetOrModifySubmission(APIView):
     def get(self, request, user_id, submission_id, format=None):
         subm_obj_id = ObjectId(submission_id)
-        submission = models.Submission.objects.filter(sanger_user_id=user_id, _id=subm_obj_id)
-        return Response(submission)
+        submission_qset = models.Submission.objects(_id=subm_obj_id)
+        submission = submission_qset.get()
+        subm_serialized = serializers.serialize(submission)
+        return Response(subm_serialized)
+    
+    # PUT = modify this submission - update metadata for it
+    def put(self, request, user_id, submission_id, format=None):
+        data = request.DATA
+        try:
+            controller.update_submission(submission_id, data)
+            return Response(status=200)
+        except KeyError:
+            return Response(status=400)
 
+
+# ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
+
+class GetOrCreateSubmissions(APIView):
+    # GET all the submissions for a user_id
+    def get(self, request, user_id, format=None):
+        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
+        subm_serialized = serializers.serialize(submission_list)
+        return Response(subm_serialized)
+    
+    
+    # POST = create a new submission, for uploading the list of files given as param
+    def post(self, request, user_id, format=None):
+        data = request.POST['_content']
+        data_deserial = json.loads(data)
+        files = data_deserial["files"]
+        
+        mypath = "/home/ic4/data-test/bams"
+        files_list = []
+        for f in listdir(mypath):
+            if isfile(join(mypath, f)):
+                files_list.append(f)
+        
+        # TO DELETE THis line...        
+        files_list = ["/home/ic4/data-test/bams/99_2.bam"]
+        #files_list = ["/home/ic4/tmp/adag.xml"]
+        
+        submission_id = controller.create_submission(user_id, files_list)
+        submission_id_serialized = ObjectIdEncoder().encode(submission_id)
+        return Response(submission_id_serialized, status=201)
+    
+    
+    
+
+# Get all submissions with this status created by this user
+class GetSubmissionStatus(APIView):
+    def get(self, request, user_id, submission_id):
+        submission_list = models.Submission.objects.filter(_id=ObjectId(submission_id), sanger_user_id=user_id)
+        
+        # TO DO - INCOMPLETE - just returns the files, not the status
+        
+        return Response(submission_list)
+
+
+
+#---------------- HANDLE SUBMITTED FILE ------------------------
+
+    
+class GetOrModifySubmittedFile(APIView):
+    def get(self, request, user_id, submission_id, file_id):
+        subm_obj_id = ObjectId(submission_id)
+        query_set = models.Submission.objects(_id=subm_obj_id)
+        submission = query_set.get()
+        for submitted_file in submission.files_list:
+            if submitted_file.file_id == int(file_id):
+                result = serializers.serialize(submitted_file)
+        return Response(result)
+
+    
+    def put(self, request, user_id, submission_id, file_id):
+        data = request.DATA
+        try:
+            controller.update_file_submitted(submission_id, file_id, data)
+            return Response(status=200)
+        except KeyError:
+            return Response(status=400)
+
+    
+        
+        
+# ---------------------------------------------------------
+
+
+class GetFolderContent(APIView):
+    def post(self, request, format=None):
+        data = request.DATA
+        print "Data received - POST request: ", data
+        # CALL getFolder on WORKER...
+        return Response({"rasp" : "POST"})
+    
+         
+         
 
 # Get all submissions of this user_id
 class GetAllUserSubmissions(APIView):
@@ -52,50 +158,7 @@ class GetStatusSubmissions(APIView):
         submission_list = models.Submission.objects.filter(submission_status=status)
         return Response(submission_list)
     
-
-# Get all submissions with this status created by this user
-class GetStatusUserSubmissions(APIView):
-    def get(self, request, user_id, status):
-        submission_list = models.Submission.objects.filter(submission_status=status, sanger_user_id=user_id)
-        return Response(submission_list)
-
-
-
-class CreateSubmission(APIView):
-    def post(self, request, user_id, format=None):
-        data = request.POST['_content']
-        data_deserial = json.loads(data)
-        files = data_deserial["files"]
-        
-        mypath = "/home/ic4/data-test/bams"
-        files_list = []
-        for f in listdir(mypath):
-            if isfile(join(mypath, f)):
-                files_list.append(f)
-                
-        submission_id = controller.create_submission(user_id, files_list)
-        submission_id_serialized = ObjectIdEncoder().encode(submission_id)
-        return Response(submission_id_serialized, status=201)
     
-    
-    def get(self, request, user_id, format=None):
-        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
-        return Response(submission_list)
-    
-    def put(self, request, user_id, format=None):
-        pass
-
-    
-    
-        
-class GetFolderContent(APIView):
-    def post(self, request, format=None):
-        data = request.DATA
-        print "Data received - POST request: ", data
-        # CALL getFolder on WORKER...
-        return Response({"rasp" : "POST"})
-    
-         
 ####---------------------- FOR TESTING PURPOSES -----------
          
         

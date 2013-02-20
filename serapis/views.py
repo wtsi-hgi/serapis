@@ -20,7 +20,7 @@ def success(request):
 #        form.submit_task()
 #        return HttpResponseRedirect('/success/')
 
-    return render(request, 'serapis/success.html')
+    return render(request, 'serapis/base.html')
 
 
 def upload(request):
