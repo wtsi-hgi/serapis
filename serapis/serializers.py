@@ -204,19 +204,30 @@ class ComplicatedMongoDocSerializer(JSONEncoder):
         else:
             return JSONEncoder.default(self, obj, **kwargs)  
         
-        
+      
+      
+      
+#
+#class ObjectIdEncoder(JSONEncoder):
+#    def default(self, obj, **kwargs):
+#        if isinstance(obj, ObjectId):
+#            return str(obj)
+#        else:            
+#            return JSONEncoder.default(obj, **kwargs)  
         
 import mongoengine
 
 def encode_model(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
         out = dict(obj._data)
-        print "OBJECTS ITEMS: WHY NO ID>????", out.items()
+        #print "OBJECTS ITEMS: WHY NO ID>????", out.items()
         for k,v in out.items():
             if isinstance(v, ObjectId):
-                print "OBJECT ID KEY------------------------", k
+        #        print "OBJECT ID KEY------------------------", k
                 #out['id'] = str(v)
                 out[k] = str(v)
+    elif isinstance(obj, ObjectId):
+        out = str(obj)
     elif isinstance(obj, mongoengine.queryset.QuerySet):
         out = list(obj)
         

@@ -30,18 +30,21 @@ def mongo_thread_job():
             task_result = async_result.get()            # task_result = AsyncResult object
             
             subm_id = task_result['submission_id']    # Submission_id object looks like: {"submission_id" : {"pk" : "12345df3453453"}}
-            print "WHAT IS THE TYPE OF SUBM ID?", type(subm_id)
-            #subm_id = task_result[u'submission_id']
-            file_path = task_result['file_path']
             task_name = task_result['task_name']
+            print "WHAT IS THE TYPE OF TASK?", task_name
+            #subm_id = task_result[u'submission_id']
+            file_id = task_result['file_id']
             
-            print "ASYNC result: submissionid=", subm_id, "file:", file_path, "result: ", task_result['task_result'], "task name: ", task_name
+            
+            print "ASYNC result: submissionid=", subm_id, "file:", file_id, "result: ", task_result['task_result'], "task name: ", task_name
     
             # QUERY MongoDB:            
             submissions_set = models.Submission.objects.filter(_id=subm_id)
+            if len(submissions_set) == 0:
+                continue
             submission = submissions_set.get()
             for submitted_file in submission.files_list:
-                if submitted_file.file_path_client == file_path:
+                if submitted_file.file_id == file_id:
                     if task_name == "serapis.tasks.UploadFileTask":
                         print "TASK is UPLOAD!"
                         if task_status == "SUCCESS":

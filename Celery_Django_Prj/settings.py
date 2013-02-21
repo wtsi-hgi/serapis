@@ -42,7 +42,15 @@ AUTHENTICATION_BACKENDS = (
 #}
 
 
-CELERY_RESULT_BACKEND = "amqp"
+#CELERY_RESULT_BACKEND = "amqp"
+CELERY_RESULT_BACKEND = "mongodb"
+
+CELERY_MONGODB_BACKEND_SETTINGS = {
+    "host": "localhost",
+    "port": 27017,
+    "database": "MetadataDB",
+    "taskmeta_collection": "task_metadata",
+}
 
 connect('MetadataDB')
 
@@ -197,7 +205,15 @@ FILE_UPLOAD_HANDLERS = (
 
 FILE_UPLOAD_TEMP_DIR = "/home/ic4/tmp/serapis_staging_area"
 
-
+from serapis import controller
+from kombu import Queue, Exchange
+ 
+#CELERY_ROUTES=(controller.MyRouter(),)
+#
+#CELERY_QUEUES = (
+#                 Queue('upload', Exchange('UploadExchange'), routing_key='user.all'),
+#                 Queue('mdata', Exchange('MdataExchange'), routing_key='mdata')
+#                 )
 
 
 # A sample logging configuration. The only tangible logging

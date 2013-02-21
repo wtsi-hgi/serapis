@@ -1,9 +1,12 @@
 import json
+import errno
 from bson.objectid import ObjectId
 from serapis import tasks
 import models
 
 from celery import chain
+
+from serapis import constants
 
 
 #async_results_list = []
@@ -13,6 +16,24 @@ upload_task = tasks.UploadFileTask()
 parse_BAM_header = tasks.ParseBAMHeaderTask()
 query_seqscape = tasks.QuerySeqScapeTask()
     
+#MDATA_ROUTING_KEY = 'mdata'
+#UPLOAD_EXCHANGE = 'UploadExchange'
+#MDATA_EXCHANGE = 'MdataExchange'
+    
+#class MyRouter(object):
+#
+#    def route_for_task(self, task, args=None, kwargs=None):
+#        if task == upload_task.name:
+#            return {'exchange': constants.UPLOAD_EXCHANGE,
+#                    'exchange_type': 'topic',
+#                    'routing_key': 'user.*'}
+#        elif task == parse_BAM_header or task == query_seqscape.name:
+#            return {'exchange': constants.MDATA_EXCHANGE,
+#                    'exchange_type': 'direct',
+#                    'routing_key': constants.MDATA_ROUTING_KEY}
+#            
+#        return None
+
 
 
 def create_submission(user_id, files_list):
@@ -23,6 +44,7 @@ def create_submission(user_id, files_list):
     submission.save()
     #submission_id = submission._object_key
     submission_id = submission.id
+    print "FROM CONTROLLER _ SUBMISSION ID TYPE: ", type(submission_id)
     
     # COPY FILES IN IRODS
     submitted_files_list = []
@@ -37,13 +59,51 @@ def create_submission(user_id, files_list):
         file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=f)
         submitted_files_list.append(file_submitted)
     
-        
         # SUBMIT UPLOAD TASK TO QUEUE:
-        (upload_task.delay(file_id=file_id, submission_id=submission_id, user_id=user_id))
+        (upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
+        
+#        permission_denied = False
+#        try:
+#            # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+#            src_fd = open(f, 'rb')
+#            src_fd.close()
+#            # => PERMISSION GIVEN TO FILE
+#            # SUBMIT UPLOAD TASK TO QUEUE:
+#            (upload_task.delay(file_id=file_id, 
+#                               file_path=file_submitted.file_path_client, 
+#                               submission_id=submission_id, 
+#                               user_id=user_id, 
+#                               exchange=constants.UPLOAD_EXCHANGE,
+#                               routing_key='user.all'))
+#        except IOError as e:
+#            if e.errno == errno.EACCES:
+#                print "PERMISSION DENIED!"
+#                permission_denied = True
+#                (upload_task.delay(file_id=file_id, 
+#                               file_path=file_submitted.file_path_client, 
+#                               submission_id=submission_id, 
+#                               user_id=user_id,
+#                               queue='upload', 
+#                               exchange=constants.UPLOAD_EXCHANGE,
+#                               routing_key='user.'+user_id))
+#                
+#                
+        
         
         
         # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
-        chain(parse_BAM_header.s(submission_id, f), query_seqscape.s()).apply_async()
+        chain(parse_BAM_header.s(submission_id=submission_id, file_id=file_id, file_path=f, user_id=user_id), query_seqscape.s()).apply_async()
+        
+#        chain(parse_BAM_header.s((submission_id, 
+#                                 file_id, f),
+#                                 queue='mdata',
+#                                 exchange=constants.MDATA_EXCHANGE,
+#                                 routing_key=constants.MDATA_ROUTING_KEY, 
+#                                 link=[query_seqscape.s(retry=True, 
+#                                   retry_policy={'max_retries' : 1},
+#                                   exchange=constants.MDATA_EXCHANGE,
+#                                   routing_key=constants.MDATA_ROUTING_KEY,
+#                                   )])).apply_async()
         #parse_header_async_res = seqscape_async_res.parent
         
         
@@ -51,7 +111,10 @@ def create_submission(user_id, files_list):
     submission.save(cascade=True)
 #    validate=False
 
-    return submission_id
+    permission_denied = False
+    result = dict({'permission_denied' : permission_denied, 'submission_id' : submission_id})
+    #return submission_id
+    return result
 
 
 
@@ -84,6 +147,7 @@ def update_file_submitted(submission_id, file_id, data):
     for submitted_file in submission.files_list:
         if submitted_file.file_id == int(file_id):
             for (key, val) in data.iteritems():
+                print "KEY RECEIVED IN CONTROLLER: ", key
                 if models.SubmittedFile._fields.has_key(key):
                     setattr(submitted_file, key, val)
                 else:
@@ -93,6 +157,13 @@ def update_file_submitted(submission_id, file_id, data):
 
 
 
+# ----------------------------- HANDLE RESULTS ------------------------
+
+def handle_worker_results(data):
+    task_name = data['']
+
+
+# ---------------------------------- NOT USED ------------------
 
 # works only for the database backend, according to
 # http://docs.celeryproject.org/en/latest/reference/celery.contrib.abortable.html?highlight=abort#celery.contrib.abortable
