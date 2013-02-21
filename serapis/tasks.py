@@ -88,11 +88,16 @@ class UploadFileTask(Task):
         return md5.hexdigest()
     
     
-    
-    def run(self,  **kwargs):
+    # file_id, file_submitted.file_path_client, submission_id, user_id
+    def run(self, file_id, file_path, submission_id, user_id):
         time.sleep(2)
+        
+#        file_id = args[0]
+#        file_path = args[1]
+#        submission_id = args[2]
+#        user_id = args[3]
 
-        src_file_path = kwargs[FILE_PATH]
+        src_file_path = file_path
         
         #RESULT TO BE RETURNED:
         result = dict()
@@ -113,7 +118,7 @@ class UploadFileTask(Task):
                     result[FILE_UPLOAD_STATUS] = "SUCCESS"
                 else:
                     print "MD5 DIFFERENT!!!!!!!!!!!!!!"
-                    raise UploadFileTask.retry(self, kwargs=kwargs, countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
+                    raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id, user_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
             except MaxRetriesExceededError:
                 print "EXCEPTION MAX "
                 result[FILE_UPLOAD_STATUS] = "FAILURE"
@@ -134,13 +139,16 @@ class UploadFileTask(Task):
 
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        submission_id = kwargs['submission_id']
+        file_id = args[0]
+        file_path = args[1]
+        submission_id = args[2]
+        user_id = args[3]
         submission_id = str(submission_id)
                 
         print "UPLOAD FILES AFTER_RETURN STATUS: ", status
         print "RETVAL: ", retval
         
-        url_str = [BASE_URL, "user_id=", kwargs['user_id'], "/submission_id=", submission_id, "/file_id=", str(kwargs[FILE_ID]),"/"]
+        url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", submission_id, "/file_id=", str(file_id),"/"]
         url_str = ''.join(url_str)
 
         response = requests.put(url_str, data=serializers.serialize(retval), headers={'Content-Type' : 'application/json'})
@@ -153,7 +161,8 @@ class UploadFileTask(Task):
 
 class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PU'}
-
+    ignore_result = True
+   
     # TODO: PARSE PU - if needed
 
 
@@ -178,11 +187,15 @@ class ParseBAMHeaderTask(Task):
         return back_to_list
     
     
+    #submission_id, file_id, file_path, user_id
     def run(self, **kwargs):
-        header_json = self.get_header_mdata(kwargs['file_path'])
+        file_path = kwargs['file_path']
+        file_id = kwargs['file_id']
+        submission_id = kwargs['submission_id']
+        header_json = self.get_header_mdata(file_path)
         result = dict()
-        result[SUBMISSION_ID] = serializers.serialize(kwargs['submission_id'])
-        result[FILE_ID] = kwargs['file_id']
+        result[SUBMISSION_ID] = serializers.serialize(submission_id)
+        result[FILE_ID] = file_id
         result[TASK_RESULT] = self.process_json_header(header_json)    # options: INVALID HEADER or the actual header
         #result[TASK_NAME] = self.name
         #result = self.process_json_header(header_json)
@@ -199,6 +212,16 @@ class QuerySeqScapeTask(Task):
         submission_id = args_dict[SUBMISSION_ID]
         file_id = args_dict[FILE_ID]
         file_header = args_dict[TASK_RESULT]
+        # this looks like this: 
+        # {'DT': ['2007-11-08T00:00:00+0000'], 'LB': ['bcX98J21 1'], 'CN': ['SC'], 'SM': ['bcX98J21 1'], 'PU': ['071108_IL11_0099_2']}
+        # LB = library_name
+        # CN = center
+        # SM = sample_name
+        
+        library_name = file_header['LB']
+        seq_center = file_header['CN']
+        sample_name = file_header['SM']
+        
 
         
         result = dict()
@@ -219,18 +242,18 @@ class QuerySeqScapeTask(Task):
 
 
 
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        submission_id = kwargs['submission_id']
-        submission_id = str(submission_id)
-                
-        print "BAM HEADER AFTER_RETURN STATUS: ", status
-        print "RETVAL: ", retval
-        
-        url_str = [BASE_URL, "user_id=", kwargs['user_id'], "/submission_id=", submission_id, "/file_id=", str(kwargs[FILE_ID]),"/"]
-        url_str = ''.join(url_str)
-
-        print "BAM FILE RESULT TO BE SENT AWAY: ", retval
-        response = requests.put(url_str, headers={'Content-Type' : 'application/json'})
+#    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+#        submission_id = kwargs['submission_id']
+#        submission_id = str(submission_id)
+#                
+#        print "BAM HEADER AFTER_RETURN STATUS: ", status
+#        print "RETVAL: ", retval
+#        
+#        url_str = [BASE_URL, "user_id=", kwargs['user_id'], "/submission_id=", submission_id, "/file_id=", str(kwargs[FILE_ID]),"/"]
+#        url_str = ''.join(url_str)
+#
+#        print "BAM FILE RESULT TO BE SENT AWAY: ", retval
+#        response = requests.put(url_str, headers={'Content-Type' : 'application/json'})
         #response = requests.put(url_str, data=serializers.serialize(retval), headers={'Content-Type' : 'application/json'})
         #print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
         

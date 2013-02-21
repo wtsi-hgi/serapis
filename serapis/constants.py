@@ -1,0 +1,5 @@
+MDATA_ROUTING_KEY = 'mdata'
+UPLOAD_EXCHANGE = 'UploadExchange'
+MDATA_EXCHANGE = 'MdataExchange'
+UPLOAD_QUEUE_GENERAL = 'UploadQueueGeneral'
+MDATA_QUEUE = 'MdataQueue'

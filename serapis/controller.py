@@ -21,7 +21,6 @@ query_seqscape = tasks.QuerySeqScapeTask()
 #MDATA_EXCHANGE = 'MdataExchange'
     
 #class MyRouter(object):
-#
 #    def route_for_task(self, task, args=None, kwargs=None):
 #        if task == upload_task.name:
 #            return {'exchange': constants.UPLOAD_EXCHANGE,
@@ -39,70 +38,65 @@ query_seqscape = tasks.QuerySeqScapeTask()
 def create_submission(user_id, files_list):
     submission = models.Submission()
     submission.sanger_user_id = user_id
-    # submission.files_list = files_list
-    
     submission.save()
     #submission_id = submission._object_key
     submission_id = submission.id
-    print "FROM CONTROLLER _ SUBMISSION ID TYPE: ", type(submission_id)
     
     # COPY FILES IN IRODS
     submitted_files_list = []
     
     file_id = 0
-    for f in files_list:
+    for file_path in files_list:
         file_id+=1
         
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         file_type = "BAM"
         
-        file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=f)
+        file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
     
         # SUBMIT UPLOAD TASK TO QUEUE:
-        (upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
+        #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
         
-#        permission_denied = False
-#        try:
-#            # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-#            src_fd = open(f, 'rb')
-#            src_fd.close()
-#            # => PERMISSION GIVEN TO FILE
+        permission_denied = False
+        try:
+            # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+            src_fd = open(file_path, 'rb')
+            src_fd.close()
+#            # => WE HAVE PERMISSION TO READ FILE
 #            # SUBMIT UPLOAD TASK TO QUEUE:
-#            (upload_task.delay(file_id=file_id, 
-#                               file_path=file_submitted.file_path_client, 
-#                               submission_id=submission_id, 
-#                               user_id=user_id, 
-#                               exchange=constants.UPLOAD_EXCHANGE,
-#                               routing_key='user.all'))
-#        except IOError as e:
-#            if e.errno == errno.EACCES:
-#                print "PERMISSION DENIED!"
-#                permission_denied = True
-#                (upload_task.delay(file_id=file_id, 
-#                               file_path=file_submitted.file_path_client, 
-#                               submission_id=submission_id, 
-#                               user_id=user_id,
-#                               queue='upload', 
-#                               exchange=constants.UPLOAD_EXCHANGE,
-#                               routing_key='user.'+user_id))
-#                
-#                
+            upload_task.apply_async((file_id, 
+                                     file_submitted.file_path_client, 
+                                     submission_id, 
+                                     user_id),
+                                    queue=constants.UPLOAD_QUEUE_GENERAL)
+            #exchange=constants.UPLOAD_EXCHANGE,
+                               
+        except IOError as e:
+            print "PERMISSION DENIED!"
+            if e.errno == errno.EACCES:
+                print "PERMISSION DENIED!"
+                permission_denied = True
+                upload_task.apply_async((file_id, 
+                                         file_submitted.file_path_client, 
+                                         submission_id, 
+                                         user_id),
+                                        queue="user."+user_id)
         
         
         
         # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
-        chain(parse_BAM_header.s(submission_id=submission_id, file_id=file_id, file_path=f, user_id=user_id), query_seqscape.s()).apply_async()
+        chain(parse_BAM_header.s(submission_id=submission_id, file_id=file_id, file_path=file_path, user_id=user_id), query_seqscape.s()).apply_async()
+        
+        #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
+        # , queue=constants.MDATA_QUEUE
         
 #        chain(parse_BAM_header.s((submission_id, 
-#                                 file_id, f),
-#                                 queue='mdata',
-#                                 exchange=constants.MDATA_EXCHANGE,
-#                                 routing_key=constants.MDATA_ROUTING_KEY, 
+#                                 file_id, file_path, user_id),
+#                                 queue=constants.MDATA_QUEUE, 
 #                                 link=[query_seqscape.s(retry=True, 
 #                                   retry_policy={'max_retries' : 1},
-#                                   exchange=constants.MDATA_EXCHANGE,
-#                                   routing_key=constants.MDATA_ROUTING_KEY,
+#                                   queue=constants.MDATA_QUEUE
 #                                   )])).apply_async()
         #parse_header_async_res = seqscape_async_res.parent
         
@@ -111,7 +105,6 @@ def create_submission(user_id, files_list):
     submission.save(cascade=True)
 #    validate=False
 
-    permission_denied = False
     result = dict({'permission_denied' : permission_denied, 'submission_id' : submission_id})
     #return submission_id
     return result
