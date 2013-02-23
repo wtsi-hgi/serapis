@@ -35,13 +35,13 @@ class Study(DynamicEmbeddedDocument):
     study_title = StringField()
     study_faculty_sponsor = StringField()
     study_ena_project_id = StringField()
+    reference_genome = StringField()    
     
     #samples_list = ListField(ReferenceField('Sample'))
     
     ######## OPTIONAL FIELDS:
     #internal_id = IntField() # to be used only for link table
     #description = StringField()
-    # reference_genome = StringField()
     # remove_x_and_autosomes = StringField()
     
 #        
@@ -58,6 +58,7 @@ class Library(DynamicEmbeddedDocument):
     library_name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
+    library_barcode = StringField()
     
     # refField - lane
     # a library is tight to a specific sample
@@ -77,8 +78,9 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
     sample_name = StringField() # UNIQUE
     sample_public_name = StringField()
     sample_tissue_type = StringField() 
+    reference_genome = StringField()    
+
     
-    #library_list = ListField(EmbeddedDocumentField(Library))
     #study_list = ListField(ReferenceField(Study))
     
     
@@ -97,6 +99,8 @@ class Individual(DynamicEmbeddedDocument):
     ethnicity = StringField()
     geographical_region = StringField()
     organism = StringField()
+    common_name = StringField()
+    
     #samples_list = ListField(ReferenceField(Sample))
     
     # OPTIONAL:

@@ -69,11 +69,11 @@ def create_submission(user_id, files_list):
                                      file_submitted.file_path_client, 
                                      submission_id, 
                                      user_id),
-                                    queue=constants.UPLOAD_QUEUE_GENERAL)
+                                    )
+            #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
             #exchange=constants.UPLOAD_EXCHANGE,
                                
         except IOError as e:
-            print "PERMISSION DENIED!"
             if e.errno == errno.EACCES:
                 print "PERMISSION DENIED!"
                 permission_denied = True
@@ -82,6 +82,8 @@ def create_submission(user_id, files_list):
                                          submission_id, 
                                          user_id),
                                         queue="user."+user_id)
+            else:
+                raise
         
         
         
@@ -111,6 +113,7 @@ def create_submission(user_id, files_list):
 
 
 
+# TODO: with each PUT request, check if data is complete => change status of the submission or file
 
 def update_submission(submission_id, data):
     subm_id_obj = ObjectId(submission_id)
@@ -130,6 +133,7 @@ def update_submission(submission_id, data):
             raise KeyError
     submission.save(validate=False)
 
+# TODO: with each PUT request, check if data is complete => change status of the submission or file
 
 
 def update_file_submitted(submission_id, file_id, data):
