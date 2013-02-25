@@ -1,4 +1,3 @@
-from celery import task 
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 
@@ -7,16 +6,17 @@ import os
 import requests
 import errno
 
-       
+import simplejson       
 import time
 import hashlib
 #import MySQLdb
 from MySQLdb import connect, cursors
 from MySQLdb import Error as mysqlError
+from MySQLdb import OperationalError
 
-import serializers
+#import serializers
 from serapis import constants
-from django.contrib.auth.models import User
+
 
 
 BASE_URL = "http://localhost:8000/api-rest/submissions/"
@@ -35,12 +35,28 @@ SAMPLE_LIST = 'sample_list'
 INDIVIDUALS_LIST = 'individuals_list'
 
 
+FILE_ERROR_LOG = 'file_error_log'
 FILE_UPLOAD_STATUS = "file_upload_status"   #("SUCCESS", "FAILURE")
+FILE_SEQSCAPE_MDATA_STATUS = 'file_seqsc_mdata_status'
 MD5 = "md5"
 
+#---------- Auxiliary functions ------------
+
+def serialize(data):
+    return simplejson.dumps(data)
 
 
+def deserialize(data):
+    return simplejson.loads(data)
 
+
+def build_url(user_id, submission_id, file_id):
+    url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    url_str = ''.join(url_str)
+    return url_str
+
+
+# --------------------- TASKS --------------
 
 class TaskResult():
     def __init__(self, task_name, task_result, submission_id, file_id):
@@ -49,20 +65,16 @@ class TaskResult():
         self.submission_id = submission_id
         self.file_id = file_id
         
-
-
-
-
-class GetFolderContent(Task):
-    def run(self, path):
-        from os import walk
-        files_list = []
-        folders_list = []
-        for (dirpath, dirname, filenames) in walk(path):
-            files_list.extend(filenames)
-            folders_list.extend(dirname)
-            break
-
+#
+#class GetFolderContent(Task):
+#    def run(self, path):
+#        from os import walk
+#        files_list = []
+#        folders_list = []
+#        for (dirpath, dirname, filenames) in walk(path):
+#            files_list.extend(filenames)
+#            folders_list.extend(dirname)
+#            break
 
 
 class UploadFileTask(Task):
@@ -121,25 +133,29 @@ class UploadFileTask(Task):
                 if md5_src == md5_dest:
                     print "MD5 are EQUAL! CONGRAAAATS!!!"
                     result[MD5] = md5_src
-                    result[FILE_UPLOAD_STATUS] = "SUCCESS"
                 else:
                     print "MD5 DIFFERENT!!!!!!!!!!!!!!"
                     raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id, user_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
             except MaxRetriesExceededError:
                 print "EXCEPTION MAX "
-                result[FILE_UPLOAD_STATUS] = "FAILURE"
+                #result[FILE_UPLOAD_STATUS] = "FAILURE"
+                result[FILE_ERROR_LOG] = "ERROR COPYING - DIFFERENT MD5. NR OF RETRIES EXCEEDED."
+                raise
         
         except IOError as e:
             if e.errno == errno.EACCES:
                 print "PERMISSION DENIED!"
-
+                result[FILE_ERROR_LOG] = "ERROR COPYING - PERMISSION DENIED."
+        
                 ##### TODO ####
                 # If permission denied...then we have to put a new UPLOAD task in the queue with a special label,
                 # to be executed on user's node...  
                 # result[FAILURE_CAUSE : PERMISSION_DENIED]
             else:
                 print "OTHER IO ERROR FOUND: ", e.errno
-        
+                result[FILE_ERROR_LOG] = "ERROR COPYING FILE - IO ERROR: "+e.errno
+            raise
+
         return result
 
 
@@ -152,12 +168,26 @@ class UploadFileTask(Task):
         submission_id = str(submission_id)
                 
         print "UPLOAD FILES AFTER_RETURN STATUS: ", status
-        print "RETVAL: ", retval
-        
-        url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", submission_id, "/file_id=", str(file_id),"/"]
-        url_str = ''.join(url_str)
+        print "RETVAL: ", retval, "TYPE -------------------", type(retval)
 
-        response = requests.put(url_str, data=serializers.serialize(retval), headers={'Content-Type' : 'application/json'})
+        result = dict()        
+        if status == "RETRY":
+            return
+        elif status == "FAILURE":
+            result[FILE_UPLOAD_STATUS] = "FAILURE"
+            if isinstance(retval, MaxRetriesExceededError):
+                result[FILE_ERROR_LOG] = "ERROR IN UPLOAD - DIFFERENT MD5. NR OF RETRIES EXCEEDED."
+            elif isinstance(retval, IOError):
+                result[FILE_ERROR_LOG] = "IO ERROR"
+        elif status == "SUCCESS":
+            result = retval
+            result[FILE_UPLOAD_STATUS] = "SUCCESS"
+        else:
+            print "DIFFERENT STATUS THAN THE ONES KNOWN: ", status
+            return
+            
+        url_str = build_url(user_id, submission_id, file_id)
+        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
         print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
         
 #        if response.status_code is not 200:
@@ -170,7 +200,6 @@ class ParseBAMHeaderTask(Task):
     ignore_result = True
    
     # TODO: PARSE PU - if needed
-
 
     def get_header_mdata(self, file_path):
         bamfile = pysam.Samfile(file_path, "rb" )
@@ -199,20 +228,31 @@ class ParseBAMHeaderTask(Task):
         file_path = kwargs['file_path']
         file_id = kwargs['file_id']
         submission_id = kwargs['submission_id']
-        header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
-        header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} 
         result = dict()
-        result[SUBMISSION_ID] = str(submission_id)
-        result[FILE_ID] = file_id
-        result[TASK_RESULT] = header_processed    # options: INVALID HEADER or the actual header
-        result[USER_ID] = user_id
-        #result[TASK_NAME] = self.name
-        #result = self.process_json_header(header_json)
-        print "RESULT FROM BAM HEADER: ", result
+        
+        try:
+            header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
+            header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} 
+            result[SUBMISSION_ID] = str(submission_id)
+            result[FILE_ID] = file_id
+            result[USER_ID] = user_id
+            result[TASK_RESULT] = header_processed    # options: INVALID HEADER or the actual header
+            print "RESULT FROM BAM HEADER: ", result
+        except ValueError:
+            result[FILE_ERROR_LOG] = "ERROR PARSING BAM FILE. HEADER INVALID. IS THIS BAM FILE?"
+            url_str = build_url(user_id, submission_id, file_id)
+            response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
+            print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+            raise
         return result
-
-    
-
+#
+#    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+#        if status == "FAILURE":
+#            print "BAM FILE HEADER PARSING FAILED - THIS IS RETVAL: ", retval
+#            url_str = [BASE_URL, "user_id=", kwargs['user_id'], "/submission_id=", str(kwargs['submission_id']), "/file_id=", str(kwargs['file_id']),"/"]
+#            url_str = ''.join(url_str)
+#            response = requests.put(url_str, data=serialize(retval), headers={'Content-Type' : 'application/json'})
+#            print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
 
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
 # then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
@@ -220,7 +260,7 @@ class ParseBAMHeaderTask(Task):
 # libs and decides whether it is complete or not
 
 class QuerySeqScapeTask(Task):
-
+    ignore_result = True
     def connect(self, host, port, user, db):
         try:
             conn = connect(host=host,
@@ -231,6 +271,10 @@ class QuerySeqScapeTask(Task):
                                  )
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
+            raise
+        except OperationalError as e:
+            print "OPERATIONAL ERROR: ", e.message
+            raise
         return conn
     
     
@@ -262,11 +306,12 @@ class QuerySeqScapeTask(Task):
         '''This method queries SeqScape for a given sample_name.'''
         try:
             cursor = connection.cursor()
-            cursor.execute("select uuid, internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where name=%s;", sample_name)
+            # uuid, 
+            cursor.execute("select internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where name=%s;", sample_name)
             data = cursor.fetchone()
             if data is None:    # SM may be sample_name or accession_number in SEQSC
-                cursor.execute("select uuid, internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where accession_number=%s;", sample_name)
-                data = cursor.fetchone()
+                cursor.execute("select internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where accession_number=%s;", sample_name)
+                data = cursor.fetchone()    # uuid 
                 print "DB result: reference:", data['reference_genome'], "ethnicity ", data['ethnicity']
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
@@ -276,7 +321,7 @@ class QuerySeqScapeTask(Task):
     def get_library(self, connection, library_name):
         try:
             cursor = connection.cursor()
-            cursor.execute("select uuid, internal_id, library_type, public_name, barcode from current_library_tubes where name=%s;", library_name)
+            cursor.execute("select internal_id, library_type, public_name, barcode from current_library_tubes where name=%s;", library_name)
             data = cursor.fetchone()
             if data is not None:
                 print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
@@ -292,9 +337,9 @@ class QuerySeqScapeTask(Task):
     
     def run(self, args_dict):
         print "THIS IS WHAT SEQSC TAASSKK RECEIVED: ", args_dict
-        user_id = args_dict[USER_ID]
-        submission_id = args_dict[SUBMISSION_ID]
-        file_id = args_dict[FILE_ID]
+#        user_id = args_dict[USER_ID]
+#        submission_id = args_dict[SUBMISSION_ID]
+#        file_id = args_dict[FILE_ID]
         file_header = args_dict[TASK_RESULT]
         # this looks like this: 
         # [{'DT': ['2007-11-08T00:00:00+0000'], 'LB': ['bcX98J21 1'], 'CN': ['SC'], 'SM': ['bcX98J21 1'], 'PU': ['071108_IL11_0099_2']}]
@@ -305,18 +350,19 @@ class QuerySeqScapeTask(Task):
         # So the info from header looks like:
         #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} => iterate over  each list
         
-        
+        result = dict()
         library_list = file_header['LB']
         seq_center_name_list = file_header['CN']
         sample_name_list = file_header['SM']
 
         is_complete = True
-        result_library_list = []        
+        result_library_list = []   
         connection = self.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)
-        for lib in library_list:
-            lib_data = self.get_library(connection, lib)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+        for lib_name in library_list:
+            lib_data = self.get_library(connection, lib_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
             if lib_data is None:
                 is_complete = False
+                result_library_list.append({"library_name" : lib_name})
             else:
                 result_library_list.append(lib_data)
         
@@ -344,21 +390,17 @@ class QuerySeqScapeTask(Task):
         print "IS COMPLETE: ", is_complete
         
         
-        result = dict()
-        result[SUBMISSION_ID] = str(submission_id)
-        result[USER_ID] = user_id
-        result[FILE_ID] = file_id
-        result[TASK_RESULT] = "TOKEN PASSED from SEQ scape." #
-        result[TASK_NAME] = self.name                       #
-        result[STUDY_LIST] = [{'study_name' : '123'}]       #
-#        result[LIBRARY_LIST] = [{'library_name' : "lib1"}]
-#        result[SAMPLE_LIST] = [{"sample_name" : "sample1"}]
-#        result[INDIVIDUALS_LIST] = [{"gender" : "M"}]
-
+        
         result[LIBRARY_LIST] = result_library_list
         result[SAMPLE_LIST] = result_sample_list
         result[INDIVIDUALS_LIST] = result_individual_list
-        result['query_status'] = "COMPLETE"   # INCOMPLETE or...("COMPLETE", "INCOMPLETE", "IN_PROGRESS", TOTALLY_MISSING")
+        
+        # TODO: THINK about the statuses...which ones remain, which ones go...
+        if is_complete:
+            result['file_seqsc_mdata_status'] = "COMPLETE"
+        else:
+            result['file_seqsc_mdata_status'] = "INCOMPLETE" 
+        #result['query_status'] = "COMPLETE"   # INCOMPLETE or...("COMPLETE", "INCOMPLETE", "IN_PROGRESS", TOTALLY_MISSING")
         
         time.sleep(2)
         
@@ -373,51 +415,65 @@ class QuerySeqScapeTask(Task):
 
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        args = args[0]  # args is a tuple containing a dictionary with the arguments of the run fct
+        #if status == "SUCCESS":
+        print "ARGS in AFTER RETURN for SEQSCAPE.................", args
+        submission_id = str(args['submission_id'])
+        print "SEQSCAPE AFTER_RETURN STATUS: ", status
+        print "SEQSCAPE RESULT TO BE SENT AWAY: ", retval
         
-        print "AFTER TASK RETURN _ ARGS RECEIVED HEREEEEE...", args
-        if status == "SUCCESS":
-            submission_id = str(retval['submission_id'])
-            print "SEQSCAPE AFTER_RETURN STATUS: ", status
-            print "SEQSCAPE RESULT TO BE SENT AWAY: ", retval
-            
-            url_str = [BASE_URL, "user_id=", retval['user_id'], "/submission_id=", submission_id, "/file_id=", str(retval[FILE_ID]),"/"]
-            url_str = ''.join(url_str)
-   
-            data_to_send = retval.pop('submission_id')
-            data_to_send = retval.pop('user_id')
-            data_to_send = retval.pop('task_name')
-            data_to_send = retval.pop('file_id')
-            data_to_send = retval.pop('task_result')
-            data_to_send = retval.pop('query_status')
+        result = dict()        
+        if status == "RETRY":
+            return
+        elif status == "FAILURE":
+            if isinstance(retval, OperationalError):
+                result[FILE_ERROR_LOG] = "SEQSCAPE - CAN'T CONNECT TO MYSQL SERVER "
+            result[FILE_SEQSCAPE_MDATA_STATUS] = "FAILURE"
+        elif status == "SUCCESS":
+            result = retval
+            result[FILE_SEQSCAPE_MDATA_STATUS] = "SUCCESS"
+        else:
+            print "DIFFERENT STATUS THAN THE ONES KNOWN: ", status
+            return
+        
+        print "MESSAGE TO SEND FROM SEQSCAPE TASK BACK ON FAILURE: ", result
+        url_str = build_url(args['user_id'], submission_id, str(args['file_id']))
+        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
+        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+        #elif status == "FAILURE":
+        
+        
+        
+class QuerySeqscapeForStudyTask(Task):
+    def get_study(self, connection, study_field, study_value):
+        ''' Query SequenceScape for the study which has study_field=study_value '''
+        try:
+            cursor = connection.cursor()
+            query = "select uuid, study_name, study_type, study_title, study_faculty, study_ena_project_id, reference_genome from current_studies where"
+            query = query + study_field + "=" + study_value + ";"
+            cursor.execute(query)
+            data = cursor.fetchone()
+            if data is not None:
+                print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
+                data = self.filter_nulls(data)
+            else:
+                print "LIBRARY NOT FOUND IN SEQSCAPE!!!!!"
+                
+        except mysqlError as e:
+            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
+        return data
+
     
-            print "URL SEQSCAPE BE SENT AWAY: ", url_str 
-            response = requests.put(url_str, data=serializers.serialize(retval), headers={'Content-Type' : 'application/json'})
-            print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+    def run(self, **kwargs):
+        # kwargs: file_id, study_field_name, submission_id, study_field_value
+        file_id = kwargs['file_id']
+        study_field_name = kwargs['study_field_name']
+        study_field_val = kwargs['study_field_value'] 
+        submission_id = kwargs['submission_d']
         
-        # TO DO: To parse this retval in view_classes:
-        #actually this one:
-        #SEQ SCAPE RESULT BEFORE SENDING IT:
-#[2013-02-22 17:09:04,485: WARNING/PoolWorker-2] 
-# {'library_list': [], 'submission_id': '5127a62dd836193256f18f84', 'user_id': u'ic6', 
-#  'task_name': 'serapis.tasks.QuerySeqScapeTask', 
-#  'individuals_list': [{'common_name': 'Homo sapiens', 
-#  'organism': 'Human'}], 'study_list': [{'study_name': '123'}], 
-#  'sample_list': [{'uuid': '\x0f]\xe5\xfe\xb9\xc3\x11\xdf\x9ef\x00\x14O\x01\xa4\x14', 'internal_id': 9476L}], 
-#  'file_id': 1, 'task_result': 'TOKEN PASSED from SEQ scape.', 'query_status': 'COMPLETE'}
-
+        connection = self.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)
+        study = self.get_study(connection, study_field_name, study_field_val)
         
-# [2013-02-22 17:09:04,798: WARNING/PoolWorker-2] 
-#{'library_list': [], 'submission_id': '5127a62dd836193256f18f84', 'user_id': u'ic6', 
-#'task_name': 'serapis.tasks.QuerySeqScapeTask', 
-#'individuals_list': [{'common_name': 'Homo sapiens', 'organism': 'Human'}], 
-#'study_list': [{'study_name': '123'}], 
-#'sample_list': [{'uuid': '\x0f]\xe5\xfe\xb9\xc3\x11\xdf\x9ef\x00\x14O\x01\xa4\x14', 'internal_id': 9476L}], 'file_id': 1, 'task_result': 'TOKEN PASSED from SEQ scape.', 'query_status': 'COMPLETE'}
-        
-        
-        #response = requests.put(url_str, data=serializers.serialize(retval), headers={'Content-Type' : 'application/json'})
-        #print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
-        
-
         
         
 
@@ -450,39 +506,6 @@ def query_seqscape2():
 #query_seqscape()
 
 
-
-
-def callbck(buf):
-    print "Answer received: ", buf
-#
-def curl_test():
-    import pycurl
-    
-    c = pycurl.Curl()
-    #c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/846f71fc-5641-11e1-a98a-3c4a9275d6c6')
-    #c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/')
-    c.setopt(c.URL, 'http://psd-production.internal.sanger.ac.uk:6600/api/1/assets/EGAN00001059975')
-    
-    c.setopt(c.HTTPHEADER, ["Accept:application/json", "Cookie:WTSISignOn=UmFuZG9tSVZFF6en9bYhSsWqZIcihQgIwMLJzK0l2sClmLtoqNQg9mHzDXaSDfdC", "Content-type: application/json"])
-    #c.setopt(c.USERPWD, '')
-    c.setopt(c.WRITEFUNCTION, callbck)
-    c.setopt(c.CONNECTTIMEOUT, 10)
-    c.setopt(c.TIMEOUT, 10)
-    c.setopt(c.PROXY, 'localhost')
-    c.setopt(c.PROXYPORT, 3128)#    
-    #c.setopt(c.HTTPPROXYTUNNEL, 1)
-    
-    passw = open('/home/ic4/local/private/other.txt', 'r').read()
-    c.setopt(c.PROXYUSERPWD, "ic4:"+passw)
-    c.perform()
-
-#curl_test()
-
-
-
-@task
-def parse_VCF_header():
-    pass
 
 
 

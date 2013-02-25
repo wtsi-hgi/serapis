@@ -130,6 +130,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
     file_metadata_status = StringField(choices=FILE_MDATA_STATUS)
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)
     
+    file_error_log = ListField(StringField())
     
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))

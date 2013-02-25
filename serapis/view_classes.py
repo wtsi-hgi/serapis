@@ -22,8 +22,7 @@ from os import listdir
 from os.path import isfile, join
 from bson.objectid import ObjectId
 import serializers
-import simplejson
-
+import errno
         
         
         
@@ -44,7 +43,7 @@ class GetOrModifySubmission(APIView):
         submission_qset = models.Submission.objects(_id=subm_obj_id)
         submission = submission_qset.get()
         subm_serialized = serializers.serialize(submission)
-        return Response(subm_serialized)
+        return Response("Submission: "+subm_serialized)
     
     # PUT = modify this submission - update metadata for it
     def put(self, request, user_id, submission_id, format=None):
@@ -63,7 +62,7 @@ class GetOrCreateSubmissions(APIView):
     def get(self, request, user_id, format=None):
         submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
         subm_serialized = serializers.serialize(submission_list)
-        return Response(subm_serialized)
+        return Response("Submission list: "+subm_serialized)
     
     
     # POST = create a new submission, for uploading the list of files given as param
@@ -73,20 +72,39 @@ class GetOrCreateSubmissions(APIView):
         files = data_deserial["files"]
         
         mypath = "/home/ic4/data-test/bams"
+        
         files_list = []
         for f in listdir(mypath):
             if isfile(join(mypath, f)):
                 files_list.append(f)
         
         # TO DELETE THis line...        
-        files_list = ["/home/ic4/data-test/bams/99_2.bam"]
+        #files_list = ["/home/ic4/data-test/bams/99_2.bam"]
+        #files_list = ["/home/ic4/data-test/bams/HG00242.chrom11.ILLUMINA.bwa.GBR.low_coverage.20120522.bam"]
+        #files_list = ["/home/ic4/tmp/shellScript.sh"]
+        
         #files_list = ["/home/ic4/tmp/adag.xml"]
         
-        submission_id = controller.create_submission(user_id, files_list)
-        submission_id_serialized = ObjectIdEncoder().encode(submission_id)
-        return Response(submission_id_serialized, status=201)
-    
-    
+        #submission_id = controller.create_submission(user_id, files_list)
+        
+        files_list= files
+        try:
+            result_dict = controller.create_submission(user_id, files_list)
+            submission_id = result_dict['submission_id']
+            permission_denied = result_dict['permission_denied']
+            #submission_id_serialized = ObjectIdEncoder().encode(submission_id)
+            submission_id_serialized = str(submission_id)
+            if permission_denied:
+                return Response("PERMISSION DENIED! PLEASE RUN THE SCRIPT x ON YOUR MACHINE! Submission id: "+submission_id_serialized, status=202)
+            else:
+                return Response("Created the submission with id="+submission_id_serialized, status=201)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                print "NO SUCH FILE"
+                return Response("No such file!!!", status=422) # Unprocessable Entity - here TODO: think about the functionality - subm created or NOT?
+                # or 424: Method Failure
+            else:
+                return Response(status=424)
     
 
 # Get all submissions with this status created by this user
@@ -100,7 +118,7 @@ class GetSubmissionStatus(APIView):
 
 
 
-#---------------- HANDLE SUBMITTED FILE ------------------------
+#---------------- HANDLE 1 SUBMITTED FILE ------------------------
 
     
 class GetOrModifySubmittedFile(APIView):
@@ -118,9 +136,9 @@ class GetOrModifySubmittedFile(APIView):
         data = request.DATA
         try:
             controller.update_file_submitted(submission_id, file_id, data)
-            return Response(status=200)
+            return Response("Successfully updated!", status=200)
         except KeyError:
-            return Response(status=400)
+            return Response("Bad request", status=400)
 
     
         

@@ -15,6 +15,7 @@ from serapis import constants
 upload_task = tasks.UploadFileTask()
 parse_BAM_header = tasks.ParseBAMHeaderTask()
 query_seqscape = tasks.QuerySeqScapeTask()
+query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
     
 #MDATA_ROUTING_KEY = 'mdata'
 #UPLOAD_EXCHANGE = 'UploadExchange'
@@ -34,65 +35,40 @@ query_seqscape = tasks.QuerySeqScapeTask()
 #        return None
 
 
-
-def create_submission(user_id, files_list):
-    submission = models.Submission()
-    submission.sanger_user_id = user_id
-    submission.save()
-    #submission_id = submission._object_key
-    submission_id = submission.id
-    
-    # COPY FILES IN IRODS
-    submitted_files_list = []
-    
-    file_id = 0
-    for file_path in files_list:
-        file_id+=1
-        
-        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
-        file_type = "BAM"
-        
-        file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
-        submitted_files_list.append(file_submitted)
-    
-        # SUBMIT UPLOAD TASK TO QUEUE:
-        #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
-        
-        permission_denied = False
-        try:
-            # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-            src_fd = open(file_path, 'rb')
-            src_fd.close()
+def launch_jobs_for_file(file_id, file_path, submission_id, user_id):
+    # SUBMIT UPLOAD TASK TO QUEUE:
+    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
+    permission_denied = False
+    try:
+        # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+        src_fd = open(file_path, 'rb')
+        src_fd.close()
 #            # => WE HAVE PERMISSION TO READ FILE
 #            # SUBMIT UPLOAD TASK TO QUEUE:
-            upload_task.apply_async((file_id, 
-                                     file_submitted.file_path_client, 
-                                     submission_id, 
-                                     user_id),
-                                    )
-            #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
-            #exchange=constants.UPLOAD_EXCHANGE,
-                               
-        except IOError as e:
-            if e.errno == errno.EACCES:
-                print "PERMISSION DENIED!"
-                permission_denied = True
-                upload_task.apply_async((file_id, 
-                                         file_submitted.file_path_client, 
-                                         submission_id, 
-                                         user_id),
-                                        queue="user."+user_id)
-            else:
-                raise
+        upload_task.apply_async((file_id, file_path, submission_id, user_id))
+        #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
+        #exchange=constants.UPLOAD_EXCHANGE,
+   
+        ########## PROBLEM!!! => IF PERMISSION DENIED I CAN@T PARSE THE HEADER!!! 
+        ## I have to wait until the copying problem gets solved and afterwards to analyse the file
+        ## by reading it from iRODS
         
-        
-        
+            
         # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
         chain(parse_BAM_header.s(submission_id=submission_id, file_id=file_id, file_path=file_path, user_id=user_id), query_seqscape.s()).apply_async()
         
-        #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
-        # , queue=constants.MDATA_QUEUE
-        
+   
+    except IOError as e:
+        if e.errno == errno.EACCES:
+            print "PERMISSION DENIED!"
+            permission_denied = True
+            upload_task.apply_async((file_id, file_path, submission_id, user_id), queue="user."+user_id)
+        else:
+            raise
+
+    #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
+    # , queue=constants.MDATA_QUEUE
+    
 #        chain(parse_BAM_header.s((submission_id, 
 #                                 file_id, file_path, user_id),
 #                                 queue=constants.MDATA_QUEUE, 
@@ -100,15 +76,32 @@ def create_submission(user_id, files_list):
 #                                   retry_policy={'max_retries' : 1},
 #                                   queue=constants.MDATA_QUEUE
 #                                   )])).apply_async()
-        #parse_header_async_res = seqscape_async_res.parent
+    #parse_header_async_res = seqscape_async_res.parent
+    return permission_denied
+    
+
+
+def create_submission(user_id, files_list):
+    submission = models.Submission()
+    submission.sanger_user_id = user_id
+    submission.save()
+    submission_id = submission.id
+    submitted_files_list = []
+    file_id = 0
+    for file_path in files_list:        
+        file_id+=1
         
-        
+        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
+        file_type = "BAM"
+        file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
+        submitted_files_list.append(file_submitted)
+        permission_denied = launch_jobs_for_file(file_id, file_path, submission_id, user_id)
+    
     submission.files_list = submitted_files_list
+    submission.submission_status = "IN_PROGRESS"
     submission.save(cascade=True)
 #    validate=False
-
     result = dict({'permission_denied' : permission_denied, 'submission_id' : submission_id})
-    #return submission_id
     return result
 
 
@@ -147,6 +140,8 @@ def update_file_submitted(submission_id, file_id, data):
                 print "KEY RECEIVED IN CONTROLLER: ", key
                 if models.SubmittedFile._fields.has_key(key):
                     setattr(submitted_file, key, val)
+                elif models.Study._fields.has_key(key):
+                    query_study_seqscape.apply_async(file_id=file_id, study_field_name=key, study_field_value=val, submission_id=submission_id)
                 else:
                     raise KeyError
     submission.save(validate=False)            
