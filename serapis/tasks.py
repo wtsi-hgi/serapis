@@ -51,7 +51,8 @@ def deserialize(data):
 
 
 def build_url(user_id, submission_id, file_id):
-    url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    url_str = [BASE_URL,  "submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
     url_str = ''.join(url_str)
     return url_str
 
@@ -240,6 +241,7 @@ class ParseBAMHeaderTask(Task):
             print "RESULT FROM BAM HEADER: ", result
         except ValueError:
             result[FILE_ERROR_LOG] = "ERROR PARSING BAM FILE. HEADER INVALID. IS THIS BAM FILE?"
+            result['file_header_mdata_status'] = "FAILURE"
             url_str = build_url(user_id, submission_id, file_id)
             response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
             print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response

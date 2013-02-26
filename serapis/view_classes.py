@@ -38,7 +38,8 @@ import errno
 
 # Get the submission with this submission_id or modify it
 class GetOrModifySubmission(APIView):
-    def get(self, request, user_id, submission_id, format=None):
+    def get(self, request, submission_id, format=None):
+        user_id = "ic4"
         subm_obj_id = ObjectId(submission_id)
         submission_qset = models.Submission.objects(_id=subm_obj_id)
         submission = submission_qset.get()
@@ -46,7 +47,7 @@ class GetOrModifySubmission(APIView):
         return Response("Submission: "+subm_serialized)
     
     # PUT = modify this submission - update metadata for it
-    def put(self, request, user_id, submission_id, format=None):
+    def put(self, request, submission_id, format=None):
         data = request.DATA
         try:
             controller.update_submission(submission_id, data)
@@ -59,14 +60,16 @@ class GetOrModifySubmission(APIView):
 
 class GetOrCreateSubmissions(APIView):
     # GET all the submissions for a user_id
-    def get(self, request, user_id, format=None):
+    def get(self, request, format=None):
+        user_id = "ic4"
         submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
         subm_serialized = serializers.serialize(submission_list)
         return Response("Submission list: "+subm_serialized)
     
     
     # POST = create a new submission, for uploading the list of files given as param
-    def post(self, request, user_id, format=None):
+    def post(self, request, format=None):
+        user_id = "ic4"
         data = request.POST['_content']
         data_deserial = json.loads(data)
         files = data_deserial["files"]
@@ -109,7 +112,8 @@ class GetOrCreateSubmissions(APIView):
 
 # Get all submissions with this status created by this user
 class GetSubmissionStatus(APIView):
-    def get(self, request, user_id, submission_id):
+    def get(self, request, submission_id):
+        user_id = "ic4"
         submission_list = models.Submission.objects.filter(_id=ObjectId(submission_id), sanger_user_id=user_id)
         
         # TO DO - INCOMPLETE - just returns the files, not the status
@@ -122,7 +126,8 @@ class GetSubmissionStatus(APIView):
 
     
 class GetOrModifySubmittedFile(APIView):
-    def get(self, request, user_id, submission_id, file_id):
+    def get(self, request, submission_id, file_id):
+        user_id = "ic4"
         subm_obj_id = ObjectId(submission_id)
         query_set = models.Submission.objects(_id=subm_obj_id)
         submission = query_set.get()
@@ -132,7 +137,8 @@ class GetOrModifySubmittedFile(APIView):
         return Response(result)
 
     
-    def put(self, request, user_id, submission_id, file_id):
+    def put(self, request, submission_id, file_id):
+        user_id = "ic4"
         data = request.DATA
         try:
             controller.update_file_submitted(submission_id, file_id, data)

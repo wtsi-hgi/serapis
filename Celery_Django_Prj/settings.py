@@ -205,8 +205,7 @@ FILE_UPLOAD_HANDLERS = (
 
 FILE_UPLOAD_TEMP_DIR = "/home/ic4/tmp/serapis_staging_area"
 
-from serapis import controller
-from kombu import Queue, Exchange
+#from kombu import Queue, Exchange
  
 #CELERY_ROUTES=(controller.MyRouter(),)
 #
