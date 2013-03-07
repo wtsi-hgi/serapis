@@ -67,15 +67,6 @@ def build_url(submission_id, file_id):
 
 
 
-def init_result(user_id, file_id, file_path, submission_id):
-    result = dict()
-    result['file_id'] = file_id
-    result['submission_id'] = submission_id
-    result['file_path'] = file_path
-    result['user_id'] = user_id
-    return result
-
-
 ####### CLASS THAT ONLY DEALS WITH SEQSCAPE DB ######
 class QuerySeqScape():
     
@@ -106,24 +97,15 @@ class QuerySeqScape():
             query = query + sample_field_name + "='" + sample_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
-            
-#            print "SAMPLE DATA FOUND FROM FIRST QUERY: ", data
-#            if len(data) == 0:  # SM may be sample_name or accession_number in SEQSC
-#                cursor.execute("select internal_id, name, sanger_sample_id, public_name, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where accession_number=%s;", sample_name)
-#                data = cursor.fetchall()    # uuid 
-##                if data != None:
-##                    data['accession_number'] = sample_name
-#                #print "DB result: reference:", data['reference_genome'], "ethnicity ", data['ethnicity']
-#            print "DATA SAMPLE FOUND: ", data
+            print "DATABASE SAMPLES FOUND: ", data
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
         return data
     
     
     
-    # TODO: choose only the rows where is_current = 1
-    # Deal with query returning multiple rows 
-    # Modify fct so that it gets as parameter also sample_name => MULTIPLE ROWS
+    # TODO: Modify fct so that it gets as parameter multiple query criteria
+    # TODO: deal differently with diff exceptions thrown here, + try reconnect if connection fails
     def get_library_data(self, connection, library_field_name, library_field_val):
         data = None
         try:
@@ -131,31 +113,13 @@ class QuerySeqScape():
             query = "select internal_id, name, library_type, public_name from current_library_tubes where " + library_field_name + "='" + library_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
-            
-            print "TYPE of data FETCHALL: ", type(data), "and items: ", len(data), " items: ", data
-            if len(data) > 0:
-                for i in range(len(data)):
-                    #print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
-                    #data[LIBRARY_NAME] = library_name
-                    print "EACH ITEM: ", data[i]
-            else:
-                print "LIBRARY NOT FOUND IN SEQSCAPE!!!!!"
-            print "Libraries FOUND: ", data
-            
+            print "DATABASEL Libraries FOUND: ", data
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
         return data
     
     
-#STUDY_ACCESSION_NR = 'study_accession_nr'
-#STUDY_NAME = 'study_name'
-#STUDY_TYPE = 'study_type'
-#STUDY_TITLE = 'study_title'
-#STUDY_FACULTY_SPONSOR = 'study_faculty_member'
-#ENA_PROJECT_ID = 'ena_project_id'
-#STUDY_REFERENCE_GENOME = 'study_reference_genome'
 
-    
     def get_study_data(self, connection, study_field_name, study_field_val):
         try:
             cursor = connection.cursor()
@@ -163,12 +127,7 @@ class QuerySeqScape():
             query = query + study_field_name + "=" + study_field_val + "and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
-            if len(data) > 0:
-                print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
-                #data = self.filter_nulls(data)
-            else:
-                print "LIBRARY NOT FOUND IN SEQSCAPE!!!!!"
-                
+            print "DATABASE STUDY FOUND: ", data    
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
         return data
@@ -182,14 +141,13 @@ class QuerySeqScape():
 class QueryAndProcessSeqScapeData():
     
     def __init__(self):
-        ########## CONNECT TO SEQSCAPE ######
         self.seqscape_cls = QuerySeqScape()
-        self.connection = self.seqscape_cls.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)
+        self.connection = self.seqscape_cls.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
         
-    
     
     #"select internal_id, library_type, public_name from current_library_tubes where name=%s and is_current=1;", library_name)
     def lib_seqsc2my_dbmodel(self, lib_mdata):
+        ''' Translating the field names from SeqScape model into my own DB model.'''
         result_dict = dict()
         for key, val in lib_mdata.items():
             if key == 'public_name':
@@ -337,7 +295,7 @@ class QueryAndProcessSeqScapeData():
         return updated_sampl_list
         
 
-                
+    ################ AUXILLIARY FCT: ###############           
                 
     def filter_nulls(self, data_dict):
         '''Given a dictionary, it removes the entries that have values = None '''
@@ -347,13 +305,8 @@ class QueryAndProcessSeqScapeData():
         return data_dict            
     
     
-    ################## FILLING IN THE MISSING LIBRARIES, SAMPLES, STUDIES from SEQSCAPE ######
+    ################## FILLING IN THE ERROR LISTS - MISSING ENTITIES OR NOT UNIQUELY IDENTIF in SEQSCAPE ######
 
-    def study_mdata_lookup(self, incomplete_study_list, file_mdata):
-        pass
-    
-    ########## LIBRARY LOOKUP ###########
-    
     def update_missing_entities_errorlist(self, missing_entities, updated_entities, search_field):
         missing_entities_new_list = []
         for missing_ent in missing_entities:
@@ -484,13 +437,10 @@ class QueryAndProcessSeqScapeData():
                 print "SAMPLE IS ITERABLE....LENGTH: ", len(sampl_data)
                 too_many_sampl_found.append({search_field : sampl_name})
             elif len(sampl_data) == 1:
-                #sampl_data['name'] = sampl_name
-                # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
-                sampl_data = sampl_data[0]
+                sampl_data = sampl_data[0]  # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
                 sampl_data = self.sampl_seqsc2my_dbmodel(sampl_data)
                 sampl_data = self.filter_nulls(sampl_data)
                 result_sampl_list.append(sampl_data)
-                
         print "SAMPLE_LIST: ", result_sampl_list
                 
         search_field = 'name'
@@ -502,32 +452,18 @@ class QueryAndProcessSeqScapeData():
             file_mdata = self.update_file_mdata_missing_entities(file_mdata, updated_samples, sampl_not_found_seqsc, entity_name, search_field)
         else:
             print "NO MISSING SAMPLES!"
-        ##### working beat:
-#        if file_mdata.has_key(ERROR_RESOURCE_MISSING):
-#            missing_samples_list = file_mdata[ERROR_RESOURCE_MISSING]
-#        else:
-#            missing_samples_list = []
-#        missing_samples_list = self.update_missing_entities_errorlist(missing_samples_list, updated_samples, search_field)
-#        missing_samples_list.extend(sampl_not_found_seqsc)
-#        file_mdata[ERROR_RESOURCE_MISSING] = missing_samples_list
-#        print "MISSING RESOURCES SAMPLES: ", missing_samples_list
-
+     
         # UPDATE THE LIBS NOT_UNIQUE_SEQSCAPE:
         if len(too_many_sampl_found) > 0: 
             self.update_file_mdata_not_unique_entities(file_mdata, updated_samples, too_many_sampl_found, entity_name, search_field)            
         else:
             print "NO TOO MANY ROWS ERRORS - LIBS!!"    
-            
-#        
-#        if file_mdata.has_key(ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE):
-#            too_many_sampl_list = file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE]
-#        else:
-#            too_many_sampl_list = []
-#        too_many_sampl_list = self.update_too_many_rows_errorlist(too_many_sampl_list, updated_samples, search_field)
-#        too_many_sampl_list.extend(too_many_sampl_found)
-#        file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE] = too_many_sampl_list
-#        print "TOO MANY SAMPLES LIST: ", too_many_sampl_list 
-
+     
+     
+    def study_mdata_lookup(self, incomplete_study_list, file_mdata):
+        pass
+    
+     
 ############################################
 # --------------------- TASKS --------------
 ############################################
@@ -541,7 +477,7 @@ class UploadFileTask(Task):
         evd = self.app.events.Dispatcher(connection=connection)
         try:
             self.update_state(state="CUSTOM")
-            evd.send("task-custom", state="CUSTOM")
+            evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
         finally:
             evd.close()
             connection.close()
@@ -581,7 +517,6 @@ class UploadFileTask(Task):
         file_path = kwargs['file_path']
         submission_id = str(kwargs['submission_id'])
         #user_id = kwargs['user_id']
-
         src_file_path = file_path
         
         #RESULT TO BE RETURNED:
@@ -596,7 +531,6 @@ class UploadFileTask(Task):
             
             # CALCULATE MD5 FOR DEST FILE, after copying:
             md5_dest = self.calculate_md5(dest_file_path)
-            
             try:
                 if md5_src == md5_dest:
                     print "MD5 are EQUAL! CONGRAAAATS!!!"
@@ -665,7 +599,7 @@ class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT'}  # PU, PL, DS?
     ignore_result = True
    
-    # TODO: PARSE PU - if neededa
+    # TODO: PARSE PU - if needed
 
     ######### HEADER PARSING #####
     def get_header_mdata(self, file_path):
@@ -763,10 +697,8 @@ class ParseBAMHeaderTask(Task):
             processSeqsc.libs_mdata_lookup(incomplete_libs_list, file_mdata)
             processSeqsc.sampl_mdata_lookup(incomplete_sampl_list, file_mdata)
 
-            
             print "LIBRARY UPDATED LIST: ", file_mdata[LIBRARY_LIST]
             print "SAMPLE_UPDATED LIST: ", file_mdata[SAMPLE_LIST]
-            
         except ValueError:
             raise             
                         
@@ -802,27 +734,6 @@ class ParseBAMHeaderTask(Task):
 # these will appear in MongoDB as Library objects that only have library_name initialized => NEED code that iterates over all
 # libs and decides whether it is complete or not
 
-
-
-    
-#    def split_sample_indiv_data(self, sample_dict):
-#        '''Extracts in a different dict the data regarding the individual to whom the sample belongs.'''
-#        indiv_data_dict = dict({INDIVIDUAL_COHORT : sample_dict[INDIVIDUAL_COHORT], 
-#                           INDIVIDUAL_SEX : sample_dict[INDIVIDUAL_SEX], 
-#                           INDIVIDUAL_ETHNICITY : sample_dict[INDIVIDUAL_ETHNICITY], 
-#                           ORGANISM : sample_dict[ORGANISM],
-#                           COMMON_NAME : sample_dict[COMMON_NAME],
-#                           GEOGRAPHICAL_REGION : sample_dict[GEOGRAPHICAL_REGION]
-#                           })
-#        sample_data_dict = dict({#'uuid' : sample_dict['uuid'],
-#                                 SAMPLE_ACCESSION_NR : sample_dict[SAMPLE_ACCESSION_NR],
-#                                 SAMPLE_NAME : sample_dict[SAMPLE_NAME],
-#                                 SANGER_SAMPLE_ID : sample_dict[SANGER_SAMPLE_ID],
-#                                 SAMPLE_PUBLIC_NAME : sample_dict[SAMPLE_PUBLIC_NAME],
-#                                 'internal_id' : sample_dict['internal_id'],
-#                                 REFERENCE_GENOME : sample_dict[REFERENCE_GENOME]
-#                                 })
-#        return dict({'sample' : sample_data_dict, 'individual': indiv_data_dict})
 
 
 class QuerySeqScapeForSampleTask(Task):
