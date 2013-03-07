@@ -14,6 +14,102 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
 
+from celery.events import EventReceiver
+from kombu import Connection as BrokerConnection
+
+import sys
+
+def my_monitor():
+    connection = BrokerConnection('amqp://guest:guest@localhost:5672//')
+    
+    def on_task_succeeded(event):
+        result = event['result']
+        
+    
+    def on_task_failed(event):
+        pass
+    
+    
+    
+    
+    def on_event(event):
+        #print "EVENT HAPPENED: ", event
+        pass
+        
+    def on_custom(event):
+        #print "EVENT TYPE: ", event['type']
+        
+       
+        if event['type'] != "worker-heartbeat":
+            print "CUSTOM RECEIVED!", event
+
+    #try_interval = 3
+    while True:
+        try:
+            #try_interval *= 2
+            with connection as conn:
+                recv = EventReceiver(conn,
+                                     handlers={#'task-failed' : on_event,
+#                                               'task-succeeded' : on_event,
+#                                               'task-sent' : on_event,
+#                                               'task-received' : on_event,
+#                                               'task-revoked' : on_event,
+#                                               'task-retried' : on_event,
+#                                               'task-started' : on_event,
+                                               '*' : on_custom
+                                               })
+                                                #handlers={'*': on_event})
+                #print "PRINT FROM Monitor: ", ( vars(recv.consumer) )
+                recv.capture(limit=None, timeout=None)
+                #try_interval = 3
+        except (KeyboardInterrupt, SystemExit):
+            print "EXCEPTION KEYBOARD INTERRUPT"
+            sys.exit()
+#        except Exception as e:
+#            print "OTHER EXCEPTION: ", e
+#            time.sleep(try_interval)
+
+
+
+def my_monitor2(app):
+    state = app.events.State()
+
+    def announce_failed_tasks(event):
+        state.event(event)
+#        task_id = event['uuid']
+#
+#        print('TASK FAILED: %s[%s] %s' % (
+#            event['name'], task_id, state[task_id].info(), ))
+
+#    def announce_dead_workers(event):
+#        state.event(event)
+#        hostname = event['hostname']
+#
+#        if not state.workers[hostname].alive:
+#            print('Worker %s missed heartbeats' % (hostname, ))
+
+    def announce_task_sent(event):
+        state.event(event)
+        print "EVENT HAS these fields: ", event.__dict__
+
+#        task_id = event['uuid']
+#        print "EVENT HAS these fields: ", event.__dict__
+#
+#        print('TASK FAILED: %s[%s] %s' % (
+#            event['name'], task_id, state[task_id].info(), ))
+
+
+    with app.connection() as connection:
+        recv = app.events.Receiver(connection, handlers={
+                'task-failed': announce_failed_tasks,
+                #'worker-heartbeat': announce_dead_workers,
+                'task-sent': announce_task_sent,
+        })
+        recv.capture(limit=None, timeout=None, wakeup=True)
+        
+        
+
+
 def mongo_thread_job():
     time.sleep(4)
     from celery.result import AsyncResult

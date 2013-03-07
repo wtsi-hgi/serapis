@@ -6,7 +6,8 @@ import models
 
 from celery import chain
 
-from serapis import constants
+from serapis import constants, serializers
+
 
 
 #async_results_list = []
@@ -35,34 +36,44 @@ query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
 #        return None
 
 
-def launch_jobs_for_file(file_id, file_path, submission_id, user_id):
+
+def launch_parse_header_job(file_submitted):
+    file_serialized = serializers.serialize(file_submitted)
+    # WORKING PART  
+    # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
+    #chain(parse_BAM_header.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
+    parse_BAM_header.apply_async(kwargs={'file_mdata' : file_serialized })
+    
+    
+
+
+def launch_upload_job(user_id, file_submitted):
     # SUBMIT UPLOAD TASK TO QUEUE:
     #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
     permission_denied = False
+    print "started launch jobs fct..."
     try:
         # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-        src_fd = open(file_path, 'rb')
+        src_fd = open(file_submitted.file_path_client, 'rb')
         src_fd.close()
 #            # => WE HAVE PERMISSION TO READ FILE
 #            # SUBMIT UPLOAD TASK TO QUEUE:
-        upload_task.apply_async((file_id, file_path, submission_id, user_id))
+        
+        print "Uploading task..."
+        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
+        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
         #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
         #exchange=constants.UPLOAD_EXCHANGE,
    
         ########## PROBLEM!!! => IF PERMISSION DENIED I CAN@T PARSE THE HEADER!!! 
         ## I have to wait until the copying problem gets solved and afterwards to analyse the file
         ## by reading it from iRODS
-        
-            
-        # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
-        chain(parse_BAM_header.s(submission_id=submission_id, file_id=file_id, file_path=file_path, user_id=user_id), query_seqscape.s()).apply_async()
-        
-   
+          
     except IOError as e:
         if e.errno == errno.EACCES:
             print "PERMISSION DENIED!"
             permission_denied = True
-            upload_task.apply_async((file_id, file_path, submission_id, user_id), queue="user."+user_id)
+            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
         else:
             raise
 
@@ -88,14 +99,16 @@ def create_submission(user_id, files_list):
     submission_id = submission.id
     submitted_files_list = []
     file_id = 0
+    print "FILES LIST: ", files_list
     for file_path in files_list:        
         file_id+=1
         
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         file_type = "BAM"
-        file_submitted = models.SubmittedFile(file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
+        file_submitted = models.SubmittedFile(submission_id=str(submission_id), file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
-        permission_denied = launch_jobs_for_file(file_id, file_path, submission_id, user_id)
+        permission_denied = launch_upload_job(user_id, file_submitted)
+        launch_parse_header_job(file_submitted)
     
     submission.files_list = submitted_files_list
     submission.submission_status = "IN_PROGRESS"

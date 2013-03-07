@@ -107,6 +107,7 @@ class GetOrCreateSubmissions(APIView):
                 return Response("No such file!!!", status=422) # Unprocessable Entity - here TODO: think about the functionality - subm created or NOT?
                 # or 424: Method Failure
             else:
+                print "ERROR: ", e
                 return Response(status=424)
     
 

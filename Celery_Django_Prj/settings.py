@@ -12,7 +12,11 @@ setup_loader()
 
 BROKER_URL = 'amqp://guest@localhost:5672'
 
-
+# to be config by me...-> from http://docs.dotcloud.com/tutorials/python/django-celery/
+#BROKER_HOST = 
+#BROKER_PORT = 
+#BROKER_USER = 
+#BROKER_PASSWORD = 
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -23,10 +27,17 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
+# Set of parameters enabled for the worker to produce events
+#CELERY_SEND_TASK_SENT_EVENT = True 
+CELERY_SEND_EVENTS = True
+
+
 
 AUTHENTICATION_BACKENDS = (
     'mongoengine.django.auth.MongoEngineBackend',
 )
+
+
 
 #
 #DATABASES = {
@@ -42,15 +53,25 @@ AUTHENTICATION_BACKENDS = (
 #}
 
 
-#CELERY_RESULT_BACKEND = "amqp"
-CELERY_RESULT_BACKEND = "mongodb"
+CELERY_RESULT_BACKEND = "amqp"
+#CELERY_RESULT_BACKEND = "mongodb"
 
-CELERY_MONGODB_BACKEND_SETTINGS = {
-    "host": "localhost",
-    "port": 27017,
-    "database": "MetadataDB",
-    "taskmeta_collection": "task_metadata",
-}
+# added recently:
+CELERY_RESULT_SERIALIZER = 'json'
+
+#CELERY_RESULT_PERSISTENT = True
+
+CELERY_DISABLE_RATE_LIMITS = True
+####
+
+
+#### WORKS with mongo: ####
+#CELERY_MONGODB_BACKEND_SETTINGS = {
+#    "host": "localhost",
+#    "port": 27017,
+#    "database": "MetadataDB",
+#    "taskmeta_collection": "task_metadata",
+#}
 
 connect('MetadataDB')
 

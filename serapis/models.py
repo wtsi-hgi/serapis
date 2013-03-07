@@ -10,7 +10,7 @@ SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SU
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
 FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
-FILE_UPLOAD_STATUS = ("SUCCESS", "FAILURE")
+FILE_UPLOAD_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
 FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
 
 #("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
@@ -29,13 +29,13 @@ class PilotModel(DynamicDocument):
     
 
 class Study(DynamicEmbeddedDocument):
-    accession_nr = StringField()
+    study_accession_nr = StringField()
     study_name = StringField() #unique
     study_type = StringField()
     study_title = StringField()
     study_faculty_sponsor = StringField()
-    study_ena_project_id = StringField()
-    reference_genome = StringField()    
+    ena_project_id = StringField()
+    study_reference_genome = StringField()    
     
     #samples_list = ListField(ReferenceField('Sample'))
     
@@ -58,7 +58,7 @@ class Library(DynamicEmbeddedDocument):
     library_name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
-    library_barcode = StringField()
+    #library_barcode = StringField()
     
     # refField - lane
     # a library is tight to a specific sample
@@ -78,8 +78,17 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
     sample_name = StringField() # UNIQUE
     sample_public_name = StringField()
     sample_tissue_type = StringField() 
-    reference_genome = StringField()    
-
+    reference_genome = StringField()
+        
+    # Fields relating to the individual:
+    taxon_id = StringField()
+    individual_sex = StringField()
+    individual_cohort = StringField()
+    individual_ethnicity = StringField()
+    country_of_origin = StringField()
+    geographical_region = StringField()
+    organism = StringField()
+    common_name = StringField()
     
     #study_list = ListField(ReferenceField(Study))
     
@@ -91,16 +100,17 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
     # library_tube_id or list of library_tubes
     
     
-    
-class Individual(DynamicEmbeddedDocument):
-    # one Indiv to many samples
-    gender = StringField()
-    cohort = StringField()
-    ethnicity = StringField()
-    geographical_region = StringField()
-    organism = StringField()
-    common_name = StringField()
-    
+#    
+#class Individual(DynamicEmbeddedDocument):
+#    # one Indiv to many samples
+#    individual_sex = StringField()
+#    individual_cohort = StringField()
+#    individual_ethnicity = StringField()
+#    individual_geographical_region = StringField()
+#    organism = StringField()
+#    common_name = StringField()
+#    
+
     #samples_list = ListField(ReferenceField(Sample))
     
     # OPTIONAL:
@@ -113,6 +123,7 @@ class Individual(DynamicEmbeddedDocument):
     
     
 class SubmittedFile(DynamicEmbeddedDocument):
+    submission_id = StringField(required=True)
     file_id = IntField(required=True)
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
@@ -126,21 +137,23 @@ class SubmittedFile(DynamicEmbeddedDocument):
     # STATUSES:
     file_upload_status = StringField(choices=FILE_UPLOAD_STATUS)
     file_header_mdata_status = StringField(choices=FILE_MDATA_STATUS)
-    file_seqsc_mdata_status = StringField(choices=FILE_MDATA_STATUS)
-    file_metadata_status = StringField(choices=FILE_MDATA_STATUS)
-    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)
+    file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
+    file_metadata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
+    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
     
     file_error_log = ListField(StringField())
+    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
-    individuals_list = ListField(EmbeddedDocumentField(Individual))
+#    individuals_list = ListField(EmbeddedDocumentField(Individual))
     #lane_list = ListField(Lane)
     #size = IntField()
     
     #temp field:
-    file_header = DictField()
+    #file_header = DictField()
 
 
 

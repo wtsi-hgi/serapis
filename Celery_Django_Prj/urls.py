@@ -7,13 +7,21 @@ from serapis import results_processing
 #import time
 
 from multiprocessing import Process
+import settings
 
-daemon_process = Process(target=results_processing.mongo_thread_job)
+########## PROCESS BASED: ###############
+print "SETTINGS WSGI ARGS: ", settings.WSGI_APPLICATION
+daemon_process = Process(target=results_processing.my_monitor)
 daemon_process.daemon = True
 daemon_process.start()
 print "PROCESS ID: ", daemon_process.pid
 
 
+
+
+
+
+###### THREAD BASED: ######
 #thread = threading.Thread(target=results_processing.thread_job)
 #thread.daemon = True
 #thread.start()
