@@ -55,12 +55,32 @@ LIBRARY_LIST = 'library_list'
 SAMPLE_LIST = 'sample_list'
 INDIVIDUALS_LIST = 'individuals_list'
 
+FILE_UPLOAD_JOB_STATUS = 'file_upload_status'
+FILE_HEADER_PARSING_STATUS = 'file_header_parsing_status'
+HEADER_HAS_MDATA = 'header_has_mdata'
+FILE_MDATA_STATUS = 'file_mdata_status'
+FILE_SUBMISSION_STATUS = 'file_submission_status'
+
+
+#    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+#    file_header_parsing_status = StringField(choice=HEADER_PARSING_STATUS)
+#    header_has_mdata = BooleanField()
+#    #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
+#    #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
+#    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
+#    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+#    
+#    file_error_log = ListField(StringField())
+#    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+#    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+
     
 #----------------------- ERROR CODES: ----------------------
 ERROR_DICT = {1 : 'IO ERROR COPYTING FILE',
               2 : 'MD5 DIFFERENT',
-              3 : 'FILE HEADER INVALID',
-              4 : 'RESOURCE NOT UNIQUELY IDENTIFYABLE IN SEQSCAPE'
+              3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED',
+              4 : 'FILE HEADER EMPTY',
+              5 : 'RESOURCE NOT UNIQUELY IDENTIFYABLE IN SEQSCAPE'
               }
 
 

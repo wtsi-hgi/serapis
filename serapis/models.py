@@ -9,8 +9,10 @@ FILE_TYPES = ('BAM', 'VCF')
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
-FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
-FILE_UPLOAD_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
+HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
+#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
+FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
+FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
 FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
 
 #("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
@@ -134,12 +136,30 @@ class SubmittedFile(DynamicEmbeddedDocument):
 #            'indexes' : ['file_id']
 #            }
     
-    # STATUSES:
-    file_upload_status = StringField(choices=FILE_UPLOAD_STATUS)
-    file_header_mdata_status = StringField(choices=FILE_MDATA_STATUS)
-    file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
-    file_metadata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
+    
+
+#HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
+#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
+#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
+#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
+#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
+
+
+    ######## STATUSES #########
+    # UPLOAD:
+    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+    
+    # HEADER BUSINESS:
+    file_header_parsing_status = StringField(choices=HEADER_PARSING_STATUS)
+    header_has_mdata = BooleanField()
+    
+    #GENERAL STATUSES
+    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+    
+    
+    #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
+    #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
     
     file_error_log = ListField(StringField())
     error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 

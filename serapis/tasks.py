@@ -138,7 +138,7 @@ class QuerySeqScape():
 #############################################################################
 #--------------------- PROCESSING SEQSCAPE DATA ---------
 ############ DEALING WITH SEQSCAPE DATA - AUXILIARY FCT  ####################
-class QueryAndProcessSeqScapeData():
+class ProcessSeqScapeData():
     
     def __init__(self):
         self.seqscape_cls = QuerySeqScape()
@@ -374,6 +374,7 @@ class QueryAndProcessSeqScapeData():
         print "FILE MDATA ERROR RESOURCE NOT UNIQUE: ", file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE]
         return file_mdata
         
+        
     # Query SeqScape for all the library names found in BAM header
     def libs_mdata_lookup(self, incomplete_libs_list, file_mdata):
         search_field = 'name'
@@ -598,6 +599,19 @@ class UploadFileTask(Task):
 class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT'}  # PU, PL, DS?
     ignore_result = True
+    
+    def change_state_event(self, event_name, state, result):
+        connection = self.app.broker_connection()
+        evd = self.app.events.Dispatcher(connection=connection)
+        try:
+            #self.update_state(state="CUSTOM")
+            #evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
+            self.update_state(state=state)
+            evd.send(event_name, state=state, result=result)
+        finally:
+            evd.close()
+            connection.close()
+
    
     # TODO: PARSE PU - if needed
 
@@ -629,20 +643,41 @@ class ParseBAMHeaderTask(Task):
             back_to_list[k] = list(v)
         return back_to_list
     
+    #################### ENTITY SPECIFIC FUNCTIONS: ############
     
-    ######### ENTITIES IN HEADER LOOKUP #######
+    def is_lib_complete(self, lib):
+        if lib[LIBRARY_PUBLIC_NAME] == None or lib[LIBRARY_TYPE] == None:
+            return False
+        return True
+    
+    def is_sample_complete(self, sample):
+        if sample[SAMPLE_ACCESSION_NR] == None or sample[SAMPLE_NAME] == None or sample[SAMPLE_PUBLIC_NAME] == None or sample[SANGER_SAMPLE_ID] == None:
+            return False
+        return True
+    
+    def is_study_complete(self, study):
+        if study[STUDY_ACCESSION_NR] == None or study[STUDY_FACULTY_SPONSOR] == None or study[STUDY_NAME] == None or study[STUDY_REFERENCE_GENOME] or study[STUDY_TITLE] == None or study[STUDY_TYPE] == None:
+            return False
+        return True
+    
+    def are_samples_equal(self, sample1, sample2):
+        pass
+    
+    ######### ENTITIES IN HEADER LOOKUP ########################
     
     #Looks up library names to check if they are complete in mdata.
     def process_header_lib_list(self, header_library_list, file_library_list):
         ''' Compares the information about each library in the header with the information existing already in the DB
             about that library. If the lib is complete, nothing happens. If the info about a lib is incomplete in the DB
             than it adds it to a list of incomplete libraries. '''
+        if len(file_library_list) == 0:
+            return header_library_list
         incomplete_libs = []
         for lib_name_h in header_library_list:
             found = False
             for lib in file_library_list:
                 if lib['library_name'] == lib_name_h:
-                    if lib['library_type'] == None or lib['library_public_name'] == None:
+                    if self.is_lib_complete(lib) == False:
                         incomplete_libs.append(lib_name_h)
                     found = True
                     break
@@ -652,12 +687,14 @@ class ParseBAMHeaderTask(Task):
         
     
     def process_header_sampl_list(self, header_samples_list, file_samples_list):
+        if len(file_samples_list) == 0:
+            return header_samples_list
         incomplete_samples = []
         for sample_name_h in header_samples_list:
             found = False
             for sampl in file_samples_list:
                 if sampl['sample_name'] == sample_name_h or sampl['sanger_sample_id'] == sample_name_h:
-                    if sampl['sample_tissue_type'] == None or sampl['sample_public_name'] == None:
+                    if self.is_sample_complete(sampl) == False:
                         incomplete_samples.append(sample_name_h)
                     found = True
                     break
@@ -669,20 +706,15 @@ class ParseBAMHeaderTask(Task):
  
     
     ###############################################################
-    
+    # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
-#        user_id = kwargs['user_id']
-#        file_path = kwargs['file_path']
-#        file_id = kwargs['file_id']
-        #submission_id = kwargs['submission_id']
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
+        print "FILE MDATA WHEN I GOT IT: ", file_mdata
         
-        #result = init_result(user_id, file_id, file_path, submission_id)
- 
         try:
             header_json = self.get_header_mdata(file_mdata['file_path_client'])  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
-            header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} 
+            header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
             
             header_library_list = header_processed['LB']
             header_sample_list = header_processed['SM']
@@ -693,17 +725,49 @@ class ParseBAMHeaderTask(Task):
             incomplete_libs_list = self.process_header_lib_list(header_library_list, file_mdata['library_list'])  # List of incomplete libs
             incomplete_sampl_list = self.process_header_sampl_list(header_sample_list, file_mdata['sample_list'])
             
-            processSeqsc = QueryAndProcessSeqScapeData()
+            processSeqsc = ProcessSeqScapeData()
             processSeqsc.libs_mdata_lookup(incomplete_libs_list, file_mdata)
             processSeqsc.sampl_mdata_lookup(incomplete_sampl_list, file_mdata)
 
             print "LIBRARY UPDATED LIST: ", file_mdata[LIBRARY_LIST]
             print "SAMPLE_UPDATED LIST: ", file_mdata[SAMPLE_LIST]
-        except ValueError:
-            raise             
+        except ValueError:      # This originates from BAM header parsing
+            file_mdata[FILE_HEADER_PARSING_STATUS] = "FAILURE"
+            error_list = file_mdata[FILE_ERROR_LOG]
+            error_list.append(3)    #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            file_mdata[HEADER_HAS_MDATA] = False
+            if len(file_mdata[STUDY_LIST]) == 0 and len(file_mdata[LIBRARY_LIST]) == 0 and len(file_mdata[SAMPLE_LIST]):
+                file_mdata[FILE_MDATA_STATUS] = 'TOTALLY_MISSING'
+            #file_mdata[FILE_MDATA_STATUS] = 
+            raise
                         
-                        
-                        
+    ######## STATUSES #########
+    # UPLOAD:
+#    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+#    
+#    # HEADER BUSINESS:
+#    file_header_parsing_status = StringField(choice=HEADER_PARSING_STATUS)
+#    header_has_mdata = BooleanField()
+#    
+#    #GENERAL STATUSES
+#    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
+#    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+#      
+
+
+#HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
+#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
+#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
+#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
+#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
+
+#    file_error_log = ListField(StringField())
+#    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+#    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+#
+# study_list = ListField(EmbeddedDocumentField(Study))
+#    library_list = ListField(EmbeddedDocumentField(Library))
+#    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 
 #            
