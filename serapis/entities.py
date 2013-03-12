@@ -13,7 +13,6 @@ class Entity(object):
 
     def __repr__(self):
         return "%r" % self.__dict__
-        #return "%s(%r)" % (self.__class__, self.__dict__)
         
     def update(self, new_entity):
         ''' Compare the properties of this instance with the new_lib object properties.
@@ -56,14 +55,7 @@ class Study(Entity):
             elif self.study_name != None and self.study_name == other.study_name:
                 return True
         return False
-    
-        
-#    def is_mdata_complete(self):
-#        for key in self.__dict__:
-#            if getattr(self, key) == None:
-#                return False
-#        return True
-#    
+     
     # TODO: implement this one
     def has_minimal_info(self):
         pass
@@ -90,8 +82,6 @@ class Study(Entity):
         study.study_type = study_mdata['STUDY_TYPE']
         return study
 
-    
-    
     #internal_id = IntField() # to be used only for link table
     # remove_x_and_autosomes = StringField()
     
@@ -102,12 +92,6 @@ class Library(Entity):
         self.library_type = lib_type
         self.library_public_name = public_name
         super(Entity, self).__init__()
-        #print "FROM CONSTRUCT - IS COMPLETE............", self.is_complete
-        super(Entity, self).__init__()
-        # Fields used for implementing the application's logic:
-        self.is_complete = False
-        self.has_minimal = False
-   
         
     def __eq__(self, other):
         if isinstance(other, Library):
@@ -115,34 +99,12 @@ class Library(Entity):
                 return True
         return False
 
-#    def __repr__(self):
-#        return "%r" % self.__dict__
-#        #return "%s(%r)" % (self.__class__, self.__dict__)
-    
-#    def is_mdata_complete(self):
-   
-
-    
     def check_if_minimal_mdata(self):
         ''' Checks if the minimal mdata is present. '''
         if self.library_name != None and self.library_type != None:
             return True
         return False
     
-    #def has_minimal_info(self):
-     
-#    def update(self, new_lib):
-#        ''' Compare the properties of this instance with the new_lib object properties.
-#            Update only the None fields in self object and return True if anything was changed.'''
-#        has_changed = False
-#        for field in vars(new_lib):
-#            crt_val = getattr(self, field)
-#            new_val = getattr(new_lib, field)
-#            if crt_val == None and new_val != None:
-#                setattr(self, field, new_val)
-#                has_changed = True
-#        return has_changed
-#    
     @staticmethod
     def build_from_json(json_file):
         lib = Library()
@@ -157,8 +119,6 @@ class Library(Entity):
         lib.library_public_name = lib_mdata['public_name']
         lib.library_type = lib_mdata['library_type']
         return lib
-    
-    
     
     # internal_id        
     #sample_internal_id = IntField()
@@ -185,12 +145,8 @@ class Sample(Entity): # one sample can be member of many studies
         self.geographical_region = geographical_region
         self.organism = organism
         self.common_name = common_name
-        #super(C, self).method(arg)
         super(Entity, self).__init__()
         
-        #print "FROM CONSTRUCTOR - IS complete: ", self.is_complete
-        
-        # Fields used for implementing the application's logic:
         
     # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
     def __eq__(self, other):                #Some samples are identified by name, others by accession_nr
@@ -201,18 +157,6 @@ class Sample(Entity): # one sample can be member of many studies
                 return True
         return False
     
-#    def __repr__(self):
-#        return "%r" % self.__dict__
-#        #return "%s(%r)" % (self.__class__, self.__dict__)
-        
-    #def is_mdata_complete(self):
-#    def check_if_complete_mdata(self):
-#        ''' Checks if the mdata corresponding to this lib is complete. '''
-#        for key in self.__dict__:
-#            if getattr(self, key) == None:
-#                return False
-#        return True
-#    
     def has_minimal_info(self):
         if self.sample_accession_nr != None and self.sample_name != None:
             return True
@@ -243,18 +187,6 @@ class Sample(Entity): # one sample can be member of many studies
         sampl.taxon_id = sampl_mdata['taxon_id']
         return sampl
     
-#    def update(self, new_sampl):
-#        ''' Compare the properties of this instance with the new_lib object properties.
-#            Update only the None fields in self object and return True if anything was changed.'''
-#        has_changed = False
-#        for field in vars(new_sampl):
-#            crt_val = getattr(self, field)
-#            new_val = getattr(new_sampl, field)
-#            if crt_val == None and new_val != None:
-#                setattr(self, field, new_val)
-#                has_changed = True
-#        return has_changed
-
 
 
 class SubmittedFile():

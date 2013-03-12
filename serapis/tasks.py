@@ -16,33 +16,13 @@ from MySQLdb import OperationalError
 
 #import serializers
 from serapis.constants import *
-from _abcoll import Iterable
-import collections
-from serapis.entities import SubmittedFile
-
 from serapis.entities import *
 
 
 
 BASE_URL = "http://localhost:8000/api-rest/submissions/"
-
-USER_ID = 'user_id'
-SUBMISSION_ID = 'submission_id'
-TASK_RESULT = 'task_result'
-TASK_NAME = 'task_name'
-FILE_PATH = 'file_path'
-FILE_ID = 'file_id'
-PERMISSION_DENIED = "PERMISSION_DENIED"
-
-STUDY_LIST = 'study_list'
-LIBRARY_LIST = 'library_list'
-SAMPLE_LIST = 'sample_list'
-INDIVIDUALS_LIST = 'individuals_list'
-
-
 FILE_ERROR_LOG = 'file_error_log'
 FILE_UPLOAD_STATUS = "file_upload_status"   #("SUCCESS", "FAILURE")
-FILE_SEQSCAPE_MDATA_STATUS = 'file_seqsc_mdata_status'
 MD5 = "md5"
 
 logger = get_task_logger(__name__)
@@ -120,7 +100,6 @@ class QuerySeqScape():
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
         return data
     
-    
     @staticmethod
     def get_study_data(connection, study_field_name, study_field_val):
         try:
@@ -143,12 +122,8 @@ class QuerySeqScape():
 class ProcessSeqScapeData():
     
     def __init__(self):
-        #self.seqscape_cls = QuerySeqScape()
         self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
-    #def fetch_and_process_lib_mdata(self, lib_name, file_submitted, search_field):
-        
-    
     def update_libs(self, file_submitted):
         ''' Iterates over the list of libraries and if the mdata for not complete, it looks it up in SeqScape. '''
         search_field = 'name'
