@@ -18,8 +18,9 @@ from MySQLdb import OperationalError
 from serapis.constants import *
 from _abcoll import Iterable
 import collections
+from serapis.entities import SubmittedFile
 
-
+from serapis.entities import *
 
 
 
@@ -70,7 +71,8 @@ def build_url(submission_id, file_id):
 ####### CLASS THAT ONLY DEALS WITH SEQSCAPE DB ######
 class QuerySeqScape():
     
-    def connect(self, host, port, user, db):
+    @staticmethod
+    def connect(host, port, user, db):
         try:
             conn = connect(host=host,
                                  port=port,
@@ -87,13 +89,13 @@ class QuerySeqScape():
         return conn
 
     
-
-    def get_sample_data(self, connection, sample_field_name, sample_field_val):
+    @staticmethod
+    def get_sample_data(connection, sample_field_name, sample_field_val):
         '''This method queries SeqScape for a given sample_name.'''
         data = None     # result to be returned
         try:
             cursor = connection.cursor()
-            query = "select internal_id, name, accession_number, sanger_sample_id, public_name, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where "
+            query = "select name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
             query = query + sample_field_name + "='" + sample_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
@@ -103,10 +105,10 @@ class QuerySeqScape():
         return data
     
     
-    
-    # TODO: Modify fct so that it gets as parameter multiple query criteria
+    # TODO: Modify fct so that it gets as parameter multiple query criteria, e.g a dict of {field_name: val, ...}
     # TODO: deal differently with diff exceptions thrown here, + try reconnect if connection fails
-    def get_library_data(self, connection, library_field_name, library_field_val):
+    @staticmethod
+    def get_library_data(connection, library_field_name, library_field_val):
         data = None
         try:
             cursor = connection.cursor()
@@ -119,8 +121,8 @@ class QuerySeqScape():
         return data
     
     
-
-    def get_study_data(self, connection, study_field_name, study_field_val):
+    @staticmethod
+    def get_study_data(connection, study_field_name, study_field_val):
         try:
             cursor = connection.cursor()
             query = "select internal_id, accession_number, name, study_type, study_title, faculty_sponsor, ena_project_id, reference_genome from current_studies where "
@@ -141,327 +143,102 @@ class QuerySeqScape():
 class ProcessSeqScapeData():
     
     def __init__(self):
-        self.seqscape_cls = QuerySeqScape()
-        self.connection = self.seqscape_cls.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
+        #self.seqscape_cls = QuerySeqScape()
+        self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
+
+    #def fetch_and_process_lib_mdata(self, lib_name, file_submitted, search_field):
         
     
-    #"select internal_id, library_type, public_name from current_library_tubes where name=%s and is_current=1;", library_name)
-    def lib_seqsc2my_dbmodel(self, lib_mdata):
-        ''' Translating the field names from SeqScape model into my own DB model.'''
-        result_dict = dict()
-        for key, val in lib_mdata.items():
-            if key == 'public_name':
-                result_dict[LIBRARY_PUBLIC_NAME] = val
-            elif key == 'name':
-                result_dict[LIBRARY_NAME]= val
-            elif key == 'library_type':
-                result_dict[LIBRARY_TYPE] = val
-        return result_dict
-       
-       
-
-#"select internal_id, accession_number, sanger_sample_id, public_name, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where name=%s and is_current=1;", sample_name)
-    def sampl_seqsc2my_dbmodel(self, sampl_mdata):
-        result_dict = dict()
-        for key, val in sampl_mdata.items():
-            if key == 'internal_id':
-                pass
-            elif key == 'accession_number':
-                result_dict[SAMPLE_ACCESSION_NR] = val
-            elif key == 'name':
-                result_dict[SAMPLE_NAME] = val
-            elif key == 'public_name':
-                result_dict[SAMPLE_PUBLIC_NAME] = val
-            elif key == 'cohort':
-                result_dict[INDIVIDUAL_COHORT] = val
-            elif key == 'gender':
-                result_dict[INDIVIDUAL_SEX] = val
-            elif key == 'ethnicity':
-                result_dict[INDIVIDUAL_ETHNICITY] = val
-            else:
-                result_dict[key] = val
-        return result_dict
-        
-        
-
-    def study_seqsc2my_model(self, study_mdata):
-        result_dict = dict()
-        for key, val in study_mdata.items():
-            if key == 'internal_id':
-                pass
-            elif key == 'name':
-                result_dict[STUDY_NAME] = val
-            elif key == 'accession_number':
-                result_dict[STUDY_ACCESSION_NR]= val
-            elif key == 'faculty_sponsor':
-                result_dict[STUDY_FACULTY_SPONSOR]
-            elif key == 'reference_genome':
-                result_dict[STUDY_REFERENCE_GENOME] = val
-            else:
-                result_dict[key] = val
-        return result_dict
-       
-
-    
-    #############################################################
-    
-    def updata_study_mdata(self, old_study_mdata_list, new_study_mdata_list):
-        ''' Updates the mdata for each study in the old list with the info in new study list. 
-        Adds the unexisting entries. '''
-        updated_study_list = []
-        for study_new in new_study_mdata_list:
-            was_found = False
-            for study_old in old_study_mdata_list:
-                if study_new[STUDY_NAME] == study_old[STUDY_NAME]:  # existing library - we update it:
-                    if not study_old.has_key(STUDY_TYPE) and study_new.has_key(STUDY_TYPE):
-                        study_old[STUDY_TYPE] = study_new[STUDY_TYPE]
-                    if not study_old.has_key(STUDY_ACCESSION_NR) and study_new.has_key(STUDY_ACCESSION_NR):
-                        study_old[STUDY_ACCESSION_NR] = study_new[STUDY_ACCESSION_NR]
-                    if not study_old.has_key(STUDY_FACULTY_SPONSOR) and study_new.has_key(STUDY_FACULTY_SPONSOR):
-                        study_old[STUDY_FACULTY_SPONSOR] = study_new[STUDY_FACULTY_SPONSOR]
-                    if not study_old.has_key(STUDY_REFERENCE_GENOME) and study_new.has_key(STUDY_REFERENCE_GENOME):
-                        study_old[STUDY_REFERENCE_GENOME] = study_new[STUDY_REFERENCE_GENOME]
-                    if not study_old.has_key(STUDY_TITLE) and study_new.has_key(STUDY_TITLE):
-                        study_old[STUDY_TITLE] = study_new[STUDY_TITLE]
-                    if not study_old.has_key(STUDY_TYPE) and study_old.has_key(STUDY_TYPE):
-                        study_old[STUDY_TYPE] = study_new[STUDY_TYPE]
-                    updated_study_list.append(study_old)     
-                    was_found = True
-                    break
-            if was_found == False:
-                updated_study_list.append(study_new)
-        return updated_study_list
-
-    
-    def update_lib_mdata(self, old_lib_mdata_list, new_lib_mdata_list):
-        ''' Update the lib list in file mdata with the new mdata extracted from SeqScape for each lib.
-            The new mdata replaces the old one, if any existing. '''
-        updated_lib_list = []
-        for lib_new in new_lib_mdata_list:
-            was_found = False
-            for lib_old in old_lib_mdata_list:
-                if lib_new[LIBRARY_NAME] == lib_old[LIBRARY_NAME]:  # existing library - we update it:
-                    if not lib_old.has_key(LIBRARY_TYPE) and lib_new.has_key(LIBRARY_TYPE):
-                        lib_old[LIBRARY_TYPE] = lib_new[LIBRARY_TYPE]
-                    if not lib_old.has_key(LIBRARY_PUBLIC_NAME) and lib_new.has_key(LIBRARY_PUBLIC_NAME):
-                        lib_old[LIBRARY_PUBLIC_NAME] = lib_new[LIBRARY_PUBLIC_NAME]
-                    updated_lib_list.append(lib_old)     
-                    was_found = True
-                    break
-            if was_found == False:
-                updated_lib_list.append(lib_new)
-        return updated_lib_list
-
-
-
-    def update_sampl_mdata(self, old_sampl_mdata_list, new_sampl_mdata_list):
-        ''' Updates the existing (old) samples' list with the findings from the new_sampl_mdata_list '''
-        updated_sampl_list = []
-        for sampl_new in new_sampl_mdata_list:
-            was_found = False
-            for sampl_old in old_sampl_mdata_list:
-                if sampl_new[SAMPLE_NAME] == sampl_old[SAMPLE_NAME] or sampl_new[SAMPLE_ACCESSION_NR] == sampl_old[SAMPLE_ACCESSION_NR]:    # I update the old info about my sample:
-                    if not sampl_old.has_key(SAMPLE_NAME) and sampl_new.has_key(SAMPLE_NAME):
-                        sampl_old[SAMPLE_NAME] = sampl_new[SAMPLE_NAME]
-                    if not sampl_old.has_key(SAMPLE_ACCESSION_NR) and sampl_new.has_key(SAMPLE_ACCESSION_NR):
-                        sampl_old[SAMPLE_ACCESSION_NR] = sampl_new[SAMPLE_ACCESSION_NR]
-                    if not sampl_old.has_key(SANGER_SAMPLE_ID) and sampl_new.has_key(SANGER_SAMPLE_ID):
-                        sampl_old[SANGER_SAMPLE_ID] = sampl_new[SANGER_SAMPLE_ID]
-                    if not sampl_old.has_key(SAMPLE_PUBLIC_NAME) and sampl_new.has_key(SAMPLE_PUBLIC_NAME):
-                        sampl_old[SAMPLE_PUBLIC_NAME] = sampl_new[SAMPLE_PUBLIC_NAME]
-                    if not sampl_old.has_key(REFERENCE_GENOME) and sampl_new.has_key(REFERENCE_GENOME):
-                        sampl_old[REFERENCE_GENOME] = sampl_new[REFERENCE_GENOME]
-                    if not sampl_old.has_key(TAXON_ID) and sampl_new.has_key(TAXON_ID):
-                        sampl_old[TAXON_ID] = sampl_new[TAXON_ID]
-                    if not sampl_old.has_key(INDIVIDUAL_SEX) and sampl_new.has_key(INDIVIDUAL_SEX):
-                        sampl_old[INDIVIDUAL_SEX] = sampl_new[INDIVIDUAL_SEX]
-                    if not sampl_old.has_key(INDIVIDUAL_COHORT) and sampl_new.has_key(INDIVIDUAL_COHORT):
-                        sampl_old[INDIVIDUAL_COHORT] = sampl_new[INDIVIDUAL_COHORT]
-                    if not sampl_old.has_key(INDIVIDUAL_ETHNICITY) and sampl_new.has_key(INDIVIDUAL_ETHNICITY):
-                        sampl_old[INDIVIDUAL_ETHNICITY] = sampl_new[INDIVIDUAL_ETHNICITY]
-                    if not sampl_old.has_key(GEOGRAPHICAL_REGION) and sampl_new.has_key(GEOGRAPHICAL_REGION):
-                        sampl_old[GEOGRAPHICAL_REGION] = sampl_new[GEOGRAPHICAL_REGION]
-                    if not sampl_old.has_key(COUNTRY_OF_ORIGIN) and sampl_new.has_key(COUNTRY_OF_ORIGIN):
-                        sampl_old[COUNTRY_OF_ORIGIN] = sampl_new[COUNTRY_OF_ORIGIN]
-                    if not sampl_old.has_key(ORGANISM) and sampl_new.has_key(ORGANISM):
-                        sampl_old[ORGANISM] = sampl_new[ORGANISM]
-                    if not sampl_old.has_key(COMMON_NAME) and sampl_new.has_key(COMMON_NAME):
-                        sampl_old[COMMON_NAME] = sampl_new[COMMON_NAME]
-                    updated_sampl_list.append(sampl_old)
-                    was_found = True
-                    break
-            if was_found == False:
-                updated_sampl_list.append(sampl_new)
-        return updated_sampl_list
-        
-
-    ################ AUXILLIARY FCT: ###############           
-                
-    def filter_nulls(self, data_dict):
-        '''Given a dictionary, it removes the entries that have values = None '''
-        for key, val in data_dict.items():
-            if val is None or val is " ":
-                data_dict.pop(key)
-        return data_dict            
-    
-    
-    ################## FILLING IN THE ERROR LISTS - MISSING ENTITIES OR NOT UNIQUELY IDENTIF in SEQSCAPE ######
-
-    def update_missing_entities_errorlist(self, missing_entities, updated_entities, search_field):
-        missing_entities_new_list = []
-        for missing_ent in missing_entities:
-            was_updated = False
-            for upd_ent in updated_entities:
-                if upd_ent[search_field] == missing_ent[search_field]:
-                    was_updated = True
-                    break
-            if was_updated == False:
-                missing_entities_new_list.append({search_field : missing_ent})
-        return missing_entities_new_list
-    
-    
-    def update_too_many_rows_errorlist(self, too_many_errorlist, updated_entities, search_field):
-        too_many_entities_new_list = []
-        for ent in too_many_errorlist:
-            was_updated = False
-            for upd_ent in updated_entities:
-                if upd_ent[LIBRARY_NAME] == ent[search_field]:
-                    was_updated = True
-                    break
-            if was_updated == False:
-                too_many_entities_new_list.append({search_field : ent})
-        return too_many_entities_new_list
-    
-    
-    def update_file_mdata_missing_entities(self, file_mdata, updated_entities, ents_not_found_seqsc, entity_name, search_field):
-        if file_mdata.has_key(ERROR_RESOURCE_MISSING):
-            missing_ents_dict = file_mdata[ERROR_RESOURCE_MISSING]
-            if missing_ents_dict.has_key(entity_name):
-                missing_ents_list = missing_ents_dict[entity_name]
-            else:
-                missing_ents_list = []
-                missing_ents_dict[entity_name] = missing_ents_list
-        else:
-            file_mdata[ERROR_RESOURCE_MISSING] = dict()
-            missing_ents_list = []
-            file_mdata[ERROR_RESOURCE_MISSING][entity_name] = missing_ents_list
-            
-        missing_ents_list = self.update_missing_entities_errorlist(missing_ents_list, updated_entities, search_field)
-        missing_ents_list.extend(ents_not_found_seqsc)
-        file_mdata[ERROR_RESOURCE_MISSING][entity_name] = missing_ents_list     
-        print "MISSING RESOURCES: ", missing_ents_list
-        print "FILE MDATA ERROR RESOURCE MISSING: ", file_mdata[ERROR_RESOURCE_MISSING]
-        return file_mdata
-    
-    
-    def update_file_mdata_not_unique_entities(self, file_mdata, updated_entities, too_many_dbrows_list, entity_name, search_field):
-        if file_mdata.has_key(ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE):
-            too_many_ents_dict = file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE]
-            if too_many_ents_dict.has_key(entity_name):
-                too_many_ents_list = too_many_ents_dict[entity_name]
-            else:
-                too_many_ents_list = []
-                too_many_ents_dict[entity_name] = too_many_ents_list
-        else:
-            file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE] = dict()
-            too_many_ents_list = []
-            file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE][entity_name] = too_many_ents_list
-            
-        too_many_ents_list = self.update_too_many_rows_errorlist(too_many_ents_list, updated_entities, search_field)
-        too_many_ents_list.extend(too_many_dbrows_list)
-        file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE][entity_name] = too_many_ents_list    # ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE={'library': [{'name': 'bcX98J21 1'}]}
-        print "TOO MANY LIBS LIST: ", too_many_ents_list 
-        print "FILE MDATA ERROR RESOURCE NOT UNIQUE: ", file_mdata[ERROR_RESOURCE_NOT_UNIQUE_SEQSCAPE]
-        return file_mdata
-        
-        
-    # Query SeqScape for all the library names found in BAM header
-    def libs_mdata_lookup(self, incomplete_libs_list, file_mdata):
+    def update_libs(self, file_submitted):
+        ''' Iterates over the list of libraries and if the mdata for not complete, it looks it up in SeqScape. '''
         search_field = 'name'
-        entity_name = 'library'
-        libs_not_found_seqsc = []
-        too_many_libs_found = []
-        result_lib_list = []
-        updated_libs = []   
-        for lib_name in incomplete_libs_list:
-            lib_mdata = self.seqscape_cls.get_library_data(self.connection, search_field, lib_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            print "LIB DATA FROM SEQSCAPE:------- ",lib_mdata 
-            if len(lib_mdata) == 0:
-                result_lib_list.append({"library_name" : lib_name})
-                libs_not_found_seqsc.append({search_field : lib_name})
-            elif len(lib_mdata) > 1:
-                too_many_libs_found.append({search_field : lib_name})
-                print "LIB IS ITERABLE....LENGTH: ", len(lib_mdata), " this is the TOO MANY LIST: ", too_many_libs_found
-            elif len(lib_mdata) == 1:
-                lib_mdata = lib_mdata[0]                        # get_lib_data returns a tuple in which each element is a row in seqscDB
-                lib_mdata = self.lib_seqsc2my_dbmodel(lib_mdata)
-                lib_mdata = self.filter_nulls(lib_mdata)
-                result_lib_list.append(lib_mdata)
-                updated_libs.append(lib_mdata)
-        print "LIBRARY LIST: ", result_lib_list
+        for lib in file_submitted.library_list:
+            if lib.is_complete == False:
+                lib_mdata = QuerySeqScape.get_library_data(self.connection, search_field, lib.library_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+                if len(lib_mdata) == 1:                 
+                    lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
+                    new_lib = Library.build_from_seqscape(lib_mdata)
+                    lib.update(new_lib)
+                    if lib.is_mdata_complete():
+                        lib.is_complete = True
+                        
         
-        # UPDATE EXISTING MDATA FOR EACH LIST:
-        file_mdata[LIBRARY_LIST] = self.update_lib_mdata(file_mdata[LIBRARY_LIST], result_lib_list)
+                
+    def update_samples(self, file_submitted):
+        search_field = 'name'
+        for sample in file_submitted.sample_list:
+            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_name)  
+            if len(sampl_mdata) == 0:           # second try to find the sample in SeqScape, different criteria
+                search_field = 'accession_number'       # second try: query by accession_nr
+                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_accession_nr)
+            if len(sampl_mdata) == 1:           # Ideal case
+                sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
+                new_sample = Sample.build_from_seqscape(sampl_mdata)
+                sample.update(new_sample)
+    
+    
+    def update_studies(self, file_submitted):
+        search_field = 'name'
+        # TO DO...what is the search field?!
+        
 
-        # UPDATE MISSING LIBS LIST:
-        if len(libs_not_found_seqsc) > 0:
-            file_mdata = self.update_file_mdata_missing_entities(file_mdata, updated_libs, libs_not_found_seqsc, entity_name, search_field)
-        else:
-            print "NO MISSING LIBS!"
-
-        # UPDATE THE LIBS NOT_UNIQUE_SEQSCAPE:
-        if len(too_many_libs_found) > 0: 
-            self.update_file_mdata_not_unique_entities(file_mdata, updated_libs, too_many_libs_found, entity_name, search_field)            
-        else:
-            print "NO TOO MANY ROWS ERRORS - LIBS!!"    
+    #fetch and process lib mdata
+    # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
+    # Query SeqScape for all the library names found in BAM header
+    def fetch_and_process_lib_mdata(self, incomplete_libs_list, file_submitted):
+        ''' file_submitted = the actual submittedFile object. '''
+        search_field = 'name'
+        for lib_name in incomplete_libs_list:
+            lib_mdata = QuerySeqScape.get_library_data(self.connection, search_field, lib_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+            print "LIB DATA FROM SEQSCAPE:------- ",lib_mdata
+            if len(lib_mdata) == 1:                 # Ideal case
+                lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
+                new_lib = Library.build_from_seqscape(lib_mdata)
+                file_submitted.add_or_update_lib(new_lib)
+            else:               # Faulty cases:
+                new_lib = Library()
+                setattr(new_lib, search_field, lib_name)
+                print "LIB IS COMPLETE OR NOT: ------------------------", new_lib.is_complete
+                if len(lib_mdata) > 1:
+                    file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
+                    print "LIB IS ITERABLE....LENGTH: ", len(lib_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
+                elif len(lib_mdata) == 0:
+                    file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
+                    print "NO ENTITY found in SEQSCAPE. List of Missing entities: ", file_submitted.missing_entities_error_dict
+        print "LIBRARY LIST: ", file_submitted.library_list
+        
                 
                 
     ########## SAMPLE LOOKUP ############
     # Look up in SeqScape all the sample names in header that didn't have a complete mdata in my DB. 
-    def sampl_mdata_lookup(self, incomplete_sampl_list, file_mdata):
-        entity_name = 'sample'
-        sampl_not_found_seqsc = []
-        too_many_sampl_found = []
-        result_sampl_list = []
-        updated_samples = []
-        for sampl_name in incomplete_sampl_list:
-            search_field = 'name'
-            sampl_data = self.seqscape_cls.get_sample_data(self.connection, search_field, sampl_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            if len(sampl_data) == 0:
-                search_field = 'accession_number'
-                sampl_data = self.seqscape_cls.get_sample_data(self.connection, search_field, sampl_name) 
-            print "SAMPLE DATA FROM SEQSCAPE:------- ",sampl_data
-            if len(sampl_data) == 0:
-                result_sampl_list.append({search_field : sampl_name})
-                sampl_not_found_seqsc.append({search_field : sampl_name})
-            elif len(sampl_data) > 1:
-                print "SAMPLE IS ITERABLE....LENGTH: ", len(sampl_data)
-                too_many_sampl_found.append({search_field : sampl_name})
-            elif len(sampl_data) == 1:
-                sampl_data = sampl_data[0]  # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
-                sampl_data = self.sampl_seqsc2my_dbmodel(sampl_data)
-                sampl_data = self.filter_nulls(sampl_data)
-                result_sampl_list.append(sampl_data)
-        print "SAMPLE_LIST: ", result_sampl_list
-                
+    def fetch_and_process_sample_mdata(self, incomplete_sampl_list, file_submitted):
         search_field = 'name'
-        # UPDATE EXISTING MDATA FOR EACH LIST:
-        file_mdata[SAMPLE_LIST] = self.update_sampl_mdata(file_mdata[SAMPLE_LIST], result_sampl_list)
+        for sampl_name in incomplete_sampl_list:
+            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sampl_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+            if len(sampl_mdata) == 0:
+                search_field = 'accession_number'       # second try: query by accession_nr
+                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sampl_name)
+                if len(sampl_mdata) == 0:
+                    search_field = 'name'   # Change back to default(which is 'name') the search_field value  
+            print "SAMPLE DATA FROM SEQSCAPE:------- ",sampl_mdata
             
-        # UPDATE MISSING SAMPLES LIST:
-        if len(sampl_not_found_seqsc) > 0:
-            file_mdata = self.update_file_mdata_missing_entities(file_mdata, updated_samples, sampl_not_found_seqsc, entity_name, search_field)
-        else:
-            print "NO MISSING SAMPLES!"
+            if len(sampl_mdata) == 1:           # Ideal case
+                sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
+                new_sample = Sample.build_from_seqscape(sampl_mdata)
+                file_submitted.add_or_update_sample(new_sample)
+            else:                           # Problematic - error cases:
+                new_sample = Sample()
+                setattr(new_sample, search_field, sampl_name)
+                if len(sampl_mdata) > 1:
+                    file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
+                    print "SAMPLE IS ITERABLE....LENGTH: ", len(sampl_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
+                elif len(sampl_mdata) == 0:
+                    file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+            print "SAMPLE_LIST: ", file_submitted.sample_list
+      
+      
      
-        # UPDATE THE LIBS NOT_UNIQUE_SEQSCAPE:
-        if len(too_many_sampl_found) > 0: 
-            self.update_file_mdata_not_unique_entities(file_mdata, updated_samples, too_many_sampl_found, entity_name, search_field)            
-        else:
-            print "NO TOO MANY ROWS ERRORS - LIBS!!"    
-     
-     
-    def study_mdata_lookup(self, incomplete_study_list, file_mdata):
+    def study_mdata_lookup_and_update(self, incomplete_study_list, file_mdata):
         pass
     
      
@@ -600,14 +377,14 @@ class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT'}  # PU, PL, DS?
     ignore_result = True
     
-    def change_state_event(self, event_name, state, result):
+    def trigger_event(self, event_type, state, result):
         connection = self.app.broker_connection()
         evd = self.app.events.Dispatcher(connection=connection)
         try:
             #self.update_state(state="CUSTOM")
             #evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
             self.update_state(state=state)
-            evd.send(event_name, state=state, result=result)
+            evd.send(event_type, state=state, result=result)
         finally:
             evd.close()
             connection.close()
@@ -643,65 +420,39 @@ class ParseBAMHeaderTask(Task):
             back_to_list[k] = list(v)
         return back_to_list
     
-    #################### ENTITY SPECIFIC FUNCTIONS: ############
     
-    def is_lib_complete(self, lib):
-        if lib[LIBRARY_PUBLIC_NAME] == None or lib[LIBRARY_TYPE] == None:
-            return False
-        return True
-    
-    def is_sample_complete(self, sample):
-        if sample[SAMPLE_ACCESSION_NR] == None or sample[SAMPLE_NAME] == None or sample[SAMPLE_PUBLIC_NAME] == None or sample[SANGER_SAMPLE_ID] == None:
-            return False
-        return True
-    
-    def is_study_complete(self, study):
-        if study[STUDY_ACCESSION_NR] == None or study[STUDY_FACULTY_SPONSOR] == None or study[STUDY_NAME] == None or study[STUDY_REFERENCE_GENOME] or study[STUDY_TITLE] == None or study[STUDY_TYPE] == None:
-            return False
-        return True
-    
-    def are_samples_equal(self, sample1, sample2):
-        pass
     
     ######### ENTITIES IN HEADER LOOKUP ########################
-    
-    #Looks up library names to check if they are complete in mdata.
-    def process_header_lib_list(self, header_library_list, file_library_list):
-        ''' Compares the information about each library in the header with the information existing already in the DB
-            about that library. If the lib is complete, nothing happens. If the info about a lib is incomplete in the DB
-            than it adds it to a list of incomplete libraries. '''
-        if len(file_library_list) == 0:
-            return header_library_list
+     
+    def select_new_incomplete_libs(self, header_lib_name_list, file_submitted):
+        ''' Searches in the list of libraries of this file for each library identifier (string) from header_library_name_list. 
+            If the lib exists already, nothing happens. If it doesn't exist, than it adds the lib to a list of incomplete libraries. '''
+        if len(file_submitted.library_list) == 0:
+            return header_lib_name_list
+        if len(header_lib_name_list) == 0:
+            return []
         incomplete_libs = []
-        for lib_name_h in header_library_list:
-            found = False
-            for lib in file_library_list:
-                if lib['library_name'] == lib_name_h:
-                    if self.is_lib_complete(lib) == False:
-                        incomplete_libs.append(lib_name_h)
-                    found = True
-                    break
-            if found == False:
+        for lib_name_h in header_lib_name_list:
+            if not file_submitted.contains_lib(lib_name_h):
                 incomplete_libs.append(lib_name_h)
         return incomplete_libs
         
     
-    def process_header_sampl_list(self, header_samples_list, file_samples_list):
-        if len(file_samples_list) == 0:
+    
+    def select_new_incomplete_samples(self, header_samples_list, file_submitted):
+        ''' Searches in the list of samples for each sample identifier (string) from header_library_name_list. 
+            If the sample exists already, nothing happens. 
+            If it doesn't exist, than it adds the sample to a list of incomplete samples. '''
+        if len(file_submitted.sample_list) == 0:
             return header_samples_list
+        if len(header_samples_list) == 0:
+            return []
         incomplete_samples = []
         for sample_name_h in header_samples_list:
-            found = False
-            for sampl in file_samples_list:
-                if sampl['sample_name'] == sample_name_h or sampl['sanger_sample_id'] == sample_name_h:
-                    if self.is_sample_complete(sampl) == False:
-                        incomplete_samples.append(sample_name_h)
-                    found = True
-                    break
-            if found == False:
+            if not file_submitted.contains_sample(sample_name_h):
                 incomplete_samples.append(sample_name_h)
         return incomplete_samples
-    
+                
     
  
     
@@ -710,27 +461,34 @@ class ParseBAMHeaderTask(Task):
     def run(self, **kwargs):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
-        print "FILE MDATA WHEN I GOT IT: ", file_mdata
         
+        print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
+        print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
+        
+        submitted_file = SubmittedFile()
+        submitted_file.build_from_json(file_mdata)
+        file_mdata = submitted_file
+                
         try:
-            header_json = self.get_header_mdata(file_mdata['file_path_client'])  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
+            header_json = self.get_header_mdata(file_mdata.file_path_client)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
             
-            header_library_list = header_processed['LB']
-            header_sample_list = header_processed['SM']
+            self.trigger_event(UPDATE_EVENT, "SUCCESS", "No result!")
+            
+            header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
+            header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
             #header_seq_centers = header_processed['CN']
             
-            
             ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
-            incomplete_libs_list = self.process_header_lib_list(header_library_list, file_mdata['library_list'])  # List of incomplete libs
-            incomplete_sampl_list = self.process_header_sampl_list(header_sample_list, file_mdata['sample_list'])
+            incomplete_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
+            incomplete_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
             
             processSeqsc = ProcessSeqScapeData()
-            processSeqsc.libs_mdata_lookup(incomplete_libs_list, file_mdata)
-            processSeqsc.sampl_mdata_lookup(incomplete_sampl_list, file_mdata)
+            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_mdata)
+            processSeqsc.fetch_and_process_sample_mdata(incomplete_sampl_list, file_mdata)
 
-            print "LIBRARY UPDATED LIST: ", file_mdata[LIBRARY_LIST]
-            print "SAMPLE_UPDATED LIST: ", file_mdata[SAMPLE_LIST]
+            print "LIBRARY UPDATED LIST: ", file_mdata.library_list
+            print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
         except ValueError:      # This originates from BAM header parsing
             file_mdata[FILE_HEADER_PARSING_STATUS] = "FAILURE"
             error_list = file_mdata[FILE_ERROR_LOG]
@@ -1193,3 +951,27 @@ def query_seqscape2():
 #        print '%s' % (tx.message)
 #      
 #      
+
+
+
+# JSON: stuff:
+
+#        import simplejson as sjson
+##         >>> obj = [u'foo', {u'bar': [u'baz', None, 1.0, 2]}]
+##         >>> json.loads('["foo", {"bar":["baz", null, 1.0, 2]}]') == obj
+#        deser2 = sjson.lo
+
+#        from serapis.entities import *
+#        obj_submf = SubmittedFile(file_mdata)
+#        print "SUBMITTED FILE AFTER ALLOCATING: ", str(obj_submf), " fields: ", obj_submf.file_id
+#        
+#        import json
+#        myobj = json.loads(file_serialized)
+#        print "CHRIS SOLUTION - myobj: ", myobj, " FIELDS: ", myobj.file_id, " ", myobj.submission_id
+#        
+        #myobj = json.loads('{"file_id": 1, "file_path": "/home/ic4/data-test/bams/99_2.bam"}')
+        
+#        import jsonpickle
+#        unpickled = jsonpickle.decode(file_serialized)
+#        print "UNPICKLED:::.....", unpickled, "FILEDS: ", unpickled.file_id
+

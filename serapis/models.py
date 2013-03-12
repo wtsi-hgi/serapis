@@ -84,7 +84,7 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
         
     # Fields relating to the individual:
     taxon_id = StringField()
-    individual_sex = StringField()
+    individual_gender = StringField()
     individual_cohort = StringField()
     individual_ethnicity = StringField()
     country_of_origin = StringField()
@@ -105,7 +105,7 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
 #    
 #class Individual(DynamicEmbeddedDocument):
 #    # one Indiv to many samples
-#    individual_sex = StringField()
+#    individual_gender = StringField()
 #    individual_cohort = StringField()
 #    individual_ethnicity = StringField()
 #    individual_geographical_region = StringField()
@@ -162,8 +162,8 @@ class SubmittedFile(DynamicEmbeddedDocument):
     #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
     
     file_error_log = ListField(StringField())
-    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
-    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+    missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+    not_unique_entity_error_dict = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))

@@ -162,11 +162,6 @@ def update_file_submitted(submission_id, file_id, data):
 
 
 
-# ----------------------------- HANDLE RESULTS ------------------------
-
-def handle_worker_results(data):
-    task_name = data['']
-
 
 # ---------------------------------- NOT USED ------------------
 
