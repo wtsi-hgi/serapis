@@ -1,21 +1,20 @@
 
-
+import simplejson
 
 # ------------------ ENTITIES ---------------------------
 
-
+# TODO: to RENAME the class to: logical_model
 
 class Entity(object):
     def __init__(self):
-        # Fields used for implementing the application's logic:
-        self.is_complete = False
-        self.has_minimal = False
+        self.is_complete = False        # Fields used for implementing the application's logic
+        self.has_minimal = False        #
 
     def __repr__(self):
         return "%r" % self.__dict__
         
     def update(self, new_entity):
-        ''' Compare the properties of this instance with the new_lib object properties.
+        ''' Compare the properties of this instance with the new_entity object properties.
             Update only the None fields in self object and return True if anything was changed.'''
         has_changed = False
         for field in vars(new_entity):
@@ -27,14 +26,19 @@ class Entity(object):
         return has_changed
     
     def check_if_complete_mdata(self):
-        ''' Checks if the mdata corresponding to this lib is complete. '''
-        for key in self.__dict__:
-            if getattr(self, key) == None:
-                return False
-        return True
-
+        ''' Checks if the mdata corresponding to this entity is complete. '''
+        if not self.is_complete:
+            for key in vars(self):
+                if getattr(self, key) == None:
+                    self.is_complete = False
+            return self.is_complete
     
-    
+#    def check_if_has_minimal_mdata(self):
+#        if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
+#            if self.sample_accession_nr != None and self.sample_name != None:
+#                self.has_minimal = True
+#        return self.has_minimal
+#    
 
 class Study(Entity):
     def __init__(self, acc_nr=None, name=None, study_type=None, title=None, sponsor=None, ena_prj_id=None, ref_genome=None):
@@ -45,8 +49,7 @@ class Study(Entity):
         self.study_faculty_sponsor = sponsor 
         self.ena_project_id = ena_prj_id
         self.study_reference_genome = ref_genome
-        super(Entity, self).__init__()
-        
+        super(Study, self).__init__()
     
     def __eq__(self, other):
         if isinstance(other, Study):
@@ -57,9 +60,9 @@ class Study(Entity):
         return False
      
     # TODO: implement this one
-    def has_minimal_info(self):
+    def check_if_has_minimal_mdata(self):
         pass
-#        if self.library_name != None and self.library_type != None:
+#        if self.study_name != None and self.library_type != None:
 #            return True
 #        return False
     
@@ -91,7 +94,7 @@ class Library(Entity):
         self.library_name = name    # identifies a library 
         self.library_type = lib_type
         self.library_public_name = public_name
-        super(Entity, self).__init__()
+        super(Library, self).__init__()
         
     def __eq__(self, other):
         if isinstance(other, Library):
@@ -99,11 +102,12 @@ class Library(Entity):
                 return True
         return False
 
-    def check_if_minimal_mdata(self):
-        ''' Checks if the minimal mdata is present. '''
-        if self.library_name != None and self.library_type != None:
-            return True
-        return False
+    def check_if_has_minimal_mdata(self):
+        ''' Checks if the library has the minimal mdata. '''
+        if not self.has_minimal:
+            if self.library_name != None and self.library_type != None:
+                self.has_minimal = True
+        return self.has_minimal
     
     @staticmethod
     def build_from_json(json_file):
@@ -120,6 +124,14 @@ class Library(Entity):
         lib.library_type = lib_mdata['library_type']
         return lib
     
+    @staticmethod
+    def build_from_db_model(self, db_obj):
+        lib = Library()
+        for key in vars(db_obj):
+            attr_val = getattr(db_obj, key)
+            setattr(lib, key, attr_val)
+        return lib
+    
     # internal_id        
     #sample_internal_id = IntField()
     
@@ -129,7 +141,7 @@ class Sample(Entity): # one sample can be member of many studies
     def __init__(self, acc_nr=None, ssi=None, name=None, public_name=None, tissue_type=None, ref_genome=None,
                  taxon_id=None, sex=None, cohort=None, ethnicity=None, country_of_origin=None, geographical_region=None,
                  organism=None, common_name=None):
-        self.sample_accession_nr = acc_nr
+        self.sample_accession_number = acc_nr
         self.sanger_sample_id = ssi
         self.sample_name = name # UNIQUE
         self.sample_public_name = public_name
@@ -144,8 +156,8 @@ class Sample(Entity): # one sample can be member of many studies
         self.country_of_origin = country_of_origin
         self.geographical_region = geographical_region
         self.organism = organism
-        self.common_name = common_name
-        super(Entity, self).__init__()
+        self.sample_common_name = common_name
+        super(Sample, self).__init__()
         
         
     # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
@@ -153,15 +165,17 @@ class Sample(Entity): # one sample can be member of many studies
         if isinstance(other, Sample):
             if self.sample_name != None and self.name == other.sample_name:
                 return True
-            elif self.sample_accession_nr != None and self.sample_accession_nr == other.sample_name:
+            elif self.sample_accession_number != None and self.sample_accession_number == other.sample_name:
                 return True
         return False
     
-    def has_minimal_info(self):
-        if self.sample_accession_nr != None and self.sample_name != None:
-            return True
-        return False
-    
+    def check_if_has_minimal_mdata(self):
+        ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
+        if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
+            if self.sample_accession_number != None and self.sample_name != None:
+                self.has_minimal = True
+        return self.has_minimal
+      
     @staticmethod
     def build_from_json(json_file):
         sampl = Sample()
@@ -172,7 +186,7 @@ class Sample(Entity): # one sample can be member of many studies
     @staticmethod
     def build_from_seqscape(sampl_mdata):
         sampl = Sample()  
-        sampl.sample_accession_nr = sampl_mdata['accession_number']
+        sampl.sample_accession_number = sampl_mdata['accession_number']
         sampl.sample_name = sampl_mdata['name']
         sampl.sample_public_name = sampl_mdata['public_name']
         sampl.individual_cohort = sampl_mdata['cohort']
@@ -182,7 +196,7 @@ class Sample(Entity): # one sample can be member of many studies
         sampl.sanger_sample_id = sampl_mdata['sanger_sample_id']
         sampl.geographical_region = sampl_mdata['geographical_region']
         sampl.organism = sampl_mdata['organism']
-        sampl.common_name = sampl_mdata['common_name']
+        sampl.sample_common_name = sampl_mdata['common_name']
         sampl.reference_genome = sampl_mdata['reference_genome']
         sampl.taxon_id = sampl_mdata['taxon_id']
         return sampl
@@ -312,7 +326,6 @@ class SubmittedFile():
     def append_to_not_unique_entity_list(self, entity, entity_type):
         return self.__append_to_errors_dict__(entity, entity_type, self.not_unique_entity_error_dict)
     
-    
     # CAREFUL! Here I assumed that the identifier in header LB field is the library name. If not, this should be changed!!!
     def contains_lib(self, lib_name):
         for lib in self.library_list:
@@ -322,7 +335,7 @@ class SubmittedFile():
     
     def contains_sample(self, sample_name):
         for sample in self.sample_list:
-            if sample.sample_name == sample_name or sample.sample_accession_nr == sample_name:
+            if sample.sample_name == sample_name or sample.sample_accession_number == sample_name:
                 return True
         return False
     
@@ -332,6 +345,18 @@ class SubmittedFile():
                 return True
         return False
     
+    def __encode_model__(self, obj):
+        if isinstance(obj, (Entity, SubmittedFile)):
+            out = vars(obj)
+        elif isinstance(obj, (list,dict)):
+            out = obj
+        else:
+            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+        return out         
+    
+    def to_json(self):
+        return simplejson.dumps(self, default=self.__encode_model__, indent=4)
+        
         
         
 
@@ -341,6 +366,13 @@ class Submission():
         self.submission_status = status    # StringField(choices=SUBMISSION_STATUS)
         self.files_list = files_list           # ListField(EmbeddedDocumentField(SubmittedFile))
 
+    @staticmethod
+    def build_from_db_model(self, db_obj):
+        submission = Submission()
+        for key in vars(db_obj):
+            attr_val = getattr(db_obj, key)
+            setattr(submission, key, attr_val)
+        return submission
 
 
 

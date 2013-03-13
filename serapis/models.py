@@ -29,59 +29,36 @@ class PilotModel(DynamicDocument):
 
 ### ---------------------- THE CORRECT THING: -----------
     
+# TODO: to RENAME the class to: db_models
+    
+class Entity(DynamicEmbeddedDocument):
+    is_complete = BooleanField()
+    has_minimal = BooleanField()
+    
 
-class Study(DynamicEmbeddedDocument):
+class Study(Entity):
     study_accession_nr = StringField()
     study_name = StringField() #unique
     study_type = StringField()
     study_title = StringField()
     study_faculty_sponsor = StringField()
     ena_project_id = StringField()
-    study_reference_genome = StringField()    
-    
-    #samples_list = ListField(ReferenceField('Sample'))
-    
-    ######## OPTIONAL FIELDS:
-    #internal_id = IntField() # to be used only for link table
-    #description = StringField()
-    # remove_x_and_autosomes = StringField()
-    
-#        
-#class Lane(DynamicEmbeddedDocument):
-#    internal_id = IntField() # mine
-#    name = StringField() #min
-#    barcode = StringField()
-#    reads_nr = IntField()
-#    bases_nr = IntField()
-#    reference_genome = StringField()
-    
-    
-class Library(DynamicEmbeddedDocument):
+    study_reference_genome = StringField()
+        
+
+class Library(Entity):
     library_name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
-    #library_barcode = StringField()
-    
-    # refField - lane
-    # a library is tight to a specific sample
-    
-    # OPTIONAL:
-    #fragment_size_from = StringField()
-    #fragment_size_to = StringField()
-    #lane_list = ListField(EmbeddedDocumentField(Lane))
-    #library_barcode = StringField()
-    #sample_internal_id = IntField()
-    
 
-class Sample(DynamicEmbeddedDocument): # one sample can be member of many studies
-    # each sample relates to EXACTLY 1 individual
-    sample_accession_nr = StringField()
+
+class Sample(Entity):          # one sample can be member of many studies
+    sample_accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()
     sample_name = StringField() # UNIQUE
     sample_public_name = StringField()
     sample_tissue_type = StringField() 
     reference_genome = StringField()
-        
     # Fields relating to the individual:
     taxon_id = StringField()
     individual_gender = StringField()
@@ -90,38 +67,7 @@ class Sample(DynamicEmbeddedDocument): # one sample can be member of many studie
     country_of_origin = StringField()
     geographical_region = StringField()
     organism = StringField()
-    common_name = StringField()
-    
-    #study_list = ListField(ReferenceField(Study))
-    
-    
-    # OPTIONAL:
-    # sample_visibility = StringField()   # CHOICE
-    # description = StringField()
-    # supplier_name = StringField()
-    # library_tube_id or list of library_tubes
-    
-    
-#    
-#class Individual(DynamicEmbeddedDocument):
-#    # one Indiv to many samples
-#    individual_gender = StringField()
-#    individual_cohort = StringField()
-#    individual_ethnicity = StringField()
-#    individual_geographical_region = StringField()
-#    organism = StringField()
-#    common_name = StringField()
-#    
-
-    #samples_list = ListField(ReferenceField(Sample))
-    
-    # OPTIONAL:
-    # individual_name = StringField()
-    # country_of_origin = StringField()
-    # taxon_id = StringField()
-    # mother = StringField()
-    # father = StringField()
-    # common_name = StringField()
+    sample_common_name = StringField()  # This is the field name given for mdata in iRODS /seq
     
     
 class SubmittedFile(DynamicEmbeddedDocument):
@@ -131,20 +77,10 @@ class SubmittedFile(DynamicEmbeddedDocument):
     file_path_client = StringField()
     file_path_irods = StringField()    
     md5 = StringField()
+    study_list = ListField(EmbeddedDocumentField(Study))
+    library_list = ListField(EmbeddedDocumentField(Library))
+    sample_list = ListField(EmbeddedDocumentField(Sample))
     
-#    meta = {
-#            'indexes' : ['file_id']
-#            }
-    
-    
-
-#HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
-#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
-#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
-#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
-#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
-
-
     ######## STATUSES #########
     # UPLOAD:
     file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
@@ -157,54 +93,92 @@ class SubmittedFile(DynamicEmbeddedDocument):
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
     
-    
-    #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
-    #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
-    
     file_error_log = ListField(StringField())
     missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
-    
-    study_list = ListField(EmbeddedDocumentField(Study))
-    library_list = ListField(EmbeddedDocumentField(Library))
-    sample_list = ListField(EmbeddedDocumentField(Sample))
-#    individuals_list = ListField(EmbeddedDocumentField(Individual))
-    #lane_list = ListField(Lane)
-    #size = IntField()
-    
-    #temp field:
-    #file_header = DictField()
-
-
+    meta = {
+            'indexes' : ['submission_id', 'file_id']
+            }
+ 
 
 class Submission(DynamicDocument):
-    #_id = ObjectIdField(required=False, primary_key=True)
-    #_id = ObjectIdField()
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
     files_list = ListField(EmbeddedDocumentField(SubmittedFile))
+    meta = {
+        'indexes': ['sanger_user_id', '_id'],
+            }
+    
+#    meta = {
+#        'allow_inheritance': True,
+#        'indexes': ['-created_at', 'slug'],
+#        'ordering': ['-created_at']
+#    }
+
+
+  
+#  OPTIONAL FIELDS AFTER ELIMINATED FOR CLEANING PURPOSES:
+
+############# SUBMISSION ############################
+#_id = ObjectIdField(required=False, primary_key=True)
+    #_id = ObjectIdField()
+   
 #    meta = {
 #        'pk' : '_id', 
 #        'id_field' : '_id'
 #    }
-#    
-class TTest(Document):
-    _id = ObjectIdField(primary_key=True)
-    sanger_user_id = StringField()
-    submission_status = StringField()
+# 
+################## STUDY: ############################
+    #samples_list = ListField(ReferenceField('Sample'))
+    # remove_x_and_autosomes = StringField()
+
+################ SAMPLE: ##############################
+
+    #study_list = ListField(ReferenceField(Study))
     
     
+    # OPTIONAL:
+    # sample_visibility = StringField()   # CHOICE
+    # description = StringField()
+    # supplier_name = StringField()
+    # library_tube_id or list of library_tubes
+    
+#class Individual(DynamicEmbeddedDocument):
+#    # one Indiv to many samples
+#    individual_gender = StringField()
+#    individual_cohort = StringField()
+#    individual_ethnicity = StringField()
+#    individual_geographical_region = StringField()
+#    organism = StringField()
+#    sample_common_name = StringField()
 #    
-#class FileBatch(DynamicDocument):
-#    filesType = StringField(choices=FILE_TYPES)
-#    folderPath = StringField(max_length=120)            #required=True
-#    fileList = ListField(StringField(max_length=120))   #required
-#    md5 = ListField(IntField())     # md5 for each file
-#    
-#    def __unicode__(self):
-#        return self.folderPath
-#
-#
+
+    #samples_list = ListField(ReferenceField(Sample))
+    
+    # OPTIONAL:
+    # individual_name = StringField()
+    # country_of_origin = StringField()
+    # taxon_id = StringField()
+    # mother = StringField()
+    # father = StringField()
+    # sample_common_name = StringField()
+    
+    
+##################### LIBRARY ##########################
+   
+    # OPTIONAL:
+    #sample_internal_id = IntField()    # a library is tight to a specific sample
+    
+  
+################### SUBMITTED FILE #####################
+#    individuals_list = ListField(EmbeddedDocumentField(Individual))
+    #lane_list = ListField(Lane)
+    #size = IntField()
+    
+    #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
+    #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
+
+  
 #
 #class BAMFileBatch(FileBatch):
 #    experiment_id = StringField

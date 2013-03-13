@@ -15,8 +15,8 @@ from serapis import constants, serializers
 # TASKS:
 upload_task = tasks.UploadFileTask()
 parse_BAM_header = tasks.ParseBAMHeaderTask()
-query_seqscape = tasks.QuerySeqScapeTask()
-query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
+#query_seqscape = tasks.QuerySeqScapeTask()
+#query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
     
 #MDATA_ROUTING_KEY = 'mdata'
 #UPLOAD_EXCHANGE = 'UploadExchange'
@@ -124,20 +124,18 @@ def create_submission(user_id, files_list):
 def update_submission(submission_id, data):
     subm_id_obj = ObjectId(submission_id)
     submission_qset = models.Submission.objects(_id=subm_id_obj)
-    #submission_qset = models.Submission.objects(__raw__={'_id' : ObjectId(submission_id)})
-    
     submission = submission_qset.get()   
-    #submission_qset.update(data)
-    
-#    print "THEN WHO IS OBJECT ID? ", submission.id
-#    print "UPDATE: SUBMISSION Q SET: ", submission.__dict__, "TYPE OF SUBMISSION: ", type(submission), "AND Q SET:", type(submission_qset)
-
     for (key, val) in data.iteritems():
-        if models.Submission._fields.has_key(key):
+        if key in models.Submission._fields:          #if key in vars(submission):
             setattr(submission, key, val)
         else:
             raise KeyError
     submission.save(validate=False)
+
+#submission_qset = models.Submission.objects(__raw__={'_id' : ObjectId(submission_id)})
+#submission_qset.update(data)
+#    print "THEN WHO IS OBJECT ID? ", submission.id
+#    print "UPDATE: SUBMISSION Q SET: ", submission.__dict__, "TYPE OF SUBMISSION: ", type(submission), "AND Q SET:", type(submission_qset)
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
@@ -146,20 +144,36 @@ def update_file_submitted(submission_id, file_id, data):
     subm_id_obj = ObjectId(submission_id)
     submission_qset = models.Submission.objects(_id=subm_id_obj)
     submission = submission_qset.get()   
-    
+    print "Type of submission obj: ****************", type(submission)
     for submitted_file in submission.files_list:
         if submitted_file.file_id == int(file_id):
             for (key, val) in data.iteritems():
                 print "KEY RECEIVED IN CONTROLLER: ", key
-                if models.SubmittedFile._fields.has_key(key):
-                    setattr(submitted_file, key, val)
-                elif models.Study._fields.has_key(key):
-                    query_study_seqscape.apply_async(file_id=file_id, study_field_name=key, study_field_value=val, submission_id=submission_id)
+                if key in models.SubmittedFile._fields:           # I would use this: if key in submitted_file: but I defined DynamicDocuments...
+                    if key == 'library_list':
+                        submitted_file.library_list.extend(val)
+                    elif key == 'sample_list':
+                        submitted_file.sample_list.extend(val)
+                    elif key == 'study_list':
+                        submitted_file.study_list.extend(val)
+                    # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
+                    elif key == 'file_error_log':
+                        submitted_file.file_error_log.extend(val)
+                    #elif key == 'missing_entities_error_dict':
+                        
+                    else:
+                        setattr(submitted_file, key, val)
+                #elif models.Study._fields.has_key(key):
+                #    query_study_seqscape.apply_async(file_id=file_id, study_field_name=key, study_field_value=val, submission_id=submission_id)
+                    
                 else:
                     raise KeyError
     submission.save(validate=False)            
 
-
+#    file_error_log = ListField(StringField())
+#    missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+#    not_unique_entity_error_dict = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+#    
 
 
 

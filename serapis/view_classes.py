@@ -52,8 +52,8 @@ class GetOrModifySubmission(APIView):
         try:
             controller.update_submission(submission_id, data)
             return Response(status=200)
-        except KeyError:
-            return Response(status=400)
+        except KeyError as e:
+            return Response("Bad request. "+e.message+e.args,status=400)
 
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
@@ -72,25 +72,7 @@ class GetOrCreateSubmissions(APIView):
         user_id = "ic4"
         data = request.POST['_content']
         data_deserial = json.loads(data)
-        files = data_deserial["files"]
-        
-        mypath = "/home/ic4/data-test/bams"
-        
-        files_list = []
-        for f in listdir(mypath):
-            if isfile(join(mypath, f)):
-                files_list.append(f)
-        
-        # TO DELETE THis line...        
-        #files_list = ["/home/ic4/data-test/bams/99_2.bam"]
-        #files_list = ["/home/ic4/data-test/bams/HG00242.chrom11.ILLUMINA.bwa.GBR.low_coverage.20120522.bam"]
-        #files_list = ["/home/ic4/tmp/shellScript.sh"]
-        
-        #files_list = ["/home/ic4/tmp/adag.xml"]
-        
-        #submission_id = controller.create_submission(user_id, files_list)
-        
-        files_list= files
+        files_list = data_deserial["files"]
         try:
             result_dict = controller.create_submission(user_id, files_list)
             submission_id = result_dict['submission_id']
@@ -109,6 +91,17 @@ class GetOrCreateSubmissions(APIView):
             else:
                 print "ERROR: ", e
                 return Response(status=424)
+
+#        files = data_deserial["files"]
+        #mypath = "/home/ic4/data-test/bams"
+#        files_list = []
+#        for f in listdir(mypath):
+#            if isfile(join(mypath, f)):
+#                files_list.append(f)
+#        
+        # TO DELETE THis line...        
+        #files_list = ["/home/ic4/tmp/adag.xml"]
+        #submission_id = controller.create_submission(user_id, files_list)
     
 
 # Get all submissions with this status created by this user

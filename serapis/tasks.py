@@ -75,7 +75,7 @@ class QuerySeqScape():
         data = None     # result to be returned
         try:
             cursor = connection.cursor()
-            query = "select name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
+            query = "select uuid, name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
             query = query + sample_field_name + "='" + sample_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
@@ -145,7 +145,7 @@ class ProcessSeqScapeData():
             sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_name)  
             if len(sampl_mdata) == 0:           # second try to find the sample in SeqScape, different criteria
                 search_field = 'accession_number'       # second try: query by accession_nr
-                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_accession_nr)
+                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_accession_number)
             if len(sampl_mdata) == 1:           # Ideal case
                 sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
                 new_sample = Sample.build_from_seqscape(sampl_mdata)
@@ -165,7 +165,6 @@ class ProcessSeqScapeData():
         search_field = 'name'
         for lib_name in incomplete_libs_list:
             lib_mdata = QuerySeqScape.get_library_data(self.connection, search_field, lib_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            print "LIB DATA FROM SEQSCAPE:------- ",lib_mdata
             if len(lib_mdata) == 1:                 # Ideal case
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
                 new_lib = Library.build_from_seqscape(lib_mdata)
@@ -213,7 +212,7 @@ class ProcessSeqScapeData():
       
       
      
-    def study_mdata_lookup_and_update(self, incomplete_study_list, file_mdata):
+    def fetch_and_process_study_mdata(self, incomplete_study_list, file_mdata):
         pass
     
      
@@ -396,7 +395,6 @@ class ParseBAMHeaderTask(Task):
         return back_to_list
     
     
-    
     ######### ENTITIES IN HEADER LOOKUP ########################
      
     def select_new_incomplete_libs(self, header_lib_name_list, file_submitted):
@@ -430,7 +428,7 @@ class ParseBAMHeaderTask(Task):
                 
     
  
-    
+
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
@@ -455,24 +453,29 @@ class ParseBAMHeaderTask(Task):
             #header_seq_centers = header_processed['CN']
             
             ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
-            incomplete_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
-            incomplete_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
+            new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
+            new_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
             
             processSeqsc = ProcessSeqScapeData()
-            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_mdata)
-            processSeqsc.fetch_and_process_sample_mdata(incomplete_sampl_list, file_mdata)
+            processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
+            processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
 
             print "LIBRARY UPDATED LIST: ", file_mdata.library_list
             print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
-        except ValueError:      # This originates from BAM header parsing
-            file_mdata[FILE_HEADER_PARSING_STATUS] = "FAILURE"
-            error_list = file_mdata[FILE_ERROR_LOG]
-            error_list.append(3)    #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
-            file_mdata[HEADER_HAS_MDATA] = False
-            if len(file_mdata[STUDY_LIST]) == 0 and len(file_mdata[LIBRARY_LIST]) == 0 and len(file_mdata[SAMPLE_LIST]):
-                file_mdata[FILE_MDATA_STATUS] = 'TOTALLY_MISSING'
-            #file_mdata[FILE_MDATA_STATUS] = 
+            return file_mdata.to_json()
+        except ValueError:      # This comes from BAM header parsing
+            file_mdata.file_header_parsing_status = "FAILURE"
+            file_mdata.file_error_log.append(3)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            file_mdata.header_has_mdata = False
             raise
+#            file_mdata[FILE_HEADER_PARSING_STATUS] = "FAILURE"
+#            error_list = file_mdata[FILE_ERROR_LOG]
+#            error_list.append(3)    #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+#            file_mdata[HEADER_HAS_MDATA] = False
+#            if len(file_mdata[STUDY_LIST]) == 0 and len(file_mdata[LIBRARY_LIST]) == 0 and len(file_mdata[SAMPLE_LIST]):
+#                file_mdata[FILE_MDATA_STATUS] = 'TOTALLY_MISSING'
+#            #file_mdata[FILE_MDATA_STATUS] = 
+
                         
     ######## STATUSES #########
     # UPLOAD:
@@ -498,11 +501,6 @@ class ParseBAMHeaderTask(Task):
 #    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
 #    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
 #
-# study_list = ListField(EmbeddedDocumentField(Study))
-#    library_list = ListField(EmbeddedDocumentField(Library))
-#    sample_list = ListField(EmbeddedDocumentField(Sample))
-
-
 #            
 #            result[TASK_RESULT] = header_processed    # options: INVALID HEADER or the actual header
 #            print "RESULT FROM BAM HEADER: ", result
@@ -532,252 +530,7 @@ class ParseBAMHeaderTask(Task):
 # libs and decides whether it is complete or not
 
 
-
-class QuerySeqScapeForSampleTask(Task):
-    ignore_result = True
-    
-    def connect(self, host, port, user, db):
-        try:
-            conn = connect(host=host,
-                                 port=port,
-                                 user=user,
-                                 db=db,
-                                 cursorclass=cursors.DictCursor
-                                 )
-        except mysqlError as e:
-            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-            raise
-        except OperationalError as e:
-            print "OPERATIONAL ERROR: ", e.message
-            raise
-        return conn
-    
-    
-class QuerySeqScapeForLibrariesTask(Task):
-    '''Takes a list of libraries and returns a list of metadata for each library as a structures. '''
-    def run(self, **kwargs):    
-        pass
-    
-    
-
-
-class QuerySeqScapeTask(Task):
-    ignore_result = True
-    
-    def connect(self, host, port, user, db):
-        try:
-            conn = connect(host=host,
-                                 port=port,
-                                 user=user,
-                                 db=db,
-                                 cursorclass=cursors.DictCursor
-                                 )
-        except mysqlError as e:
-            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-            raise
-        except OperationalError as e:
-            print "OPERATIONAL ERROR: ", e.message
-            raise
-        return conn
-    
-    
-    def filter_nulls(self, data_dict):
-        '''Given a dictionary, it removes the entries that have values = None '''
-        for key, val in data_dict.items():
-            if val is None or val is " ":
-                data_dict.pop(key)
-        return data_dict
-
-    
-    def split_sample_indiv_data(self, sample_dict):
-        '''Extracts in a different dict the data regarding the individual to whom the sample belongs.'''
-        indiv_data_dict = dict({'cohort' : sample_dict['cohort'], 
-                           'gender' : sample_dict['gender'], 
-                           'ethnicity' : sample_dict['ethnicity'], 
-                           'organism' : sample_dict['organism'],
-                           'common_name' : sample_dict['common_name'],
-                           'geographical_region' : sample_dict['geographical_region']
-                           })
-        sample_data_dict = dict({#'uuid' : sample_dict['uuid'],
-                                 'internal_id' : sample_dict['internal_id'],
-                                 'reference_genome' : sample_dict['reference_genome']
-                                 })
-        return dict({'sample' : sample_data_dict, 'individual': indiv_data_dict})
-
-
-    def get_sample(self, connection, sample_name):
-        '''This method queries SeqScape for a given sample_name.'''
-        try:
-            cursor = connection.cursor()
-            # uuid, 
-            cursor.execute("select internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where name=%s;", sample_name)
-            data = cursor.fetchone()
-            if data is None:    # SM may be sample_name or accession_number in SEQSC
-                cursor.execute("select internal_id, reference_genome, organism, cohort, gender, ethnicity, geographical_region, common_name  from current_samples where accession_number=%s;", sample_name)
-                data = cursor.fetchone()    # uuid 
-                print "DB result: reference:", data['reference_genome'], "ethnicity ", data['ethnicity']
-        except mysqlError as e:
-            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-        return data
-    
-    
-    def get_library(self, connection, library_name):
-        try:
-            cursor = connection.cursor()
-            cursor.execute("select internal_id, library_type, public_name, barcode from current_library_tubes where name=%s;", library_name)
-            data = cursor.fetchone()
-            if data is not None:
-                print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
-                data = self.filter_nulls(data)
-            else:
-                print "LIBRARY NOT FOUND IN SEQSCAPE!!!!!"
-                
-        except mysqlError as e:
-            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-        return data
-
-
-    
-    def run(self, args_dict):
-        print "THIS IS WHAT SEQSC TAASSKK RECEIVED: ", args_dict
-#        user_id = args_dict[USER_ID]
-#        submission_id = args_dict[SUBMISSION_ID]
-#        file_id = args_dict[FILE_ID]
-        file_header = args_dict[TASK_RESULT]
-        # this looks like this: 
-        # [{'DT': ['2007-11-08T00:00:00+0000'], 'LB': ['bcX98J21 1'], 'CN': ['SC'], 'SM': ['bcX98J21 1'], 'PU': ['071108_IL11_0099_2']}]
-        # LB = library_name
-        # CN = center
-        # SM = sample_name
-        
-        # So the info from header looks like:
-        #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} => iterate over  each list
-        
-        result = dict()
-        library_list = file_header['LB']
-        seq_center_name_list = file_header['CN']
-        sample_name_list = file_header['SM']
-
-        is_complete = True
-        result_library_list = []   
-        connection = self.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)
-        for lib_name in library_list:
-            lib_data = self.get_library(connection, lib_name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            if lib_data is None:
-                is_complete = False
-                result_library_list.append({"library_name" : lib_name})
-            else:
-                result_library_list.append(lib_data)
-        
-        result_sample_list = []
-        result_individual_list = []
-        for sample_name in sample_name_list:
-            sample_data = self.get_sample(connection, sample_name)
-            if sample_data is None:
-                is_complete = False
-            else:
-                split_data = self.split_sample_indiv_data(sample_data)  # split the sample data in individual and sample related data
-                indiv_data = split_data['individual']
-                sample_data = split_data['sample']
-                # FILTER NONEs:
-                indiv_data = self.filter_nulls(indiv_data)
-                sample_data = self.filter_nulls(sample_data)
-                # APPEND to RESULT LISTS:
-                result_sample_list.append(sample_data)
-                result_individual_list.append(indiv_data)
-        # QUERY SEQSCAPE ONLY IF CN = 'SC'
-        
-        print "LIBRARY LIST: ", result_library_list
-        print "SAMPLE_LIST: ", result_sample_list
-        print "INDIVIDUAL LIST", result_individual_list
-        print "IS COMPLETE: ", is_complete
-        
-        
-        
-        result[LIBRARY_LIST] = result_library_list
-        result[SAMPLE_LIST] = result_sample_list
-        result[INDIVIDUALS_LIST] = result_individual_list
-        
-        # TODO: THINK about the statuses...which ones remain, which ones go...
-        if is_complete:
-            result['file_seqsc_mdata_status'] = "COMPLETE"
-        else:
-            result['file_seqsc_mdata_status'] = "INCOMPLETE" 
-        #result['query_status'] = "COMPLETE"   # INCOMPLETE or...("COMPLETE", "INCOMPLETE", "IN_PROGRESS", TOTALLY_MISSING")
-        
-        time.sleep(2)
-        
-        print "SEQ SCAPE RESULT BEFORE SENDING IT: ", result
-        return result
-
-        ### THis looks like:
-#        SEQ SCAPE RESULT BEFORE SENDING IT:
-#[2013-02-22 16:45:42,895: WARNING/PoolWorker-2] {'library_list': [], 'submission_id': '"\\"5127a0b4d836192a2f955625\\""', 'task_name': 'serapis.tasks.QuerySeqScapeTask', 'individuals_list': [{'common_name': 'Homo sapiens', 'organism': 'Human'}], 'study_list': [{'study_name': '123'}], 'sample_list': [{'uuid': '\x0f]\xe5\xfe\xb9\xc3\x11\xdf\x9ef\x00\x14O\x01\xa4\x14', 'internal_id': 9476L}], 'file_id': 1, 'task_result': 'TOKEN PASSED from SEQ scape.', 'query_status': 'COMPLETE'}
-
-
-
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        args = args[0]  # args is a tuple containing a dictionary with the arguments of the run fct
-        #if status == "SUCCESS":
-        print "ARGS in AFTER RETURN for SEQSCAPE.................", args
-        submission_id = str(args['submission_id'])
-        print "SEQSCAPE AFTER_RETURN STATUS: ", status
-        print "SEQSCAPE RESULT TO BE SENT AWAY: ", retval
-        
-        result = dict()        
-        if status == "RETRY":
-            return
-        elif status == "FAILURE":
-            if isinstance(retval, OperationalError):
-                result[FILE_ERROR_LOG] = "SEQSCAPE - CAN'T CONNECT TO MYSQL SERVER "
-            result[FILE_SEQSCAPE_MDATA_STATUS] = "FAILURE"
-        elif status == "SUCCESS":
-            result = retval
-            result[FILE_SEQSCAPE_MDATA_STATUS] = "SUCCESS"
-        else:
-            print "DIFFERENT STATUS THAN THE ONES KNOWN: ", status
-            return
-        
-        print "MESSAGE TO SEND FROM SEQSCAPE TASK BACK ON FAILURE: ", result
-        url_str = build_url(args['user_id'], submission_id, str(args['file_id']))
-        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
-        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
-        #elif status == "FAILURE":
-        
-        
-        
-class QuerySeqscapeForStudyTask(Task):
-    def get_study(self, connection, study_field, study_value):
-        ''' Query SequenceScape for the study which has study_field=study_value '''
-        try:
-            cursor = connection.cursor()
-            query = "select uuid, study_name, study_type, study_title, study_faculty, study_ena_project_id, reference_genome from current_studies where"
-            query = query + study_field + "=" + study_value + ";"
-            cursor.execute(query)
-            data = cursor.fetchone()
-            if data is not None:
-                print "DB result - internal id:", data['internal_id'], "type ", data['library_type'], " public name: ", data['public_name']
-                data = self.filter_nulls(data)
-            else:
-                print "LIBRARY NOT FOUND IN SEQSCAPE!!!!!"
-                
-        except mysqlError as e:
-            print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-        return data
-
-    
-    def run(self, **kwargs):
-        # kwargs: file_id, study_field_name, submission_id, study_field_value
-        file_id = kwargs['file_id']
-        study_field_name = kwargs['study_field_name']
-        study_field_val = kwargs['study_field_value'] 
-        submission_id = kwargs['submission_d']
-        
-        connection = self.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)
-        study = self.get_study(connection, study_field_name, study_field_val)
-        
-        
+       
         
 
 # --------------------------- NOT USED ------------------------
@@ -827,11 +580,6 @@ def query_seqscape2():
 
 
 
-
-
-
-
-
 #@task()
 #def query_seqscape_prohibited():
 #    db = MySQLdb.connect(host="mcs12.internal.sanger.ac.uk",
@@ -847,11 +595,6 @@ def query_seqscape2():
 #        print row[0]
 
 #
-
-
-
-
-
 
 #import sys, glob
 #sys.path.append('/home/ic4/Work/Projects/Serapis-web/Celery_Django_Prj/serapis/test-thrift-4')
@@ -925,8 +668,6 @@ def query_seqscape2():
 #    except Thrift.TException, tx:
 #        print '%s' % (tx.message)
 #      
-#      
-
 
 
 # JSON: stuff:

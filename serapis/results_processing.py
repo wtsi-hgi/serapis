@@ -19,16 +19,27 @@ from kombu import Connection as BrokerConnection
 
 import sys
 
+BASE_URL = "http://localhost:8000/api-rest/submissions/"
+
+def build_url(submission_id, file_id):
+    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    url_str = [BASE_URL,  "submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    url_str = ''.join(url_str)
+    return url_str
+
+
+
 def my_monitor():
     connection = BrokerConnection('amqp://guest:guest@localhost:5672//')
     
     def on_task_succeeded(event):
+        print "TASK SUCCEEDED! ", event
         result = event['result']
         
     
     def on_task_failed(event):
-        pass
-    
+        print "TASK FAILED!", event
+        exception = event['exception']
     
     
     
@@ -38,10 +49,8 @@ def my_monitor():
         
     def on_custom(event):
         #print "EVENT TYPE: ", event['type']
-        
-       
-        if event['type'] != "worker-heartbeat":
-            print "CUSTOM RECEIVED!", event
+        #if event['type'] != "worker-heartbeat":
+        print "CUSTOM - TASK!", event
 
     #try_interval = 3
     while True:
@@ -49,14 +58,15 @@ def my_monitor():
             #try_interval *= 2
             with connection as conn:
                 recv = EventReceiver(conn,
-                                     handlers={#'task-failed' : on_event,
-#                                               'task-succeeded' : on_event,
-#                                               'task-sent' : on_event,
-#                                               'task-received' : on_event,
-#                                               'task-revoked' : on_event,
-#                                               'task-retried' : on_event,
-#                                               'task-started' : on_event,
-                                               '*' : on_custom
+                                     handlers={'task-failed' : on_task_failed,
+                                               'task-succeeded' : on_task_succeeded,
+                                               'task-sent' : on_event,
+                                               'task-received' : on_event,
+                                               'task-revoked' : on_event,
+                                               'task-retried' : on_event,
+                                               'task-started' : on_event,
+                                               'task-update' : on_custom,
+                                               #'*' : on_custom
                                                })
                                                 #handlers={'*': on_event})
                 #print "PRINT FROM Monitor: ", ( vars(recv.consumer) )
@@ -68,6 +78,9 @@ def my_monitor():
 #        except Exception as e:
 #            print "OTHER EXCEPTION: ", e
 #            time.sleep(try_interval)
+
+
+
 
 
 
