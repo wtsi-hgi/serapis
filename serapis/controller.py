@@ -1,12 +1,14 @@
 import json
 import errno
+import logging
 from bson.objectid import ObjectId
 from serapis import tasks
-import models
+from serapis import exceptions
+from serapis import models
+from serapis import constants, serializers
 
 from celery import chain
 
-from serapis import constants, serializers
 
 
 
@@ -36,6 +38,7 @@ parse_BAM_header = tasks.ParseBAMHeaderTask()
 #        return None
 
 
+# ------------------------ SUBMITTING TASKS ----------------------------------
 
 def launch_parse_header_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
@@ -72,10 +75,9 @@ def launch_upload_job(user_id, file_submitted):
     except IOError as e:
         if e.errno == errno.EACCES:
             print "PERMISSION DENIED!"
-            permission_denied = True
+            #permission_denied = True
             upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
-        else:
-            raise
+        raise   # raise anyway all the exceptions 
 
     #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
     # , queue=constants.MDATA_QUEUE
@@ -88,92 +90,131 @@ def launch_upload_job(user_id, file_submitted):
 #                                   queue=constants.MDATA_QUEUE
 #                                   )])).apply_async()
     #parse_header_async_res = seqscape_async_res.parent
-    return permission_denied
+    #return permission_denied
     
 
+# ----------------- DB - RELATED OPERATIONS ----------------------------
 
 def create_submission(user_id, files_list):
     submission = models.Submission()
     submission.sanger_user_id = user_id
     submission.save()
-    submission_id = submission.id
     submitted_files_list = []
+    logging.debug("List of files received: "+str(files_list))
     file_id = 0
-    print "FILES LIST: ", files_list
+    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_path in files_list:        
         file_id+=1
-        
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         file_type = "BAM"
-        file_submitted = models.SubmittedFile(submission_id=str(submission_id), file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
+        file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
-        permission_denied = launch_upload_job(user_id, file_submitted)
         launch_parse_header_job(file_submitted)
-    
+        try:
+            launch_upload_job(user_id, file_submitted)
+        except IOError as e:
+            io_errors_list.append(e)
     submission.files_list = submitted_files_list
     submission.submission_status = "IN_PROGRESS"
     submission.save(cascade=True)
-#    validate=False
-    result = dict({'permission_denied' : permission_denied, 'submission_id' : submission_id})
+    result = dict({'IOErrors' : io_errors_list, 'submission_id' : submission.id})
     return result
 
 
 
+
+
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
-def update_submission(submission_id, data):
+
+def get_submission(submission_id):
+    ''' Retrieves the submission from the DB and returns it.
+    Params: 
+        submission_id -- a string with the id of the submission
+    Throws:
+        InvalidId -- if the id is invalid
+        DoesNotExist -- if there is no submission with this id in the DB.'''
     subm_id_obj = ObjectId(submission_id)
+    logging.debug("Object ID found.")
     submission_qset = models.Submission.objects(_id=subm_id_obj)
-    submission = submission_qset.get()   
-    for (key, val) in data.iteritems():
-        if key in models.Submission._fields:          #if key in vars(submission):
-            setattr(submission, key, val)
-        else:
-            raise KeyError
-    submission.save(validate=False)
+    submission = submission_qset.get()
+    logging.debug("Submission found: ")
+    return submission
 
-#submission_qset = models.Submission.objects(__raw__={'_id' : ObjectId(submission_id)})
-#submission_qset.update(data)
-#    print "THEN WHO IS OBJECT ID? ", submission.id
-#    print "UPDATE: SUBMISSION Q SET: ", submission.__dict__, "TYPE OF SUBMISSION: ", type(submission), "AND Q SET:", type(submission_qset)
+# Apparently it is just returned an empty list if user_id doesn't exist
+def get_all_submissions(sanger_user_id):
+    ''' Retrieves all the submissions for this user id from the DB 
+        or empty list if the user doesn't exist/doesn't have any submissions.  
+    Params:
+        sanger_user_id -- string '''
+    submission_list = models.Submission.objects.filter(sanger_user_id=sanger_user_id)
+    return submission_list
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
-
+def update_submission(submission_id, data): 
+    ''' Updates the info of this submission.
+    Params:
+        submission_id -- a string with the id of the submission
+        data          -- json dictionary with the fields to be updated.
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        JSONError -- if the json is not well formed - structurally or logically incorrect - my custom exception     
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        '''
+    submission = get_submission(submission_id)
+    submission.update_from_json(data)
+    
+    
+    
+def delete_submission(submission_id):
+    ''' Deletes this submission.
+    Params: 
+        submission_id -- a string with the id of the submission
+    Throws:
+        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error) '''
+    submission = get_submission(submission_id)
+    submission.delete()
+    
+    
 
 def update_file_submitted(submission_id, file_id, data):
-    subm_id_obj = ObjectId(submission_id)
-    submission_qset = models.Submission.objects(_id=subm_id_obj)
-    submission = submission_qset.get()   
-    print "Type of submission obj: ****************", type(submission)
-    for submitted_file in submission.files_list:
-        if submitted_file.file_id == int(file_id):
-            for (key, val) in data.iteritems():
-                print "KEY RECEIVED IN CONTROLLER: ", key
-                if key in models.SubmittedFile._fields:           # I would use this: if key in submitted_file: but I defined DynamicDocuments...
-                    if key == 'library_list':
-                        submitted_file.library_list.extend(val)
-                    elif key == 'sample_list':
-                        submitted_file.sample_list.extend(val)
-                    elif key == 'study_list':
-                        submitted_file.study_list.extend(val)
-                    # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
-                    elif key == 'file_error_log':
-                        submitted_file.file_error_log.extend(val)
-                    #elif key == 'missing_entities_error_dict':
-                        
-                    else:
-                        setattr(submitted_file, key, val)
-                #elif models.Study._fields.has_key(key):
-                #    query_study_seqscape.apply_async(file_id=file_id, study_field_name=key, study_field_value=val, submission_id=submission_id)
-                    
-                else:
-                    raise KeyError
-    submission.save(validate=False)            
+    ''' Updates a file from a submission.
+    Params:
+        submission_id -- a string with the id of the submission
+        file_id -- a string containing the id of the file to be modified
+    Throws:
+        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        KeyError -- if a key does not exist in the model of the submitted file
+    '''
+    submission = get_submission(submission_id)
+    #logging.info('UPDATE FILE SUBMITTED called with SUBMISSION_ID = %s and FILE_ID = %s' % (submission_id, file_id))
+    file_to_update = submission.get_submitted_file(file_id)
+    logging.debug('File to update found!'+file_id)
+    if file_to_update == None:
+        logging.error("Non existing file_id.")
+        raise exceptions.ResourceDoesNotExistError(file_id, "File does not exist!")
+    else:
+        file_to_update.update_from_json(data)   # This throws KeyError if a key is not in the ones defined for the model
+        submission.save(validate=False)
 
-#    file_error_log = ListField(StringField())
-#    missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
-#    not_unique_entity_error_dict = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
-#    
+
+def delete_file_submitted(submission_id, file_id):
+    ''' Deletes a file from the files of this submission.
+    Params:
+        submission_id -- a string with the id of the submission
+        file_id -- a string containing the id of the file to be deleted
+    Throws:
+        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+    '''
+    submission = get_submission(submission_id)
+    submission.delete_submitted_file(file_id)
+    submission.save(validate=False)
+    
 
 
 

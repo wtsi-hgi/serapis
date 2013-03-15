@@ -20,7 +20,7 @@ urlpatterns = patterns('',
     url(r'^submissions/submission_id=(?P<submission_id>\w+)/file_id=(?P<file_id>\w+)/$', view_classes.GetOrModifySubmittedFile.as_view()),
     
 
-    url(r'^submissions/status=(?P<status>\w+)/$', view_classes.GetStatusSubmissions.as_view()),
+    #url(r'^submissions/status=(?P<status>\w+)/$', view_classes.GetStatusSubmissions.as_view()),
     
     
     url(r'^foldercontent/$', view_classes.GetFolderContent.as_view()),

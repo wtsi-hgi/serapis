@@ -30,7 +30,6 @@ class SubmittedFileEncoder(json.JSONEncoder):
         #non_methods = inspect.getmembers(reject, is_not_method)
         
         if isinstance(obj, models.SubmittedFile):
-            
             return {obj.file_type, obj.file_path_client, obj.md5, obj.file_upload_status, obj.file_header_mdata_status}
         return json.JSONEncoder.default(self, obj)
 
@@ -66,16 +65,16 @@ class SubmissionSerializer(serializers.ModelSerializer):
 
 
 
-class TTestSerializer1(serializers.ModelSerializer):
-
-    pk = 1
-    class Meta:
-        model = models.TTest
-        exclude = ("_id")
- #       pk = "_id"
-
-    def get_pk_field(self, model_field):
-        return None
+#class TTestSerializer1(serializers.ModelSerializer):
+#
+#    pk = 1
+#    class Meta:
+#        model = models.TTest
+#        exclude = ("_id")
+# #       pk = "_id"
+#
+#    def get_pk_field(self, model_field):
+#        return None
 
 
 class TTestSerializer(serializers.Serializer):
@@ -216,6 +215,7 @@ class ComplicatedMongoDocSerializer(JSONEncoder):
 #            return JSONEncoder.default(obj, **kwargs)  
         
 import mongoengine
+import logging
 
 def encode_model(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
@@ -238,6 +238,7 @@ def encode_model(obj):
     elif isinstance(obj, (list,dict)):
         out = obj
     else:
+        logging.info(obj)
         raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
     return out          
         

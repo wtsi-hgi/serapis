@@ -1,9 +1,9 @@
 #from django.db import models
 
 # Create your models here.
-
+from serapis import exceptions
 from mongoengine import *
-from mongoengine.base import ObjectIdField
+#from mongoengine.base import ObjectIdField
 
 FILE_TYPES = ('BAM', 'VCF')
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
@@ -100,6 +100,83 @@ class SubmittedFile(DynamicEmbeddedDocument):
             'indexes' : ['submission_id', 'file_id']
             }
  
+    
+    def update_from_json(self, update_dict):
+        for (key, val) in update_dict.iteritems():
+            if key in self._fields:          #if key in vars(submission):
+                if key == 'library_list':
+                    self.library_list.extend(val)
+                elif key == 'sample_list':
+                    self.sample_list.extend(val)
+                elif key == 'study_list':
+                    self.study_list.extend(val)
+                # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
+                elif key == 'file_error_log':
+                    self.file_error_log.extend(val)
+                elif key == 'file_status_mdata':
+                    self.file_mdata_status = val
+                elif key == 'header_has_mdata':
+                    self.header_has_mdata = val
+                elif key == 'file_mdata_status':
+                    self.file_mdata_status = val
+                elif key == 'file_submission_status':
+                    self.file_submission_status = val
+                elif key == 'missing_entities_error_dict':
+                    self.missing_entities_error_dict.update(val)
+                elif key == 'not_unique_entity_error_dict':
+                    self.not_unique_entity_error_dict.update(val)
+                #elif key not in ['submission_id', 'file_id', 'file_type', 'file_path_client', 'file_path_irods', 'md5']:
+                else:
+                    setattr(self, key, val)
+            else:
+                print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!"
+                raise KeyError
+        #self.save(validate=False)
+        
+        
+        
+        
+       
+#        if self.something_is_wrong():
+#            errors['myfield'] = ValidationError("this field is wrong!", field_name='myfield')
+#
+#        if errors:
+#            raise ValidationError('ValidationError', errors=errors)
+    
+#    def save(self, *args, **kwargs):
+#        if not self.creation_date:
+#            self.creation_date = datetime.datetime.now()
+#        self.modified_date = datetime.datetime.now()
+#        return super(MyModel, self).save(*args, **kwargs)
+ 
+ 
+#    def save(self, *args, **kwargs):
+#        for hook in self._pre_save_hooks:
+#            # the callable can raise an exception if
+#            # it determines that it is inappropriate
+#            # to save this instance; or it can modify
+#            # the instance before it is saved
+#            hook(self):
+#
+#        super(MyDocument, self).save(*args, **kwargs)
+
+
+#def validate(self):
+#        errors = {}
+#        try:
+#            super(MyDoc, self).validate()
+#        except ValidationError as e:
+#            errors = e.errors
+#
+#        # Your custom validation here...
+#        # Unfortunately this might swallow any other errors on 'myfield'
+#        if self.something_is_wrong():
+#            errors['myfield'] = ValidationError("this field is wrong!", field_name='myfield')
+#
+#        if errors:
+#            raise ValidationError('ValidationError', errors=errors)
+
+ 
 
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
@@ -108,6 +185,62 @@ class Submission(DynamicDocument):
     meta = {
         'indexes': ['sanger_user_id', '_id'],
             }
+    
+    
+    def validate_json(self, update_dict):
+        ''' Checks on the structure of the update_dict, to be compatible with Submission type - have the same fields. 
+            It does NOT check for any logical possible errors (e.g. if the file_ids exist or not).'''
+        pass
+    
+    def update_from_json(self, update_dict):
+        ''' Updates the fields of the object according to what came from json. 
+            If there is a file in updated_dict['files_list'] that does not exist 
+            already, it will raise a ValueError. '''
+        for (key, val) in update_dict.iteritems():
+            if key in self._fields:          #if key in vars(submission):
+                if key == 'files_list':     
+                    for updated_file in val:    # We know that the structure should look like: 
+                        old_file = self.get_file(updated_file['file_id'])
+                        if old_file != None:
+                            old_file.update_from_json(updated_file)
+                        else:
+                            raise exceptions.JSONError(updated_file, "File id invalid. The update does not involve adding new files to the submission, but updating the existing ones.")
+                        
+                        
+    def get_status(self):
+        ''' Returns the status of a submission and of the containing files. '''
+        submission_status_dict = {'submission_status' : self.submission_status}
+        file_status_dict = dict()
+        for f in self.files_list:
+            upload_status = f.file_upload_status
+            mdata_status = f.file_mdata_status
+            file_status_dict[f.file_id] = {'upload_status' : upload_status, 'mdata_status' : mdata_status}
+        submission_status_dict['files_status'] = file_status_dict
+        return submission_status_dict
+
+    # OPERATIONS ON INDIVIDUAL FILES:
+    def get_submitted_file(self, file_id):
+        ''' Returns the corresponding SubmittedFile identified by file_id
+            and None if there is no file with this id. '''
+        for f in self.files_list:
+            if f.file_id == int(file_id):
+                return f
+        return None
+
+    def delete_submitted_file(self, file_id):
+        ''' Deletes the file identified by the file_id and raises a
+            ResoueceDoesNotExist if there is not file with this id. '''
+        was_found = False
+        for f in self.files_list:
+            if f.file_id == int(file_id):
+                self.files_list.remove(f)
+                was_found = True
+        if not was_found:
+            raise exceptions.ResourceDoesNotExistError(file_id, "File Not Found")
+        return was_found
+        
+    
+
     
 #    meta = {
 #        'allow_inheritance': True,

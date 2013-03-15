@@ -75,7 +75,7 @@ class QuerySeqScape():
         data = None     # result to be returned
         try:
             cursor = connection.cursor()
-            query = "select uuid, name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
+            query = "select name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
             query = query + sample_field_name + "='" + sample_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
@@ -275,7 +275,7 @@ class UploadFileTask(Task):
         #result = init_result(user_id, file_id, file_path, submission_id)
         result = dict()
         dest_file_dir = "/home/ic4/tmp/serapis_staging_area/"
-        (src_dir, src_file_name) = os.path.split(src_file_path)
+        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
         dest_file_path = os.path.join(dest_file_dir, src_file_name)
         try:
             # CALCULATE MD5 and COPY FILE:
@@ -285,20 +285,20 @@ class UploadFileTask(Task):
             md5_dest = self.calculate_md5(dest_file_path)
             try:
                 if md5_src == md5_dest:
-                    print "MD5 are EQUAL! CONGRAAAATS!!!"
+                    #print "MD5 are EQUAL! CONGRAAAATS!!!"
                     result[MD5] = md5_src
                 else:
-                    print "MD5 DIFFERENT!!!!!!!!!!!!!!"
+                    #print "MD5 DIFFERENT!!!!!!!!!!!!!!"
                     raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
             except MaxRetriesExceededError:
-                print "EXCEPTION MAX "
+                #print "EXCEPTION MAX "
                 #result[FILE_UPLOAD_STATUS] = "FAILURE"
                 result[FILE_ERROR_LOG] = "ERROR COPYING - DIFFERENT MD5. NR OF RETRIES EXCEEDED."
                 raise
         
         except IOError as e:
             if e.errno == errno.EACCES:
-                print "PERMISSION DENIED!"
+                #print "PERMISSION DENIED!"
                 result[FILE_ERROR_LOG] = "ERROR COPYING - PERMISSION DENIED."
         
                 ##### TODO ####
@@ -306,7 +306,7 @@ class UploadFileTask(Task):
                 # to be executed on user's node...  
                 # result[FAILURE_CAUSE : PERMISSION_DENIED]
             else:
-                print "OTHER IO ERROR FOUND: ", e.errno
+                #print "OTHER IO ERROR FOUND: ", e.errno
                 result[FILE_ERROR_LOG] = "ERROR COPYING FILE - IO ERROR: "+e.errno
             raise
 
@@ -338,6 +338,7 @@ class UploadFileTask(Task):
             print "DIFFERENT STATUS THAN THE ONES KNOWN: ", status
             return
             
+        print "RESULT FROM WORKER:------------- ", result
         url_str = build_url(submission_id, file_id)
         response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
         print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response

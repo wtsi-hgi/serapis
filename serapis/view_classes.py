@@ -5,13 +5,12 @@ from django.http import HttpResponseRedirect
 from serapis.forms import UploadForm
 from serapis import controller
 from serapis import models
-
+from serapis import exceptions
+from serapis import serializers
 
 #from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-import json
-#from django.views.decorators.csrf import csrf_exempt
 #from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,8 +20,13 @@ from serializers import ObjectIdEncoder
 from os import listdir
 from os.path import isfile, join
 from bson.objectid import ObjectId
-import serializers
+from pymongo.errors import InvalidId
+
 import errno
+import json
+import logging
+logging.basicConfig(level=logging.DEBUG)
+#from serapis.controller import get_submission
         
         
         
@@ -33,114 +37,169 @@ import errno
 #    submission = submission_qset.get()   
 
         
-    
-# ---------------------- HANDLE 1 SUBMISSION -------------
-
-# Get the submission with this submission_id or modify it
-class GetOrModifySubmission(APIView):
-    def get(self, request, submission_id, format=None):
-        user_id = "ic4"
-        subm_obj_id = ObjectId(submission_id)
-        submission_qset = models.Submission.objects(_id=subm_obj_id)
-        submission = submission_qset.get()
-        subm_serialized = serializers.serialize(submission)
-        return Response("Submission: "+subm_serialized)
-    
-    # PUT = modify this submission - update metadata for it
-    def put(self, request, submission_id, format=None):
-        data = request.DATA
-        try:
-            controller.update_submission(submission_id, data)
-            return Response(status=200)
-        except KeyError as e:
-            return Response("Bad request. "+e.message+e.args,status=400)
-
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
+# /submissions/
 class GetOrCreateSubmissions(APIView):
     # GET all the submissions for a user_id
     def get(self, request, format=None):
+        ''' Retrieves all the submissions for this user. '''
         user_id = "ic4"
-        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
-        subm_serialized = serializers.serialize(submission_list)
-        return Response("Submission list: "+subm_serialized)
+        submissions_list = controller.get_all_submissions(user_id)
+        subm_serialized = serializers.serialize(submissions_list)
+        return Response("Submission list: "+subm_serialized, status=200)
     
     
     # POST = create a new submission, for uploading the list of files given as param
     def post(self, request, format=None):
+        ''' Creates a new submission, given a set of files.
+            No submission is created if the list of files is empty.'''
         user_id = "ic4"
         data = request.POST['_content']
         data_deserial = json.loads(data)
         files_list = data_deserial["files"]
-        try:
-            result_dict = controller.create_submission(user_id, files_list)
-            submission_id = result_dict['submission_id']
-            permission_denied = result_dict['permission_denied']
-            #submission_id_serialized = ObjectIdEncoder().encode(submission_id)
-            submission_id_serialized = str(submission_id)
-            if permission_denied:
-                return Response("PERMISSION DENIED! PLEASE RUN THE SCRIPT x ON YOUR MACHINE! Submission id: "+submission_id_serialized, status=202)
+        result_dict = controller.create_submission(user_id, files_list)
+        submission_id = result_dict['submission_id']
+        io_errors_list = result_dict['IOErrors']
+        perm_denied_list = []
+        other_io_errs = []
+        for err in io_errors_list:
+            if err.errno == errno.EACCES:
+                perm_denied_list.append(err.filename)
             else:
-                return Response("Created the submission with id="+submission_id_serialized, status=201)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                print "NO SUCH FILE"
-                return Response("No such file!!!", status=422) # Unprocessable Entity - here TODO: think about the functionality - subm created or NOT?
-                # or 424: Method Failure
-            else:
-                print "ERROR: ", e
-                return Response(status=424)
-
-#        files = data_deserial["files"]
-        #mypath = "/home/ic4/data-test/bams"
-#        files_list = []
-#        for f in listdir(mypath):
-#            if isfile(join(mypath, f)):
-#                files_list.append(f)
-#        
-        # TO DELETE THis line...        
-        #files_list = ["/home/ic4/tmp/adag.xml"]
-        #submission_id = controller.create_submission(user_id, files_list)
+                other_io_errs.append({"file":err.filename, "error" : err.strerror})
+        if len(perm_denied_list) > 0:
+            err_msg = "PERMISSION DENIED for these files:" + str(perm_denied_list)
+            err_msg = err_msg+". PLEASE RUN THE SCRIPT x ON THE CLUSTER OR GIVE PERMISSION TO USER MERCURY TO READ YOUR FILES! Submission id: "+str(submission_id) 
+            err_msg = err_msg + ". Submission created: " + str(submission_id)
+            return Response(err_msg, status=202)
+        elif len(other_io_errs) > 0:
+            err_msg = "IO Errors in the following files:" + str(other_io_errs)
+            err_msg = err_msg + ". Submission created: " + str(submission_id)
+            return Response(err_msg, status=202)
+        else:
+            return Response("Created the submission with id="+str(submission_id), status=201)
+#        except IOError as e:
+#            if e.errno == errno.ENOENT:
+#                print "NO SUCH FILE"
+#                return Response("No such file!!!", status=422) # Unprocessable Entity - here TODO: think about the functionality - subm created or NOT?
+#                # or 424: Method Failure
+#            else:
+#                print "ERROR: ", e
+#                return Response(status=424)
+#           
+        
+        
     
+# ---------------------- HANDLE 1 SUBMISSION -------------
 
-# Get all submissions with this status created by this user
+# /submissions/submission_id
+class GetOrModifySubmission(APIView):
+    def get(self, request, submission_id, format=None):
+        ''' Retrieves a submission given by submission_id.'''
+        try:
+            logging.debug("Received GET request - submission id:"+submission_id)
+            submission = controller.get_submission(submission_id)
+        except InvalidId:
+            return Response(status=404)
+        else:
+            subm_serialized = serializers.serialize(submission)
+            return Response("Submission: "+subm_serialized)
+        
+        
+    def put(self, request, submission_id, format=None):
+        ''' Updates a submission with the data provided on the POST request.'''
+        data = request.DATA
+        try:
+            controller.update_submission(submission_id, data)
+        except InvalidId:
+            return Response("No submission with this id!", status=404)
+        except exceptions.JSONError as e:
+            return Response("Bad request. "+e.message+e.args,status=400)
+        except exceptions.ResourceDoesNotExistError as e:
+            return Response("File does not exist!", status=404)
+        else:
+            return Response(status=200)
+
+
+
+    def delete(self, request, submission_id):
+        ''' Deletes the submission given by submission_id. '''
+        try:
+            was_deleted = controller.delete_submission(submission_id)
+        except InvalidId:
+            return Response("No submission with this id!", status=404)
+        except exceptions.ResourceDoesNotExistError:
+            return Response("No file with this id!", status=404)
+        except:
+            return Response("OTHER EXCEPTION", status=400)
+        else:
+            if was_deleted == True:
+                return Response(status=200)
+            #TODO: here there MUST be treated also the other exceptions => nothing will happen if the app throws other type of exception,
+            # it will just prin OTHER EXCEPTIOn - on that branch
+        
+
+
+# /submissions/submission_id/status/
 class GetSubmissionStatus(APIView):
-    def get(self, request, submission_id):
-        user_id = "ic4"
-        submission_list = models.Submission.objects.filter(_id=ObjectId(submission_id), sanger_user_id=user_id)
-        
-        # TO DO - INCOMPLETE - just returns the files, not the status
-        
-        return Response(submission_list)
+    def get(self, request, submission_id, format=None):
+        ''' Retrieves the status of the submission together
+            with the statuses of the files (upload and mdata). '''
+        submission = controller.get_submission(submission_id)
+        if submission != None:
+            subm_status = submission.get_status()
+            return Response(subm_status, status=200)
+        else:
+            return Response(status=404)
 
 
+
+               
 
 #---------------- HANDLE 1 SUBMITTED FILE ------------------------
 
     
 class GetOrModifySubmittedFile(APIView):
-    def get(self, request, submission_id, file_id):
-        user_id = "ic4"
-        subm_obj_id = ObjectId(submission_id)
-        query_set = models.Submission.objects(_id=subm_obj_id)
-        submission = query_set.get()
-        for submitted_file in submission.files_list:
-            if submitted_file.file_id == int(file_id):
-                result = serializers.serialize(submitted_file)
-        return Response(result)
-
+    def get(self, request, submission_id, file_id, format=None):
+        ''' Retrieves the information regarding this file from this submission.
+            Returns 404 if the file or the submission don't exist. '''
+        try:
+            submission = controller.get_submission(submission_id)
+            file_req = submission.get_submitted_file(file_id)
+        except:
+            return Response("Resource not found or id invalid!", status=404)
+        else:
+            if file_req != None:
+                result = serializers.serialize(file_req)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=200)
+            else:
+                return Response("Resource not found!", status=404)
+            
     
-    def put(self, request, submission_id, file_id):
-        user_id = "ic4"
+    def put(self, request, submission_id, file_id, format=None):
+        ''' Updates the info corresponding to a file.'''
         data = request.DATA
         try:
             controller.update_file_submitted(submission_id, file_id, data)
+        except exceptions.ResourceDoesNotExistError:
+            return Response('Resource does not exist.', status=404)
+        else:
             return Response("Successfully updated!", status=200)
-        except KeyError:
-            return Response("Bad request", status=400)
-
     
+    
+    def delete(self, request, submission_id, file_id, format=None):
+        ''' Deletes a file. Returns 404 if the file or submission don't exist. '''
+        try:
+            controller.delete_file_submitted(submission_id, file_id)
+        except (InvalidId, exceptions.ResourceDoesNotExistError) as e:
+            return Response("Error:"+e.strerror, status=404)
+        else:
+            return Response("Successfully deleted!", status=200)
+        
+        
         
         
 # ---------------------------------------------------------

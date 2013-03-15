@@ -21,6 +21,9 @@ LIBRARY_TYPE = 'library'
 SAMPLE_TYPE = 'sample'
 STUDY_TYPE = 'study'
 
+#OTHER TYPES:
+SUBMISSION_TYPE = 'submission'
+
 #
 ##------ MODEL FIELDS: ------
 #

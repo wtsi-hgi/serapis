@@ -176,6 +176,7 @@ class Sample(Entity): # one sample can be member of many studies
                 self.has_minimal = True
         return self.has_minimal
       
+    # TODO: VALIDATE json before!!! 
     @staticmethod
     def build_from_json(json_file):
         sampl = Sample()
@@ -205,65 +206,41 @@ class Sample(Entity): # one sample can be member of many studies
 
 class SubmittedFile():
     
-    def __init__(self, submission_id=None, file_id=None, file_type=None, file_path_client=None, file_path_irods=None,
-                 md5=None, file_upload_status=None, file_header_parsing_status=None, header_has_mdata=None,
-                 file_mdata_status=None, file_submission_status=None, file_error_log=None, 
-                 resource_missing_list=None, resources_not_unique_list=None, study_list=None,
-                 library_list=None, sample_list=None):
+    def __init__(self, submission_id=None, file_id=None, file_type=None):
         self.submission_id = submission_id
         self.file_id = file_id
         self.file_type = file_type
-        self.file_path_client = file_path_client
-        self.file_path_irods = file_path_irods
-        self.md5 = md5
+        self.file_path_client = None
+        self.file_path_irods = None
+        self.md5 = None
         
         # Initializing entity lists:
-        if study_list != None:
-            self.study_list = study_list                #ListField(EmbeddedDocumentField(Study))
-        else:
-            self.study_list = []
-        
-        if library_list != None:
-            self.library_list = library_list            #ListField(EmbeddedDocumentField(Library))
-        else:
-            self.library_list = []
-
-        if sample_list != None:
-            self.sample_list = sample_list              #ListField(EmbeddedDocumentField(Sample))
-        else:
-            self.sample_list = []
+        self.study_list = []                            #ListField(EmbeddedDocumentField(Study))
+        self.library_list = []                          #ListField(EmbeddedDocumentField(Library))
+        self.sample_list = []                           #ListField(EmbeddedDocumentField(Sample))
         
         ######## STATUSES #########
         # UPLOAD:
-        self.file_upload_status = file_upload_status          # (choices=FILE_UPLOAD_JOB_STATUS)
+        self.file_upload_status = None                  # (choices=FILE_UPLOAD_JOB_STATUS)
         
         # HEADER BUSINESS:
-        self.file_header_parsing_status = file_header_parsing_status    #StringField(choices=HEADER_PARSING_STATUS)
-        self.header_has_mdata = header_has_mdata                        #BooleanField()
+        self.file_header_parsing_status = None          #StringField(choices=HEADER_PARSING_STATUS)
+        self.header_has_mdata = False                   #BooleanField()
         
         #GENERAL STATUSES
-        self.file_mdata_status = file_mdata_status                      #StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
-        self.file_submission_status = file_submission_status            #StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+        self.file_mdata_status = None                   #StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
+        self.file_submission_status = None              #StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
         
         # Initialize the list of errors for this file
-        if file_error_log != None:
-            self.file_error_log = file_error_log                            #ListField(StringField())
-        else:
-            self.file_error_log = []
+        self.file_error_log = []                         #ListField(StringField())
             
         # Initializing the dictionary of missing resources
-        if resource_missing_list != None:
-            self.missing_entities_error_dict = resource_missing_list   #DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
-        else:
-            self.missing_entities_error_dict = dict()
+        self.missing_entities_error_dict = dict()        #DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]}
         
         # Initializing dictionary of errors cause by a resource not uniquely identified in Seqscape
-        if resources_not_unique_list != None:
-            self.not_unique_entity_error_dict = resources_not_unique_list     #DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
-        else:
-            self.not_unique_entity_error_dict = dict()
+        self.not_unique_entity_error_dict = dict()       #DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}   
         
-       
+
     
     def __add_or_update_entity__(self, new_entity, entity_list):
         for old_entity in entity_list:

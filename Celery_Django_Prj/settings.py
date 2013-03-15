@@ -73,7 +73,10 @@ CELERY_DISABLE_RATE_LIMITS = True
 #    "taskmeta_collection": "task_metadata",
 #}
 
+# WORKING BEAT - MONGOENGINE:
 connect('MetadataDB')
+
+
 
 
 #DATABASES = {
