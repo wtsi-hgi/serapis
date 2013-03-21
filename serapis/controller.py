@@ -8,6 +8,7 @@ from serapis import models
 from serapis import constants, serializers
 
 from celery import chain
+from serapis.entities import SubmittedFile
 
 
 
@@ -16,7 +17,8 @@ from celery import chain
 
 # TASKS:
 upload_task = tasks.UploadFileTask()
-parse_BAM_header = tasks.ParseBAMHeaderTask()
+parse_BAM_header_task = tasks.ParseBAMHeaderTask()
+update_file_task = tasks.UpdateFileMdataTask()
 #query_seqscape = tasks.QuerySeqScapeTask()
 #query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
     
@@ -30,7 +32,7 @@ parse_BAM_header = tasks.ParseBAMHeaderTask()
 #            return {'exchange': constants.UPLOAD_EXCHANGE,
 #                    'exchange_type': 'topic',
 #                    'routing_key': 'user.*'}
-#        elif task == parse_BAM_header or task == query_seqscape.name:
+#        elif task == parse_BAM_header_task or task == query_seqscape.name:
 #            return {'exchange': constants.MDATA_EXCHANGE,
 #                    'exchange_type': 'direct',
 #                    'routing_key': constants.MDATA_ROUTING_KEY}
@@ -40,12 +42,17 @@ parse_BAM_header = tasks.ParseBAMHeaderTask()
 
 # ------------------------ SUBMITTING TASKS ----------------------------------
 
+#TODO: Header should be parsed by analysing the file on the client or the copy on iRODS?
+# If the latter, then the jobs (upload and header parse) MUST be chained, so that header parsing 
+# starts only after the upload is finished...
+# !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
+
 def launch_parse_header_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
-    #chain(parse_BAM_header.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
-    parse_BAM_header.apply_async(kwargs={'file_mdata' : file_serialized })
+    #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
+    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized })
     
     
 
@@ -53,7 +60,6 @@ def launch_parse_header_job(file_submitted):
 def launch_upload_job(user_id, file_submitted):
     # SUBMIT UPLOAD TASK TO QUEUE:
     #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
-    permission_denied = False
     print "started launch jobs fct..."
     try:
         # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
@@ -65,6 +71,8 @@ def launch_upload_job(user_id, file_submitted):
         print "Uploading task..."
         #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
         upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+        file_submitted.file_upload_status = "IN_PROGRESS"
+        #file_submitted.save(validate=False)
         #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
         #exchange=constants.UPLOAD_EXCHANGE,
    
@@ -75,8 +83,9 @@ def launch_upload_job(user_id, file_submitted):
     except IOError as e:
         if e.errno == errno.EACCES:
             print "PERMISSION DENIED!"
-            #permission_denied = True
+            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
             upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
+            file_submitted.file_upload_status = "PERMISSION_DENIED"
         raise   # raise anyway all the exceptions 
 
     #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
@@ -92,36 +101,57 @@ def launch_upload_job(user_id, file_submitted):
     #parse_header_async_res = seqscape_async_res.parent
     #return permission_denied
     
+    
+def launch_update_file_job(file_submitted):
+    file_serialized = serializers.serialize(file_submitted)
+    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized })
+    
+    
+
+def submit_jobs_for_file(user_id, file_submitted):
+    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+    try:
+        launch_upload_job(user_id, file_submitted)
+    except IOError as e:
+        io_errors_list.append(e)
+    else:
+        launch_parse_header_job(file_submitted)
+    return io_errors_list
+
+
+def submit_jobs_for_submission(user_id, submission):
+    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+    for file_submitted in submission.files_list:
+        file_io_errors = submit_jobs_for_file(user_id, file_submitted)
+        io_errors_list.extend(file_io_errors)
+    return io_errors_list
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
 
-def create_submission(user_id, files_list):
+def init_submission(user_id, files_list):
     submission = models.Submission()
     submission.sanger_user_id = user_id
     submission.save()
     submitted_files_list = []
     logging.debug("List of files received: "+str(files_list))
     file_id = 0
-    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_path in files_list:        
         file_id+=1
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         file_type = "BAM"
         file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
-        launch_parse_header_job(file_submitted)
-        try:
-            launch_upload_job(user_id, file_submitted)
-        except IOError as e:
-            io_errors_list.append(e)
     submission.files_list = submitted_files_list
     submission.submission_status = "IN_PROGRESS"
     submission.save(cascade=True)
+    return submission
+
+
+def create_submission(user_id, files_list):
+    submission = init_submission(user_id, files_list)
+    io_errors_list = submit_jobs_for_submission(user_id, submission)
     result = dict({'IOErrors' : io_errors_list, 'submission_id' : submission.id})
     return result
-
-
-
 
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
@@ -165,7 +195,6 @@ def update_submission(submission_id, data):
     submission.update_from_json(data)
     
     
-    
 def delete_submission(submission_id):
     ''' Deletes this submission.
     Params: 
@@ -177,6 +206,7 @@ def delete_submission(submission_id):
     submission.delete()
     
     
+#------------ FILE RELATED REQUESTS: ------------------
 
 def update_file_submitted(submission_id, file_id, data):
     ''' Updates a file from a submission.
@@ -189,17 +219,56 @@ def update_file_submitted(submission_id, file_id, data):
         ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         KeyError -- if a key does not exist in the model of the submitted file
     '''
+    import simplejson
     submission = get_submission(submission_id)
-    #logging.info('UPDATE FILE SUBMITTED called with SUBMISSION_ID = %s and FILE_ID = %s' % (submission_id, file_id))
     file_to_update = submission.get_submitted_file(file_id)
-    logging.debug('File to update found!'+file_id)
+    #data = simplejson.loads(data)
+    logging.debug("DATA received from request: "+str(data))
+    logging.debug('File to update found! ID: '+file_id)
     if file_to_update == None:
         logging.error("Non existing file_id.")
         raise exceptions.ResourceDoesNotExistError(file_id, "File does not exist!")
     else:
+        has_new_entities = False
+        if 'library_list' in data and models.SubmittedFile.has_new_entities(file_to_update.library_list, data['library_list']) == True: 
+            has_new_entities = True
+            logging.debug("Has new libraries!")
+        elif 'sample_list' in data and models.SubmittedFile.has_new_entities(file_to_update.sample_list, data['sample_list']):
+            logging.debug("Has new samples!")
+            has_new_entities = True
+        elif 'study_list' in data and models.SubmittedFile.has_new_entities(file_to_update.study_list, data['study_list']):
+            logging.debug("Has new studies!")
+            has_new_entities = True
+        # Modify the file:
         file_to_update.update_from_json(data)   # This throws KeyError if a key is not in the ones defined for the model
         submission.save(validate=False)
+        # Submit jobs for it, if the case:
+        logging.debug("After update - has new entities: "+str(has_new_entities))
+#        if has_new_entities == True:
+#            launch_update_file_job(file_to_update)
+#            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        
 
+def resubmit_jobs(submission_id, file_id, data):
+    ''' Function called for resubmitting the jobs for a file.'''
+    user_id = 'ic4'
+    submission = get_submission(submission_id)
+    file_to_resubmit = submission.get_submitted_file(file_id)
+    if data['permissions_changed'] == True:
+        if file_to_resubmit.file_upload_status == "PERMISSION_DENIED": 
+            error_list = submit_jobs_for_file(user_id, file_to_resubmit)
+            file_to_resubmit.file_error_log.extend(error_list)
+        elif file_to_resubmit.file_upload_status == "IN_PROGRESS":
+            launch_parse_header_job(file_to_resubmit)
+        # TODO: maybe also abort upload jobs for this file on queue=user_id
+    else:
+        # TODO: THIS WILL NOT work if the client runs himself the worker, 
+        # because in this case the parsed file has to be the one on the server
+        # and right now I parse the copy on the client!!!
+        launch_parse_header_job(file_to_resubmit)
+    submission.save(validate=False)
+ 
+ 
 
 def delete_file_submitted(submission_id, file_id):
     ''' Deletes a file from the files of this submission.
@@ -257,7 +326,7 @@ def upload_files(request_files, form):
     files_list = handle_multi_uploads(request_files)
         
     for f in files_list:
-        data_dict = parse_BAM_header(f)
+        data_dict = parse_BAM_header_task(f)
         print "DATA FROM BAM FILES HEADER: ", data_dict
         
     form2json(form, files_list)
@@ -265,7 +334,7 @@ def upload_files(request_files, form):
     
 
 def upload_test(f):
-    data_dict = parse_BAM_header(f)
+    data_dict = parse_BAM_header_task(f)
     print "DATA FROM BAM FILES HEADER: ", data_dict
     return data_dict
     

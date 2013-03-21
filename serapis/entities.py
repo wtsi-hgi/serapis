@@ -1,6 +1,6 @@
 
 import simplejson
-
+#import json
 # ------------------ ENTITIES ---------------------------
 
 # TODO: to RENAME the class to: logical_model
@@ -33,12 +33,6 @@ class Entity(object):
                     self.is_complete = False
             return self.is_complete
     
-#    def check_if_has_minimal_mdata(self):
-#        if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-#            if self.sample_accession_nr != None and self.sample_name != None:
-#                self.has_minimal = True
-#        return self.has_minimal
-#    
 
 class Study(Entity):
     def __init__(self, acc_nr=None, name=None, study_type=None, title=None, sponsor=None, ena_prj_id=None, ref_genome=None):
@@ -103,7 +97,7 @@ class Library(Entity):
         return False
 
     def check_if_has_minimal_mdata(self):
-        ''' Checks if the library has the minimal mdata. '''
+        ''' Checks if the library has the minimal mdata. Returns boolean.'''
         if not self.has_minimal:
             if self.library_name != None and self.library_type != None:
                 self.has_minimal = True
@@ -218,18 +212,19 @@ class SubmittedFile():
         self.study_list = []                            #ListField(EmbeddedDocumentField(Study))
         self.library_list = []                          #ListField(EmbeddedDocumentField(Library))
         self.sample_list = []                           #ListField(EmbeddedDocumentField(Sample))
+        self.seq_centers = []                           # List of sequencing centres where the data has been sequenced
         
         ######## STATUSES #########
         # UPLOAD:
-        self.file_upload_status = None                  # (choices=FILE_UPLOAD_JOB_STATUS)
+        self.file_upload_status = None                  # #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
         
         # HEADER BUSINESS:
-        self.file_header_parsing_status = None          #StringField(choices=HEADER_PARSING_STATUS)
+        self.file_header_parsing_status = None          # ("SUCCESS", "FAILURE") StringField(choices=HEADER_PARSING_STATUS)
         self.header_has_mdata = False                   #BooleanField()
         
         #GENERAL STATUSES
-        self.file_mdata_status = None                   #StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
-        self.file_submission_status = None              #StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+        self.file_mdata_status = None                   # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL") StringField(choices=FILE_MDATA_STATUS) 
+        self.file_submission_status = None              # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")  StringField(choices=FILE_SUBMISSION_STATUS)
         
         # Initialize the list of errors for this file
         self.file_error_log = []                         #ListField(StringField())
@@ -240,15 +235,12 @@ class SubmittedFile():
         # Initializing dictionary of errors cause by a resource not uniquely identified in Seqscape
         self.not_unique_entity_error_dict = dict()       #DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}   
         
-
-    
     def __add_or_update_entity__(self, new_entity, entity_list):
         for old_entity in entity_list:
             if new_entity == old_entity:
                 return old_entity.update(new_entity)
         entity_list.append(new_entity)
         return True
-
 
     def add_or_update_lib(self, new_lib):
         ''' Add the library to the library_list if it doesn't already exist.
@@ -261,9 +253,26 @@ class SubmittedFile():
     def add_or_update_study(self, new_study):
         return self.__update_entity__(new_study, self.study_list)
 
-    def build_from_json(self, json_file):
+    @staticmethod
+    def build_from_json(json_file):
+        subm_file = SubmittedFile()
         for key in json_file:
-            setattr(self, key, json_file[key])
+            # TODO: WHAT happens with the keys that aren't declared here?!?!?! By default I add them - is this what we want?! #if key in SubmittedFile._fields:
+            if key == 'study_list':
+                subm_file.study_list = []
+                for study_json in json_file['study_list']:
+                    subm_file.study_list.append(Study.build_from_json(study_json))
+            elif key == 'library_list':
+                subm_file.library_list = []
+                for lib_json in json_file['library_list']:
+                    subm_file.library_list.append(Library.build_from_json(lib_json))
+            elif key == 'sample_list':
+                subm_file.sample_list = []
+                for sampl_json in json_file['sample_list']:
+                    subm_file.sample_list.append(Sample.build_from_json(sampl_json))
+            else:        
+                setattr(subm_file, key, json_file[key])
+        return subm_file
             
     def __remove_from_erors_dict__(self, entity, entity_type, problematic_entity_dict):
         ''' Private method!!!
@@ -287,6 +296,8 @@ class SubmittedFile():
             problematic_entity_dict[entity_type] = []
         missing_entity_list = problematic_entity_dict[entity_type]        # List of missing entities of type entity_type  
         if not entity in missing_entity_list:
+            del entity.has_minimal      # deleting obvious and non-informative attributes from the entity. In this case
+            del entity.is_complete      # all we care about is actually the identifier of the entity.
             missing_entity_list.append(entity)
             return True
         return False
@@ -322,19 +333,83 @@ class SubmittedFile():
                 return True
         return False
     
+    def __remove_null_props_dict__(self, obj_to_modify):       # Deletes properties that are null from an object
+        result_dict = dict()
+        for k, v in vars(obj_to_modify).items():
+            if v != None:
+                result_dict[k] = v
+        return result_dict
+    
+        
     def __encode_model__(self, obj):
         if isinstance(obj, (Entity, SubmittedFile)):
-            out = vars(obj)
-        elif isinstance(obj, (list,dict)):
+            out = dict()
+            obj_vars = self.__remove_null_props_dict__(obj)
+            out.update(obj_vars)
+        elif isinstance(obj, list):
             out = obj
+        elif isinstance(obj, dict):
+            out = self.__remove_nulls_dict__(obj)
         else:
             raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
         return out         
-    
+   
     def to_json(self):
-        return simplejson.dumps(self, default=self.__encode_model__, indent=4)
-        
-        
+        result = simplejson.dumps(self, default=self.__encode_model__)    #, indent=4
+        print "RESULT FROM TO_JSON......................", result
+        return result
+    
+    def check_if_has_minimal_mdata(self):
+        ''' A file has minimal mdata to be submitted if all its entities 
+            have minimal mdata and none of the entity lists is empty. '''
+        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+            return False
+        for lib in self.library_list:
+            if not lib.check_if_has_minimal_mdata():
+                return False
+        for sampl in self.sample_list:
+            if not sampl.check_if_has_minimal_mdata():
+                return False
+        for study in self.study_list:
+            if not study.check_if_has_minimal_mdata():
+                return False
+        return True
+    
+    def check_if_complete_mdata(self):
+        ''' A file has complete mdata if all its entities have 
+            complete mdata and none of the entity lists is empty. '''
+        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+            return False
+        for lib in self.library_list:
+            if not lib.check_if_complete_mdata():
+                return False
+        for sampl in self.sample_list:
+            if not sampl.check_if_complete_mdata():
+                return False
+        for study in self.study_list:
+            if not study.check_if_complete_mdata():
+                return False
+        return True
+    
+    def update_file_mdata_status(self):
+        if self.check_if_complete_mdata() == True:
+            self.file_mdata_status = "COMPLETE"
+        elif self.check_if_has_minimal_mdata() == True:
+            self.file_mdata_status = "IS_MINIMAL"
+        else:
+            self.file_mdata_status = "INCOMPLETE"
+    
+#    def to_dict(self):
+#        out = dict()
+#        for var_name, val in vars(self).items():
+#            if isinstance(val, list):
+#                out[var_name] = []
+#                for item in vars(var_name).items():
+#                    out[var_name].append(vars(item))
+#            else:
+#                out[var_name] = val
+#        print "NEW FCT ++++++++++++++++++++------------------ OUT IS: ", out
+#        return out
         
 
 class Submission():

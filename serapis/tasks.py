@@ -46,6 +46,26 @@ def build_url(submission_id, file_id):
     url_str = ''.join(url_str)
     return url_str
 
+def build_result(submission_id, file_id):
+    result = dict()
+    result['submission_id'] = submission_id
+    result['file_id'] = file_id
+    return result
+
+
+################ TO BE MOVED ########################
+
+def send_http_PUT_req(msg):
+    print "IN SEND REQ _ RECEIVED MSG OF TYPE: ", type(msg)
+    submission_id = msg['submission_id']
+    file_id = msg['file_id']
+    msg.pop('submission_id')
+    msg.pop('file_id')
+    url_str = build_url(submission_id, file_id)
+    response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
+    print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response    
+    return response
+
 
 
 ####### CLASS THAT ONLY DEALS WITH SEQSCAPE DB ######
@@ -157,7 +177,6 @@ class ProcessSeqScapeData():
         # TO DO...what is the search field?!
         
 
-    #fetch and process lib mdata
     # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
     # Query SeqScape for all the library names found in BAM header
     def fetch_and_process_lib_mdata(self, incomplete_libs_list, file_submitted):
@@ -168,11 +187,14 @@ class ProcessSeqScapeData():
             if len(lib_mdata) == 1:                 # Ideal case
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
                 new_lib = Library.build_from_seqscape(lib_mdata)
+                new_lib.check_if_has_minimal_mdata()
+                new_lib.check_if_complete_mdata()
                 file_submitted.add_or_update_lib(new_lib)
             else:               # Faulty cases:
+                #file_submitted.library_list.remove(lib_name)                # Delete from the list of valid entities
                 new_lib = Library()
                 setattr(new_lib, search_field, lib_name)
-                print "LIB IS COMPLETE OR NOT: ------------------------", new_lib.is_complete
+                #print "LIB IS COMPLETE OR NOT: ------------------------", new_lib.is_complete
                 if len(lib_mdata) > 1:
                     file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
                     print "LIB IS ITERABLE....LENGTH: ", len(lib_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
@@ -201,6 +223,7 @@ class ProcessSeqScapeData():
                 new_sample = Sample.build_from_seqscape(sampl_mdata)
                 file_submitted.add_or_update_sample(new_sample)
             else:                           # Problematic - error cases:
+                #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
                 new_sample = Sample()
                 setattr(new_sample, search_field, sampl_name)
                 if len(sampl_mdata) > 1:
@@ -208,6 +231,7 @@ class ProcessSeqScapeData():
                     print "SAMPLE IS ITERABLE....LENGTH: ", len(sampl_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
                 elif len(sampl_mdata) == 0:
                     file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+                    print "SAMPLE MISSING FROM SEQSCAPE: ", file_submitted.missing_entities_error_dict
             print "SAMPLE_LIST: ", file_submitted.sample_list
       
       
@@ -220,21 +244,19 @@ class ProcessSeqScapeData():
 # --------------------- TASKS --------------
 ############################################
 
+#    def change_state_event(self, state):
+#        connection = self.app.broker_connection()
+#        evd = self.app.events.Dispatcher(connection=connection)
+#        try:
+#            self.update_state(state="CUSTOM")
+#            evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
+#        finally:
+#            evd.close()
+#            connection.close()
+
 class UploadFileTask(Task):
     ignore_result = True
 
-
-    def change_state_event(self, state):
-        connection = self.app.broker_connection()
-        evd = self.app.events.Dispatcher(connection=connection)
-        try:
-            self.update_state(state="CUSTOM")
-            evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
-        finally:
-            evd.close()
-            connection.close()
-
-    
     def md5_and_copy(self, source_file, dest_file):
         src_fd = open(source_file, 'rb')
         dest_fd = open(dest_file, 'wb')
@@ -249,7 +271,6 @@ class UploadFileTask(Task):
         dest_fd.close()
         return m.hexdigest()
 
-    
     def calculate_md5(self, file_path):
         file_obj = file(file_path)
         md5 = hashlib.md5()
@@ -260,92 +281,44 @@ class UploadFileTask(Task):
             md5.update(data)
         return md5.hexdigest()
     
-    
     # file_id, file_submitted.file_path_client, submission_id, user_id
     def run(self, **kwargs):
-        time.sleep(2)
-        
+        #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
         submission_id = str(kwargs['submission_id'])
-        #user_id = kwargs['user_id']
         src_file_path = file_path
         
         #RESULT TO BE RETURNED:
-        #result = init_result(user_id, file_id, file_path, submission_id)
         result = dict()
-        dest_file_dir = "/home/ic4/tmp/serapis_staging_area/"
+        result['submission_id'] = submission_id
+        result['file_id'] = file_id
         (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        dest_file_path = os.path.join(dest_file_dir, src_file_name)
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
         try:
-            # CALCULATE MD5 and COPY FILE:
-            md5_src = self.md5_and_copy(src_file_path, dest_file_path)
-            
-            # CALCULATE MD5 FOR DEST FILE, after copying:
-            md5_dest = self.calculate_md5(dest_file_path)
-            try:
-                if md5_src == md5_dest:
-                    #print "MD5 are EQUAL! CONGRAAAATS!!!"
-                    result[MD5] = md5_src
-                else:
-                    #print "MD5 DIFFERENT!!!!!!!!!!!!!!"
-                    raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
-            except MaxRetriesExceededError:
-                #print "EXCEPTION MAX "
-                #result[FILE_UPLOAD_STATUS] = "FAILURE"
-                result[FILE_ERROR_LOG] = "ERROR COPYING - DIFFERENT MD5. NR OF RETRIES EXCEEDED."
-                raise
-        
-        except IOError as e:
-            if e.errno == errno.EACCES:
-                #print "PERMISSION DENIED!"
-                result[FILE_ERROR_LOG] = "ERROR COPYING - PERMISSION DENIED."
-        
-                ##### TODO ####
-                # If permission denied...then we have to put a new UPLOAD task in the queue with a special label,
-                # to be executed on user's node...  
-                # result[FAILURE_CAUSE : PERMISSION_DENIED]
-            else:
-                #print "OTHER IO ERROR FOUND: ", e.errno
-                result[FILE_ERROR_LOG] = "ERROR COPYING FILE - IO ERROR: "+e.errno
-            raise
-
-        return result
-
-
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        file_id = kwargs['file_id']
-        submission_id = str(kwargs['submission_id'])
-        #user_id = kwargs['user_id']
-                
-        print "UPLOAD FILES AFTER_RETURN STATUS: ", status
-        print "RETVAL: ", retval, "TYPE -------------------", type(retval)
-
-        result = dict()        
-        if status == "RETRY":
-            return
-        elif status == "FAILURE":
+            md5_src = self.md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
+            md5_dest = self.calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+        except IOError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(1)    # IO ERROR COPYING FILE
             result[FILE_UPLOAD_STATUS] = "FAILURE"
-            if isinstance(retval, MaxRetriesExceededError):
-                result[FILE_ERROR_LOG] = "ERROR IN UPLOAD - DIFFERENT MD5. NR OF RETRIES EXCEEDED."
-            elif isinstance(retval, IOError):
-                result[FILE_ERROR_LOG] = "IO ERROR"
-        elif status == "SUCCESS":
-            result = retval
-            result[FILE_UPLOAD_STATUS] = "SUCCESS"
-        else:
-            print "DIFFERENT STATUS THAN THE ONES KNOWN: ", status
-            return
-            
-        print "RESULT FROM WORKER:------------- ", result
-        url_str = build_url(submission_id, file_id)
-        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
-        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+            raise
         
-#        if response.status_code is not 200:
-#            UploadFileTask.retry()
-
+        # Checking MD5 sum:
+        try:
+            if md5_src == md5_dest:
+                result[MD5] = md5_src
+            else:
+                raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
+        except MaxRetriesExceededError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(2)
+            result[FILE_UPLOAD_STATUS] = "FAILURE"
+            raise
+        else:
+            result[FILE_UPLOAD_STATUS] = "SUCCESS"
+        send_http_PUT_req(result)
+        #return result
 
 
 class ParseBAMHeaderTask(Task):
@@ -426,9 +399,18 @@ class ParseBAMHeaderTask(Task):
             if not file_submitted.contains_sample(sample_name_h):
                 incomplete_samples.append(sample_name_h)
         return incomplete_samples
-                
     
- 
+                
+    #----------------------- HELPER METHODS --------------------
+    
+    def send_parse_header_update(self, file_mdata):
+        update_msg_dict = build_result(file_mdata.submission_id, file_mdata.file_id)
+        update_msg_dict['file_header_parsing_status'] = file_mdata.file_header_parsing_status
+        update_msg_dict['header_has_mdata'] = file_mdata.header_has_mdata
+        update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
+        print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
+        self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
+        send_http_PUT_req(update_msg_dict)
 
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
@@ -439,20 +421,33 @@ class ParseBAMHeaderTask(Task):
         print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
         
-        submitted_file = SubmittedFile()
-        submitted_file.build_from_json(file_mdata)
+        #submitted_file = SubmittedFile()
+        submitted_file = SubmittedFile.build_from_json(file_mdata)
         file_mdata = submitted_file
-                
+        file_mdata.file_submission_status = "IN_PROGRESS"                
         try:
             header_json = self.get_header_mdata(file_mdata.file_path_client)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
             
-            self.trigger_event(UPDATE_EVENT, "SUCCESS", "No result!")
-            
             header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
             header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
             #header_seq_centers = header_processed['CN']
+        except ValueError:      # This comes from BAM header parsing
+            file_mdata.file_header_parsing_status = "FAILURE"
+            file_mdata.file_error_log.append(3)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            file_mdata.header_has_mdata = False
+            raise
+        else:
+            # Updating fields of my file_submitted object
+            file_mdata.seq_centers = header_processed['CN']
+            file_mdata.file_header_parsing_status = "SUCCESS"
+            if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
+                file_mdata.header_has_mdata = True
+                file_mdata.file_mdata_status = 'IN_PROGRESS'
             
+            # Sending an update back
+            self.send_parse_header_update(file_mdata)
+    
             ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
             new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
             new_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
@@ -460,71 +455,94 @@ class ParseBAMHeaderTask(Task):
             processSeqsc = ProcessSeqScapeData()
             processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
             processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
-
+            
             print "LIBRARY UPDATED LIST: ", file_mdata.library_list
             print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
-            return file_mdata.to_json()
-        except ValueError:      # This comes from BAM header parsing
-            file_mdata.file_header_parsing_status = "FAILURE"
-            file_mdata.file_error_log.append(3)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
-            file_mdata.header_has_mdata = False
-            raise
-#            file_mdata[FILE_HEADER_PARSING_STATUS] = "FAILURE"
-#            error_list = file_mdata[FILE_ERROR_LOG]
-#            error_list.append(3)    #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
-#            file_mdata[HEADER_HAS_MDATA] = False
-#            if len(file_mdata[STUDY_LIST]) == 0 and len(file_mdata[LIBRARY_LIST]) == 0 and len(file_mdata[SAMPLE_LIST]):
-#                file_mdata[FILE_MDATA_STATUS] = 'TOTALLY_MISSING'
-#            #file_mdata[FILE_MDATA_STATUS] = 
+            print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
+        
+        file_mdata.update_file_mdata_status()           # update the status after the last findings
+        # Exception or not - either way - send file_mdata to the server:  
+        serial = file_mdata.to_json()
+        #print "FILE serialized - JSON: ", serial
+        deserial = simplejson.loads(serial)
+        #print "BEFORE EXISTING WORKER RETURNS.......................", type(deserial), " AND VALUESSSSSSSSSSSS", deserial
+        #res = file_mdata.to_dict()
+        resp = send_http_PUT_req(deserial)
+        print "RESPONSE FROM SERVER: ", resp
+        
 
-                        
-    ######## STATUSES #########
-    # UPLOAD:
-#    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+class UpdateFileMdataTask(Task):
+    
+    ####### DIRTYYYYYYY  -this should be only one fct, but because of the lack of homogenity in field names..
+    # TODO: to change!!!
+    #    def select_incomplete_entities(self, entity_list):
+#        ''' Searches in the list of entities for the entities that don't have minimal/complete metadata. '''
+#        if len(entity_list) == 0:
+#            return []
+#        incomplete_entities = []
+#        for entity in entity_list:
+#            if not entity.check_if_complete_mdata():             #if not entity.check_if_has_minimal_mdata():
+#                incomplete_entities.append(entity.name)
+#        return incomplete_entities
 #    
-#    # HEADER BUSINESS:
-#    file_header_parsing_status = StringField(choice=HEADER_PARSING_STATUS)
-#    header_has_mdata = BooleanField()
-#    
-#    #GENERAL STATUSES
-#    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
-#    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
-#      
 
-
-#HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
-#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
-#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
-#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
-#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
-
-#    file_error_log = ListField(StringField())
-#    error_resource_missing_seqscape = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
-#    error_resources_not_unique_seqscape = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
-#
-#            
-#            result[TASK_RESULT] = header_processed    # options: INVALID HEADER or the actual header
-#            print "RESULT FROM BAM HEADER: ", result
-#        except ValueError:
-#            result[FILE_ERROR_LOG] = "ERROR PARSING BAM FILE. HEADER INVALID. IS THIS BAM FILE?"
-#            result['file_header_mdata_status'] = "FAILURE"
-#            url_str = build_url(user_id, submission_id, file_id)
-#            response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
-#            print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
-#            raise
-#        return result
-
-
-
-
-#    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-#        if status == "FAILURE":
-#            print "BAM FILE HEADER PARSING FAILED - THIS IS RETVAL: ", retval
-#            url_str = [BASE_URL, "user_id=", kwargs['user_id'], "/submission_id=", str(kwargs['submission_id']), "/file_id=", str(kwargs['file_id']),"/"]
-#            url_str = ''.join(url_str)
-#            response = requests.put(url_str, data=serialize(retval), headers={'Content-Type' : 'application/json'})
-#            print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
-
+    def select_incomplete_libs(self, lib_list):
+        ''' Searches in the list of entities for the entities that don't have minimal/complete metadata. '''
+        if len(lib_list) == 0:
+            return []
+        incomplete_entities = []
+        for lib in lib_list:
+            if not lib.check_if_complete_mdata():             #if not entity.check_if_has_minimal_mdata():
+                incomplete_entities.append(lib.library_name)
+        return incomplete_entities
+    
+    
+    def select_incomplete_samples(self, samples_list):
+        ''' Searches in the list of entities for the entities that don't have minimal/complete metadata. '''
+        if len(samples_list) == 0:
+            return []
+        incomplete_entities = []
+        for sampl in samples_list:
+            if not sampl.check_if_complete_mdata():             #if not entity.check_if_has_minimal_mdata():
+                incomplete_entities.append(sampl.sample_name)
+        return incomplete_entities
+    
+    def select_incomplete_studies(self, study_list):
+        ''' Searches in the list of entities for the entities that don't have minimal/complete metadata. '''
+        if len(study_list) == 0:
+            return []
+        incomplete_entities = []
+        for study in study_list:
+            if not study.check_if_complete_mdata():             #if not entity.check_if_has_minimal_mdata():
+                incomplete_entities.append(study.study_name)
+        return incomplete_entities
+    
+        
+    def run(self, **kwargs):
+        file_serialized = kwargs['file_mdata']
+        file_mdata = deserialize(file_serialized)
+        file_submitted = SubmittedFile.build_from_json(file_mdata)
+        file_submitted.file_submission_status = "IN_PROGRESS"
+        
+        incomplete_libs_list = self.select_incomplete_libs(file_submitted.library_list)
+        incomplete_samples_list = self.select_incomplete_samples(file_submitted.sample_list)
+        incomplete_studies_list = self.select_incomplete_studies(file_submitted.study_list)
+        
+        print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
+        
+        
+        processSeqsc = ProcessSeqScapeData()
+        processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
+        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
+        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+        
+        file_submitted.update_file_mdata_status()           # update the status after the last findings
+        serial = file_submitted.to_json()
+        deserial = simplejson.loads(serial)
+        print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
+        response = send_http_PUT_req(deserial)
+        print "RESPONSE FROM SERVER: ", response
+        
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
 # then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
 # these will appear in MongoDB as Library objects that only have library_name initialized => NEED code that iterates over all

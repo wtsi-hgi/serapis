@@ -10,6 +10,9 @@ SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
 
 
+# UPLOAD TASK
+DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
+
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'
 
@@ -94,7 +97,8 @@ ERROR_DICT = {1 : 'IO ERROR COPYING FILE',
               2 : 'MD5 DIFFERENT',
               3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED',
               4 : 'FILE HEADER EMPTY',
-              5 : 'RESOURCE NOT UNIQUELY IDENTIFYABLE IN SEQSCAPE'
+              5 : 'RESOURCE NOT UNIQUELY IDENTIFYABLE IN SEQSCAPE',
+              6 : 'PERMISSION_DENIED'
               }
 
 

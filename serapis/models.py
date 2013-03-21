@@ -12,10 +12,19 @@ SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SU
 HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
 #FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
 FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
-FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS")
-FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "TOTALLY_MISSING")
+FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL")
 
 #("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
+
+
+# -------------- NEW STATUSES ---------------------------
+FINISHED_STATUS = ("SUCCESS", "FAILURE")
+NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
+FILE_SUBMISSION_STATUS = ("COMPLETED", "NOT_COMPLETED")
+FILE_UPLOAD_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
+FILE_MDATA_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
+
 
 # ------------------------ TO BE DELETED: ---------------
 class PilotModel(DynamicDocument):
@@ -44,12 +53,33 @@ class Study(Entity):
     study_faculty_sponsor = StringField()
     ena_project_id = StringField()
     study_reference_genome = StringField()
+    
+#    def is_equal(self, other):
+#        if self.study_name == other.name:
+#            return True
+#        return False
+#    
+    def are_the_same(self, json_obj):
+        if self.study_name == json_obj['study_name']:
+            return True
+        return False
         
 
 class Library(Entity):
     library_name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
+    
+#    def is_equal(self, other):
+#        if self.name == other.name:
+#            return True
+#        return False
+#    
+    def are_the_same(self, json_obj):
+        if self.library_name == json_obj['library_name']:
+            return True
+        return False
+    
 
 
 class Sample(Entity):          # one sample can be member of many studies
@@ -69,6 +99,20 @@ class Sample(Entity):          # one sample can be member of many studies
     organism = StringField()
     sample_common_name = StringField()  # This is the field name given for mdata in iRODS /seq
     
+#    def is_equal(self, other):
+#        if self.name == other.name:
+#            return True
+#        elif self.sample_accession_number == other.sample_accession_number:
+#            return True
+#        return False
+    
+    def are_the_same(self, json_obj):
+        if self.sample_name == json_obj['sample_name']:
+            return True
+        elif self.sample_accession_number == json_obj['sample_accession_number']:
+            return True
+        return False
+    
     
 class SubmittedFile(DynamicEmbeddedDocument):
     submission_id = StringField(required=True)
@@ -81,17 +125,19 @@ class SubmittedFile(DynamicEmbeddedDocument):
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
     
+    seq_centers = ListField(StringField())          # List of sequencing centers where the data has been sequenced
+    
     ######## STATUSES #########
     # UPLOAD:
-    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
     
     # HEADER BUSINESS:
-    file_header_parsing_status = StringField(choices=HEADER_PARSING_STATUS)
+    file_header_parsing_status = StringField(choices=HEADER_PARSING_STATUS) # ("SUCCESS", "FAILURE")
     header_has_mdata = BooleanField()
     
     #GENERAL STATUSES
-    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)           # general status => when COMPLETE file can be submitted to iRODS
-    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # SUBMITTED or not
+    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
+    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
     file_error_log = ListField(StringField())
     missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
@@ -99,17 +145,51 @@ class SubmittedFile(DynamicEmbeddedDocument):
     meta = {
             'indexes' : ['submission_id', 'file_id']
             }
- 
+    
+    @staticmethod
+    def has_new_entities(old_entity_list, new_entity_list):
+        ''' old_entity_list = list of entity objects, new_entity_list = json list of entities'''
+        if len(new_entity_list) == 0:
+            return False
+        if len(old_entity_list) == 0 and len(new_entity_list) > 0:
+            return True
+        for new_entity in new_entity_list:
+            for old_entity in old_entity_list:
+                if old_entity.are_the_same(new_entity):             #if old_entity.is_equal(new_entity):
+                    print "HAS NEW ENTITIES => RETURNS FALSE---------------"
+                    return False
+        return True
+            
+    @staticmethod
+    def __add_entity_attrs__(old, new_json):
+        ''' Update the old entity with the attributes of the new entity.'''
+        for att, val in new_json.items():              #for att, val in vars(new).items():
+            setattr(old, att, val)
+            
+    @staticmethod
+    def __update_entity_list__(old_entity_list, new_entity_list_json):
+        ''' Compares an old library object with a new json representation of a lib
+            and updates the old one accordingly. '''
+        for new_entity_json in new_entity_list_json:
+            was_found = False
+            for old_entity in old_entity_list:
+                if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
+                    SubmittedFile.__add_entity_attrs__(old_entity, new_entity_json)
+                    was_found = True
+                    break
+            if not was_found:
+                old_entity_list.append(new_entity_json)
     
     def update_from_json(self, update_dict):
+        print "FROM UPDATE FCT - THE DICTIONARY: ", update_dict
         for (key, val) in update_dict.iteritems():
             if key in self._fields:          #if key in vars(submission):
                 if key == 'library_list':
-                    self.library_list.extend(val)
+                    self.__update_entity_list__(self.library_list, val)
                 elif key == 'sample_list':
-                    self.sample_list.extend(val)
+                    self.__update_entity_list__(self.sample_list, val)
                 elif key == 'study_list':
-                    self.study_list.extend(val)
+                    self.__update_entity_list__(self.study_list, val)       #self.study_list.extend(val)
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     self.file_error_log.extend(val)

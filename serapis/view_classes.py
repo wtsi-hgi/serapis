@@ -178,6 +178,22 @@ class GetOrModifySubmittedFile(APIView):
             else:
                 return Response("Resource not found!", status=404)
             
+    def post(self, request, submission_id, file_id, format=None):
+        ''' Resubmit jobs for this file - used in case of permission denied.
+            The user wants to submit files that mercury does not have permissions on,
+            he gets an error message back, and is asked to make a POST req after solving the pb 
+            with a parameter indicating how he solved the pb - if he ran himself a worker or just changed file permissions. 
+            POST req body should look like: 
+            {"permissions_changed : True"} - if he manually changed permissions for this file. '''
+        data = request.DATA
+        print "POST REQ MADE - DATA: ", data
+        try:
+            controller.resubmit_jobs(submission_id, file_id, data)
+        except:
+            return Response()
+        else:
+            return Response()
+            
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the info corresponding to a file.'''
