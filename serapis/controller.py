@@ -48,6 +48,7 @@ update_file_task = tasks.UpdateFileMdataTask()
 # !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
 
 def launch_parse_header_job(file_submitted):
+    file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
@@ -56,11 +57,9 @@ def launch_parse_header_job(file_submitted):
     
     
 
-
 def launch_upload_job(user_id, file_submitted):
     # SUBMIT UPLOAD TASK TO QUEUE:
     #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
-    print "started launch jobs fct..."
     try:
         # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
         src_fd = open(file_submitted.file_path_client, 'rb')
@@ -68,10 +67,10 @@ def launch_upload_job(user_id, file_submitted):
 #            # => WE HAVE PERMISSION TO READ FILE
 #            # SUBMIT UPLOAD TASK TO QUEUE:
         
-        print "Uploading task..."
         #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
         upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
-        file_submitted.file_upload_status = "IN_PROGRESS"
+        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+        
         #file_submitted.save(validate=False)
         #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
         #exchange=constants.UPLOAD_EXCHANGE,
@@ -85,8 +84,9 @@ def launch_upload_job(user_id, file_submitted):
             print "PERMISSION DENIED!"
             # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
             upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
-            file_submitted.file_upload_status = "PERMISSION_DENIED"
+            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
         raise   # raise anyway all the exceptions 
+    
 
     #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
     # , queue=constants.MDATA_QUEUE
@@ -103,9 +103,9 @@ def launch_upload_job(user_id, file_submitted):
     
     
 def launch_update_file_job(file_submitted):
+    file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
     update_file_task.apply_async(kwargs={'file_mdata' : file_serialized })
-    
     
 
 def submit_jobs_for_file(user_id, file_submitted):
@@ -114,6 +114,7 @@ def submit_jobs_for_file(user_id, file_submitted):
         launch_upload_job(user_id, file_submitted)
     except IOError as e:
         io_errors_list.append(e)
+        file_submitted.file_error_log.append(e.strerror)
     else:
         launch_parse_header_job(file_submitted)
     return io_errors_list
@@ -139,10 +140,10 @@ def init_submission(user_id, files_list):
         file_id+=1
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         file_type = "BAM"
-        file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status="PENDING", file_type=file_type, file_path_client=file_path)
+        # TODO !!!!!!!!!!!! Temporary status, just to check that there is no PENDING status left in the app, to be changed to PENDING status
+        file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.IN_PROGRESS_STATUS, file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
     submission.files_list = submitted_files_list
-    submission.submission_status = "IN_PROGRESS"
     submission.save(cascade=True)
     return submission
 
@@ -180,6 +181,13 @@ def get_all_submissions(sanger_user_id):
     submission_list = models.Submission.objects.filter(sanger_user_id=sanger_user_id)
     return submission_list
 
+
+def get_submission_status(submission_id):
+    submission = get_submission(submission_id)
+    if submission != None:
+        subm_status = submission.get_status()
+
+
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 def update_submission(submission_id, data): 
     ''' Updates the info of this submission.
@@ -208,6 +216,10 @@ def delete_submission(submission_id):
     
 #------------ FILE RELATED REQUESTS: ------------------
 
+def filter_fields():
+    # this fct should filter fields from a req like: md5, if a req with no source (user) comes in
+    pass
+
 def update_file_submitted(submission_id, file_id, data):
     ''' Updates a file from a submission.
     Params:
@@ -219,16 +231,8 @@ def update_file_submitted(submission_id, file_id, data):
         ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         KeyError -- if a key does not exist in the model of the submitted file
     '''
-    import simplejson
-    submission = get_submission(submission_id)
-    file_to_update = submission.get_submitted_file(file_id)
-    #data = simplejson.loads(data)
-    logging.debug("DATA received from request: "+str(data))
-    logging.debug('File to update found! ID: '+file_id)
-    if file_to_update == None:
-        logging.error("Non existing file_id.")
-        raise exceptions.ResourceDoesNotExistError(file_id, "File does not exist!")
-    else:
+    # INNER FUNCTION - I ONLY USE IT HERE
+    def check_if_has_new_entities(data, file_to_update):
         has_new_entities = False
         if 'library_list' in data and models.SubmittedFile.has_new_entities(file_to_update.library_list, data['library_list']) == True: 
             has_new_entities = True
@@ -239,14 +243,34 @@ def update_file_submitted(submission_id, file_id, data):
         elif 'study_list' in data and models.SubmittedFile.has_new_entities(file_to_update.study_list, data['study_list']):
             logging.debug("Has new studies!")
             has_new_entities = True
+        return has_new_entities
+            
+    # CODE OF THE OUTER FUNCTION            
+    submission = get_submission(submission_id)
+    file_to_update = submission.get_submitted_file(file_id)
+    #data = simplejson.loads(data)
+    logging.debug("DATA received from request: "+str(data))
+    logging.debug('File to update found! ID: '+file_id)
+    if file_to_update == None:
+        logging.error("Non existing file_id.")
+        raise exceptions.ResourceDoesNotExistError(file_id, "File does not exist!")
+    else:
+        if 'sender' in data:
+            sender = data['sender']
+            data.pop('sender')
+        else:
+            sender = constants.EXTERNAL_SOURCE
+ 
+        has_new_entities = check_if_has_new_entities(data, file_to_update)
         # Modify the file:
-        file_to_update.update_from_json(data)   # This throws KeyError if a key is not in the ones defined for the model
+        unregistered_fields = file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
         submission.save(validate=False)
         # Submit jobs for it, if the case:
         logging.debug("After update - has new entities: "+str(has_new_entities))
-#        if has_new_entities == True:
-#            launch_update_file_job(file_to_update)
-#            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        if has_new_entities and sender == constants.EXTERNAL_SOURCE:
+            launch_update_file_job(file_to_update)
+            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        return unregistered_fields
         
 
 def resubmit_jobs(submission_id, file_id, data):
@@ -255,10 +279,10 @@ def resubmit_jobs(submission_id, file_id, data):
     submission = get_submission(submission_id)
     file_to_resubmit = submission.get_submitted_file(file_id)
     if data['permissions_changed'] == True:
-        if file_to_resubmit.file_upload_status == "PERMISSION_DENIED": 
+        if file_to_resubmit.file_upload_job_status == "PERMISSION_DENIED": 
             error_list = submit_jobs_for_file(user_id, file_to_resubmit)
             file_to_resubmit.file_error_log.extend(error_list)
-        elif file_to_resubmit.file_upload_status == "IN_PROGRESS":
+        elif file_to_resubmit.file_upload_job_status == "IN_PROGRESS":
             launch_parse_header_job(file_to_resubmit)
         # TODO: maybe also abort upload jobs for this file on queue=user_id
     else:
@@ -300,14 +324,14 @@ def abort_task(task_id):
 def form2json(form, files_list):
     print 'submit task called!!!'
     print 'Fields received: ', form.data['lane_name']
-    print form.data['library_name']
+    print form.data['name']
     
     pilot_object = models.PilotModel()
     pilot_object.lane_name = form.data['lane_name']
-    pilot_object.sample_name = form.data['sample_name']
-    pilot_object.library_name = form.data['library_name']
+    pilot_object.name = form.data['name']
+    pilot_object.name = form.data['name']
     pilot_object.individual_name = form.data['individual_name']
-    pilot_object.study_name = form.data['study_name']
+    pilot_object.name = form.data['name']
     pilot_object.file_list = files_list
 
     

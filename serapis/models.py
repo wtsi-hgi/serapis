@@ -3,35 +3,32 @@
 # Create your models here.
 from serapis import exceptions
 from mongoengine import *
+from serapis.constants import *
 #from mongoengine.base import ObjectIdField
 
 FILE_TYPES = ('BAM', 'VCF')
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
-HEADER_PARSING_STATUS = ("SUCCESS", "FAILURE")
 #FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
-FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
-FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL")
+#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
+#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL")
 
 #("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
 
+#FILE_SUBMISSION_STATUS = ("COMPLETED", "NOT_COMPLETED")
+#FILE_UPLOAD_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
+#FILE_MDATA_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
 
-# -------------- NEW STATUSES ---------------------------
-FINISHED_STATUS = ("SUCCESS", "FAILURE")
-NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
-FILE_SUBMISSION_STATUS = ("COMPLETED", "NOT_COMPLETED")
-FILE_UPLOAD_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
-FILE_MDATA_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
 
 
 # ------------------------ TO BE DELETED: ---------------
 class PilotModel(DynamicDocument):
     lane_name = StringField(default="first_lane")
-    study_name = StringField(default="first study")
-    library_name = StringField(default="first library")
-    sample_name = StringField(default="sample")
+    name = StringField(default="first study")
+    name = StringField(default="first library")
+    name = StringField(default="sample")
     individual_name = StringField(default="individual")
     # holds the paths to the files to upload
     file_list = ListField(StringField)
@@ -43,11 +40,12 @@ class PilotModel(DynamicDocument):
 class Entity(DynamicEmbeddedDocument):
     is_complete = BooleanField()
     has_minimal = BooleanField()
+    __meta_last_modified__ = DictField()        # keeps name of the field - source that last modified this field
     
 
 class Study(Entity):
     study_accession_nr = StringField()
-    study_name = StringField() #unique
+    name = StringField() #unique
     study_type = StringField()
     study_title = StringField()
     study_faculty_sponsor = StringField()
@@ -55,18 +53,18 @@ class Study(Entity):
     study_reference_genome = StringField()
     
 #    def is_equal(self, other):
-#        if self.study_name == other.name:
+#        if self.name == other.name:
 #            return True
 #        return False
 #    
     def are_the_same(self, json_obj):
-        if self.study_name == json_obj['study_name']:
+        if self.name == json_obj['name']:
             return True
         return False
         
 
 class Library(Entity):
-    library_name = StringField() # min
+    name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
     
@@ -76,7 +74,7 @@ class Library(Entity):
 #        return False
 #    
     def are_the_same(self, json_obj):
-        if self.library_name == json_obj['library_name']:
+        if self.name == json_obj['name']:
             return True
         return False
     
@@ -85,7 +83,7 @@ class Library(Entity):
 class Sample(Entity):          # one sample can be member of many studies
     sample_accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()
-    sample_name = StringField() # UNIQUE
+    name = StringField() # UNIQUE
     sample_public_name = StringField()
     sample_tissue_type = StringField() 
     reference_genome = StringField()
@@ -97,7 +95,7 @@ class Sample(Entity):          # one sample can be member of many studies
     country_of_origin = StringField()
     geographical_region = StringField()
     organism = StringField()
-    sample_common_name = StringField()  # This is the field name given for mdata in iRODS /seq
+    sample_common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
 #    def is_equal(self, other):
 #        if self.name == other.name:
@@ -107,7 +105,7 @@ class Sample(Entity):          # one sample can be member of many studies
 #        return False
     
     def are_the_same(self, json_obj):
-        if self.sample_name == json_obj['sample_name']:
+        if self.name == json_obj['name']:
             return True
         elif self.sample_accession_number == json_obj['sample_accession_number']:
             return True
@@ -128,23 +126,37 @@ class SubmittedFile(DynamicEmbeddedDocument):
     seq_centers = ListField(StringField())          # List of sequencing centers where the data has been sequenced
     
     ######## STATUSES #########
-    # UPLOAD:
-    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+    # UPLOAD JOB:
+    file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
     
-    # HEADER BUSINESS:
-    file_header_parsing_status = StringField(choices=HEADER_PARSING_STATUS) # ("SUCCESS", "FAILURE")
+    # HEADER PARSING JOB:
+    file_header_parsing_job_status = StringField(choices=HEADER_PARSING_JOB_STATUS) # ("SUCCESS", "FAILURE")
     header_has_mdata = BooleanField()
+    
+    # UPDATE MDATA JOB:
+    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
     
     #GENERAL STATUSES
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
     file_error_log = ListField(StringField())
-    missing_entities_error_dict = DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
-    not_unique_entity_error_dict = DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+    missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+    not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {
             'indexes' : ['submission_id', 'file_id']
             }
+    
+    __meta_last_modified__ = DictField()                # keeps name of the field - source that last modified this field 
+    
+    
+    def check_statuses(self):
+        pass
+        
+        
+        
+        
+        
     
     @staticmethod
     def has_new_entities(old_entity_list, new_entity_list):
@@ -159,58 +171,129 @@ class SubmittedFile(DynamicEmbeddedDocument):
                     print "HAS NEW ENTITIES => RETURNS FALSE---------------"
                     return False
         return True
-            
-    @staticmethod
-    def __add_entity_attrs__(old, new_json):
+        
+        
+    def __compare_sender_priority__(self, source1, source2):
+        ''' Compares the priority of the sender taking into account 
+            the following criteria: ParseHeader < Update < User's input.
+            Returns:
+                 -1 if they are in the correct order - meaning s1 > s2 priority wise
+                  0 if they have equal priority 
+                  1 if s1 <= s2 priority wise => in the 0 case it will be taken into account the newest,
+                      hence counts as 
+            '''
+        priority_dict = dict()
+        priority_dict[INIT_SOURCE] = 0
+        priority_dict[PARSE_HEADER_MSG_SOURCE] = 1
+        priority_dict[UPDATE_MDATA_MSG_SOURCE] = 2
+        priority_dict[EXTERNAL_SOURCE] = 3
+        priority_dict[UPLOAD_FILE_MSG_SOURCE] = 4
+        
+        prior_s1 = priority_dict[source1]
+        prior_s2 = priority_dict[source2]
+        diff = prior_s2 - prior_s1
+        if diff < 0:
+            return -1
+        elif diff >= 0:
+            return 1
+
+    
+    def __add_entity_attrs__(self, old, new_json, new_source):
         ''' Update the old entity with the attributes of the new entity.'''
-        for att, val in new_json.items():              #for att, val in vars(new).items():
-            setattr(old, att, val)
+        for att, val in new_json.items():                                           #for att, val in vars(new).items():
+            if not att in old.__meta_last_modified__:
+                old.__meta_last_modified__[att] = INIT_SOURCE
+            old_sender = old.__meta_last_modified__[att]
+            priority_comparison = self.__compare_sender_priority__(old_sender, new_source) 
+            if priority_comparison >= 0:
+                setattr(old, att, val)
+                old.__meta_last_modified__[att] = new_source
+
             
-    @staticmethod
-    def __update_entity_list__(old_entity_list, new_entity_list_json):
+    def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source):
         ''' Compares an old library object with a new json representation of a lib
             and updates the old one accordingly. '''
         for new_entity_json in new_entity_list_json:
             was_found = False
             for old_entity in old_entity_list:
+                print "BEFORE IF ------- OLD ENTITY: ", old_entity, " ---------- NEW ENTITY: ", new_entity_json
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
-                    SubmittedFile.__add_entity_attrs__(old_entity, new_entity_json)
+                    print "I've entered in IF ------------ OLD entity:", old_entity
+                    SubmittedFile.__add_entity_attrs__(old_entity, new_entity_json, new_source)
                     was_found = True
                     break
             if not was_found:
-                old_entity_list.append(new_entity_json)
+                meta_dict = dict()
+                for field_name in new_entity_json:
+                    #new_entity_json.__meta_last_modified__[field_name] = new_source
+                    meta_dict[field_name] = new_source
+                if new_entity_json != None:
+                    new_entity_json['__meta_last_modified__'] = meta_dict
+                    old_entity_list.append(new_entity_json)
+                # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
+                #for field in new_entity_json
     
-    def update_from_json(self, update_dict):
-        print "FROM UPDATE FCT - THE DICTIONARY: ", update_dict
+    
+    def update_from_json(self, update_dict, update_source):
+        unregistered_fields = []
+        #print "FROM UPDATE FCT - THE DICTIONARY: ", update_dict
+        #print "FIELDS SELF: ", self._fields, "\n"
         for (key, val) in update_dict.iteritems():
+            #print "KEY: ", key
             if key in self._fields:          #if key in vars(submission):
+                #print "YEEEEEES - KEY IN FIELDS!!!!!!!!!!-----------", key, "VAL IN FIELDS: ", self._fields[key]
                 if key == 'library_list':
-                    self.__update_entity_list__(self.library_list, val)
+                    self.__update_entity_list__(self.library_list, val, update_source)
                 elif key == 'sample_list':
-                    self.__update_entity_list__(self.sample_list, val)
+                    self.__update_entity_list__(self.sample_list, val, update_source)
                 elif key == 'study_list':
-                    self.__update_entity_list__(self.study_list, val)       #self.study_list.extend(val)
+                    self.__update_entity_list__(self.study_list, val, update_source)       #self.study_list.extend(val)
+                elif key == 'seq_centers':
+                    self.seq_centers.extend(val)
+                    self.__meta_last_modified__[key] = update_source
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     self.file_error_log.extend(val)
-                elif key == 'file_status_mdata':
-                    self.file_mdata_status = val
-                elif key == 'header_has_mdata':
-                    self.header_has_mdata = val
-                elif key == 'file_mdata_status':
-                    self.file_mdata_status = val
-                elif key == 'file_submission_status':
-                    self.file_submission_status = val
+                #    self.__meta_last_modified__['file_error_log'] = update_source
                 elif key == 'missing_entities_error_dict':
                     self.missing_entities_error_dict.update(val)
                 elif key == 'not_unique_entity_error_dict':
                     self.not_unique_entity_error_dict.update(val)
-                #elif key not in ['submission_id', 'file_id', 'file_type', 'file_path_client', 'file_path_irods', 'md5']:
+                elif key == 'file_mdata_status':
+                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE): 
+                        self.file_mdata_status = val
+                        self.__meta_last_modified__[key] = update_source
+                elif key == 'header_has_mdata':
+                    if update_source == PARSE_HEADER_MSG_SOURCE:
+                        self.header_has_mdata = val
+                        self.__meta_last_modified__[key] = update_source
+                elif key == 'file_submission_status':
+                    self.file_submission_status = val
+                    self.__meta_last_modified__[key] = update_source
+                elif key == 'submission_id' or key == 'file_id' or key == 'file_path_irods' or key == 'file_path_client' or key == 'file_type':
+                    pass
+                elif key == '__meta_last_modified__':
+                    pass
+                elif key == 'md5':
+                    if update_source == UPLOAD_FILE_MSG_SOURCE:
+                        self.md5 = val
+                elif key == 'file_upload_job_status':
+                    if update_source == UPLOAD_FILE_MSG_SOURCE:
+                        self.file_upload_job_status = val
+                elif key == 'file_header_parsing_job_status':
+                    if update_source == PARSE_HEADER_MSG_SOURCE:
+                        self.file_header_parsing_job_status = val
+                # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
+                elif key == 'file_update_mdata_job_status':
+                    if update_source == UPDATE_MDATA_MSG_SOURCE:
+                        self.file_update_mdata_job_status = val
                 else:
                     setattr(self, key, val)
             else:
-                print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!"
-                raise KeyError
+                unregistered_fields.append(key)
+                print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS: ", key, " VAL:", val
+                #raise KeyError
+        return unregistered_fields
         #self.save(validate=False)
         
         
@@ -292,7 +375,8 @@ class Submission(DynamicDocument):
         submission_status_dict = {'submission_status' : self.submission_status}
         file_status_dict = dict()
         for f in self.files_list:
-            upload_status = f.file_upload_status
+            f.check_statuses()
+            upload_status = f.file_upload_job_status
             mdata_status = f.file_mdata_status
             file_status_dict[f.file_id] = {'upload_status' : upload_status, 'mdata_status' : mdata_status}
         submission_status_dict['files_status'] = file_status_dict

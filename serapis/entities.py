@@ -1,5 +1,6 @@
 
 import simplejson
+from serapis import constants
 #import json
 # ------------------ ENTITIES ---------------------------
 
@@ -37,7 +38,7 @@ class Entity(object):
 class Study(Entity):
     def __init__(self, acc_nr=None, name=None, study_type=None, title=None, sponsor=None, ena_prj_id=None, ref_genome=None):
         self.study_accession_nr = acc_nr
-        self.study_name = name
+        self.name = name
         self.study_type = study_type
         self.study_title = title
         self.study_faculty_sponsor = sponsor 
@@ -49,14 +50,14 @@ class Study(Entity):
         if isinstance(other, Study):
             if self.study_accession_nr != None and self.study_accession_nr == other.study_accession_nr:
                 return True
-            elif self.study_name != None and self.study_name == other.study_name:
+            elif self.name != None and self.name == other.name:
                 return True
         return False
      
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
         pass
-#        if self.study_name != None and self.library_type != None:
+#        if self.name != None and self.library_type != None:
 #            return True
 #        return False
     
@@ -73,10 +74,10 @@ class Study(Entity):
         study.study_accession_nr = study_mdata['accession_number']
         study.ena_project_id = study_mdata['ena_project_id']
         study.study_faculty_sponsor = study_mdata['faculty_sponsor']
-        study.study_name = study_mdata['name']
+        study.name = study_mdata['name']
         study.study_title = study_mdata['study_title']
         study.study_reference_genome = study_mdata['reference_genome']
-        study.study_type = study_mdata['STUDY_TYPE']
+        study.study_type = study_mdata['study_type']
         return study
 
     #internal_id = IntField() # to be used only for link table
@@ -85,21 +86,21 @@ class Study(Entity):
     
 class Library(Entity):
     def __init__(self, name=None, lib_type=None, public_name=None):
-        self.library_name = name    # identifies a library 
+        self.name = name    # identifies a library 
         self.library_type = lib_type
         self.library_public_name = public_name
         super(Library, self).__init__()
         
     def __eq__(self, other):
         if isinstance(other, Library):
-            if self.library_name != None and self.library_name == other.library_name:
+            if self.name != None and self.name == other.name:
                 return True
         return False
 
     def check_if_has_minimal_mdata(self):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
         if not self.has_minimal:
-            if self.library_name != None and self.library_type != None:
+            if self.name != None and self.library_type != None:
                 self.has_minimal = True
         return self.has_minimal
     
@@ -113,7 +114,7 @@ class Library(Entity):
     @staticmethod
     def build_from_seqscape(lib_mdata):
         lib = Library()
-        lib.library_name = lib_mdata['name']
+        lib.name = lib_mdata['name']
         lib.library_public_name = lib_mdata['public_name']
         lib.library_type = lib_mdata['library_type']
         return lib
@@ -137,7 +138,7 @@ class Sample(Entity): # one sample can be member of many studies
                  organism=None, common_name=None):
         self.sample_accession_number = acc_nr
         self.sanger_sample_id = ssi
-        self.sample_name = name # UNIQUE
+        self.name = name # UNIQUE
         self.sample_public_name = public_name
         self.sample_tissue_type = tissue_type
         self.reference_genome = ref_genome
@@ -157,16 +158,16 @@ class Sample(Entity): # one sample can be member of many studies
     # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
     def __eq__(self, other):                #Some samples are identified by name, others by accession_nr
         if isinstance(other, Sample):
-            if self.sample_name != None and self.name == other.sample_name:
+            if self.name != None and self.name == other.name:
                 return True
-            elif self.sample_accession_number != None and self.sample_accession_number == other.sample_name:
+            elif self.sample_accession_number != None and self.sample_accession_number == other.name:
                 return True
         return False
     
     def check_if_has_minimal_mdata(self):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-            if self.sample_accession_number != None and self.sample_name != None:
+            if self.sample_accession_number != (None or "") and self.name != (None or ""):
                 self.has_minimal = True
         return self.has_minimal
       
@@ -182,7 +183,7 @@ class Sample(Entity): # one sample can be member of many studies
     def build_from_seqscape(sampl_mdata):
         sampl = Sample()  
         sampl.sample_accession_number = sampl_mdata['accession_number']
-        sampl.sample_name = sampl_mdata['name']
+        sampl.name = sampl_mdata['name']
         sampl.sample_public_name = sampl_mdata['public_name']
         sampl.individual_cohort = sampl_mdata['cohort']
         sampl.individual_ethnicity = sampl_mdata['ethnicity']
@@ -215,12 +216,15 @@ class SubmittedFile():
         self.seq_centers = []                           # List of sequencing centres where the data has been sequenced
         
         ######## STATUSES #########
-        # UPLOAD:
-        self.file_upload_status = None                  # #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+        # UPLOAD JOB STATUS:
+        self.file_upload_job_status = None                  # #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
         
-        # HEADER BUSINESS:
-        self.file_header_parsing_status = None          # ("SUCCESS", "FAILURE") StringField(choices=HEADER_PARSING_STATUS)
+        # HEADER PARSING JOB:
+        self.file_header_parsing_job_status = None          # ("SUCCESS", "FAILURE") StringField(choices=HEADER_PARSING_STATUS)
         self.header_has_mdata = False                   #BooleanField()
+        
+        # UPDATE MDATA JOB STATUS:
+        self.file_update_mdata_job_status = None            # StringField(choices=UPDATE_MDATA_JOB_STATUS)
         
         #GENERAL STATUSES
         self.file_mdata_status = None                   # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL") StringField(choices=FILE_MDATA_STATUS) 
@@ -248,10 +252,10 @@ class SubmittedFile():
         return self.__add_or_update_entity__(new_lib, self.library_list)
         
     def add_or_update_sample(self, new_sample):
-        return self.__update_entity__(new_sample, self.sample_list)
+        return self.__add_or_update_entity__(new_sample, self.sample_list)
 
     def add_or_update_study(self, new_study):
-        return self.__update_entity__(new_study, self.study_list)
+        return self.__add_or_update_entity__(new_study, self.study_list)
 
     @staticmethod
     def build_from_json(json_file):
@@ -314,24 +318,33 @@ class SubmittedFile():
     def append_to_not_unique_entity_list(self, entity, entity_type):
         return self.__append_to_errors_dict__(entity, entity_type, self.not_unique_entity_error_dict)
     
+    
     # CAREFUL! Here I assumed that the identifier in header LB field is the library name. If not, this should be changed!!!
     def contains_lib(self, lib_name):
         for lib in self.library_list:
-            if lib.library_name == lib_name:
+            if lib.name == lib_name:
                 return True
         return False
     
     def contains_sample(self, sample_name):
         for sample in self.sample_list:
-            if sample.sample_name == sample_name or sample.sample_accession_number == sample_name:
+            if sample.name == sample_name or sample.sample_accession_number == sample_name:
                 return True
         return False
     
     def contains_study(self, study_name):
         for study in self.study_list:
-            if study.study_name == study_name:
+            if study.name == study_name:
                 return True
         return False
+    
+    def contains_entity(self, entity_name, entity_type):
+        if entity_type == constants.SAMPLE_TYPE:
+            return self.contains_sample(entity_name)
+        elif entity_type == constants.LIBRARY_TYPE:
+            return self.contains_lib(entity_name)
+        elif entity_type == constants.STUDY_TYPE:
+            return self.contains_study(entity_name)   
     
     def __remove_null_props_dict__(self, obj_to_modify):       # Deletes properties that are null from an object
         result_dict = dict()
@@ -362,42 +375,44 @@ class SubmittedFile():
     def check_if_has_minimal_mdata(self):
         ''' A file has minimal mdata to be submitted if all its entities 
             have minimal mdata and none of the entity lists is empty. '''
-        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
-            return False
+        has_minimal = True
         for lib in self.library_list:
             if not lib.check_if_has_minimal_mdata():
-                return False
+                has_minimal = False
         for sampl in self.sample_list:
             if not sampl.check_if_has_minimal_mdata():
-                return False
+                has_minimal = False
         for study in self.study_list:
             if not study.check_if_has_minimal_mdata():
-                return False
-        return True
+                has_minimal = False
+        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+            has_minimal = False
+        return has_minimal
     
     def check_if_complete_mdata(self):
         ''' A file has complete mdata if all its entities have 
             complete mdata and none of the entity lists is empty. '''
-        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
-            return False
+        is_complete = True
         for lib in self.library_list:
             if not lib.check_if_complete_mdata():
-                return False
+                is_complete = False
         for sampl in self.sample_list:
             if not sampl.check_if_complete_mdata():
-                return False
+                is_complete = False
         for study in self.study_list:
             if not study.check_if_complete_mdata():
-                return False
-        return True
+                is_complete = False
+        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+            is_complete = False
+        return is_complete
     
     def update_file_mdata_status(self):
         if self.check_if_complete_mdata() == True:
-            self.file_mdata_status = "COMPLETE"
+            self.file_mdata_status = constants.COMPLETE_STATUS
         elif self.check_if_has_minimal_mdata() == True:
-            self.file_mdata_status = "IS_MINIMAL"
+            self.file_mdata_status = constants.HAS_MINIMAL_STATUS
         else:
-            self.file_mdata_status = "INCOMPLETE"
+            self.file_mdata_status = constants.INCOMPLETE_STATUS
     
 #    def to_dict(self):
 #        out = dict()

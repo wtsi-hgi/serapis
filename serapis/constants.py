@@ -6,8 +6,53 @@ MDATA_QUEUE = 'MdataQueue'
 
 SEQSC_HOST = "127.0.0.1"
 SEQSC_PORT = 3307
+#SEQSC_PORT = 20002
 SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
+
+
+#------------------- MSG SOURCE -------------------------
+
+INIT_SOURCE = "INIT"
+PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
+UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
+UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
+EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
+
+
+
+# -------------- NEW STATUSES ---------------------------
+FINISHED_STATUS = ("SUCCESS", "FAILURE")
+NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
+
+# TASKS' STATUSES
+# PENDING = submitted to the queue, waiting to be picked up by a worker to be executed
+# IN PROGRESS = worker is working on it
+HEADER_PARSING_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING_ON_USER", "PENDING_ON_WORKER", "IN_PROGRESS")
+UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING_ON_USER", "PENDING_ON_WORKER", "IN_PROGRESS")
+FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING_ON_USER", "PENDING_ON_WORKER", "IN_PROGRESS")
+
+FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "HAS_MINIMAL", "IN_PROGRESS")
+
+FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION_IN_IRODS", "SUBMITTED_TO_IRODS")
+
+# Defining status strings:
+SUCCESS_STATUS = "SUCCESS"
+FAILURE_STATUS = "FAILURE"
+
+
+PENDING_ON_USER_STATUS = "PENDING_ON_USER"
+PENDING_ON_WORKER_STATUS = "PENDING_ON_WORKER"
+IN_PROGRESS_STATUS = "IN_PROGRESS"
+
+COMPLETE_STATUS = "COMPLETE"
+INCOMPLETE_STATUS = "INCOMPLETE"
+HAS_MINIMAL_STATUS = "HAS_MINIMAL"
+
+# -------------- UPDATING STRATEGIES: ----------------
+KEEP_NEW = "KEEP_NEW"
+IDEMPOTENT_RAISE_CONFLICT = "IDEMPOTENT"
+KEEP_OLD = "KEEP_OLD"
 
 
 # UPLOAD TASK
@@ -27,7 +72,12 @@ STUDY_TYPE = 'study'
 #OTHER TYPES:
 SUBMISSION_TYPE = 'submission'
 
-#
+###------ MODEL FIELDS: ------
+
+#FILE_HEADER_PARSING_JOB_STATUS = 'file_header_parsing_job_status'
+#HEADER_HAS_MDATA = 'header_has_mdata'
+
+
 ##------ MODEL FIELDS: ------
 #
 ## LIBRARY:
@@ -80,7 +130,7 @@ SUBMISSION_TYPE = 'submission'
 #FILE_SUBMISSION_STATUS = 'file_submission_status'
 
 #    file_upload_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
-#    file_header_parsing_status = StringField(choice=HEADER_PARSING_STATUS)
+#    file_header_parsing_status = StringField(choice=HEADER_PARSING_JOB_STATUS)
 #    header_has_mdata = BooleanField()
 #    #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
 #    #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)

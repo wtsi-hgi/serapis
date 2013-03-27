@@ -30,7 +30,7 @@ class SubmittedFileEncoder(json.JSONEncoder):
         #non_methods = inspect.getmembers(reject, is_not_method)
         
         if isinstance(obj, models.SubmittedFile):
-            return {obj.file_type, obj.file_path_client, obj.md5, obj.file_upload_status, obj.file_header_mdata_status}
+            return {obj.file_type, obj.file_path_client, obj.md5, obj.file_upload_job_status, obj.file_header_mdata_status}
         return json.JSONEncoder.default(self, obj)
 
 
@@ -125,13 +125,13 @@ class IndividualSerializer1(serializers.Serializer):
 
 class SampleSerializer2(serializers.Serializer):
     pk = serializers.Field()
-    sample_name = serializers.CharField()
+    name = serializers.CharField()
     
     
     def restore_object(self, attrs, instance=None):
         if instance:
             instance.pk = attrs.get('pk', instance.pk)
-            instance.sample_name = attrs.get('sample_name', instance.sample_name)
+            instance.name = attrs.get('name', instance.name)
             return instance
         return models.Sample(**attrs)
     
