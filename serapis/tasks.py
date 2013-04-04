@@ -411,16 +411,22 @@ class ParseBAMHeaderTask(Task):
     def run(self, **kwargs):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
-        
+
         print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
-        
+
         #submitted_file = SubmittedFile()
         submitted_file = SubmittedFile.build_from_json(file_mdata)
         file_mdata = submitted_file
-        file_mdata.file_submission_status = IN_PROGRESS_STATUS            
+        file_mdata.file_submission_status = IN_PROGRESS_STATUS
+        
+        on_client_flag = kwargs['on_client']
+        if on_client_flag:
+            file_path = file_mdata.file_path_client
+        else:
+            file_path = file_mdata.file_path_irods            
         try:
-            header_json = self.get_header_mdata(file_mdata.file_path_client)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
+            header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
             
             header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header

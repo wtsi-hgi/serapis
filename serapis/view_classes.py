@@ -215,7 +215,7 @@ class GetOrModifySubmittedFile(APIView):
         data = request.DATA
         print "POST REQ MADE - DATA: ", data
         try:
-            controller.resubmit_jobs(submission_id, file_id, data)
+            result = controller.resubmit_jobs(submission_id, file_id, data)
         except:
             return Response()
         else:

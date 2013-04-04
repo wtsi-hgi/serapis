@@ -156,14 +156,51 @@ class SubmittedFile(DynamicEmbeddedDocument):
     __meta_last_modified__ = DictField()                # keeps name of the field - source that last modified this field 
     
     
-    def check_statuses(self):
-        pass
-        
-        
-        
-        
-        
+    def check_if_has_min_mdata(self):
+        file_has_minimal_mdata = True
+        for study in self.study_list:
+            if not study.has_minimal:
+                file_has_minimal_mdata = False
+                break
+        if file_has_minimal_mdata == True:
+            for sample in self.sample_list:
+                if not sample.has_minimal:
+                    file_has_minimal_mdata = False
+                    break
+        if file_has_minimal_mdata == True:
+            for lib in self.library_list:
+                if not lib.has_minimal:
+                    file_has_minimal_mdata = False
+                    break
+        if len(self.sample_list) == 0 or len(self.library_list) == 0:       
+            # TODO: add study
+            # !!! HERE I IMPOSED THE CONDITION according to which there has to be at least one entity of each kind!!!
+            file_has_minimal_mdata = False
+        if self.file_header_parsing_job_status == FINISHED_STATUS and self.file_update_mdata_job_status in FINISHED_STATUS:
+            if file_has_minimal_mdata == True:
+                self.file_mdata_status = HAS_MINIMAL_STATUS
+            else:
+                self.file_mdata_status = INCOMPLETE_STATUS
+        else:
+            self.file_mdata_status = IN_PROGRESS_STATUS
+        return self.file_mdata_status
     
+    
+    # TODO: this is incomplete
+    def check_all_statuses(self):
+        if self.file_upload_job_status == FAILURE_STATUS:
+            #TODO: DELETE ALL MDATA AND FILE
+            pass
+        if self.file_upload_job_status == SUCCESS_STATUS and self.file_header_parsing_job_status == SUCCESS_STATUS:
+            if self.check_mdata_status() == HAS_MINIMAL_STATUS:
+                if self.file_upload_job_status == SUCCESS_STATUS:
+                    self.file_submission_status = READY_FOR_SUBMISSION
+                
+        if self.file_upload_job_status == IN_PROGRESS_STATUS or self.file_header_parsing_job_status == IN_PROGRESS_STATUS or self.file_update_mdata_job_status == IN_PROGRESS_STATUS:
+            self.file_submission_status = IN_PROGRESS_STATUS
+            
+        
+        
     @staticmethod
     def has_new_entities(old_entity_list, new_entity_list):
         ''' old_entity_list = list of entity objects, new_entity_list = json list of entities'''
@@ -239,6 +276,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
                 #for field in new_entity_json
     
+        
     
     def update_from_json(self, update_dict, update_source):
         unregistered_fields = []
@@ -260,7 +298,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     
-                    
+                    # TODO: make file_error a map, instead of a list
                     self.file_error_log.extend(val)
                 #    self.__meta_last_modified__['file_error_log'] = update_source
                 elif key == 'missing_entities_error_dict':

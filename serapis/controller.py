@@ -47,60 +47,84 @@ update_file_task = tasks.UpdateFileMdataTask()
 # starts only after the upload is finished...
 # !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
 
-def launch_parse_header_job(file_submitted):
+def launch_parse_header_job(file_submitted, read_on_client=True):
     file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
     
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
-    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized })
+    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'on_client' : read_on_client })
     
     
-
-def launch_upload_job(user_id, file_submitted):
-    # SUBMIT UPLOAD TASK TO QUEUE:
-    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
-    try:
-        # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-        src_fd = open(file_submitted.file_path_client, 'rb')
-        src_fd.close()
-#            # => WE HAVE PERMISSION TO READ FILE
-#            # SUBMIT UPLOAD TASK TO QUEUE:
-        
-        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
-        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
-        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-        
-        #file_submitted.save(validate=False)
-        #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
-        #exchange=constants.UPLOAD_EXCHANGE,
-   
-        ########## PROBLEM!!! => IF PERMISSION DENIED I CAN@T PARSE THE HEADER!!! 
-        ## I have to wait until the copying problem gets solved and afterwards to analyse the file
-        ## by reading it from iRODS
-          
-    except IOError as e:
-        if e.errno == errno.EACCES:
-            print "PERMISSION DENIED!"
-            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
-            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
-            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
-        raise   # raise anyway all the exceptions 
+def launch_upload_job(user_id, file_submitted, queue=None):
+    ''' Launches the job to a specific queue. If queue=None, the job
+        will be placed in the normal upload queue.'''
+    if queue == None:
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+    else:
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
+    file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
     
 
-    #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
-    # , queue=constants.MDATA_QUEUE
+#def launch_upload_job(user_id, file_submitted):
+#    # SUBMIT UPLOAD TASK TO QUEUE:
+#    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
+#    try:
+#        with open(file_submitted.file_path_client): pass       # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+#    except IOError as e:
+#        if e.errno == errno.EACCES:
+#            print "PERMISSION DENIED!"
+#            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
+#            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
+#            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+#        raise   # raise anyway all the exceptions 
+#    else:
+#        # TODO: check if there is any task in this queue, before resubmitting it, otherwise we might put more than 1 task doing the same thing
+#        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
+#        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+#        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+        
     
-#        chain(parse_BAM_header.s((submission_id, 
-#                                 file_id, file_path, user_id),
-#                                 queue=constants.MDATA_QUEUE, 
-#                                 link=[query_seqscape.s(retry=True, 
-#                                   retry_policy={'max_retries' : 1},
-#                                   queue=constants.MDATA_QUEUE
-#                                   )])).apply_async()
-    #parse_header_async_res = seqscape_async_res.parent
-    #return permission_denied
+#    try:
+#        # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+#        src_fd = open(file_submitted.file_path_client, 'rb')
+#        src_fd.close()
+##            # => WE HAVE PERMISSION TO READ FILE
+##            # SUBMIT UPLOAD TASK TO QUEUE:
+#        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
+#        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+#        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+#        
+#        #file_submitted.save(validate=False)
+#        #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
+#        #exchange=constants.UPLOAD_EXCHANGE,
+#   
+#        ########## PROBLEM!!! => IF PERMISSION DENIED I CAN@T PARSE THE HEADER!!! 
+#        ## I have to wait until the copying problem gets solved and afterwards to analyse the file
+#        ## by reading it from iRODS
+#          
+#    except IOError as e:
+#        if e.errno == errno.EACCES:
+#            print "PERMISSION DENIED!"
+#            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
+#            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
+#            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+#        raise   # raise anyway all the exceptions 
+#    
+#
+#    #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
+#    # , queue=constants.MDATA_QUEUE
+#    
+##        chain(parse_BAM_header.s((submission_id, 
+##                                 file_id, file_path, user_id),
+##                                 queue=constants.MDATA_QUEUE, 
+##                                 link=[query_seqscape.s(retry=True, 
+##                                   retry_policy={'max_retries' : 1},
+##                                   queue=constants.MDATA_QUEUE
+##                                   )])).apply_async()
+#    #parse_header_async_res = seqscape_async_res.parent
+#    #return permission_denied
     
     
 def launch_update_file_job(file_submitted):
@@ -109,24 +133,34 @@ def launch_update_file_job(file_submitted):
     update_file_task.apply_async(kwargs={'file_mdata' : file_serialized })
     
 
-def submit_jobs_for_file(user_id, file_submitted):
-    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
-    try:
-        launch_upload_job(user_id, file_submitted)
-    except IOError as e:
-        io_errors_list.append(e)
-        file_submitted.file_error_log.append(e.strerror)
+def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_task_queue=None):
+    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
+        io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+        try:
+            if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
+                launch_upload_job(user_id, file_submitted)
+        except IOError as e:
+            io_errors_list.append(e)
+            file_submitted.file_error_log.append(e.strerror)
+        else:
+            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
+            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
+            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
+            if file_submitted.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+                launch_parse_header_job(file_submitted, read_on_client)
+            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
+        return io_errors_list
     else:
-        launch_parse_header_job(file_submitted)
-    return io_errors_list
-
+        return None
+    
 
 def submit_jobs_for_submission(user_id, submission):
     io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_submitted in submission.files_list:
         file_io_errors = submit_jobs_for_file(user_id, file_submitted)
-        if len(file_io_errors) > 0:
+        if file_io_errors != None and len(file_io_errors) > 0:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
+    submission.save()       # some files have modified some statuses, so this has to be saved
     return io_errors_dict
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
@@ -153,7 +187,6 @@ def init_submission(user_id, files_list):
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         # file_type = detect_file_type(file_path)
         file_type = "BAM"
-        # TODO !!!!!!!!!!!! Temporary status, just to check that there is no PENDING status left in the app, to be changed to PENDING status
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
         try:
@@ -164,10 +197,18 @@ def init_submission(user_id, files_list):
                 continue
             elif e.errno == errno.EACCES:
                 file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_USER_STATUS, file_type=file_type, file_path_client=file_path)
+                file_submitted.file_header_parsing_job_status = constants.PENDING_ON_USER_STATUS
+                file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
             else:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_WORKER_STATUS, file_type=file_type, file_path_client=file_path)
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_type=file_type, file_path_client=file_path)
+                file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+                file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+                file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
         else:
-            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_WORKER_STATUS, file_type=file_type, file_path_client=file_path)
+            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_type=file_type, file_path_client=file_path)
+            file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+            file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+            file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
         submitted_files_list.append(file_submitted)
     result = dict()
     if len(submitted_files_list) > 0:
@@ -228,6 +269,10 @@ def get_submission_status(submission_id):
     submission = get_submission(submission_id)
     if submission != None:
         subm_status = submission.get_status()
+        
+    # TODO: UNFINISHED....
+    
+    return subm_status
 
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
@@ -321,17 +366,24 @@ def resubmit_jobs(submission_id, file_id, data):
     user_id = 'ic4'
     submission = get_submission(submission_id)
     file_to_resubmit = submission.get_submitted_file(file_id)
-    if data['permissions_changed'] == True:
-        if file_to_resubmit.file_upload_job_status == constants.PENDING_ON_USER_STATUS: 
-            error_list = submit_jobs_for_file(user_id, file_to_resubmit)
-            file_to_resubmit.file_error_log.extend(error_list)
+    if file_to_resubmit.file_submission_status == constants.PENDING_ON_USER_STATUS:
+        file_to_resubmit.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+        file_to_resubmit.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+        file_to_resubmit.file_submission_status = constants.PENDING_ON_WORKER_STATUS
+    permission_denied = False
+    try:
+        with open(file_to_resubmit.file_path_client): pass       # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+    except IOError as e:
+        if e.errno == errno.EACCES:
+            permission_denied = True
+    if permission_denied == False:     
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit)
+        file_to_resubmit.file_error_log.extend(error_list)
     else:
-        # TODO: THIS WILL NOT work if the client runs himself the worker, 
-        # because in this case the parsed file has to be the one on the server
-        # and right now I parse the copy on the client!!!
-        launch_parse_header_job(file_to_resubmit)
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
     submission.save(validate=False)
- 
+    return error_list
+
  
 
 def delete_file_submitted(submission_id, file_id):
