@@ -50,6 +50,7 @@ update_file_task = tasks.UpdateFileMdataTask()
 def launch_parse_header_job(file_submitted):
     file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
+    
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
@@ -121,37 +122,78 @@ def submit_jobs_for_file(user_id, file_submitted):
 
 
 def submit_jobs_for_submission(user_id, submission):
-    io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+    io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_submitted in submission.files_list:
         file_io_errors = submit_jobs_for_file(user_id, file_submitted)
-        io_errors_list.extend(file_io_errors)
-    return io_errors_list
+        if len(file_io_errors) > 0:
+            io_errors_dict[file_submitted.file_path_client] = file_io_errors
+    return io_errors_dict
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
 
+def detect_file_type(file_path):
+    if file_path.endswith(".bam"):
+        return "BAM"
+    elif file_path.endswith(".vcf"):
+        return "VCF"
+
 def init_submission(user_id, files_list):
+    ''' Initializes a new submission, given a list of files. 
+        Returns a dictionary containing: submission created and list of errors 
+        for each existing file, plus list of files that don't exist.'''
     submission = models.Submission()
     submission.sanger_user_id = user_id
     submission.save()
     submitted_files_list = []
     logging.debug("List of files received: "+str(files_list))
+    non_existing_files = []       # list of files that don't exist, to be returned
     file_id = 0
     for file_path in files_list:        
         file_id+=1
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
+        # file_type = detect_file_type(file_path)
         file_type = "BAM"
         # TODO !!!!!!!!!!!! Temporary status, just to check that there is no PENDING status left in the app, to be changed to PENDING status
-        file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.IN_PROGRESS_STATUS, file_type=file_type, file_path_client=file_path)
+        # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
+        # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
+        try:
+            with open(file_path): pass
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                non_existing_files.append(file_path)
+                continue
+            elif e.errno == errno.EACCES:
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_USER_STATUS, file_type=file_type, file_path_client=file_path)
+            else:
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_WORKER_STATUS, file_type=file_type, file_path_client=file_path)
+        else:
+            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_submission_status=constants.PENDING_ON_WORKER_STATUS, file_type=file_type, file_path_client=file_path)
         submitted_files_list.append(file_submitted)
-    submission.files_list = submitted_files_list
-    submission.save(cascade=True)
-    return submission
+    result = dict()
+    if len(submitted_files_list) > 0:
+        submission.files_list = submitted_files_list
+        submission.save(cascade=True)
+        result['submission'] = submission
+    else:
+        submission.delete()
+        result['submission'] = None
+    result['non_existing_files'] = non_existing_files
+    return result
 
-
+# PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file, if I do have it, then I save files that don't exist...
 def create_submission(user_id, files_list):
-    submission = init_submission(user_id, files_list)
-    io_errors_list = submit_jobs_for_submission(user_id, submission)
-    result = dict({'IOErrors' : io_errors_list, 'submission_id' : submission.id})
+    result_init_submission = init_submission(user_id, files_list)
+    result = dict()
+    non_existing_files = result_init_submission['non_existing_files']
+    result['non_existing_files'] = non_existing_files
+    if result_init_submission['submission'] != None:
+        submission = result_init_submission['submission']
+        io_errors_dict = submit_jobs_for_submission(user_id, submission)
+        result['existing_files_errors'] = io_errors_dict
+        result['submission_id'] = str(submission.id)
+        #result = dict({'existing_files_errors' : io_errors_dict, 'non_existing_files' : non_existing_files, 'submission_id' : submission.id})
+    else:
+        result['submission_id'] = None
     return result
 
 
@@ -231,7 +273,7 @@ def update_file_submitted(submission_id, file_id, data):
         ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         KeyError -- if a key does not exist in the model of the submitted file
     '''
-    # INNER FUNCTION - I ONLY USE IT HERE
+    # INNER FUNCTIONS - I ONLY USE IT HERE
     def check_if_has_new_entities(data, file_to_update):
         has_new_entities = False
         if 'library_list' in data and models.SubmittedFile.has_new_entities(file_to_update.library_list, data['library_list']) == True: 
@@ -271,7 +313,8 @@ def update_file_submitted(submission_id, file_id, data):
             launch_update_file_job(file_to_update)
             print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         return unregistered_fields
-        
+    
+            
 
 def resubmit_jobs(submission_id, file_id, data):
     ''' Function called for resubmitting the jobs for a file.'''
@@ -279,12 +322,9 @@ def resubmit_jobs(submission_id, file_id, data):
     submission = get_submission(submission_id)
     file_to_resubmit = submission.get_submitted_file(file_id)
     if data['permissions_changed'] == True:
-        if file_to_resubmit.file_upload_job_status == "PERMISSION_DENIED": 
+        if file_to_resubmit.file_upload_job_status == constants.PENDING_ON_USER_STATUS: 
             error_list = submit_jobs_for_file(user_id, file_to_resubmit)
             file_to_resubmit.file_error_log.extend(error_list)
-        elif file_to_resubmit.file_upload_job_status == "IN_PROGRESS":
-            launch_parse_header_job(file_to_resubmit)
-        # TODO: maybe also abort upload jobs for this file on queue=user_id
     else:
         # TODO: THIS WILL NOT work if the client runs himself the worker, 
         # because in this case the parsed file has to be the one on the server

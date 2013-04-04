@@ -1,10 +1,15 @@
-#from django.db import models
 
-# Create your models here.
 from serapis import exceptions
 from mongoengine import *
 from serapis.constants import *
+from bson.objectid import ObjectId
 #from mongoengine.base import ObjectIdField
+
+import simplejson
+import logging
+
+
+
 
 FILE_TYPES = ('BAM', 'VCF')
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
@@ -119,10 +124,10 @@ class SubmittedFile(DynamicEmbeddedDocument):
     file_path_client = StringField()
     file_path_irods = StringField()    
     md5 = StringField()
+    
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
-    
     seq_centers = ListField(StringField())          # List of sequencing centers where the data has been sequenced
     
     ######## STATUSES #########
@@ -140,7 +145,8 @@ class SubmittedFile(DynamicEmbeddedDocument):
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
-    file_error_log = ListField(StringField())
+    #file_error_log = DictField()                        # dict containing: key = sender, value = List of errors
+    file_error_log = ListField(StringField)
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {
@@ -219,7 +225,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 print "BEFORE IF ------- OLD ENTITY: ", old_entity, " ---------- NEW ENTITY: ", new_entity_json
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
                     print "I've entered in IF ------------ OLD entity:", old_entity
-                    SubmittedFile.__add_entity_attrs__(old_entity, new_entity_json, new_source)
+                    self.__add_entity_attrs__(old_entity, new_entity_json, new_source)
                     was_found = True
                     break
             if not was_found:
@@ -253,6 +259,8 @@ class SubmittedFile(DynamicEmbeddedDocument):
                     self.__meta_last_modified__[key] = update_source
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
+                    
+                    
                     self.file_error_log.extend(val)
                 #    self.__meta_last_modified__['file_error_log'] = update_source
                 elif key == 'missing_entities_error_dict':
@@ -296,6 +304,30 @@ class SubmittedFile(DynamicEmbeddedDocument):
         return unregistered_fields
         #self.save(validate=False)
         
+        
+    @staticmethod
+    def encode_model(obj):
+        if isinstance(obj, (Document,  EmbeddedDocument)):              # Doc, EmbedDoc = mongoengine specific types
+            out = dict(obj._data)
+            for k,v in out.items():
+                if isinstance(v, ObjectId):
+                    out[k] = str(v)
+        elif isinstance(obj, ObjectId):
+            out = str(obj)
+        elif isinstance(obj, queryset.QuerySet):                        # QuerySet is mongoengine specific type
+            out = list(obj)
+        elif isinstance(obj, (list,dict)):
+            out = obj
+        else:
+            logging.info(obj)
+            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+        return out          
+            
+    
+    def serialize(self, data):
+        serialized = simplejson.dumps(data, default=self.encode_model)
+        if '__meta_last_modified__' in serialized:
+            serialized.pop['__meta_last_modified__']
         
         
         

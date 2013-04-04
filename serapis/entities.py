@@ -19,11 +19,11 @@ class Entity(object):
             Update only the None fields in self object and return True if anything was changed.'''
         has_changed = False
         for field in vars(new_entity):
-            crt_val = getattr(self, field)
+            #crt_val = getattr(self, field)
             new_val = getattr(new_entity, field)
-            if crt_val == None and new_val != None:
-                setattr(self, field, new_val)
-                has_changed = True
+            #if crt_val == None and new_val != None:
+            setattr(self, field, new_val)
+            has_changed = True
         return has_changed
     
     def check_if_complete_mdata(self):

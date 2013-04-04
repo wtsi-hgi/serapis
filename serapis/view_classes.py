@@ -56,30 +56,57 @@ class GetOrCreateSubmissions(APIView):
         ''' Creates a new submission, given a set of files.
             No submission is created if the list of files is empty.'''
         user_id = "ic4"
-        data = request.POST['_content']
-        data_deserial = json.loads(data)
-        files_list = data_deserial["files"]
-        result_dict = controller.create_submission(user_id, files_list)
-        submission_id = result_dict['submission_id']
-        io_errors_list = result_dict['IOErrors']
-        perm_denied_list = []
-        other_io_errs = []
-        for err in io_errors_list:
-            if err.errno == errno.EACCES:
-                perm_denied_list.append(err.filename)
-            else:
-                other_io_errs.append({"file":err.filename, "error" : err.strerror})
-        if len(perm_denied_list) > 0:
-            err_msg = "PERMISSION DENIED for these files:" + str(perm_denied_list)
-            err_msg = err_msg+". PLEASE RUN THE SCRIPT x ON THE CLUSTER OR GIVE PERMISSION TO USER MERCURY TO READ YOUR FILES! Submission id: "+str(submission_id) 
-            err_msg = err_msg + ". Submission created: " + str(submission_id)
-            return Response(err_msg, status=202)
-        elif len(other_io_errs) > 0:
-            err_msg = "IO Errors in the following files:" + str(other_io_errs)
-            err_msg = err_msg + ". Submission created: " + str(submission_id)
-            return Response(err_msg, status=202)
+        try:
+            data = request.POST['_content']
+            data_deserial = json.loads(data)
+        except ValueError:
+            return Response("Not JSON format.", status=400)
         else:
-            return Response("Created the submission with id="+str(submission_id), status=201)
+            files_list = data_deserial["files"]
+            result_dict = controller.create_submission(user_id, files_list)
+            if result_dict['submission_id'] == None:
+                return Response("Files do not exist! No submission was created.")
+            submission_id = result_dict['submission_id']
+            error_list = result_dict['existing_files_errors']
+            non_existing_files = result_dict['non_existing_files']
+            
+            if submission_id == None:
+                # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically)?
+                msg = "Files don't exist. Submission not created."
+                result_dict['message'] = msg
+                return Response(result_dict, status=400)
+            elif len(non_existing_files) > 0:
+                # The submission is created, but does not include the non existing files.
+                # The user needs to create a new submission including those files, after correcting the path.
+                msg = "Submission created. Some files don't exist. The submission contains only the existing files."
+                result_dict['message'] = msg
+                return Response(result_dict, status=201)
+            elif len(error_list) > 0:
+                msg = "Submission created. Some errors occurred."
+                result_dict['message'] = msg
+                return Response(result_dict, status=201)
+                
+#            perm_denied_list = []
+#            other_io_errs = []
+#            for err in error_list:
+#                if err.errno == errno.EACCES:
+#                    perm_denied_list.append(err.filename)
+#                else:
+#                    other_io_errs.append({"file":err.filename, "error" : err.strerror})
+#            if len(perm_denied_list) > 0:
+#                err_msg = "PERMISSION DENIED for these files:" + str(perm_denied_list)
+#                err_msg = err_msg+". PLEASE RUN THE SCRIPT x ON THE CLUSTER OR GIVE PERMISSION TO USER MERCURY TO READ YOUR FILES! Submission id: "+str(submission_id) 
+#                err_msg = err_msg + ". Submission created: " + str(submission_id)
+#                return Response(err_msg, status=202)
+#            elif len(other_io_errs) > 0:
+#                err_msg = "IO Errors in the following files:" + str(other_io_errs)
+#                err_msg = err_msg + ". Submission created: " + str(submission_id)
+#                return Response(err_msg, status=202)
+#            else:
+#                return Response("Created the submission with id="+str(submission_id), status=201)
+
+
+#---------- OLD VERSION:----------
 #        except IOError as e:
 #            if e.errno == errno.ENOENT:
 #                print "NO SUCH FILE"

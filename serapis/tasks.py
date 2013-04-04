@@ -148,37 +148,38 @@ class ProcessSeqScapeData():
     def __init__(self):
         self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
-    def update_libs(self, file_submitted):
-        ''' Iterates over the list of libraries and if the mdata for not complete, it looks it up in SeqScape. '''
-        search_field = 'name'
-        for lib in file_submitted.library_list:
-            if lib.is_complete == False:
-                lib_mdata = QuerySeqScape.get_library_data(self.connection, search_field, lib.name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-                if len(lib_mdata) == 1:                 
-                    lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
-                    new_lib = Library.build_from_seqscape(lib_mdata)
-                    lib.update(new_lib)
-                    if lib.is_mdata_complete():
-                        lib.is_complete = True
-                        
-        
+#    def update_libs(self, file_submitted):
+#        ''' Iterates over the list of libraries and if the mdata for not complete, it looks it up in SeqScape. '''
+#        search_field = 'name'
+#        for lib in file_submitted.library_list:
+#            if not lib.is_complete:
+#                lib_mdata = QuerySeqScape.get_library_data(self.connection, search_field, lib.name)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+#                if len(lib_mdata) == 1:                 
+#                    lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
+#                    new_lib = Library.build_from_seqscape(lib_mdata)
+#                    lib.update(new_lib)
+#                    if lib.is_mdata_complete():
+#                        lib.is_complete = True
+#                        
+#        
                 
-    def update_samples(self, file_submitted):
-        search_field = 'name'
-        for sample in file_submitted.sample_list:
-            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.name)  
-            if len(sampl_mdata) == 0:           # second try to find the sample in SeqScape, different criteria
-                search_field = 'accession_number'       # second try: query by accession_nr
-                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_accession_number)
-            if len(sampl_mdata) == 1:           # Ideal case
-                sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
-                new_sample = Sample.build_from_seqscape(sampl_mdata)
-                sample.update(new_sample)
+#    def update_samples(self, file_submitted):
+#        search_field = 'name'
+#        for sample in file_submitted.sample_list:
+#            if not sample.is_complete:
+#                sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.name)  
+#                if len(sampl_mdata) == 0:           # second try to find the sample in SeqScape, different criteria
+#                    search_field = 'accession_number'       # second try: query by accession_nr
+#                    sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field, sample.sample_accession_number)
+#                if len(sampl_mdata) == 1:           # Ideal case
+#                    sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
+#                    new_sample = Sample.build_from_seqscape(sampl_mdata)
+#                    sample.update(new_sample)
+#    
     
-    
-    def update_studies(self, file_submitted):
-        search_field = 'name'
-        # TO DO...what is the search field?!
+#    def update_studies(self, file_submitted):
+#        search_field = 'name'
+#        # TO DO...what is the search field?!
         
 
     # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
@@ -307,7 +308,7 @@ class UploadFileTask(Task):
             md5_dest = self.calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
         except IOError:
             result[FILE_ERROR_LOG] = []
-            result[FILE_ERROR_LOG].append(1)    # IO ERROR COPYING FILE
+            result[FILE_ERROR_LOG].append(constants.IO_ERROR)    # IO ERROR COPYING FILE
             result['file_upload_job_status'] = FAILURE_STATUS
             raise
         
@@ -319,7 +320,7 @@ class UploadFileTask(Task):
                 raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
         except MaxRetriesExceededError:
             result[FILE_ERROR_LOG] = []
-            result[FILE_ERROR_LOG].append(2)
+            result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
             result['file_upload_job_status'] = FAILURE_STATUS
             raise
         else:
@@ -427,7 +428,7 @@ class ParseBAMHeaderTask(Task):
             #header_seq_centers = header_processed['CN']
         except ValueError:      # This comes from BAM header parsing
             file_mdata.file_header_parsing_job_status = FAILURE_STATUS
-            file_mdata.file_error_log.append(3)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            file_mdata.file_error_log.append(constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
             file_mdata.header_has_mdata = False
             raise
         else:
@@ -436,6 +437,8 @@ class ParseBAMHeaderTask(Task):
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
                 file_mdata.header_has_mdata = True
+            else:
+                file_mdata.file_error_log.append(constants.FILE_HEADER_EMPTY)
                 #file_mdata.file_mdata_status = IN_PROGRESS_STATUS
             
             # Sending an update back
@@ -459,7 +462,6 @@ class ParseBAMHeaderTask(Task):
         file_mdata.update_file_mdata_status()           # update the status after the last findings
         file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
         
-        file_mdata.new_fieldBlah = "NEW field BLAH"
         # Exception or not - either way - send file_mdata to the server:  
         serial = file_mdata.to_json()
         #print "FILE serialized - JSON: ", serial
