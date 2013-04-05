@@ -42,7 +42,7 @@ def deserialize(data):
 
 def build_url(submission_id, file_id):
     #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
-    url_str = [BASE_URL,  "submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+    url_str = [BASE_URL, str(submission_id), "/files/", str(file_id),"/"]
     url_str = ''.join(url_str)
     return url_str
 

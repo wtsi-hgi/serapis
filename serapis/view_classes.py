@@ -41,7 +41,7 @@ logging.basicConfig(level=logging.DEBUG)
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
 # /submissions/
-class GetOrCreateSubmissions(APIView):
+class SubmissionsMainPageRequestHandler(APIView):
     # GET all the submissions for a user_id
     def get(self, request, format=None):
         ''' Retrieves all the submissions for this user. '''
@@ -54,7 +54,11 @@ class GetOrCreateSubmissions(APIView):
     # POST = create a new submission, for uploading the list of files given as param
     def post(self, request, format=None):
         ''' Creates a new submission, given a set of files.
-            No submission is created if the list of files is empty.'''
+            No submission is created if the list of files is empty.
+            Returns:
+                - status=201 if the submission is created
+                - status=400 if the submission wasn't created (list of files empty).
+        '''
         user_id = "ic4"
         try:
             data = request.POST['_content']
@@ -64,25 +68,14 @@ class GetOrCreateSubmissions(APIView):
         else:
             files_list = data_deserial["files"]
             result_dict = controller.create_submission(user_id, files_list)
-            if result_dict['submission_id'] == None:
-                return Response("Files do not exist! No submission was created.")
             submission_id = result_dict['submission_id']
-            error_list = result_dict['existing_files_errors']
-            non_existing_files = result_dict['non_existing_files']
-            
             if submission_id == None:
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically)?
                 msg = "Files don't exist. Submission not created."
                 result_dict['message'] = msg
                 return Response(result_dict, status=400)
-            elif len(non_existing_files) > 0:
-                # The submission is created, but does not include the non existing files.
-                # The user needs to create a new submission including those files, after correcting the path.
-                msg = "Submission created. Some files don't exist. The submission contains only the existing files."
-                result_dict['message'] = msg
-                return Response(result_dict, status=201)
-            elif len(error_list) > 0:
-                msg = "Submission created. Some errors occurred."
+            else:
+                msg = "Submission created"    
                 result_dict['message'] = msg
                 return Response(result_dict, status=201)
                 
@@ -122,7 +115,7 @@ class GetOrCreateSubmissions(APIView):
 # ---------------------- HANDLE 1 SUBMISSION -------------
 
 # /submissions/submission_id
-class GetOrModifySubmission(APIView):
+class SubmissionRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
         ''' Retrieves a submission given by submission_id.'''
         try:
@@ -170,7 +163,7 @@ class GetOrModifySubmission(APIView):
 
 
 # /submissions/submission_id/status/
-class GetSubmissionStatus(APIView):
+class SubmissionStatusRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
         ''' Retrieves the status of the submission together
             with the statuses of the files (upload and mdata). '''
@@ -187,8 +180,26 @@ class GetSubmissionStatus(APIView):
 
 #---------------- HANDLE 1 SUBMITTED FILE ------------------------
 
+class SubmittedFileMainPageRequestHandler(APIView):
+    ''' Handles the requests coming for /submissions/123/files/.
+        GET is used for retrieving the list of files for this submission.
+        POST is used for adding a new file to this submission.'''
+    def get(self, request, submission_id, format=None):
+        pass
     
-class GetOrModifySubmittedFile(APIView):
+    # TODO: should I really expose this method?
+    def post(self, request, submission_id, format=None):
+        pass
+    
+    
+    
+class SubmittedFileRequestHandler(APIView):
+    ''' Handles the requests for a specific file (existing already).
+        GET - retrieves all the information for this file (metadata)
+        POST - resubmits the jobs for this file
+        PUT - updates a specific part of the metadata.
+        DELETE - deletes this file from this submission.'''
+    
     def get(self, request, submission_id, file_id, format=None):
         ''' Retrieves the information regarding this file from this submission.
             Returns 404 if the file or the submission don't exist. '''
@@ -214,23 +225,31 @@ class GetOrModifySubmittedFile(APIView):
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         data = request.DATA
         print "POST REQ MADE - DATA: ", data
-        try:
-            result = controller.resubmit_jobs(submission_id, file_id, data)
-        except:
-            return Response()
+        #try:
+        error_list = controller.resubmit_jobs(submission_id, file_id, data)
+        if error_list == None:
+            return Response(status=304)
         else:
-            return Response()
+            result = dict()
+            result['errors'] = error_list
+            # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
+            # What if there are thrown also other exceptions?
+            result['message'] = "Jobs resubmitted."
+            return Response(result, status=202)
             
     
     def put(self, request, submission_id, file_id, format=None):
-        ''' Updates the info corresponding to a file.'''
+        ''' Updates the corresponding info for this file.'''
         data = request.DATA
         try:
-            controller.update_file_submitted(submission_id, file_id, data)
+            non_existing_fields = controller.update_file_submitted(submission_id, file_id, data)
+            result = dict()
+            result['errors'] = "Non-existing fields: "+str(non_existing_fields)
         except exceptions.ResourceDoesNotExistError:
             return Response('Resource does not exist.', status=404)
         else:
-            return Response("Successfully updated!", status=200)
+            result['message'] = "Successfully updated!"
+            return Response(result, status=200)
     
     
     def delete(self, request, submission_id, file_id, format=None):
@@ -243,8 +262,94 @@ class GetOrModifySubmittedFile(APIView):
             return Response("Successfully deleted!", status=200)
         
         
-        
-        
+# ------------------- ENTITIES -----------------------------
+class LibrariesMainPageRequestHandler(APIView):
+    ''' Handles requests /submissions/123/files/3/libraries/.
+        GET - retrieves all the libraries that this file contains as metadata.
+        POST - adds a new library to the metadata of this file'''
+    def get(self,  request, submission_id, file_id, format=None):
+        pass
+    
+    def post(self,  request, submission_id, file_id, library_id, format=None):
+        pass
+    
+    
+
+class LibraryRequestHandler(APIView):
+    ''' Handles the requests for a specific library (existing already).
+        GET - retrieves the library identified by the id.
+        PUT - updates fields of the metadata for the specified library
+        DELETE - deletes the specified library from the library list of this file.
+    '''
+    def get(self, request, submission_id, file_id, library_id, format=None):
+        pass
+
+    def put(self, request, submission_id, file_id, library_id, format=None):
+        pass
+    
+    def delete(self, request, submission_id, file_id, library_id, format=None):
+        pass
+    
+    
+class SamplesMainPageRequestHandler(APIView):
+    ''' Handles requests for /submissions/123/files/12/samples/
+        GET - retrieves the list of all samples
+        POST - adds a new sample to the list of samples that the file has.
+    '''
+    def get(self,  request, submission_id, file_id, format=None):
+        pass
+    
+    def post(self,  request, submission_id, file_id, sample_id, format=None):
+        pass
+    
+    
+class SampleRequestHandler(APIView):
+    ''' Handles requests for a specific sample (existing already).
+        GET - retrieves the sample identified by the id.
+        PUT - updates fields of the metadata for the specified sample
+        DELETE - deletes the specified sample from the sample list of this file.
+    '''
+
+    def get(self, request, submission_id, file_id, sample_id, format=None):
+        pass
+
+    def put(self, request, submission_id, file_id, sample_id, format=None):
+        pass
+    
+    def delete(self, request, submission_id, file_id, sample_id, format=None):
+        pass
+    
+# ----------
+    
+class StudyMainPageRequestHandler(APIView):
+    ''' Handles requests for /submissions/123/files/12/studies/
+        GET - retrieves the list of all studies
+        POST - adds a new study to the list of studies that the file has.
+    '''
+    def get(self,  request, submission_id, file_id, format=None):
+        pass
+    
+    def post(self,  request, submission_id, file_id, study_id, format=None):
+        pass
+    
+    
+class StudyRequestHandler(APIView):
+    ''' Handles requests for a specific study (existing already).
+        GET - retrieves the study identified by the id.
+        PUT - updates fields of the metadata for the specified study
+        DELETE - deletes the specified study from the study list of this file.
+    '''
+
+    def get(self, request, submission_id, file_id, study_id, format=None):
+        pass
+
+    def put(self, request, submission_id, file_id, study_id, format=None):
+        pass
+    
+    def delete(self, request, submission_id, file_id, study_id, format=None):
+        pass
+    
+    
 # ---------------------------------------------------------
 
 

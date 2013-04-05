@@ -223,16 +223,26 @@ def init_submission(user_id, files_list):
 
 # PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file, if I do have it, then I save files that don't exist...
 def create_submission(user_id, files_list):
+    ''' Creates a submission - given a list of files: initializes 
+        a submission object and submits jobs for all the files in the list.
+        
+        Params:
+             list of files that the new submissionc contains
+        Returns:
+             a dictionary containing: 
+             { submission_id : 123 , errors: {..dictionary of errors..}
+        '''
     result_init_submission = init_submission(user_id, files_list)
     result = dict()
     non_existing_files = result_init_submission['non_existing_files']
-    result['non_existing_files'] = non_existing_files
     if result_init_submission['submission'] != None:
         submission = result_init_submission['submission']
         io_errors_dict = submit_jobs_for_submission(user_id, submission)
-        result['existing_files_errors'] = io_errors_dict
+        errors = dict()
+        errors['Non existing files'] = non_existing_files
+        errors.update(io_errors_dict)
         result['submission_id'] = str(submission.id)
-        #result = dict({'existing_files_errors' : io_errors_dict, 'non_existing_files' : non_existing_files, 'submission_id' : submission.id})
+        result['errors'] = errors
     else:
         result['submission_id'] = None
     return result
@@ -362,14 +372,22 @@ def update_file_submitted(submission_id, file_id, data):
             
 
 def resubmit_jobs(submission_id, file_id, data):
-    ''' Function called for resubmitting the jobs for a file.'''
+    ''' Function called for resubmitting the jobs for a file, as a result
+        of a POST request on a specific file. It checks for permission and 
+        resubmits the jobs in the corresponding queue, depending on permissions.
+        '''
     user_id = 'ic4'
     submission = get_submission(submission_id)
     file_to_resubmit = submission.get_submitted_file(file_id)
-    if file_to_resubmit.file_submission_status == constants.PENDING_ON_USER_STATUS:
-        file_to_resubmit.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-        file_to_resubmit.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+    # TODO: success and fail -statuses...
+    # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
+    if file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
         file_to_resubmit.file_submission_status = constants.PENDING_ON_WORKER_STATUS
+    if file_to_resubmit.file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
+        file_to_resubmit.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+    if file_to_resubmit.file_header_parsing_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]: 
+        file_to_resubmit.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+    
     permission_denied = False
     try:
         with open(file_to_resubmit.file_path_client): pass       # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
@@ -400,8 +418,17 @@ def delete_file_submitted(submission_id, file_id):
     submission.delete_submitted_file(file_id)
     submission.save(validate=False)
     
+    
+# ------------------------- HANDLE ENTITIES --------------------
 
+def get_library(submission_id, file_id, library_id):
+    pass
 
+def put_library(submission_id, file_id, library_id, data):
+    pass
+
+def delete_library(submission_id, file_id, library_id):
+    pass
 
 # ---------------------------------- NOT USED ------------------
 
