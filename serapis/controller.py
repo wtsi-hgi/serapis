@@ -278,7 +278,7 @@ def get_all_submissions(sanger_user_id):
 def get_submission_status(submission_id):
     submission = get_submission(submission_id)
     if submission != None:
-        subm_status = submission.get_status()
+        subm_status = submission.get_all_statuses()
         
     # TODO: UNFINISHED....
     
@@ -297,7 +297,7 @@ def update_submission(submission_id, data):
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
         '''
     submission = get_submission(submission_id)
-    submission.update_from_json(data)
+    return submission.update_from_json(data)
     
     
 def delete_submission(submission_id):
@@ -305,7 +305,7 @@ def delete_submission(submission_id):
     Params: 
         submission_id -- a string with the id of the submission
     Throws:
-        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error) '''
     submission = get_submission(submission_id)
     submission.delete()
@@ -313,9 +313,38 @@ def delete_submission(submission_id):
     
 #------------ FILE RELATED REQUESTS: ------------------
 
-def filter_fields():
-    # this fct should filter fields from a req like: md5, if a req with no source (user) comes in
-    pass
+
+
+def get_submitted_file(submission_id, file_id):
+    ''' Queries the DB for the requested submission, and within the submission
+        for the file identified by file_id.
+    Throws:
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
+    Returns the corresponding SubmittedFile identified by file_id.
+        '''
+    submission = get_submission(submission_id)
+    submitted_file = submission.get_file_by_id(file_id)
+    if submitted_file == None:
+        raise exceptions.ResourceDoesNotExistError(file_id, "File not found")
+    return submitted_file
+
+
+def get_all_submitted_files(submission_id):
+    ''' Queries the DB for the list of files contained by the submission given by
+        submission_id. 
+    Throws:
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+    Returns:
+        list of files for this submission
+    '''
+    submission = get_submission(submission_id)
+    submitted_files = submission.files_list
+    logging.info("Submitted files list: "+str(submitted_files)) 
+    return submitted_files
+    
+    
 
 def update_file_submitted(submission_id, file_id, data):
     ''' Updates a file from a submission.
@@ -344,7 +373,7 @@ def update_file_submitted(submission_id, file_id, data):
             
     # CODE OF THE OUTER FUNCTION            
     submission = get_submission(submission_id)
-    file_to_update = submission.get_submitted_file(file_id)
+    file_to_update = submission.get_file_by_id(file_id)
     #data = simplejson.loads(data)
     logging.debug("DATA received from request: "+str(data))
     logging.debug('File to update found! ID: '+file_id)
@@ -378,7 +407,7 @@ def resubmit_jobs(submission_id, file_id, data):
         '''
     user_id = 'ic4'
     submission = get_submission(submission_id)
-    file_to_resubmit = submission.get_submitted_file(file_id)
+    file_to_resubmit = submission.get_file_by_id(file_id)
     # TODO: success and fail -statuses...
     # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
     if file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
@@ -402,21 +431,37 @@ def resubmit_jobs(submission_id, file_id, data):
     submission.save(validate=False)
     return error_list
 
- 
 
-def delete_file_submitted(submission_id, file_id):
+
+def delete_submitted_file(submission_id, file_id):
     ''' Deletes a file from the files of this submission.
     Params:
         submission_id -- a string with the id of the submission
         file_id -- a string containing the id of the file to be deleted
     Throws:
         InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
-        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceDoesNotExistError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     '''
     submission = get_submission(submission_id)
-    submission.delete_submitted_file(file_id)
+    submission.delete_file_by_id(file_id)
+    if len(submission.files_list) == 0:
+        submission.delete()
     submission.save(validate=False)
+    
+    
+    def get_all_statuses(self):
+        ''' Returns the status of a submission and of the containing files. '''
+        submission_status_dict = {'submission_status' : self.submission_status}
+        file_status_dict = dict()
+        for f in self.files_list:
+            f.check_statuses()
+            upload_status = f.file_upload_job_status
+            mdata_status = f.file_mdata_status
+            file_status_dict[f.file_id] = {'upload_status' : upload_status, 'mdata_status' : mdata_status}
+        submission_status_dict['files_status'] = file_status_dict
+        return submission_status_dict
+
     
     
 # ------------------------- HANDLE ENTITIES --------------------
@@ -429,6 +474,9 @@ def put_library(submission_id, file_id, library_id, data):
 
 def delete_library(submission_id, file_id, library_id):
     pass
+
+
+
 
 # ---------------------------------- NOT USED ------------------
 

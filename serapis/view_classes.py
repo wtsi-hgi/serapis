@@ -25,6 +25,9 @@ from pymongo.errors import InvalidId
 import errno
 import json
 import logging
+from mongoengine.queryset import DoesNotExist
+from serapis.exceptions import ResourceDoesNotExistError
+from celery.bin.celery import result
 logging.basicConfig(level=logging.DEBUG)
 #from serapis.controller import get_submission
         
@@ -64,7 +67,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             data = request.POST['_content']
             data_deserial = json.loads(data)
         except ValueError:
-            return Response("Not JSON format.", status=400)
+            return Response("Not JSON format", status=400)
         else:
             files_list = data_deserial["files"]
             result_dict = controller.create_submission(user_id, files_list)
@@ -72,7 +75,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             if submission_id == None:
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically)?
                 msg = "Files don't exist. Submission not created."
-                result_dict['message'] = msg
+                result_dict['errors'] = msg
                 return Response(result_dict, status=400)
             else:
                 msg = "Submission created"    
@@ -119,27 +122,39 @@ class SubmissionRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
         ''' Retrieves a submission given by submission_id.'''
         try:
+            result = dict()
             logging.debug("Received GET request - submission id:"+submission_id)
             submission = controller.get_submission(submission_id)
         except InvalidId:
-            return Response(status=404)
+            result['errors'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submission does not exist"
+            return Response(result, status=404)
         else:
             subm_serialized = serializers.serialize(submission)
-            return Response("Submission: "+subm_serialized)
+            result['result'] = subm_serialized
+            return Response(result, status=200)
         
         
     def put(self, request, submission_id, format=None):
         ''' Updates a submission with the data provided on the POST request.'''
         data = request.DATA
         try:
-            controller.update_submission(submission_id, data)
+            result = dict()
+            unregistered_fields = controller.update_submission(submission_id, data)
         except InvalidId:
-            return Response("No submission with this id!", status=404)
+            result['errors'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submission does not exist"
+            return Response(result, status=404)
         except exceptions.JSONError as e:
-            return Response("Bad request. "+e.message+e.args,status=400)
-        except exceptions.ResourceDoesNotExistError as e:
-            return Response("File does not exist!", status=404)
+            result['errors'] = "Bad request. "+e.message+e.args
+            return Response(result, status=400)
         else:
+            result['errors'] = dict({"Unregistered fields were not added" : unregistered_fields})
+            result['message'] = "Successfully updated"
             return Response(status=200)
 
 
@@ -147,16 +162,19 @@ class SubmissionRequestHandler(APIView):
     def delete(self, request, submission_id):
         ''' Deletes the submission given by submission_id. '''
         try:
+            result = dict()
             was_deleted = controller.delete_submission(submission_id)
         except InvalidId:
-            return Response("No submission with this id!", status=404)
-        except exceptions.ResourceDoesNotExistError:
-            return Response("No file with this id!", status=404)
-        except:
-            return Response("OTHER EXCEPTION", status=400)
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submission does not exist"
+            return Response(result, status=404)
         else:
             if was_deleted == True:
                 return Response(status=200)
+            else:
+                pass    # TODO
             #TODO: here there MUST be treated also the other exceptions => nothing will happen if the app throws other type of exception,
             # it will just prin OTHER EXCEPTIOn - on that branch
         
@@ -167,13 +185,16 @@ class SubmissionStatusRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
         ''' Retrieves the status of the submission together
             with the statuses of the files (upload and mdata). '''
-        submission = controller.get_submission(submission_id)
-        if submission != None:
-            subm_status = submission.get_status()
-            return Response(subm_status, status=200)
+        try:
+            result = dict()
+            submission = controller.get_submission(submission_id)
+        except DoesNotExist:
+            result['errors'] = "Submission does not exist"
+            return Response(result, status=404)
         else:
-            return Response(status=404)
-
+            subm_status = submission.get_all_statuses()
+            result['result'] = subm_status
+            return Response(result, status=200)
 
 
                
@@ -182,11 +203,24 @@ class SubmissionStatusRequestHandler(APIView):
 
 class SubmittedFileMainPageRequestHandler(APIView):
     ''' Handles the requests coming for /submissions/123/files/.
-        GET is used for retrieving the list of files for this submission.
-        POST is used for adding a new file to this submission.'''
+        GET - retrieves the list of files for this submission.
+        POST - adds a new file to this submission.'''
     def get(self, request, submission_id, format=None):
-        pass
-    
+        try:
+            result = dict()
+            files = controller.get_all_submitted_files(submission_id)
+        except InvalidId:
+            result['errors'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submission does not exist"
+            return Response(result, status=404)
+        else:
+            file_serial = serializers.serialize(files)
+            result['result'] = file_serial
+            return Response(result, status=200)
+        
+        
     # TODO: should I really expose this method?
     def post(self, request, submission_id, format=None):
         pass
@@ -204,17 +238,20 @@ class SubmittedFileRequestHandler(APIView):
         ''' Retrieves the information regarding this file from this submission.
             Returns 404 if the file or the submission don't exist. '''
         try:
-            submission = controller.get_submission(submission_id)
-            file_req = submission.get_submitted_file(file_id)
-        except:
-            return Response("Resource not found or id invalid!", status=404)
+            result = dict()
+            file_req = controller.get_submitted_file(submission_id, file_id)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except ResourceDoesNotExistError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
         else:
-            if file_req != None:
-                result = serializers.serialize(file_req)
-                logging.debug("RESULT IS: "+result)
-                return Response(result, status=200)
-            else:
-                return Response("Resource not found!", status=404)
+            file_serial = serializers.serialize(file_req)
+            result['result'] = file_serial
+            logging.debug("RESULT IS: "+str(result))
+            return Response(result, status=200)
+
             
     def post(self, request, submission_id, file_id, format=None):
         ''' Resubmit jobs for this file - used in case of permission denied.
@@ -244,7 +281,8 @@ class SubmittedFileRequestHandler(APIView):
         try:
             non_existing_fields = controller.update_file_submitted(submission_id, file_id, data)
             result = dict()
-            result['errors'] = "Non-existing fields: "+str(non_existing_fields)
+            if len(non_existing_fields) > 0:
+                result['errors'] = "Non-existing fields: "+str(non_existing_fields)
         except exceptions.ResourceDoesNotExistError:
             return Response('Resource does not exist.', status=404)
         else:
@@ -255,11 +293,14 @@ class SubmittedFileRequestHandler(APIView):
     def delete(self, request, submission_id, file_id, format=None):
         ''' Deletes a file. Returns 404 if the file or submission don't exist. '''
         try:
-            controller.delete_file_submitted(submission_id, file_id)
-        except (InvalidId, exceptions.ResourceDoesNotExistError) as e:
-            return Response("Error:"+e.strerror, status=404)
+            result = dict()
+            controller.delete_submitted_file(submission_id, file_id)
+        except (InvalidId, exceptions.ResourceDoesNotExistError, DoesNotExist) as e:
+            result['errors'] = e.strerror
+            return Response(result, status=404)
         else:
-            return Response("Successfully deleted!", status=200)
+            result['result'] = "Successfully deleted"
+            return Response(result, status=200)
         
         
 # ------------------- ENTITIES -----------------------------
@@ -268,7 +309,18 @@ class LibrariesMainPageRequestHandler(APIView):
         GET - retrieves all the libraries that this file contains as metadata.
         POST - adds a new library to the metadata of this file'''
     def get(self,  request, submission_id, file_id, format=None):
-        pass
+        try:
+            submission = controller.get_submission(submission_id)
+            file_req = submission.get_submitted_file(file_id)
+        except:
+            return Response("Resource not found or id invalid", status=404)
+        else:
+            if file_req != None:
+                result = serializers.serialize(file_req)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=200)
+            else:
+                return Response("Resource not found!", status=404)
     
     def post(self,  request, submission_id, file_id, library_id, format=None):
         pass

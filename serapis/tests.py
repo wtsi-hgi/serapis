@@ -41,12 +41,18 @@ class TestSamplesFunctions(unittest.TestCase):
 class TestLibrariesFunctions(unittest.TestCase):
     def setUp(self):
         self.lib = Library()
+        self.lib.internal_id = "MyLibID"
         self.lib.name = "LibraryName"
         self.lib.library_type = "LibType"
         
         self.otherLib = Library()
         self.otherLib.name = "OtherLibName"
         self.lib.library_type = "OtherLibType"
+        
+        self.eqLib = Library()
+        self.eqLib.internal_id = "MyLibID"
+        self.eqLib.name = "LibraryName"
+        
         
     def test_fcts(self):
         has_min = self.lib.check_if_has_minimal_mdata()
@@ -55,6 +61,10 @@ class TestLibrariesFunctions(unittest.TestCase):
         self.assertTrue(has_min)
         self.assertFalse(is_complete)
         self.assertFalse(is_eq)
+        
+    def test_eq(self):
+        is_eq = (self.lib == self.eqLib)
+        self.assertTrue(is_eq)
         
 class TestSubmittedFile(unittest.TestCase):
     def setUp(self):

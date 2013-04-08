@@ -99,7 +99,7 @@ class QuerySeqScape():
         data = None     # result to be returned
         try:
             cursor = connection.cursor()
-            query = "select name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
+            query = "select internal_id, name, accession_number, sanger_sample_id, public_name, reference_genome, taxon_id, organism, cohort, gender, ethnicity, country_of_origin, geographical_region, common_name  from current_samples where "
             query = query + sample_field_name + "='" + sample_field_val + "' and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()

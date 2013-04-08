@@ -43,9 +43,15 @@ class PilotModel(DynamicDocument):
 # TODO: to RENAME the class to: db_models
     
 class Entity(DynamicEmbeddedDocument):
+    internal_id = StringField()
     is_complete = BooleanField()
     has_minimal = BooleanField()
     __meta_last_modified__ = DictField()        # keeps name of the field - source that last modified this field
+    
+    @staticmethod
+    def build_from_json(self, json_entity):
+        pass
+    
     
 
 class Study(Entity):
@@ -63,9 +69,19 @@ class Study(Entity):
 #        return False
 #    
     def are_the_same(self, json_obj):
-        if self.name == json_obj['name']:
+        if 'internal_id' in json_obj and self.internal_id != None:
+            return json_obj['internal_id'] == self.internal_id
+        elif self.name == json_obj['name']:
             return True
         return False
+    
+    @staticmethod
+    def build_from_json(json_file):
+        study = Study()
+        for key in json_file:
+            setattr(study, key, json_file[key])
+        return study
+  
         
 
 class Library(Entity):
@@ -79,9 +95,19 @@ class Library(Entity):
 #        return False
 #    
     def are_the_same(self, json_obj):
+        if 'internal_id' in json_obj and self.internal_id != None:
+            return json_obj['internal_id'] == self.internal_id
         if self.name == json_obj['name']:
             return True
         return False
+    
+    @staticmethod
+    def build_from_json(json_file):
+        lib = Library()
+        for key in json_file:
+            setattr(lib, key, json_file[key])
+        return lib
+  
     
 
 
@@ -110,11 +136,21 @@ class Sample(Entity):          # one sample can be member of many studies
 #        return False
     
     def are_the_same(self, json_obj):
+        if 'internal_id' in json_obj and self.internal_id != None:
+            return json_obj['internal_id'] == self.internal_id
         if self.name == json_obj['name']:
             return True
         elif self.sample_accession_number == json_obj['sample_accession_number']:
             return True
         return False
+    
+    @staticmethod
+    def build_from_json(json_file):
+        sampl = Sample()
+        for key in json_file:
+            setattr(sampl, key, json_file[key])
+        return sampl
+  
     
     
 class SubmittedFile(DynamicEmbeddedDocument):
@@ -154,6 +190,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
             }
     
     __meta_last_modified__ = DictField()                # keeps name of the field - source that last modified this field 
+    
     
     
     def check_if_has_min_mdata(self):
@@ -209,11 +246,14 @@ class SubmittedFile(DynamicEmbeddedDocument):
         if len(old_entity_list) == 0 and len(new_entity_list) > 0:
             return True
         for new_entity in new_entity_list:
+            found = False
             for old_entity in old_entity_list:
                 if old_entity.are_the_same(new_entity):             #if old_entity.is_equal(new_entity):
                     print "HAS NEW ENTITIES => RETURNS FALSE---------------"
-                    return False
-        return True
+                    found = True
+            if not found:
+                return True
+        return False
         
         
     def __compare_sender_priority__(self, source1, source2):
@@ -253,7 +293,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 old.__meta_last_modified__[att] = new_source
 
             
-    def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source):
+    def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source, entity_type):
         ''' Compares an old library object with a new json representation of a lib
             and updates the old one accordingly. '''
         for new_entity_json in new_entity_list_json:
@@ -272,7 +312,17 @@ class SubmittedFile(DynamicEmbeddedDocument):
                     meta_dict[field_name] = new_source
                 if new_entity_json != None:
                     new_entity_json['__meta_last_modified__'] = meta_dict
-                    old_entity_list.append(new_entity_json)
+                    # !!!!!!!!!! - new_ent_obj = Library.build_from_json() => a whole obj, not just a dict
+                    if entity_type == LIBRARY_TYPE:
+                        new_ent_instance = Library.build_from_json(new_entity_json)
+                    elif entity_type == SAMPLE_TYPE:
+                        new_ent_instance = Sample.build_from_json(new_entity_json)
+                    elif entity_type == STUDY_TYPE:
+                        new_ent_instance = Study.build_from_json(new_entity_json)
+                    #new_ent_obj = Entity.build_from_json(self, new_entity_json)
+                    #old_entity_list.append(new_entity_json)
+                    #old_entity_list.append(new_ent_obj)
+                    old_entity_list.append(new_ent_instance)
                 # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
                 #for field in new_entity_json
     
@@ -287,11 +337,11 @@ class SubmittedFile(DynamicEmbeddedDocument):
             if key in self._fields:          #if key in vars(submission):
                 #print "YEEEEEES - KEY IN FIELDS!!!!!!!!!!-----------", key, "VAL IN FIELDS: ", self._fields[key]
                 if key == 'library_list':
-                    self.__update_entity_list__(self.library_list, val, update_source)
+                    self.__update_entity_list__(self.library_list, val, update_source, LIBRARY_TYPE)
                 elif key == 'sample_list':
-                    self.__update_entity_list__(self.sample_list, val, update_source)
+                    self.__update_entity_list__(self.sample_list, val, update_source, SAMPLE_TYPE)
                 elif key == 'study_list':
-                    self.__update_entity_list__(self.study_list, val, update_source)       #self.study_list.extend(val)
+                    self.__update_entity_list__(self.study_list, val, update_source, STUDY_TYPE)       #self.study_list.extend(val)
                 elif key == 'seq_centers':
                     self.seq_centers.extend(val)
                     self.__meta_last_modified__[key] = update_source
@@ -429,6 +479,7 @@ class Submission(DynamicDocument):
         ''' Updates the fields of the object according to what came from json. 
             If there is a file in updated_dict['files_list'] that does not exist 
             already, it will raise a ValueError. '''
+        unregistered_fields = []
         for (key, val) in update_dict.iteritems():
             if key in self._fields:          #if key in vars(submission):
                 if key == 'files_list':     
@@ -438,9 +489,11 @@ class Submission(DynamicDocument):
                             old_file.update_from_json(updated_file)
                         else:
                             raise exceptions.JSONError(updated_file, "File id invalid. The update does not involve adding new files to the submission, but updating the existing ones.")
+                else:
+                    unregistered_fields.append(key)
+        return unregistered_fields
                         
-                        
-    def get_status(self):
+    def get_all_statuses(self):
         ''' Returns the status of a submission and of the containing files. '''
         submission_status_dict = {'submission_status' : self.submission_status}
         file_status_dict = dict()
@@ -452,8 +505,9 @@ class Submission(DynamicDocument):
         submission_status_dict['files_status'] = file_status_dict
         return submission_status_dict
 
+
     # OPERATIONS ON INDIVIDUAL FILES:
-    def get_submitted_file(self, file_id):
+    def get_file_by_id(self, file_id):
         ''' Returns the corresponding SubmittedFile identified by file_id
             and None if there is no file with this id. '''
         for f in self.files_list:
@@ -461,17 +515,19 @@ class Submission(DynamicDocument):
                 return f
         return None
 
-    def delete_submitted_file(self, file_id):
+    def delete_file_by_id(self, file_id):
         ''' Deletes the file identified by the file_id and raises a
             ResoueceDoesNotExist if there is not file with this id. '''
-        was_found = False
-        for f in self.files_list:
-            if f.file_id == int(file_id):
-                self.files_list.remove(f)
-                was_found = True
-        if not was_found:
-            raise exceptions.ResourceDoesNotExistError(file_id, "File Not Found")
-        return was_found
+        file_to_del = self.get_file_by_id(file_id)
+        self.files_list.remove(file_to_del)
+#        was_found = False
+#        for f in self.files_list:
+#            if f.file_id == int(file_id):
+#                self.files_list.remove(f)
+#                was_found = True
+#        if not was_found:
+#            raise exceptions.ResourceDoesNotExistError(file_id, "File Not Found")
+#        return was_found
         
     
 

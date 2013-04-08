@@ -8,15 +8,24 @@ from serapis import constants
 
 class Entity(object):
     def __init__(self):
+        self.internal_id = None
         self.is_complete = False        # Fields used for implementing the application's logic
         self.has_minimal = False        #
+        
+    def __eq__(self, other):
+        ''' Checks if the entities are equal. This applies only for the entities
+            that have an internal id. If any of the entity's internal_id is None, 
+            then the method returns False. '''
+        if self.internal_id == other.internal_id and self.internal_id != None:
+            return True
+        return False
 
     def __repr__(self):
         return "%r" % self.__dict__
         
     def update(self, new_entity):
         ''' Compare the properties of this instance with the new_entity object properties.
-            Update only the None fields in self object and return True if anything was changed.'''
+            Update the fields in this object(self) and return True if anything was changed.'''
         has_changed = False
         for field in vars(new_entity):
             #crt_val = getattr(self, field)
@@ -47,6 +56,8 @@ class Study(Entity):
         super(Study, self).__init__()
     
     def __eq__(self, other):
+        if super(Study, self).__eq__(other) == True:
+            return True
         if isinstance(other, Study):
             if self.study_accession_nr != None and self.study_accession_nr == other.study_accession_nr:
                 return True
@@ -92,6 +103,8 @@ class Library(Entity):
         super(Library, self).__init__()
         
     def __eq__(self, other):
+        if super(Library, self).__eq__(other) == True:
+            return True
         if isinstance(other, Library):
             if self.name != None and self.name == other.name:
                 return True
@@ -114,6 +127,7 @@ class Library(Entity):
     @staticmethod
     def build_from_seqscape(lib_mdata):
         lib = Library()
+        lib.internal_id = lib_mdata['internal_id']
         lib.name = lib_mdata['name']
         lib.library_public_name = lib_mdata['public_name']
         lib.library_type = lib_mdata['library_type']
@@ -157,6 +171,8 @@ class Sample(Entity): # one sample can be member of many studies
         
     # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
     def __eq__(self, other):                #Some samples are identified by name, others by accession_nr
+        if super(Sample, self).__eq__(other) == True:
+            return True
         if isinstance(other, Sample):
             if self.name != None and self.name == other.name:
                 return True
@@ -182,6 +198,7 @@ class Sample(Entity): # one sample can be member of many studies
     @staticmethod
     def build_from_seqscape(sampl_mdata):
         sampl = Sample()  
+        sampl.internal_id = sampl_mdata['internal_id']
         sampl.sample_accession_number = sampl_mdata['accession_number']
         sampl.name = sampl_mdata['name']
         sampl.sample_public_name = sampl_mdata['public_name']
