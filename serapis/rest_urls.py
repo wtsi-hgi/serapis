@@ -16,7 +16,7 @@ urlpatterns = patterns('',
     url(r'^submissions/$', view_classes.SubmissionsMainPageRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/$', view_classes.SubmissionRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/status/$', view_classes.SubmissionStatusRequestHandler.as_view()),
-    url(r'^submissions/(?P<submission_id>\w+)/files/$', view_classes.SubmittedFileMainPageRequestHandler.as_view()),
+    url(r'^submissions/(?P<submission_id>\w+)/files/$', view_classes.SubmittedFilesMainPageRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$', view_classes.SubmittedFileRequestHandler.as_view()),
     
     # Extending the API by adding links for the operations on individual entities within a file:

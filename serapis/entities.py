@@ -73,15 +73,16 @@ class Study(Entity):
 #        return False
     
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj):
         study = Study()
-        for key in json_file:
-            setattr(study, key, json_file[key])
+        for key in json_obj:
+            setattr(study, key, json_obj[key])
         return study
     
     @staticmethod
     def build_from_seqscape(study_mdata):
         study = Study()
+        study.internal_id = study_mdata['internal_id']
         study.study_accession_nr = study_mdata['accession_number']
         study.ena_project_id = study_mdata['ena_project_id']
         study.study_faculty_sponsor = study_mdata['faculty_sponsor']
@@ -118,10 +119,10 @@ class Library(Entity):
         return self.has_minimal
     
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj):
         lib = Library()
-        for key in json_file:
-            setattr(lib, key, json_file[key])
+        for key in json_obj:
+            setattr(lib, key, json_obj[key])
         return lib
 
     @staticmethod
@@ -189,10 +190,10 @@ class Sample(Entity): # one sample can be member of many studies
       
     # TODO: VALIDATE json before!!! 
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj):
         sampl = Sample()
-        for key in json_file:
-            setattr(sampl, key, json_file[key])
+        for key in json_obj:
+            setattr(sampl, key, json_obj[key])
         return sampl
   
     @staticmethod

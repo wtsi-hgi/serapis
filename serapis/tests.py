@@ -14,11 +14,27 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis.entities import *
+from serapis import models
 from serapis.constants import *
 import unittest
 
-class TestSamplesFunctions(unittest.TestCase):
+class TestLibraryFctController(unittest.TestCase):
+    def setUp(self):
+        json_lib = {"name" : "test_lib"}
+        self.lib = models.Library.build_from_json(json_lib)
+        
+    def test_build_from_json(self):
+        self.assertIsNotNone(self.lib)
+        json_obj = {"another_field" : "some_val"}
+        lib2 = models.Library.build_from_json(json_obj)
+        self.assertIsNone(lib2)
+
+
+
+from serapis.entities import *
+
+# TESTS FOR WORKER CODE
+class TestSamplesFunctionsWoker(unittest.TestCase):
 
     def setUp(self):
         self.sample = Sample()
@@ -38,7 +54,7 @@ class TestSamplesFunctions(unittest.TestCase):
         self.assertFalse(is_eq)
         
         
-class TestLibrariesFunctions(unittest.TestCase):
+class TestLibrariesFunctionsWorker(unittest.TestCase):
     def setUp(self):
         self.lib = Library()
         self.lib.internal_id = "MyLibID"
@@ -66,7 +82,7 @@ class TestLibrariesFunctions(unittest.TestCase):
         is_eq = (self.lib == self.eqLib)
         self.assertTrue(is_eq)
         
-class TestSubmittedFile(unittest.TestCase):
+class TestSubmittedFileWorker(unittest.TestCase):
     def setUp(self):
         self.subfile = SubmittedFile()
         self.subfile.submission_id = "SubmId"

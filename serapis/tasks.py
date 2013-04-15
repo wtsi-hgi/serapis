@@ -57,6 +57,7 @@ def build_result(submission_id, file_id):
 
 def send_http_PUT_req(msg, submission_id, file_id, sender):
     logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
+    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
     #print  "IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)), " and msg: ", str(msg)
     #submission_id = msg['submission_id']
     #file_id = msg['file_id']
@@ -412,8 +413,8 @@ class ParseBAMHeaderTask(Task):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
 
-        print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
-        print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
+        #print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
+        #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
         #submitted_file = SubmittedFile()
         submitted_file = SubmittedFile.build_from_json(file_mdata)
@@ -472,7 +473,7 @@ class ParseBAMHeaderTask(Task):
         serial = file_mdata.to_json()
         #print "FILE serialized - JSON: ", serial
         deserial = simplejson.loads(serial)
-        #print "BEFORE EXISTING WORKER RETURNS.......................", type(deserial), " AND VALUESSSSSSSSSSSS", deserial
+        print "BEFORE EXITING WORKER RETURNS.......................", deserial
         #res = file_mdata.to_dict()
         resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.file_id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp

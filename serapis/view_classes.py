@@ -26,7 +26,7 @@ import errno
 import json
 import logging
 from mongoengine.queryset import DoesNotExist
-from serapis.exceptions import ResourceDoesNotExistError
+from serapis.exceptions import ResourceNotFoundError
 from celery.bin.celery import result
 logging.basicConfig(level=logging.DEBUG)
 #from serapis.controller import get_submission
@@ -187,13 +187,15 @@ class SubmissionStatusRequestHandler(APIView):
             with the statuses of the files (upload and mdata). '''
         try:
             result = dict()
-            submission = controller.get_submission(submission_id)
+            subm_statuses = controller.get_submission_status(submission_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
         except DoesNotExist:
             result['errors'] = "Submission does not exist"
             return Response(result, status=404)
         else:
-            subm_status = submission.get_all_statuses()
-            result['result'] = subm_status
+            result['result'] = subm_statuses
             return Response(result, status=200)
 
 
@@ -201,7 +203,7 @@ class SubmissionStatusRequestHandler(APIView):
 
 #---------------- HANDLE 1 SUBMITTED FILE ------------------------
 
-class SubmittedFileMainPageRequestHandler(APIView):
+class SubmittedFilesMainPageRequestHandler(APIView):
     ''' Handles the requests coming for /submissions/123/files/.
         GET - retrieves the list of files for this submission.
         POST - adds a new file to this submission.'''
@@ -216,9 +218,12 @@ class SubmittedFileMainPageRequestHandler(APIView):
             result['errors'] = "Submission does not exist"
             return Response(result, status=404)
         else:
-            file_serial = serializers.serialize(files)
-            result['result'] = file_serial
-            return Response(result, status=200)
+            #file_serial = serializers.serialize(files)
+            #result['result'] = file_serial
+            result['result'] = files
+            result_serial = serializers.serialize(result)
+            logging.info("Submitted files list: "+result_serial)
+            return Response(result_serial, status=200)
         
         
     # TODO: should I really expose this method?
@@ -243,14 +248,15 @@ class SubmittedFileRequestHandler(APIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=404)
-        except ResourceDoesNotExistError as e:
+        except ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
         else:
-            file_serial = serializers.serialize(file_req)
-            result['result'] = file_serial
-            logging.debug("RESULT IS: "+str(result))
-            return Response(result, status=200)
+            #file_serial = serializers.serialize(file_req)
+            result["result"] = file_req
+            res_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+res_serial)
+            return Response(res_serial, status=200)
 
             
     def post(self, request, submission_id, file_id, format=None):
@@ -262,31 +268,49 @@ class SubmittedFileRequestHandler(APIView):
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         data = request.DATA
         print "POST REQ MADE - DATA: ", data
-        #try:
-        error_list = controller.resubmit_jobs(submission_id, file_id, data)
-        if error_list == None:
-            return Response(status=304)
-        else:
+        try:
             result = dict()
-            result['errors'] = error_list
-            # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
-            # What if there are thrown also other exceptions?
-            result['message'] = "Jobs resubmitted."
-            return Response(result, status=202)
-            
+            error_list = controller.resubmit_jobs(submission_id, file_id, data)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if error_list == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded
+                return Response(status=304)
+            else:
+                result['errors'] = error_list
+                # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
+                # What if there are thrown also other exceptions?
+                result['message'] = "Jobs resubmitted."     # Do I know this?
+                return Response(result, status=202)
+                
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
         data = request.DATA
+        logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
-            non_existing_fields = controller.update_file_submitted(submission_id, file_id, data)
             result = dict()
-            if len(non_existing_fields) > 0:
-                result['errors'] = "Non-existing fields: "+str(non_existing_fields)
-        except exceptions.ResourceDoesNotExistError:
-            return Response('Resource does not exist.', status=404)
+            controller.update_file_submitted(submission_id, file_id, data)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.strerror
+            return Response(result, status=404)
         else:
-            result['message'] = "Successfully updated!"
+            result['message'] = "Successfully updated"
+            #result_serial = serializers.serialize(result)
+            # return Response(result_serial, status=200)
             return Response(result, status=200)
     
     
@@ -295,7 +319,13 @@ class SubmittedFileRequestHandler(APIView):
         try:
             result = dict()
             controller.delete_submitted_file(submission_id, file_id)
-        except (InvalidId, exceptions.ResourceDoesNotExistError, DoesNotExist) as e:
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
             return Response(result, status=404)
         else:
@@ -310,21 +340,56 @@ class LibrariesMainPageRequestHandler(APIView):
         POST - adds a new library to the metadata of this file'''
     def get(self,  request, submission_id, file_id, format=None):
         try:
-            submission = controller.get_submission(submission_id)
-            file_req = submission.get_submitted_file(file_id)
-        except:
-            return Response("Resource not found or id invalid", status=404)
+            result = dict()
+            libs = controller.get_all_libraries(submission_id, file_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.strerror
+            return Response(result, status=404)
         else:
-            if file_req != None:
-                result = serializers.serialize(file_req)
-                logging.debug("RESULT IS: "+result)
-                return Response(result, status=200)
+            result['result'] = libs
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
+    
+    def post(self,  request, submission_id, file_id, format=None):
+        ''' Handles POST request - adds a new library to the metadata
+            for this file. Returns True if the library has been 
+            successfully added, False if not.
+        '''
+        try:
+            data = request.POST['_content']
+            data = json.loads(data)
+        except ValueError:
+            return Response("Not JSON format", status=400)
+        else:
+            try:
+                result = dict()
+                controller.add_library_to_file_mdata(submission_id, file_id, data)
+            except InvalidId:
+                result['error'] = "Invalid id"
+                return Response(result, status=404)
+            except DoesNotExist:        # thrown when searching for a submission
+                result['errors'] = "Submission not found" 
+                return Response(result, status=404)
+            except exceptions.ResourceNotFoundError as e:
+                result['errors'] = e.message
+                return Response(result, status=404)
+            except exceptions.NoEntityCreated as e:
+                result['errors'] = e.message
+                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
             else:
-                return Response("Resource not found!", status=404)
-    
-    def post(self,  request, submission_id, file_id, library_id, format=None):
-        pass
-    
+                result['result'] = "Library added"
+                #result = serializers.serialize(result)
+                logging.debug("RESULT IS: "+str(result))
+                return Response(result, status=200)
+            
     
 
 class LibraryRequestHandler(APIView):
@@ -334,13 +399,91 @@ class LibraryRequestHandler(APIView):
         DELETE - deletes the specified library from the library list of this file.
     '''
     def get(self, request, submission_id, file_id, library_id, format=None):
-        pass
+        try:
+            result = dict()
+            lib = controller.get_library(submission_id, file_id, library_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+#        except exceptions.EntityNotFound as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
+        else:
+            result['result'] = lib
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
 
     def put(self, request, submission_id, file_id, library_id, format=None):
-        pass
+        ''' Updates the metadata associated to a particular library.'''
+        logging.info("FROM PUT request - req looks like:-------------"+str(request))
+        data = request.DATA
+        #logging.info("FROM PUT request - req looks like:-------------"+str(data))
+#        data = json.loads(data)
+#        logging.info("FROM PUT request - req looks like:-------------"+str(data))
+        try:
+            result = dict()
+            new_data = dict()
+            for elem in data:
+                key = ''.join(chr(ord(c)) for c in elem)
+                val = ''.join(chr(ord(c)) for c in data[elem])
+                new_data[key] = val
+                
+            was_updated = controller.update_library(submission_id, file_id, library_id, new_data)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if was_updated:
+                result['message'] = "Successfully updated"
+                return Response(result, status=200)
+            else:
+                result['message'] = "Not modified"
+                return Response(result, status=304)
+            #result_serial = serializers.serialize(result)
+            # return Response(result_serial, status=200)
+            return Response(result, status=200)
+    
     
     def delete(self, request, submission_id, file_id, library_id, format=None):
-        pass
+        try:
+            result = dict()
+            was_deleted = controller.delete_library(submission_id, file_id, library_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if was_deleted:
+                result['result'] = "Successfully deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=200)
+            else:
+                result['result'] = "Library couldn't be deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=304)
+            
+    
     
     
 class SamplesMainPageRequestHandler(APIView):

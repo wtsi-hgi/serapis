@@ -42,21 +42,118 @@ class PilotModel(DynamicDocument):
     
 # TODO: to RENAME the class to: db_models
     
+####------------------- Utils functions -------------
+
+
+def build_entity_from_json(json_entity, entity_type, source):
+    ''' Function that builds a new Entity from a json representation.
+        Returns the newly created entity or None if the entity_type
+        is not within the known ones.'''
+    result_entity = None
+    if entity_type == LIBRARY_TYPE:
+        result_entity = Library.build_from_json(json_entity, source)
+    elif entity_type == SAMPLE_TYPE:
+        result_entity = Sample.build_from_json(json_entity, source)
+    elif entity_type == STUDY_TYPE:
+        result_entity = Study.build_from_json(json_entity, source)
+    # TODO: maybe it would be a good idea to have an exception thrown when entity_type does not match these ones
+    # TODO: what if a field in json representation does not exist in my description of models? 
+#    else:       # if type is none of these => skip, there must be a bug somewhere
+    return result_entity
+
+
+def encode_model(obj):
+    if isinstance(obj, (Document,  EmbeddedDocument)):              # Doc, EmbedDoc = mongoengine specific types
+        out = dict(obj._data)
+        for k,v in out.items():
+            if isinstance(v, ObjectId):
+                out[k] = str(v)
+    elif isinstance(obj, ObjectId):
+        out = str(obj)
+    elif isinstance(obj, queryset.QuerySet):                        # QuerySet is mongoengine specific type
+        out = list(obj)
+    elif isinstance(obj, (list,dict)):
+        out = obj
+    else:
+        logging.info(obj)
+        raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+    return out          
+        
+        
+def serialize(data):
+    serialized = simplejson.dumps(data, default=encode_model)
+    if '__meta_last_modified__' in serialized:
+        serialized.pop['__meta_last_modified__']
+    return serialized
+
+def compare_sender_priority(source1, source2):
+        ''' Compares the priority of the sender taking into account 
+            the following criteria: ParseHeader < Update < User's input.
+            Returns:
+                 -1 if they are in the correct order - meaning s1 > s2 priority wise
+                  0 if they have equal priority 
+                  1 if s1 <= s2 priority wise => in the 0 case it will be taken into account the newest,
+                      hence counts as 
+        '''
+        priority_dict = dict()
+        priority_dict[INIT_SOURCE] = 0
+        priority_dict[PARSE_HEADER_MSG_SOURCE] = 1
+        priority_dict[UPDATE_MDATA_MSG_SOURCE] = 2
+        priority_dict[EXTERNAL_SOURCE] = 3
+        priority_dict[UPLOAD_FILE_MSG_SOURCE] = 4
+        
+        prior_s1 = priority_dict[source1]
+        prior_s2 = priority_dict[source2]
+        diff = prior_s2 - prior_s1
+        if diff < 0:
+            return -1
+        elif diff >= 0:
+            return 1
+
+
+# ------------------- Model classes ----------------------------------
+    
 class Entity(DynamicEmbeddedDocument):
-    internal_id = StringField()
+    internal_id = IntField()
+    name = StringField()    # UNIQUE
     is_complete = BooleanField()
     has_minimal = BooleanField()
     __meta_last_modified__ = DictField()        # keeps name of the field - source that last modified this field
     
-    @staticmethod
-    def build_from_json(self, json_entity):
-        pass
-    
+    def update_from_json(self, json_obj, sender):
+        ''' Compare the properties of this instance with the json_obj in the json object.
+        Update the fields in the current object and return True if anything was changed.
+        '''
+        has_changed = False
+        for key in json_obj:
+            old_val = getattr(self, key)
+            
+            if old_val == None:
+                setattr(self, key, old_val)
+                self.__meta_last_modified__[key] = sender
+                has_changed = True
+                continue
+            if key in ['__meta_last_modified__'] or key == None:
+                continue
+            elif key in ['internal_id', 'name']:
+                if sender == EXTERNAL_SOURCE:
+                    if self.__meta_last_modified__[key] == EXTERNAL_SOURCE:
+                        setattr(self, key, json_obj[key])
+                        has_changed = True
+            else:
+#                if key not in self.__meta_last_modified__:
+#                    self.__meta_last_modified__[key] = INIT_SOURCE
+                priority_comparison = compare_sender_priority(sender, self.__meta_last_modified__[key]) 
+                if priority_comparison >= 0:
+                    setattr(self, key, json_obj[key])
+                    self.__meta_last_modified__[key] = sender
+                    has_changed = True
+        return has_changed
+
     
 
 class Study(Entity):
     study_accession_nr = StringField()
-    name = StringField() #unique
     study_type = StringField()
     study_title = StringField()
     study_faculty_sponsor = StringField()
@@ -76,24 +173,32 @@ class Study(Entity):
         return False
     
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj, source):
         study = Study()
-        for key in json_file:
-            setattr(study, key, json_file[key])
-        return study
+        has_field = False
+        for key in json_obj:
+            if key in Study._fields  and key not in ['__meta_last_modified__'] and key != None:
+                setattr(study, key, json_obj[key])
+                study.__meta_last_modified__[key] = source
+                has_field = True
+        if has_field:
+            return study
+        else:
+            return None
   
+  
+    # TODO: implement this one
+    def check_if_has_minimal_mdata(self):
+        pass
+#        if self.name != None and self.library_type != None:
+#            return True
+#        return False
         
 
 class Library(Entity):
-    name = StringField() # min
     library_type = StringField()
     library_public_name = StringField()
     
-#    def is_equal(self, other):
-#        if self.name == other.name:
-#            return True
-#        return False
-#    
     def are_the_same(self, json_obj):
         if 'internal_id' in json_obj and self.internal_id != None:
             return json_obj['internal_id'] == self.internal_id
@@ -102,19 +207,34 @@ class Library(Entity):
         return False
     
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj, source):
+        print "From BUILD JSON - json obj received: ", json_obj
         lib = Library()
-        for key in json_file:
-            setattr(lib, key, json_file[key])
-        return lib
+        has_new_field = False
+        for key in json_obj:
+            if key in Library._fields  and key not in ['__meta_last_modified__'] and key != None:
+                print "BUILD FROM JSON ---- KEY NAME  ------------", key, " type of json key: ", type(json_obj[key]) 
+                setattr(lib, key, json_obj[key])
+                lib.__meta_last_modified__[key] = source
+                has_new_field = True
+        if has_new_field:
+            return lib
+        else:
+            return None
   
+  
+    def check_if_has_minimal_mdata(self):
+        ''' Checks if the library has the minimal mdata. Returns boolean.'''
+        if not self.has_minimal:
+            if self.name != None and self.library_type != None:
+                self.has_minimal = True
+        return self.has_minimal
     
 
 
 class Sample(Entity):          # one sample can be member of many studies
     sample_accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()
-    name = StringField() # UNIQUE
     sample_public_name = StringField()
     sample_tissue_type = StringField() 
     reference_genome = StringField()
@@ -128,13 +248,7 @@ class Sample(Entity):          # one sample can be member of many studies
     organism = StringField()
     sample_common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
-#    def is_equal(self, other):
-#        if self.name == other.name:
-#            return True
-#        elif self.sample_accession_number == other.sample_accession_number:
-#            return True
-#        return False
-    
+
     def are_the_same(self, json_obj):
         if 'internal_id' in json_obj and self.internal_id != None:
             return json_obj['internal_id'] == self.internal_id
@@ -145,12 +259,26 @@ class Sample(Entity):          # one sample can be member of many studies
         return False
     
     @staticmethod
-    def build_from_json(json_file):
+    def build_from_json(json_obj, source):
         sampl = Sample()
-        for key in json_file:
-            setattr(sampl, key, json_file[key])
-        return sampl
+        has_field = False
+        for key in json_obj:
+            if key in Sample._fields and key not in ['__meta_last_modified__'] and key != None:
+                setattr(sampl, key, json_obj[key])
+                sampl.__meta_last_modified__[key] = source
+                has_field = True
+        if has_field:
+            return sampl
+        else:
+            return None
   
+    def check_if_has_minimal_mdata(self):
+        ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
+        if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
+            if self.sample_accession_number != (None or "") and self.name != (None or ""):
+                self.has_minimal = True
+        return self.has_minimal
+    
     
     
 class SubmittedFile(DynamicEmbeddedDocument):
@@ -196,17 +324,17 @@ class SubmittedFile(DynamicEmbeddedDocument):
     def check_if_has_min_mdata(self):
         file_has_minimal_mdata = True
         for study in self.study_list:
-            if not study.has_minimal:
+            if not study.check_if_has_minimal_mdata():
                 file_has_minimal_mdata = False
                 break
         if file_has_minimal_mdata == True:
             for sample in self.sample_list:
-                if not sample.has_minimal:
+                if not sample.check_if_has_minimal_mdata():
                     file_has_minimal_mdata = False
                     break
         if file_has_minimal_mdata == True:
             for lib in self.library_list:
-                if not lib.has_minimal:
+                if not lib.check_if_has_minimal_mdata():
                     file_has_minimal_mdata = False
                     break
         if len(self.sample_list) == 0 or len(self.library_list) == 0:       
@@ -255,42 +383,18 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 return True
         return False
         
-        
-    def __compare_sender_priority__(self, source1, source2):
-        ''' Compares the priority of the sender taking into account 
-            the following criteria: ParseHeader < Update < User's input.
-            Returns:
-                 -1 if they are in the correct order - meaning s1 > s2 priority wise
-                  0 if they have equal priority 
-                  1 if s1 <= s2 priority wise => in the 0 case it will be taken into account the newest,
-                      hence counts as 
-            '''
-        priority_dict = dict()
-        priority_dict[INIT_SOURCE] = 0
-        priority_dict[PARSE_HEADER_MSG_SOURCE] = 1
-        priority_dict[UPDATE_MDATA_MSG_SOURCE] = 2
-        priority_dict[EXTERNAL_SOURCE] = 3
-        priority_dict[UPLOAD_FILE_MSG_SOURCE] = 4
-        
-        prior_s1 = priority_dict[source1]
-        prior_s2 = priority_dict[source2]
-        diff = prior_s2 - prior_s1
-        if diff < 0:
-            return -1
-        elif diff >= 0:
-            return 1
-
     
-    def __add_entity_attrs__(self, old, new_json, new_source):
-        ''' Update the old entity with the attributes of the new entity.'''
-        for att, val in new_json.items():                                           #for att, val in vars(new).items():
-            if not att in old.__meta_last_modified__:
-                old.__meta_last_modified__[att] = INIT_SOURCE
-            old_sender = old.__meta_last_modified__[att]
-            priority_comparison = self.__compare_sender_priority__(old_sender, new_source) 
-            if priority_comparison >= 0:
-                setattr(old, att, val)
-                old.__meta_last_modified__[att] = new_source
+    
+#    def __add_entity_attrs__(self, old, new_entity_json, new_source):
+#        ''' Update the old entity with the attributes of the new entity.'''
+#        for att, val in new_entity_json.items():                                           #for att, val in vars(new).items():
+#            if not att in old.__meta_last_modified__:
+#                old.__meta_last_modified__[att] = INIT_SOURCE
+#            old_sender = old.__meta_last_modified__[att]
+#            priority_comparison = compare_sender_priority(old_sender, new_source) 
+#            if priority_comparison >= 0:
+#                setattr(old, att, val)
+#                old.__meta_last_modified__[att] = new_source
 
             
     def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source, entity_type):
@@ -299,43 +403,28 @@ class SubmittedFile(DynamicEmbeddedDocument):
         for new_entity_json in new_entity_list_json:
             was_found = False
             for old_entity in old_entity_list:
-                print "BEFORE IF ------- OLD ENTITY: ", old_entity, " ---------- NEW ENTITY: ", new_entity_json
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
-                    print "I've entered in IF ------------ OLD entity:", old_entity
-                    self.__add_entity_attrs__(old_entity, new_entity_json, new_source)
+                    #self.__add_entity_attrs__(old_entity, new_entity_json, new_source)
+                    logging.info("===========Updating list of entities, updated an old entity: "+str(old_entity))
+                    old_entity.update_from_json(new_entity_json, new_source)
                     was_found = True
                     break
             if not was_found:
-                meta_dict = dict()
-                for field_name in new_entity_json:
-                    #new_entity_json.__meta_last_modified__[field_name] = new_source
-                    meta_dict[field_name] = new_source
                 if new_entity_json != None:
-                    new_entity_json['__meta_last_modified__'] = meta_dict
-                    # !!!!!!!!!! - new_ent_obj = Library.build_from_json() => a whole obj, not just a dict
-                    if entity_type == LIBRARY_TYPE:
-                        new_ent_instance = Library.build_from_json(new_entity_json)
-                    elif entity_type == SAMPLE_TYPE:
-                        new_ent_instance = Sample.build_from_json(new_entity_json)
-                    elif entity_type == STUDY_TYPE:
-                        new_ent_instance = Study.build_from_json(new_entity_json)
-                    #new_ent_obj = Entity.build_from_json(self, new_entity_json)
-                    #old_entity_list.append(new_entity_json)
-                    #old_entity_list.append(new_ent_obj)
-                    old_entity_list.append(new_ent_instance)
+                    entity = build_entity_from_json(new_entity_json, entity_type, new_source)
+                    print "============UPDATE -- new entity found and will be added to the list----------JSON: ", new_entity_json
+                    print "============UPDATE -- NEW ENTITY as ENTITY: ", entity
+                    #if entity != None:    - this should be here, but I commented it out for testing purposes
+                    old_entity_list.append(entity)
+                    print "============MODELS/UPDATEENTLIST/ --------- ENTITY HAS BEEN ADDED:-----------", old_entity_list[-1]
                 # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
                 #for field in new_entity_json
     
         
     
     def update_from_json(self, update_dict, update_source):
-        unregistered_fields = []
-        #print "FROM UPDATE FCT - THE DICTIONARY: ", update_dict
-        #print "FIELDS SELF: ", self._fields, "\n"
         for (key, val) in update_dict.iteritems():
-            #print "KEY: ", key
             if key in self._fields:          #if key in vars(submission):
-                #print "YEEEEEES - KEY IN FIELDS!!!!!!!!!!-----------", key, "VAL IN FIELDS: ", self._fields[key]
                 if key == 'library_list':
                     self.__update_entity_list__(self.library_list, val, update_source, LIBRARY_TYPE)
                 elif key == 'sample_list':
@@ -371,6 +460,7 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 elif key == '__meta_last_modified__':
                     pass
                 elif key == 'md5':
+                    # TODO: from here I don't add these fields to the __meta dict, should I?
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
                         self.md5 = val
                 elif key == 'file_upload_job_status':
@@ -383,39 +473,37 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 elif key == 'file_update_mdata_job_status':
                     if update_source == UPDATE_MDATA_MSG_SOURCE:
                         self.file_update_mdata_job_status = val
-                else:
+                elif key != None:
+                    logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
             else:
-                unregistered_fields.append(key)
                 print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS: ", key, " VAL:", val
                 #raise KeyError
-        return unregistered_fields
+        
         #self.save(validate=False)
         
+    def __get_entity_by_id__(self, entity_id, entity_list):
+        for ent in entity_list:
+            if ent.internal_id == entity_id:
+                return ent
+        return None
         
-    @staticmethod
-    def encode_model(obj):
-        if isinstance(obj, (Document,  EmbeddedDocument)):              # Doc, EmbedDoc = mongoengine specific types
-            out = dict(obj._data)
-            for k,v in out.items():
-                if isinstance(v, ObjectId):
-                    out[k] = str(v)
-        elif isinstance(obj, ObjectId):
-            out = str(obj)
-        elif isinstance(obj, queryset.QuerySet):                        # QuerySet is mongoengine specific type
-            out = list(obj)
-        elif isinstance(obj, (list,dict)):
-            out = obj
-        else:
-            logging.info(obj)
-            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
-        return out          
-            
+    def get_library_by_id(self, lib_id):
+        return self.__get_entity_by_id__(lib_id, self.library_list)
     
+    def get_sample_by_id(self, sample_id):
+        return self.__get_entity_by_id__(sample_id, self.sample_list)
+    
+    def get_study_by_id(self, study_id):
+        return self.__get_entity_by_id__(study_id, self.study_list)
+            
+        
+    # NOT USED YET
     def serialize(self, data):
-        serialized = simplejson.dumps(data, default=self.encode_model)
+        serialized = simplejson.dumps(data, default=encode_model)
         if '__meta_last_modified__' in serialized:
             serialized.pop['__meta_last_modified__']
+        return serialized
         
         
         
@@ -519,14 +607,17 @@ class Submission(DynamicDocument):
         ''' Deletes the file identified by the file_id and raises a
             ResoueceDoesNotExist if there is not file with this id. '''
         file_to_del = self.get_file_by_id(file_id)
-        self.files_list.remove(file_to_del)
+        if file_to_del == None:
+            raise exceptions.ResourceNotFoundError(file_id, "File not found")
+        else:
+            self.files_list.remove(file_to_del)
 #        was_found = False
 #        for f in self.files_list:
 #            if f.file_id == int(file_id):
 #                self.files_list.remove(f)
 #                was_found = True
 #        if not was_found:
-#            raise exceptions.ResourceDoesNotExistError(file_id, "File Not Found")
+#            raise exceptions.ResourceNotFoundError(file_id, "File Not Found")
 #        return was_found
         
     
