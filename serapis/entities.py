@@ -221,7 +221,7 @@ class SubmittedFile():
     
     def __init__(self, submission_id=None, file_id=None, file_type=None):
         self.submission_id = submission_id
-        self.file_id = file_id
+        self.id = file_id
         self.file_type = file_type
         self.file_path_client = None
         self.file_path_irods = None

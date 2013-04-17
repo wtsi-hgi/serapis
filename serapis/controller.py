@@ -54,16 +54,16 @@ def launch_parse_header_job(file_submitted, read_on_client=True):
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
-    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'on_client' : read_on_client })
+    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id, 'on_client' : read_on_client })
     
     
 def launch_upload_job(user_id, file_submitted, queue=None):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     if queue == None:
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
     else:
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
     file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
     
 
@@ -130,7 +130,7 @@ def launch_upload_job(user_id, file_submitted, queue=None):
 def launch_update_file_job(file_submitted):
     file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
-    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized })
+    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
     
 
 def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_task_queue=None):
@@ -147,6 +147,7 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
             # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
             # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_submitted.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+                print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_submitted.__dict__
                 launch_parse_header_job(file_submitted, read_on_client)
             # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
         return io_errors_list
@@ -156,7 +157,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
 
 def submit_jobs_for_submission(user_id, submission):
     io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
-    for file_submitted in submission.files_list:
+    for file_id in submission.files_list:
+        file_submitted = models.SubmittedFile.objects(_id=file_id).get()
         file_io_errors = submit_jobs_for_file(user_id, file_submitted)
         if file_io_errors != None and len(file_io_errors) > 0:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
@@ -181,9 +183,9 @@ def init_submission(user_id, files_list):
     submitted_files_list = []
     logging.debug("List of files received: "+str(files_list))
     non_existing_files = []       # list of files that don't exist, to be returned
-    file_id = 0
+    #file_id = 0
     for file_path in files_list:        
-        file_id+=1
+        #file_id+=1
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         # file_type = detect_file_type(file_path)
         file_type = "BAM"
@@ -196,24 +198,27 @@ def init_submission(user_id, files_list):
                 non_existing_files.append(file_path)
                 continue
             elif e.errno == errno.EACCES:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_type=file_type, file_path_client=file_path)
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
                 file_submitted.file_header_parsing_job_status = constants.PENDING_ON_USER_STATUS
                 file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
                 file_submitted.file_submission_status = constants.PENDING_ON_USER_STATUS
             else:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_type=file_type, file_path_client=file_path)
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
                 file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
                 file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
                 file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
         else:
-            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_id=file_id, file_type=file_type, file_path_client=file_path)
+            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
             file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
             file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
             file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
-        submitted_files_list.append(file_submitted)
+        file_submitted.save()
+        print "JUST INITIALIZED FILE++++++++++++++++++++", str(file_submitted.__dict__)
+        submitted_files_list.append(file_submitted.id)
     result = dict()
     if len(submitted_files_list) > 0:
         submission.files_list = submitted_files_list
+        print "JUST CREATED FILES - SUBMISSION IS: ++++++++++++++++++++++++++++++", str(submission.__dict__)
         submission.save(cascade=True)
         result['submission'] = submission
     else:
@@ -266,6 +271,24 @@ def get_submission(submission_id):
     logging.debug("Submission found: ")
     print "SUBMISSION: ", str(submission.__dict__)
     return submission
+
+
+def get_submitted_file(file_id):
+    ''' Retrieves the submitted file from the DB and returns it.
+    Params: 
+        file_id -- a string with the id of the submitted file
+    Throws:
+        InvalidId -- if the id is invalid
+        DoesNotExist -- if there is no resource with this id in the DB.'''
+    file_id_obj = ObjectId(file_id)
+    logging.debug("Object ID found.")
+    file_qset = models.SubmittedFile.objects(_id=file_id_obj)
+    subm_file = file_qset.get()
+    #logging.debug("FILE found: ")
+    print "FILE OBJECT FOUND: ", str(subm_file.__dict__)
+    return subm_file
+
+    
     
 
 # Apparently it is just returned an empty list if user_id doesn't exist
@@ -326,19 +349,19 @@ def get_request_source(data):
     return sender
 
 
-def get_submitted_file(submission_id, file_id):
-    ''' Queries the DB for the requested submission, and within the submission
-        for the file identified by file_id.
-    Throws:
-        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
-    Returns the corresponding SubmittedFile identified by file_id.
-        '''
-    submission = get_submission(submission_id)
-    submitted_file = submission.get_file_by_id(file_id)
-    if submitted_file == None:
-        raise exceptions.ResourceNotFoundError(file_id, "File not found")
-    return submitted_file
+#def get_submitted_file(submission_id, file_id):
+#    ''' Queries the DB for the requested submission, and within the submission
+#        for the file identified by file_id.
+#    Throws:
+#        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+#        ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
+#    Returns the corresponding SubmittedFile identified by file_id.
+#        '''
+#    submission = get_submission(submission_id)
+#    submitted_file = submission.get_file_by_id(file_id)
+#    if submitted_file == None:
+#        raise exceptions.ResourceNotFoundError(file_id, "File not found")
+#    return submitted_file
 
 
 def get_all_submitted_files(submission_id):
@@ -350,9 +373,12 @@ def get_all_submitted_files(submission_id):
     Returns:
         list of files for this submission
     '''
-    submission = get_submission(submission_id)
-    submitted_files = submission.files_list
-    return submitted_files
+    files_qset = models.SubmittedFile.objects(submission_id=submission_id)
+    files = files_qset.get()
+    return files
+#    submission = get_submission(submission_id)
+#    submitted_files = submission.files_list
+#    return submitted_files
     
     
 
@@ -382,9 +408,11 @@ def update_file_submitted(submission_id, file_id, data):
             return True
         return False
             
-    # CODE OF THE OUTER FUNCTION            
-    submission = get_submission(submission_id)
-    file_to_update = submission.get_file_by_id(file_id)
+    # Working function:   (CODE OF THE OUTER FUNCTION)            
+    #submission = get_submission(submission_id)
+    #file_to_update = submission.get_file_by_id(file_id)
+    file_to_update = get_submitted_file(file_id)
+    
     #data = simplejson.loads(data)
     #logging.info("IN UPDATE SUBMITTED FILE - controller - DATA received from request: "+str(data))
     logging.info('File to update found! ID: '+file_id)
@@ -397,15 +425,16 @@ def update_file_submitted(submission_id, file_id, data):
         has_new_entities = check_if_has_new_entities(data, file_to_update)
         # Modify the file:
         file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
-        print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(submission.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__)
+        print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(file_to_update.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__)
         
-        submission.save(safe=True, validate=False)
-#        submission.update()
+        #submission.save(safe=True, validate=False)
+        file_to_update.save()
+        
         # Submit jobs for it, if the case:
         # JUST CHECKING:
-        sub = get_submission(submission_id)
-        f = sub.get_file_by_id(file_id)
-        print "FILE ID: ", str(file_id), " AFTER SAVE -----------SUBMISSION::::::", str(submission.__dict__), " -----------AND FILE -----", str(f.__dict__)
+#        sub = get_submission(submission_id)
+#        f = sub.get_file_by_id(file_id)
+#        print "FILE ID: ", str(file_id), " AFTER SAVE -----------SUBMISSION::::::", str(submission.__dict__), " -----------AND FILE -----", str(f.__dict__)
         logging.info("FILE ID: "+str(file_id)+"After update - has new entities: "+str(has_new_entities))
         if has_new_entities and sender == constants.EXTERNAL_SOURCE:
             launch_update_file_job(file_to_update)
@@ -529,6 +558,7 @@ def add_library_to_file_mdata(submission_id, file_id, data):
         sender = get_request_source(data)
         lib = models.build_entity_from_json(data, constants.LIBRARY_TYPE, sender)
         if lib != None:     # here should this be an exception? Again the question about unregistered fields...
+            # TODO: Check if the library doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
             submitted_file.library_list.append(lib)
             submission.save(validate=False)
             launch_update_file_job(submitted_file)

@@ -399,26 +399,26 @@ class ParseBAMHeaderTask(Task):
     #----------------------- HELPER METHODS --------------------
     
     def send_parse_header_update(self, file_mdata):
-        update_msg_dict = build_result(file_mdata.submission_id, file_mdata.file_id)
+        update_msg_dict = build_result(file_mdata.submission_id, file_mdata.id)
         update_msg_dict['file_header_parsing_job_status'] = file_mdata.file_header_parsing_job_status
         update_msg_dict['header_has_mdata'] = file_mdata.header_has_mdata
         update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
         print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
         self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
-        send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.file_id, PARSE_HEADER_MSG_SOURCE)
+        send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.id, PARSE_HEADER_MSG_SOURCE)
 
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
-
-        #print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
+        file_id = kwargs['file_id']
+        file_mdata['id'] = str(file_id)
+        print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
         #submitted_file = SubmittedFile()
-        submitted_file = SubmittedFile.build_from_json(file_mdata)
-        file_mdata = submitted_file
+        file_mdata = SubmittedFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         
         on_client_flag = kwargs['on_client']
@@ -475,7 +475,7 @@ class ParseBAMHeaderTask(Task):
         deserial = simplejson.loads(serial)
         print "BEFORE EXITING WORKER RETURNS.......................", deserial
         #res = file_mdata.to_dict()
-        resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.file_id, constants.PARSE_HEADER_MSG_SOURCE)
+        resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
         
 
@@ -496,6 +496,8 @@ class UpdateFileMdataTask(Task):
     def run(self, **kwargs):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
+        file_id = kwargs['file_id']
+        file_mdata['id'] = str(file_id)
         file_submitted = SubmittedFile.build_from_json(file_mdata)
         file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
         
@@ -516,7 +518,7 @@ class UpdateFileMdataTask(Task):
         serial = file_submitted.to_json()
         deserial = simplejson.loads(serial)
         print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
-        response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.file_id, UPDATE_MDATA_MSG_SOURCE)
+        response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", response
         
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found

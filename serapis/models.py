@@ -281,9 +281,11 @@ class Sample(Entity):          # one sample can be member of many studies
     
     
     
-class SubmittedFile(DynamicEmbeddedDocument):
-    submission_id = StringField(required=True)
-    file_id = IntField(required=True)
+class SubmittedFile(DynamicDocument):
+    #submission_id = StringField(required=True)
+    submission_id = StringField()
+    #file_id = Field(required=True)
+    id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
     file_path_irods = StringField()    
@@ -473,11 +475,11 @@ class SubmittedFile(DynamicEmbeddedDocument):
                 elif key == 'file_update_mdata_job_status':
                     if update_source == UPDATE_MDATA_MSG_SOURCE:
                         self.file_update_mdata_job_status = val
-                elif key != None:
+                elif key != None and key != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
             else:
-                print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS: ", key, " VAL:", val
+                print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
                 #raise KeyError
         
         #self.save(validate=False)
@@ -552,7 +554,9 @@ class SubmittedFile(DynamicEmbeddedDocument):
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
-    files_list = ListField(EmbeddedDocumentField(SubmittedFile))
+    #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
+    #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
+    files_list = ListField()        # list of string is of submitted_files objects
     meta = {
         'indexes': ['sanger_user_id', '_id'],
             }
@@ -629,6 +633,15 @@ class Submission(DynamicDocument):
 #        'ordering': ['-created_at']
 #    }
 
+class MyEmbed(EmbeddedDocument):
+    embedField = StringField(primary_key=True)
+    varField = StringField()
+
+class TestDoc(Document):
+    id_field = ObjectId()
+    myField = StringField()
+    secondField = StringField()
+    embed_list = ListField(EmbeddedDocumentField(MyEmbed))
 
   
 #  OPTIONAL FIELDS AFTER ELIMINATED FOR CLEANING PURPOSES:
