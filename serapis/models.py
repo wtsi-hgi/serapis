@@ -127,13 +127,12 @@ class Entity(DynamicEmbeddedDocument):
         has_changed = False
         for key in json_obj:
             old_val = getattr(self, key)
-            
-            if old_val == None:
-                setattr(self, key, old_val)
+            if key == '__meta_last_modified__' or key == None:
+                continue
+            elif old_val == None:
+                setattr(self, key, json_obj[key])
                 self.__meta_last_modified__[key] = sender
                 has_changed = True
-                continue
-            if key in ['__meta_last_modified__'] or key == None:
                 continue
             elif key in ['internal_id', 'name']:
                 if sender == EXTERNAL_SOURCE:
@@ -199,6 +198,8 @@ class Library(Entity):
     library_type = StringField()
     library_public_name = StringField()
     
+    # TODO: what if a library is defined by other fields, and I will add it twice?!
+    # It should have also a "impossible to decide - too little info" option
     def are_the_same(self, json_obj):
         if 'internal_id' in json_obj and self.internal_id != None:
             return json_obj['internal_id'] == self.internal_id
@@ -370,7 +371,9 @@ class SubmittedFile(DynamicDocument):
         
     @staticmethod
     def has_new_entities(old_entity_list, new_entity_list):
-        ''' old_entity_list = list of entity objects, new_entity_list = json list of entities'''
+        ''' old_entity_list = list of entity objects
+            new_entity_list = json list of entities
+        '''
         if len(new_entity_list) == 0:
             return False
         if len(old_entity_list) == 0 and len(new_entity_list) > 0:
@@ -407,25 +410,27 @@ class SubmittedFile(DynamicDocument):
             for old_entity in old_entity_list:
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
                     #self.__add_entity_attrs__(old_entity, new_entity_json, new_source)
-                    logging.info("===========Updating list of entities, updated an old entity: "+str(old_entity))
                     old_entity.update_from_json(new_entity_json, new_source)
+                    #logging.info("===========Updating list of entities, updated old entity: "+str(vars(old_entity)))
                     was_found = True
                     break
             if not was_found:
                 if new_entity_json != None:
                     entity = build_entity_from_json(new_entity_json, entity_type, new_source)
-                    print "============UPDATE -- new entity found and will be added to the list----------JSON: ", new_entity_json
-                    print "============UPDATE -- NEW ENTITY as ENTITY: ", entity
                     #if entity != None:    - this should be here, but I commented it out for testing purposes
                     old_entity_list.append(entity)
-                    print "============MODELS/UPDATEENTLIST/ --------- ENTITY HAS BEEN ADDED:-----------", old_entity_list[-1]
                 # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
                 #for field in new_entity_json
     
         
+#    updated = Feed.objects(posts__uid=post.uid).update_one(set__posts__S=post)
+#    if not updated:
+#        Feed.objects.update_one(push__posts=post)
     
     def update_from_json(self, update_dict, update_source):
         for (key, val) in update_dict.iteritems():
+            if val == 'null' or val == None:
+                continue
             if key in self._fields:          #if key in vars(submission):
                 if key == 'library_list':
                     self.__update_entity_list__(self.library_list, val, update_source, LIBRARY_TYPE)
@@ -434,11 +439,11 @@ class SubmittedFile(DynamicDocument):
                 elif key == 'study_list':
                     self.__update_entity_list__(self.study_list, val, update_source, STUDY_TYPE)       #self.study_list.extend(val)
                 elif key == 'seq_centers':
-                    self.seq_centers.extend(val)
-                    self.__meta_last_modified__[key] = update_source
+                    if val not in self.seq_centers:
+                        self.seq_centers.extend(val)
+                        self.__meta_last_modified__[key] = update_source
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
-                    
                     # TODO: make file_error a map, instead of a list
                     self.file_error_log.extend(val)
                 #    self.__meta_last_modified__['file_error_log'] = update_source
@@ -478,6 +483,7 @@ class SubmittedFile(DynamicDocument):
                 elif key != None and key != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
+                    self.__meta_last_modified__[key] = update_source
             else:
                 print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
                 #raise KeyError

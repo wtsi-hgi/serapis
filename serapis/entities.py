@@ -16,8 +16,12 @@ class Entity(object):
         ''' Checks if the entities are equal. This applies only for the entities
             that have an internal id. If any of the entity's internal_id is None, 
             then the method returns False. '''
-        if self.internal_id == other.internal_id and self.internal_id != None:
-            return True
+        if hasattr(self, 'internal_id') and self.internal_id != None:
+            if hasattr(other, 'internal_id') and self.internal_id == other.internal_id:
+                return True
+        elif hasattr(self, 'name') and self.name != None:
+            if hasattr(other, 'name') and self.name == other.name:
+                return True
         return False
 
     def __repr__(self):

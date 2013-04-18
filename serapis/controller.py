@@ -40,6 +40,12 @@ update_file_task = tasks.UpdateFileMdataTask()
 #        return None
 
 
+
+
+#def replace_null_id_obj(file_submitted):
+#    if 'null' in vars(file_submitted):
+#        del file_submitted.null
+
 # ------------------------ SUBMITTING TASKS ----------------------------------
 
 #TODO: Header should be parsed by analysing the file on the client or the copy on iRODS?
@@ -374,7 +380,7 @@ def get_all_submitted_files(submission_id):
         list of files for this submission
     '''
     files_qset = models.SubmittedFile.objects(submission_id=submission_id)
-    files = files_qset.get()
+    files = files_qset.all()
     return files
 #    submission = get_submission(submission_id)
 #    submitted_files = submission.files_list
@@ -396,7 +402,7 @@ def update_file_submitted(submission_id, file_id, data):
     logging.info("*********************************** START ************************************************" + str(file_id))
     # INNER FUNCTIONS - I ONLY USE IT HERE
     def check_if_has_new_entities(data, file_to_update):
-        print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
+        # print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
         if 'library_list' in data and models.SubmittedFile.has_new_entities(file_to_update.library_list, data['library_list']) == True: 
             logging.debug("Has new libraries!")
             return True
@@ -425,7 +431,8 @@ def update_file_submitted(submission_id, file_id, data):
         has_new_entities = check_if_has_new_entities(data, file_to_update)
         # Modify the file:
         file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
-        print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(file_to_update.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__)
+        print "DATA THAT SUPPOSEDLY MODIFIED THE ENTITY::::::::::::::::::::::::::", str(data)
+        print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(file_to_update.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__['_data']['library_list'])
         
         #submission.save(safe=True, validate=False)
         file_to_update.save()
@@ -435,7 +442,7 @@ def update_file_submitted(submission_id, file_id, data):
 #        sub = get_submission(submission_id)
 #        f = sub.get_file_by_id(file_id)
 #        print "FILE ID: ", str(file_id), " AFTER SAVE -----------SUBMISSION::::::", str(submission.__dict__), " -----------AND FILE -----", str(f.__dict__)
-        logging.info("FILE ID: "+str(file_id)+"After update - has new entities: "+str(has_new_entities))
+        logging.info("FILE ID#########################: "+str(file_id)+"After update - has new entities: "+str(has_new_entities))
         if has_new_entities and sender == constants.EXTERNAL_SOURCE:
             launch_update_file_job(file_to_update)
             print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -510,8 +517,9 @@ def get_all_libraries(submission_id, file_id):
     Returns:
         list of libraries
     '''
-    submission = get_submission(submission_id)
-    submitted_file = submission.get_file_by_id(file_id)
+#    submission = get_submission(submission_id)
+#    submitted_file = submission.get_file_by_id(file_id)
+    submitted_file = get_submitted_file(file_id)
     if submitted_file == None:
         raise exceptions.ResourceNotFoundError(file_id, "File not found")
     else:
@@ -528,8 +536,9 @@ def get_library(submission_id, file_id, library_id):
         ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
     Returns the corresponding SubmittedFile identified by file_id.
         '''
-    submission = get_submission(submission_id)
-    submitted_file = submission.get_file_by_id(file_id)
+#    submission = get_submission(submission_id)
+#    submitted_file = submission.get_file_by_id(file_id)
+    submitted_file = get_submitted_file(file_id)
     if submitted_file == None:
         raise exceptions.ResourceNotFoundError(file_id, "File not found")
     else:
@@ -550,8 +559,9 @@ def add_library_to_file_mdata(submission_id, file_id, data):
         NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
                           either because the provided fields were all empty or they were all invalid.
     '''
-    submission = get_submission(submission_id)
-    submitted_file = submission.get_file_by_id(file_id)
+#    submission = get_submission(submission_id)
+#    submitted_file = submission.get_file_by_id(file_id)
+    submitted_file = get_submitted_file(file_id)
     if submitted_file == None:
         raise exceptions.ResourceNotFoundError(file_id, "File not found")
     else:
@@ -559,9 +569,11 @@ def add_library_to_file_mdata(submission_id, file_id, data):
         lib = models.build_entity_from_json(data, constants.LIBRARY_TYPE, sender)
         if lib != None:     # here should this be an exception? Again the question about unregistered fields...
             # TODO: Check if the library doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-            submitted_file.library_list.append(lib)
-            submission.save(validate=False)
-            launch_update_file_job(submitted_file)
+            if lib not in submitted_file.library_list:
+                submitted_file.library_list.append(lib)
+                #submission.save(validate=False)
+                submitted_file.save()
+                launch_update_file_job(submitted_file)
         else:
             raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or they are all empty.")
     

@@ -40,6 +40,11 @@ logging.basicConfig(level=logging.DEBUG)
 #    submission = submission_qset.get()   
 
         
+#----------------------------- AUXILIARY TEMPORARY --------------------------
+def replace_null_id_json(file_submitted):
+    if 'null' in file_submitted:
+        file_submitted['null'] = '_id'
+    
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
@@ -244,7 +249,8 @@ class SubmittedFileRequestHandler(APIView):
             Returns 404 if the file or the submission don't exist. '''
         try:
             result = dict()
-            file_req = controller.get_submitted_file(submission_id, file_id)
+            #file_req = controller.get_submitted_file(submission_id, file_id)
+            file_req = controller.get_submitted_file(file_id)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=404)

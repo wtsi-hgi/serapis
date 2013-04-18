@@ -414,6 +414,8 @@ class ParseBAMHeaderTask(Task):
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
         file_mdata['id'] = str(file_id)
+        print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
+        file_mdata.pop('null')
         print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
@@ -497,7 +499,14 @@ class UpdateFileMdataTask(Task):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
+        
         file_mdata['id'] = str(file_id)
+        if 'None' in file_mdata:
+            file_mdata.pop('None')
+        if 'null' in file_mdata:
+            file_mdata.pop('null')
+        
+        print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         file_submitted = SubmittedFile.build_from_json(file_mdata)
         file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
         
@@ -508,9 +517,12 @@ class UpdateFileMdataTask(Task):
         print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
         
         processSeqsc = ProcessSeqScapeData()
-        processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
-        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+        if len(incomplete_libs_list) > 0:
+            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
+        if len(incomplete_samples_list) > 0:
+            processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
+        if len(incomplete_studies_list) > 0:
+            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
         
          
         file_submitted.update_file_mdata_status()           # update the status after the last findings
