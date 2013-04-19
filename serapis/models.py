@@ -164,6 +164,12 @@ class Study(Entity):
 #            return True
 #        return False
 #    
+    @staticmethod
+    def check_keys(study_json):
+        for key in study_json:
+            if key not in Study._fields:
+                raise KeyError
+
     def are_the_same(self, json_obj):
         if 'internal_id' in json_obj and self.internal_id != None:
             return json_obj['internal_id'] == self.internal_id
@@ -197,6 +203,12 @@ class Study(Entity):
 class Library(Entity):
     library_type = StringField()
     library_public_name = StringField()
+    
+    @staticmethod
+    def check_keys(lib_json):
+        for key in lib_json:
+            if key not in Library._fields:
+                raise KeyError
     
     # TODO: what if a library is defined by other fields, and I will add it twice?!
     # It should have also a "impossible to decide - too little info" option
@@ -249,6 +261,13 @@ class Sample(Entity):          # one sample can be member of many studies
     organism = StringField()
     sample_common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
+
+    @staticmethod
+    def check_keys(sample_json):
+        for key in sample_json:
+            if key not in Sample._fields:
+                raise KeyError
+
 
     def are_the_same(self, json_obj):
         if 'internal_id' in json_obj and self.internal_id != None:
@@ -452,7 +471,8 @@ class SubmittedFile(DynamicDocument):
                 elif key == 'not_unique_entity_error_dict':
                     self.not_unique_entity_error_dict.update(val)
                 elif key == 'file_mdata_status':
-                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE): 
+                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE):
+                        #SubmittedFile.objects(id=self.id).update(set__file_mdata_status=val, set__myField="Renewed!")
                         self.file_mdata_status = val
                         self.__meta_last_modified__[key] = update_source
                 elif key == 'header_has_mdata':
@@ -460,26 +480,29 @@ class SubmittedFile(DynamicDocument):
                         self.header_has_mdata = val
                         self.__meta_last_modified__[key] = update_source
                 elif key == 'file_submission_status':
+                    #SubmittedFile.objects(id=self.id).update_one(set__file_submission_status=val, set____meta_last_modified__=update_source)
                     self.file_submission_status = val
                     self.__meta_last_modified__[key] = update_source
-                elif key == 'submission_id' or key == 'file_id' or key == 'file_path_irods' or key == 'file_path_client' or key == 'file_type':
-                    pass
-                elif key == '__meta_last_modified__':
+                elif key in ['submission_id', 'file_id', 'file_path_irods', 'file_path_client', 'file_type', '__meta_last_modified__']:
                     pass
                 elif key == 'md5':
                     # TODO: from here I don't add these fields to the __meta dict, should I?
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
-                        self.md5 = val
+                        SubmittedFile.objects(id=self.id).update_one(set__md5=val)
+                        #self.md5 = val
                 elif key == 'file_upload_job_status':
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
-                        self.file_upload_job_status = val
+                        SubmittedFile.objects(id=self.id).update_one(set__file_upload_job_status=val)
+                        #self.file_upload_job_status = val
                 elif key == 'file_header_parsing_job_status':
                     if update_source == PARSE_HEADER_MSG_SOURCE:
-                        self.file_header_parsing_job_status = val
+                        SubmittedFile.objects(id=self.id).update_one(set__file_header_parsing_job_status=val)
+                        #self.file_header_parsing_job_status = val
                 # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
                 elif key == 'file_update_mdata_job_status':
                     if update_source == UPDATE_MDATA_MSG_SOURCE:
-                        self.file_update_mdata_job_status = val
+                        SubmittedFile.objects(id=self.id).update_one(set__file_update_mdata_job=val)
+                        #self.file_update_mdata_job_status = val
                 elif key != None and key != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
@@ -562,7 +585,7 @@ class Submission(DynamicDocument):
     submission_status = StringField(choices=SUBMISSION_STATUS)
     #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
     #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
-    files_list = ListField()        # list of string is of submitted_files objects
+    files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
     meta = {
         'indexes': ['sanger_user_id', '_id'],
             }
@@ -577,19 +600,19 @@ class Submission(DynamicDocument):
         ''' Updates the fields of the object according to what came from json. 
             If there is a file in updated_dict['files_list'] that does not exist 
             already, it will raise a ValueError. '''
-        unregistered_fields = []
         for (key, val) in update_dict.iteritems():
             if key in self._fields:          #if key in vars(submission):
                 if key == 'files_list':     
-                    for updated_file in val:    # We know that the structure should look like: 
-                        old_file = self.get_file(updated_file['file_id'])
+                    for updated_file in val:    # We know that the val should be a dictionary 
+                        #old_file = self.get_file(updated_file['file_id'])    =>OLD way - before files were docs
+                        old_file = self.get_file(updated_file['id'])
                         if old_file != None:
                             old_file.update_from_json(updated_file)
                         else:
                             raise exceptions.JSONError(updated_file, "File id invalid. The update does not involve adding new files to the submission, but updating the existing ones.")
-                else:
-                    unregistered_fields.append(key)
-        return unregistered_fields
+            else:
+                raise KeyError()
+
                         
     def get_all_statuses(self):
         ''' Returns the status of a submission and of the containing files. '''
@@ -605,32 +628,23 @@ class Submission(DynamicDocument):
 
 
     # OPERATIONS ON INDIVIDUAL FILES:
-    def get_file_by_id(self, file_id):
-        ''' Returns the corresponding SubmittedFile identified by file_id
-            and None if there is no file with this id. '''
-        for f in self.files_list:
-            if f.file_id == int(file_id):
-                return f
-        return None
-
-    def delete_file_by_id(self, file_id):
-        ''' Deletes the file identified by the file_id and raises a
-            ResoueceDoesNotExist if there is not file with this id. '''
-        file_to_del = self.get_file_by_id(file_id)
-        if file_to_del == None:
-            raise exceptions.ResourceNotFoundError(file_id, "File not found")
-        else:
-            self.files_list.remove(file_to_del)
-#        was_found = False
+#    def get_file_by_id(self, file_id):
+#        ''' Returns the corresponding SubmittedFile identified by file_id
+#            and None if there is no file with this id. '''
 #        for f in self.files_list:
 #            if f.file_id == int(file_id):
-#                self.files_list.remove(f)
-#                was_found = True
-#        if not was_found:
-#            raise exceptions.ResourceNotFoundError(file_id, "File Not Found")
-#        return was_found
-        
-    
+#                return f
+#        return None
+#
+#    def delete_file_by_id(self, file_id):
+#        ''' Deletes the file identified by the file_id and raises a
+#            ResoueceDoesNotExist if there is not file with this id. '''
+#        file_to_del = self.get_file_by_id(file_id)
+#        if file_to_del == None:
+#            raise exceptions.ResourceNotFoundError(file_id, "File not found")
+#        else:
+#            self.files_list.remove(file_to_del)
+
 
     
 #    meta = {

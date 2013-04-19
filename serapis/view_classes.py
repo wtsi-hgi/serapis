@@ -197,7 +197,7 @@ class SubmissionStatusRequestHandler(APIView):
             result['errors'] = "InvalidId"
             return Response(result, status=404)
         except DoesNotExist:
-            result['errors'] = "Submission does not exist"
+            result['errors'] = "Submission not found"
             return Response(result, status=404)
         else:
             result['result'] = subm_statuses
@@ -208,6 +208,7 @@ class SubmissionStatusRequestHandler(APIView):
 
 #---------------- HANDLE 1 SUBMITTED FILE ------------------------
 
+# URL: /submissions/123/files/1123445
 class SubmittedFilesMainPageRequestHandler(APIView):
     ''' Handles the requests coming for /submissions/123/files/.
         GET - retrieves the list of files for this submission.
@@ -220,7 +221,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
             result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:
-            result['errors'] = "Submission does not exist"
+            result['errors'] = "Submission not found"
             return Response(result, status=404)
         else:
             #file_serial = serializers.serialize(files)
@@ -236,7 +237,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
         pass
     
     
-    
+# URL: /submissions/123/files/1123445    
 class SubmittedFileRequestHandler(APIView):
     ''' Handles the requests for a specific file (existing already).
         GET - retrieves all the information for this file (metadata)
@@ -252,7 +253,7 @@ class SubmittedFileRequestHandler(APIView):
             #file_req = controller.get_submitted_file(submission_id, file_id)
             file_req = controller.get_submitted_file(file_id)
         except DoesNotExist:        # thrown when searching for a submission
-            result['errors'] = "Submission not found" 
+            result['errors'] = "File not found" 
             return Response(result, status=404)
         except ResourceNotFoundError as e:
             result['errors'] = e.message
@@ -308,7 +309,7 @@ class SubmittedFileRequestHandler(APIView):
             result['error'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
-            result['errors'] = "Submission not found" 
+            result['errors'] = "File not found" 
             return Response(result, status=404)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
@@ -329,7 +330,7 @@ class SubmittedFileRequestHandler(APIView):
             result['error'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
-            result['errors'] = "Submission not found" 
+            result['errors'] = "File not found" 
             return Response(result, status=404)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
@@ -449,9 +450,12 @@ class LibraryRequestHandler(APIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=404)
-        except exceptions.ResourceNotFoundError as e:
-            result['errors'] = e.message
-            return Response(result, status=404)
+        except KeyError:
+            result['errors'] = "Key not found. Please include only data according to the model."
+            return Response(result, status=400)
+#        except exceptions.ResourceNotFoundError as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
         else:
             if was_updated:
                 result['message'] = "Successfully updated"
@@ -472,7 +476,7 @@ class LibraryRequestHandler(APIView):
             result['error'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
-            result['errors'] = "Submission not found" 
+            result['errors'] = "File not found" 
             return Response(result, status=404)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
@@ -497,8 +501,63 @@ class SamplesMainPageRequestHandler(APIView):
         GET - retrieves the list of all samples
         POST - adds a new sample to the list of samples that the file has.
     '''
+    
     def get(self,  request, submission_id, file_id, format=None):
-        pass
+        ''' Handles requests /submissions/123/files/3/samples/.
+            GET - retrieves all the libraries that this file contains as metadata.
+            POST - adds a new library to the metadata of this file.
+        '''
+        try:
+            result = dict()
+            samples = controller.get_all_samples(submission_id, file_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.strerror
+            return Response(result, status=404)
+        else:
+            result['result'] = samples
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
+    
+    def post(self,  request, submission_id, file_id, format=None):
+        ''' Handles POST request - adds a new library to the metadata
+            for this file. Returns True if the library has been 
+            successfully added, False if not.
+        '''
+        try:
+            data = request.POST['_content']
+            data = json.loads(data)
+        except ValueError:
+            return Response("Not JSON format", status=400)
+        else:
+            try:
+                result = dict()
+                controller.add_library_to_file_mdata(submission_id, file_id, data)
+            except InvalidId:
+                result['error'] = "Invalid id"
+                return Response(result, status=404)
+            except DoesNotExist:        # thrown when searching for a submission
+                result['errors'] = "Submission not found" 
+                return Response(result, status=404)
+            except exceptions.ResourceNotFoundError as e:
+                result['errors'] = e.message
+                return Response(result, status=404)
+            except exceptions.NoEntityCreated as e:
+                result['errors'] = e.message
+                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+            else:
+                result['result'] = "Library added"
+                #result = serializers.serialize(result)
+                logging.debug("RESULT IS: "+str(result))
+                return Response(result, status=200)
+            
     
     def post(self,  request, submission_id, file_id, sample_id, format=None):
         pass
