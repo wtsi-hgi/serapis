@@ -1,4 +1,5 @@
 import json
+import os
 import errno
 import logging
 from bson.objectid import ObjectId
@@ -178,10 +179,23 @@ def submit_jobs_for_submission(user_id, submission):
 # ----------------- DB - RELATED OPERATIONS ----------------------------
 
 def detect_file_type(file_path):
-    if file_path.endswith(".bam"):
+    _, file_extension = os.path.splitext(file_path)
+    if file_extension == '.bam':
         return "BAM"
-    elif file_path.endswith(".vcf"):
+    elif file_extension == '.vcf':
         return "VCF"
+    else:
+        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+file_extension)
+        
+        
+def append_to_errors_dict(error_source, error_type, submission_error_dict):
+    if error_type in submission_error_dict:
+        error_list = submission_error_dict[error_type]
+    else:
+        error_list = []
+    error_list.append(error_source)
+    submission_error_dict[error_type] = error_list
+    
 
 def init_submission(user_id, files_list):
     ''' Initializes a new submission, given a list of files. 
@@ -192,49 +206,59 @@ def init_submission(user_id, files_list):
     submission.save()
     submitted_files_list = []
     logging.debug("List of files received: "+str(files_list))
-    non_existing_files = []       # list of files that don't exist, to be returned
-    #file_id = 0
+    #non_existing_files = []       # list of files that don't exist, to be returned
+    errors_dict = dict()
     for file_path in files_list:        
-        #file_id+=1
-        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
-        # file_type = detect_file_type(file_path)
-        file_type = "BAM"
+            
+        #file_type = "BAM"
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
         try:
             with open(file_path): pass
         except IOError as e:
             if e.errno == errno.ENOENT:
-                non_existing_files.append(file_path)
+                append_to_errors_dict(str(file_path), constants.NON_EXISTING_FILES, errors_dict)
+                print "NON EXISTING FILE............................................", str(errors_dict)
+                #non_existing_files.append(file_path)
                 continue
             elif e.errno == errno.EACCES:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
                 file_submitted.file_header_parsing_job_status = constants.PENDING_ON_USER_STATUS
                 file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
                 file_submitted.file_submission_status = constants.PENDING_ON_USER_STATUS
+                append_to_errors_dict(str(file_path), constants.PERMISSION_DENIED, errors_dict)
             else:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
+                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
                 file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
                 file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
                 file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
+                append_to_errors_dict(str(e.errno) + e.message + str(file_path), constants.IO_ERROR, errors_dict)
         else:
-            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_type=file_type, file_path_client=file_path)
+            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
             file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
             file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
             file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
-        file_submitted.save()
-        print "JUST INITIALIZED FILE++++++++++++++++++++", str(file_submitted.__dict__)
-        submitted_files_list.append(file_submitted.id)
+        
+        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
+        try:
+            file_type = detect_file_type(file_path)
+        except exceptions.NotSupportedFileType as e:
+            append_to_errors_dict(e.faulty_expression, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
+        else:
+            file_submitted.file_type = file_type
+            file_submitted.save()
+            #print "JUST INITIALIZED FILE++++++++++++++++++++", str(file_submitted.__dict__)
+            submitted_files_list.append(file_submitted.id)
     result = dict()
     if len(submitted_files_list) > 0:
         submission.files_list = submitted_files_list
-        print "JUST CREATED FILES - SUBMISSION IS: ++++++++++++++++++++++++++++++", str(submission.__dict__)
+        #print "JUST CREATED FILES - SUBMISSION IS: ++++++++++++++++++++++++++++++", str(submission.__dict__)
         submission.save(cascade=True)
         result['submission'] = submission
     else:
         submission.delete()
         result['submission'] = None
-    result['non_existing_files'] = non_existing_files
+    result['errors'] = errors_dict
     return result
 
 
@@ -251,17 +275,19 @@ def create_submission(user_id, files_list):
         '''
     result_init_submission = init_submission(user_id, files_list)
     result = dict()
-    non_existing_files = result_init_submission['non_existing_files']
+    errors_dict = result_init_submission['errors']
     if result_init_submission['submission'] != None:
         submission = result_init_submission['submission']
         io_errors_dict = submit_jobs_for_submission(user_id, submission)
-        errors = dict()
-        errors['Non existing files'] = non_existing_files
-        errors.update(io_errors_dict)
+#        errors = dict()
+#        errors['Non existing files'] = non_existing_files
+        #errors_dict.update(io_errors_dict)
+        if len(io_errors_dict) > 0:
+            errors_dict[constants.IO_ERROR] = io_errors_dict
         result['submission_id'] = str(submission.id)
-        result['errors'] = errors
     else:
         result['submission_id'] = None
+    result['errors'] = errors_dict
     return result
 
 

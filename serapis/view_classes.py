@@ -79,14 +79,15 @@ class SubmissionsMainPageRequestHandler(APIView):
             submission_id = result_dict['submission_id']
             if submission_id == None:
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically)?
-                msg = "Files don't exist. Submission not created."
-                result_dict['errors'] = msg
+                msg = "Submission not created."
+                result_dict['message'] = msg
                 return Response(result_dict, status=400)
             else:
                 msg = "Submission created"    
                 result_dict['message'] = msg
                 return Response(result_dict, status=201)
                 
+    
 #            perm_denied_list = []
 #            other_io_errs = []
 #            for err in error_list:

@@ -44,6 +44,20 @@ class NoEntityCreated(Exception):
     def __str__(self):
         return 'Not created. '+ self.faulty_expression + ' - ' + self.message
     
+    
+class NotSupportedFileType(Exception):
+    ''' Exception thrown when one of the files given for submission is not
+        in the list of supported files.    
+    '''
+    def __init__(self, faulty_expression, msg):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Not supported file type. '+ self.faulty_expression + ' - ' + self.message
+    
+    
+    
 #class EntityNotFound(Exception):
 #    ''' Exception thrown when the entity requested could not be found. 
 #    '''

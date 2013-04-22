@@ -225,7 +225,6 @@ class Library(Entity):
         has_new_field = False
         for key in json_obj:
             if key in Library._fields  and key not in ['__meta_last_modified__'] and key != None:
-                print "BUILD FROM JSON ---- KEY NAME  ------------", key, " type of json key: ", type(json_obj[key]) 
                 setattr(lib, key, json_obj[key])
                 lib.__meta_last_modified__[key] = source
                 has_new_field = True
