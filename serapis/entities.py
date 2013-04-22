@@ -6,6 +6,8 @@ from serapis import constants
 
 # TODO: to RENAME the class to: logical_model
 
+ENTITY_META_FIELDS = ['is_complete', 'has_minimal', '__meta_last_modified__']
+
 class Entity(object):
     def __init__(self):
         self.internal_id = None
@@ -71,17 +73,18 @@ class Study(Entity):
      
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        pass
-#        if self.name != None and self.library_type != None:
-#            return True
-#        return False
+        if self.study_accession_nr != None and self.study_title != None:
+            return True
+        return False
     
     @staticmethod
     def build_from_json(json_obj):
         study = Study()
         for key in json_obj:
-            setattr(study, key, json_obj[key])
+            if key not in ['__meta_last_modified__']:
+                setattr(study, key, json_obj[key])
         return study
+    
     
     @staticmethod
     def build_from_seqscape(study_mdata):
@@ -126,7 +129,8 @@ class Library(Entity):
     def build_from_json(json_obj):
         lib = Library()
         for key in json_obj:
-            setattr(lib, key, json_obj[key])
+            if key not in ['__meta_last_modified__']:
+                setattr(lib, key, json_obj[key])
         return lib
 
     @staticmethod
@@ -197,7 +201,8 @@ class Sample(Entity): # one sample can be member of many studies
     def build_from_json(json_obj):
         sampl = Sample()
         for key in json_obj:
-            setattr(sampl, key, json_obj[key])
+            if key not in ['__meta_last_modified__']:
+                setattr(sampl, key, json_obj[key])
         return sampl
   
     @staticmethod
@@ -296,7 +301,7 @@ class SubmittedFile():
                 subm_file.sample_list = []
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            else:        
+            elif key not in ['__meta_last_modified__']:        
                 setattr(subm_file, key, json_file[key])
         return subm_file
             

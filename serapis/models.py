@@ -194,11 +194,10 @@ class Study(Entity):
   
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        pass
-#        if self.name != None and self.library_type != None:
-#            return True
-#        return False
-        
+        if self.study_accession_nr != None and self.study_title != None:
+            return True
+        return False
+
 
 class Library(Entity):
     library_type = StringField()

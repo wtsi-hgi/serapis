@@ -13,6 +13,7 @@ from serapis.entities import SubmittedFile
 
 
 
+
 #async_results_list = []
 
 # TASKS:
@@ -48,19 +49,6 @@ update_file_task = tasks.UpdateFileMdataTask()
 
 
 
-# ------------------------ DATABASE OPERATIONS -------------------------------
-
-def retrieve_submitted_file(file_id):
-    ''' Retrieves the submitted file corresponding to the given id.
-    Params: 
-        file_id -- string
-    Returns:
-        an instance of a SubmittedFile
-    Throws:
-        - ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-    
-    '''
-    submitted_file_query =  models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     
 # ------------------------ SUBMITTING TASKS ----------------------------------
 
@@ -510,6 +498,8 @@ def delete_submitted_file(submission_id, file_id):
     
 # ------------------------- HANDLE ENTITIES --------------------
 
+# -------------------------- LIBRARIES --------------------------
+
 
 def get_all_libraries(submission_id, file_id):
     ''' Queries the DB for the list of libraries that this file has associated as metadata. 
@@ -531,11 +521,12 @@ def get_all_libraries(submission_id, file_id):
 
 def get_library(submission_id, file_id, library_id):
     ''' Queries the DB for the requested library from the file identified by file_id.
+    Returns:
+        the models.Library object identified by library_id
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist. 
-    Returns the corresponding SubmittedFile identified by file_id.
         '''
 #    submission = get_submission(submission_id)
 #    submitted_file = submission.get_file_by_id(file_id)
@@ -567,6 +558,8 @@ def add_library_to_file_mdata(submission_id, file_id, data):
             #submission.save(validate=False)
             submitted_file.save()
             launch_update_file_job(submitted_file)
+        else:
+            raise exceptions.NoEntityCreated(data, "Library already exists in the library list. For update, please send a PUT request.")
     else:
         raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or they are all empty.")
     
@@ -626,18 +619,195 @@ def get_all_samples(submission_id, file_id):
     '''
     submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     samples = submitted_file.sample_list
-    logging.info("Library list: "+str(samples)) 
+    logging.info("Sample list: "+str(samples)) 
     return samples
     
 
-def get_sample(submission_id, file_id, library_id):
+def get_sample(submission_id, file_id, sample_id):
     ''' Queries the DB for the requested sample from the file identified by file_id.
+    Returns:
+        the corresponding models.Sample object identified by sample_id
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
-    Returns the corresponding SubmittedFile identified by file_id.
+        ResourceNotFoundError -- my custom exception, thrown if there is no sample with this id associated with this file. 
+    
         '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    sample_id = int(sample_id)
+    sample = submitted_file.get_sample_by_id(sample_id)
+    logging.info("Sample is: "+ str(sample))
+    if sample == None:
+        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+    return sample 
+
+
+def add_sample_to_file_mdata(submission_id, file_id, data):
+    ''' Adds a new sample to the metadata of this file. 
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
+                          either because the provided fields were all empty or they were all invalid.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    sender = get_request_source(data)
+    sample = models.build_entity_from_json(data, constants.SAMPLE_TYPE, sender)
+    if sample != None:     # here should this be an exception? Again the question about unregistered fields...
+        # TODO: Check if the sample doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
+        if sample not in submitted_file.sample_list:
+            submitted_file.sample_list.append(sample)
+            submitted_file.save()
+            launch_update_file_job(submitted_file)
+        else:
+            raise exceptions.NoEntityCreated(data, "Sample already exists in the sample list. For update, please send a PUT request.")
+    else:
+        raise exceptions.NoEntityCreated(data, "No sample could be created. Either none of the fields is valid or they are all empty.")
+    
+
+def update_sample(submission_id, file_id, sample_id, data):
+    ''' Updates the sample with the data received from the request. 
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    sample_id = int(sample_id)
+    sample = submitted_file.get_sample_by_id(sample_id)
+    if sample == None:
+        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+    else:
+        sender = get_request_source(data)
+        models.Sample.check_keys(data)
+        has_updated = sample.update_from_json(data, sender)
+    submitted_file.save()
+    return has_updated
+    
+
+def delete_sample(submission_id, file_id, sample_id):
+    ''' Deletes a sample specified by sample id.
+    Returns:
+        True if the sample has been successfully deleted. Otherwise it throws exception
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceNotFoundError -- my custom exception, thrown if the sample does not exist.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    sample_id = int(sample_id)
+    sample = submitted_file.get_sample_by_id(sample_id)
+    if sample == None:
+        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+    else:
+        submitted_file.sample_list.remove(sample)
+        submitted_file.save()
+        return True
+
+
+
+# ---------------------------------- STUDIES -----------------------
+
+
+def get_all_studies(submission_id, file_id):
+    ''' Queries the DB for the list of studies that this file has associated as metadata. 
+    Throws:
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        #### -- NOT ANY MORE! --ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+    Returns:
+        list of libraries
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    studies = submitted_file.study_list
+    logging.info("Study list: "+str(studies)) 
+    return studies
+    
+
+def get_study(submission_id, file_id, study_id):
+    ''' Queries the DB for the requested study from the file identified by file_id.
+    Returns:
+         the models.Study object corresponding to study_id
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist. 
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    study_id = int(study_id)
+    study = submitted_file.get_study_by_id(study_id)
+    logging.info("Study is: "+ str(study))
+    if study == None:
+        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+    return study
+
+
+def add_study_to_file_mdata(submission_id, file_id, data):
+    ''' Adds a new study to the metadata of this file. 
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
+                          either because the provided fields were all empty or they were all invalid.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    sender = get_request_source(data)
+    study = models.build_entity_from_json(data, constants.STUDY_TYPE, sender)
+    if study != None:     # here should this be an exception? Again the question about unregistered fields...
+        # TODO: Check if the study doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
+        if study not in submitted_file.study_list:
+            submitted_file.study_list.append(study)
+            submitted_file.save()
+            launch_update_file_job(submitted_file)
+        else:
+            raise exceptions.NoEntityCreated(data, "Study already exists in the study list. For update, please send a PUT request.")
+    else:
+        raise exceptions.NoEntityCreated(data, "No study could be created. Either none of the fields is valid or they are all empty.")
+    
+
+
+def update_study(submission_id, file_id, study_id, data):
+    ''' Updates the study with the data received from the request. 
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    study_id = int(study_id)
+    study = submitted_file.get_study_by_id(study_id)
+    if study == None:
+        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+    else:
+        sender = get_request_source(data)
+        models.Study.check_keys(data)
+        has_updated = study.update_from_json(data, sender)
+    submitted_file.save()
+    return has_updated
+    
+
+def delete_study(submission_id, file_id, study_id):
+    ''' Deletes a study specified by study id.
+    Returns:
+        True if the study has been successfully deleted. Otherwise it throws exception
+    Throws:
+        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        ResourceNotFoundError -- my custom exception, thrown if the study does not exist.
+    '''
+    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    study_id = int(study_id)
+    study = submitted_file.get_study_by_id(study_id)
+    if study == None:
+        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+    else:
+        submitted_file.study_list.remove(study)
+        submitted_file.save()
+        return True
+    
+    
 
 
 

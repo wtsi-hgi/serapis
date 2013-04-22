@@ -341,6 +341,9 @@ class SubmittedFileRequestHandler(APIView):
         
         
 # ------------------- ENTITIES -----------------------------
+
+# -------------------- LIBRARIES ---------------------------
+
 class LibrariesMainPageRequestHandler(APIView):
     ''' Handles requests /submissions/123/files/3/libraries/.
         GET - retrieves all the libraries that this file contains as metadata.
@@ -504,8 +507,8 @@ class SamplesMainPageRequestHandler(APIView):
     
     def get(self,  request, submission_id, file_id, format=None):
         ''' Handles requests /submissions/123/files/3/samples/.
-            GET - retrieves all the libraries that this file contains as metadata.
-            POST - adds a new library to the metadata of this file.
+            GET - retrieves all the samples that this file contains as metadata.
+            POST - adds a new sample to the metadata of this file.
         '''
         try:
             result = dict()
@@ -527,8 +530,8 @@ class SamplesMainPageRequestHandler(APIView):
         
     
     def post(self,  request, submission_id, file_id, format=None):
-        ''' Handles POST request - adds a new library to the metadata
-            for this file. Returns True if the library has been 
+        ''' Handles POST request - adds a new sample to the metadata
+            for this file. Returns True if the sample has been 
             successfully added, False if not.
         '''
         try:
@@ -539,7 +542,7 @@ class SamplesMainPageRequestHandler(APIView):
         else:
             try:
                 result = dict()
-                controller.add_library_to_file_mdata(submission_id, file_id, data)
+                controller.add_sample_to_file_mdata(submission_id, file_id, data)
             except InvalidId:
                 result['error'] = "Invalid id"
                 return Response(result, status=404)
@@ -553,14 +556,11 @@ class SamplesMainPageRequestHandler(APIView):
                 result['errors'] = e.message
                 return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
             else:
-                result['result'] = "Library added"
+                result['result'] = "Sample added"
                 #result = serializers.serialize(result)
                 logging.debug("RESULT IS: "+str(result))
                 return Response(result, status=200)
             
-    
-    def post(self,  request, submission_id, file_id, sample_id, format=None):
-        pass
     
     
 class SampleRequestHandler(APIView):
@@ -569,16 +569,94 @@ class SampleRequestHandler(APIView):
         PUT - updates fields of the metadata for the specified sample
         DELETE - deletes the specified sample from the sample list of this file.
     '''
-
+    
     def get(self, request, submission_id, file_id, sample_id, format=None):
-        pass
+        ''' Retrieves a specific sampl, identified by sample_id.'''
+        try:
+            result = dict()
+            lib = controller.get_sample(submission_id, file_id, sample_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+#        except exceptions.EntityNotFound as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
+        else:
+            result['result'] = lib
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
 
     def put(self, request, submission_id, file_id, sample_id, format=None):
-        pass
+        ''' Updates the metadata associated to a particular sample.'''
+        #logging.info("FROM PUT request - req looks like:-------------"+str(request))
+        data = request.DATA
+        try:
+            result = dict()
+            new_data = dict()   # Convert from u'str' to str
+            for elem in data:
+                key = ''.join(chr(ord(c)) for c in elem)
+                val = ''.join(chr(ord(c)) for c in data[elem])
+                new_data[key] = val
+                
+            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except KeyError:
+            result['errors'] = "Key not found. Please include only data according to the model."
+            return Response(result, status=400)
+#        except exceptions.ResourceNotFoundError as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
+        else:
+            if was_updated:
+                result['message'] = "Successfully updated"
+                return Response(result, status=200)
+            else:
+                result['message'] = "Not modified"
+                return Response(result, status=304)
+            #result_serial = serializers.serialize(result)
+            # return Response(result_serial, status=200)
+            return Response(result, status=200)
+    
     
     def delete(self, request, submission_id, file_id, sample_id, format=None):
-        pass
-    
+        try:
+            result = dict()
+            was_deleted = controller.delete_sample(submission_id, file_id, sample_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "File not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if was_deleted:
+                result['result'] = "Successfully deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=200)
+            else:
+                result['result'] = "Sample couldn't be deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=304)
+            
+
 # ----------
     
 class StudyMainPageRequestHandler(APIView):
@@ -586,12 +664,60 @@ class StudyMainPageRequestHandler(APIView):
         GET - retrieves the list of all studies
         POST - adds a new study to the list of studies that the file has.
     '''
+    
     def get(self,  request, submission_id, file_id, format=None):
-        pass
+        try:
+            result = dict()
+            studies = controller.get_all_studies(submission_id, file_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.strerror
+            return Response(result, status=404)
+        else:
+            result['result'] = studies
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
     
-    def post(self,  request, submission_id, file_id, study_id, format=None):
-        pass
-    
+    def post(self,  request, submission_id, file_id, format=None):
+        ''' Handles POST request - adds a new study to the metadata
+            for this file. Returns True if the study has been 
+            successfully added, False if not.
+        '''
+        try:
+            data = request.POST['_content']
+            data = json.loads(data)
+        except ValueError:
+            return Response("Not JSON format", status=400)
+        else:
+            try:
+                result = dict()
+                controller.add_study_to_file_mdata(submission_id, file_id, data)
+            except InvalidId:
+                result['error'] = "Invalid id"
+                return Response(result, status=404)
+            except DoesNotExist:        # thrown when searching for a submission
+                result['errors'] = "Submission not found" 
+                return Response(result, status=404)
+            except exceptions.ResourceNotFoundError as e:
+                result['errors'] = e.message
+                return Response(result, status=404)
+            except exceptions.NoEntityCreated as e:
+                result['errors'] = e.message
+                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+            else:
+                result['result'] = "Study added"
+                #result = serializers.serialize(result)
+                logging.debug("RESULT IS: "+str(result))
+                return Response(result, status=200)
+            
+            
     
 class StudyRequestHandler(APIView):
     ''' Handles requests for a specific study (existing already).
@@ -600,15 +726,92 @@ class StudyRequestHandler(APIView):
         DELETE - deletes the specified study from the study list of this file.
     '''
 
+
     def get(self, request, submission_id, file_id, study_id, format=None):
-        pass
+        try:
+            result = dict()
+            lib = controller.get_study(submission_id, file_id, study_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+#        except exceptions.EntityNotFound as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
+        else:
+            result['result'] = lib
+            result_serial = serializers.serialize(result)
+            logging.debug("RESULT IS: "+result_serial)
+            return Response(result_serial, status=200)
+        
 
     def put(self, request, submission_id, file_id, study_id, format=None):
-        pass
+        ''' Updates the metadata associated to a particular study.'''
+        logging.info("FROM PUT request - req looks like:-------------"+str(request))
+        data = request.DATA
+        try:
+            result = dict()
+            new_data = dict()
+            for elem in data:
+                key = ''.join(chr(ord(c)) for c in elem)
+                val = ''.join(chr(ord(c)) for c in data[elem])
+                new_data[key] = val
+                
+            was_updated = controller.update_study(submission_id, file_id, study_id, new_data)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except KeyError:
+            result['errors'] = "Key not found. Please include only data according to the model."
+            return Response(result, status=400)
+#        except exceptions.ResourceNotFoundError as e:
+#            result['errors'] = e.message
+#            return Response(result, status=404)
+        else:
+            if was_updated:
+                result['message'] = "Successfully updated"
+                return Response(result, status=200)
+            else:
+                result['message'] = "Not modified"
+                return Response(result, status=304)
+            #result_serial = serializers.serialize(result)
+            # return Response(result_serial, status=200)
+            return Response(result, status=200)
+    
     
     def delete(self, request, submission_id, file_id, study_id, format=None):
-        pass
-    
+        try:
+            result = dict()
+            was_deleted = controller.delete_study(submission_id, file_id, study_id)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "File not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if was_deleted:
+                result['result'] = "Successfully deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=200)
+            else:
+                result['result'] = "Study couldn't be deleted"
+                result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result_serial)
+                return Response(result_serial, status=304)
+                
     
 # ---------------------------------------------------------
 

@@ -19,6 +19,8 @@ UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
 UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
 EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 
+# ----------------- CONSTANTS USED IN TASKS -------------
+UNKNOWN_FIELD = 'unknown_field'
 
 
 # -------------- NEW STATUSES ---------------------------
