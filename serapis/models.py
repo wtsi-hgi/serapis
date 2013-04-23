@@ -11,7 +11,7 @@ import logging
 
 
 
-FILE_TYPES = ('BAM', 'VCF')
+FILE_TYPES = (BAM_FILE, VCF_FILE)
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
@@ -301,8 +301,8 @@ class Sample(Entity):          # one sample can be member of many studies
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
-    submission_id = StringField()
     #file_id = Field(required=True)
+    submission_id = StringField()
     id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
@@ -534,7 +534,20 @@ class SubmittedFile(DynamicDocument):
             serialized.pop['__meta_last_modified__']
         return serialized
         
-        
+
+
+
+class BAMFile(SubmittedFile):
+    bam_type = StringField()
+    lane_nrs_list = ListField()
+    
+    
+class VCFFile(SubmittedFile):
+    file_format = StringField(choices=VCF_FORMATS)
+    used_samtools = BooleanField()
+    used_unified_genotyper = BooleanField()
+    reference = StringField()
+     
         
        
 #        if self.something_is_wrong():

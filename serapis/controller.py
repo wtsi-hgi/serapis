@@ -58,7 +58,7 @@ update_file_task = tasks.UpdateFileMdataTask()
 # starts only after the upload is finished...
 # !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
 
-def launch_parse_header_job(file_submitted, read_on_client=True):
+def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
     
@@ -159,7 +159,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
             # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_submitted.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
                 print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_submitted.__dict__
-                launch_parse_header_job(file_submitted, read_on_client)
+                if file_submitted.file_type == constants.BAM_FILE:
+                    launch_parse_BAM_header_job(file_submitted, read_on_client)
             # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
         return io_errors_list
     else:
@@ -181,9 +182,9 @@ def submit_jobs_for_submission(user_id, submission):
 def detect_file_type(file_path):
     _, file_extension = os.path.splitext(file_path)
     if file_extension == '.bam':
-        return "BAM"
+        return constants.BAM_FILE
     elif file_extension == '.vcf':
-        return "VCF"
+        return constants.VCF_FILE
     else:
         raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+file_extension)
         
@@ -214,41 +215,39 @@ def init_submission(user_id, files_list):
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
         try:
+            status = None       # this will be initialized below
             with open(file_path): pass
         except IOError as e:
             if e.errno == errno.ENOENT:
                 append_to_errors_dict(str(file_path), constants.NON_EXISTING_FILES, errors_dict)
-                print "NON EXISTING FILE............................................", str(errors_dict)
-                #non_existing_files.append(file_path)
                 continue
             elif e.errno == errno.EACCES:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
-                file_submitted.file_header_parsing_job_status = constants.PENDING_ON_USER_STATUS
-                file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
-                file_submitted.file_submission_status = constants.PENDING_ON_USER_STATUS
+                status = constants.PENDING_ON_USER_STATUS
                 append_to_errors_dict(str(file_path), constants.PERMISSION_DENIED, errors_dict)
             else:
-                file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
-                file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
-                file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-                file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
+                status = constants.PENDING_ON_WORKER_STATUS
                 append_to_errors_dict(str(e.errno) + e.message + str(file_path), constants.IO_ERROR, errors_dict)
         else:
-            file_submitted = models.SubmittedFile(submission_id=str(submission.id), file_path_client=file_path)
-            file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
-            file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-            file_submitted.file_submission_status = constants.PENDING_ON_WORKER_STATUS
-        
+            status = constants.PENDING_ON_WORKER_STATUS
+
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         try:
             file_type = detect_file_type(file_path)
         except exceptions.NotSupportedFileType as e:
             append_to_errors_dict(e.faulty_expression, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
+            continue
         else:
+            if file_type == constants.BAM_FILE:
+                file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)
+            elif file_type == constants.VCF_FILE:
+                pass
+            file_submitted.file_header_parsing_job_status = status
+            file_submitted.file_upload_job_status = status
+            file_submitted.file_submission_status = status
             file_submitted.file_type = file_type
             file_submitted.save()
-            #print "JUST INITIALIZED FILE++++++++++++++++++++", str(file_submitted.__dict__)
             submitted_files_list.append(file_submitted.id)
+
     result = dict()
     if len(submitted_files_list) > 0:
         submission.files_list = submitted_files_list

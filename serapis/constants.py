@@ -22,6 +22,12 @@ EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
 
+# ----------------- FILE TYPES --------------------------
+BAM_FILE = "BAM_FILE"
+VCF_FILE = "VCF_FILE"
+
+VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
+
 
 # -------------- NEW STATUSES ---------------------------
 FINISHED_STATUS = ("SUCCESS", "FAILURE")
@@ -54,9 +60,9 @@ INCOMPLETE_STATUS = "INCOMPLETE"
 HAS_MINIMAL_STATUS = "HAS_MINIMAL"
 
 # -------------- UPDATING STRATEGIES: ----------------
-KEEP_NEW = "KEEP_NEW"
-IDEMPOTENT_RAISE_CONFLICT = "IDEMPOTENT"
-KEEP_OLD = "KEEP_OLD"
+#KEEP_NEW = "KEEP_NEW"
+#IDEMPOTENT_RAISE_CONFLICT = "IDEMPOTENT"
+#KEEP_OLD = "KEEP_OLD"
 
 
 # UPLOAD TASK
