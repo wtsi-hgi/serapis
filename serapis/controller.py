@@ -161,6 +161,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
                 print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_submitted.__dict__
                 if file_submitted.file_type == constants.BAM_FILE:
                     launch_parse_BAM_header_job(file_submitted, read_on_client)
+                elif file_submitted.file_type == constants.VCF_FILE:
+                    pass
             # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
         return io_errors_list
     else:
@@ -198,22 +200,20 @@ def append_to_errors_dict(error_source, error_type, submission_error_dict):
     submission_error_dict[error_type] = error_list
     
 
+
 def init_submission(user_id, files_list):
-    ''' Initializes a new submission, given a list of files. 
+    ''' Initialises a new submission, given a list of files. 
         Returns a dictionary containing: submission created and list of errors 
         for each existing file, plus list of files that don't exist.'''
-    submission = models.Submission()
-    submission.sanger_user_id = user_id
+    submission = models.Submission(sanger_user_id=user_id)
     submission.save()
     submitted_files_list = []
-    logging.debug("List of files received: "+str(files_list))
-    #non_existing_files = []       # list of files that don't exist, to be returned
     errors_dict = dict()
     for file_path in files_list:        
-            
-        #file_type = "BAM"
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
+     
+        # Checking the file's permissions and status
         try:
             status = None       # this will be initialized below
             with open(file_path): pass
@@ -230,7 +230,9 @@ def init_submission(user_id, files_list):
         else:
             status = constants.PENDING_ON_WORKER_STATUS
 
+        
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
+        # Checking the file type:
         try:
             file_type = detect_file_type(file_path)
         except exceptions.NotSupportedFileType as e:
@@ -238,9 +240,11 @@ def init_submission(user_id, files_list):
             continue
         else:
             if file_type == constants.BAM_FILE:
-                file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)
+                file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)   # bam_type="LANEPLEX"
             elif file_type == constants.VCF_FILE:
                 pass
+            
+            # Instantiating the SubmittedFile object if the file is alright
             file_submitted.file_header_parsing_job_status = status
             file_submitted.file_upload_job_status = status
             file_submitted.file_submission_status = status
@@ -251,7 +255,6 @@ def init_submission(user_id, files_list):
     result = dict()
     if len(submitted_files_list) > 0:
         submission.files_list = submitted_files_list
-        #print "JUST CREATED FILES - SUBMISSION IS: ++++++++++++++++++++++++++++++", str(submission.__dict__)
         submission.save(cascade=True)
         result['submission'] = submission
     else:

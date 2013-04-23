@@ -152,12 +152,12 @@ class Entity(DynamicEmbeddedDocument):
     
 
 class Study(Entity):
-    study_accession_nr = StringField()
+    accession_number = StringField()
     study_type = StringField()
     study_title = StringField()
-    study_faculty_sponsor = StringField()
+    faculty_sponsor = StringField()
     ena_project_id = StringField()
-    study_reference_genome = StringField()
+    reference_genome = StringField()
     
 #    def is_equal(self, other):
 #        if self.name == other.name:
@@ -194,14 +194,14 @@ class Study(Entity):
   
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        if self.study_accession_nr != None and self.study_title != None:
+        if self.accession_number != None and self.study_title != None:
             return True
         return False
 
 
 class Library(Entity):
     library_type = StringField()
-    library_public_name = StringField()
+    public_name = StringField()
     
     @staticmethod
     def check_keys(lib_json):
@@ -244,20 +244,21 @@ class Library(Entity):
 
 
 class Sample(Entity):          # one sample can be member of many studies
-    sample_accession_number = StringField()         # each sample relates to EXACTLY 1 individual
+    accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()
-    sample_public_name = StringField()
+    public_name = StringField()
     sample_tissue_type = StringField() 
     reference_genome = StringField()
+    
     # Fields relating to the individual:
     taxon_id = StringField()
-    individual_gender = StringField()
-    individual_cohort = StringField()
-    individual_ethnicity = StringField()
+    gender = StringField()
+    cohort = StringField()
+    ethnicity = StringField()
     country_of_origin = StringField()
     geographical_region = StringField()
     organism = StringField()
-    sample_common_name = StringField()          # This is the field name given for mdata in iRODS /seq
+    common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
 
     @staticmethod
@@ -272,7 +273,7 @@ class Sample(Entity):          # one sample can be member of many studies
             return json_obj['internal_id'] == self.internal_id
         if self.name == json_obj['name']:
             return True
-        elif self.sample_accession_number == json_obj['sample_accession_number']:
+        elif self.accession_number == json_obj['accession_number']:
             return True
         return False
     
@@ -293,7 +294,7 @@ class Sample(Entity):          # one sample can be member of many studies
     def check_if_has_minimal_mdata(self):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-            if self.sample_accession_number != (None or "") and self.name != (None or ""):
+            if self.accession_number != (None or "") and self.name != (None or ""):
                 self.has_minimal = True
         return self.has_minimal
     
@@ -314,7 +315,9 @@ class SubmittedFile(DynamicDocument):
     sample_list = ListField(EmbeddedDocumentField(Sample))
     seq_centers = ListField(StringField())          # List of sequencing centers where the data has been sequenced
     
-    ######## STATUSES #########
+    
+    ############### APPLICATION - LEVEL METADATA #######################
+    ######################## STATUSES ##################################
     # UPLOAD JOB:
     file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
     
@@ -426,9 +429,7 @@ class SubmittedFile(DynamicDocument):
             was_found = False
             for old_entity in old_entity_list:
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
-                    #self.__add_entity_attrs__(old_entity, new_entity_json, new_source)
                     old_entity.update_from_json(new_entity_json, new_source)
-                    #logging.info("===========Updating list of entities, updated old entity: "+str(vars(old_entity)))
                     was_found = True
                     break
             if not was_found:
@@ -436,8 +437,7 @@ class SubmittedFile(DynamicDocument):
                     entity = build_entity_from_json(new_entity_json, entity_type, new_source)
                     #if entity != None:    - this should be here, but I commented it out for testing purposes
                     old_entity_list.append(entity)
-                # TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
-                #for field in new_entity_json
+                # V - solved--TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
     
         
 #    updated = Feed.objects(posts__uid=post.uid).update_one(set__posts__S=post)
@@ -703,12 +703,12 @@ class TestDoc(Document):
     
 #class Individual(DynamicEmbeddedDocument):
 #    # one Indiv to many samples
-#    individual_gender = StringField()
-#    individual_cohort = StringField()
-#    individual_ethnicity = StringField()
+#    gender = StringField()
+#    cohort = StringField()
+#    ethnicity = StringField()
 #    individual_geographical_region = StringField()
 #    organism = StringField()
-#    sample_common_name = StringField()
+#    common_name = StringField()
 #    
 
     #samples_list = ListField(ReferenceField(Sample))
@@ -719,7 +719,7 @@ class TestDoc(Document):
     # taxon_id = StringField()
     # mother = StringField()
     # father = StringField()
-    # sample_common_name = StringField()
+    # common_name = StringField()
     
     
 ##################### LIBRARY ##########################

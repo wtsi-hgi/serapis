@@ -39,11 +39,11 @@ class TestSamplesFunctionsWoker(unittest.TestCase):
     def setUp(self):
         self.sample = Sample()
         self.sample.name = "SampleName"
-        self.sample.sample_accession_number = "AccNr123"
+        self.sample.accession_number = "AccNr123"
         
         self.otherSample = Sample()
         self.otherSample.name = "OtherSampleName"
-        self.otherSample.sample_accession_number = "ACCNr456"
+        self.otherSample.accession_number = "ACCNr456"
         
     def test_has_minimal(self):
         has_min = self.sample.check_if_has_minimal_mdata()
@@ -97,11 +97,11 @@ class TestSubmittedFileWorker(unittest.TestCase):
         
         self.sample = Sample()
         self.sample.name = "SampleName"
-        self.sample.sample_accession_number = "AccNr123"
+        self.sample.accession_number = "AccNr123"
         
         self.otherSample = Sample()
         self.otherSample.name = "OtherSampleName"
-        self.otherSample.sample_accession_number = "ACCNr456"
+        self.otherSample.accession_number = "ACCNr456"
         
         
     def test_mdata_status_fcts(self):
@@ -135,10 +135,10 @@ class TestSubmittedFileWorker(unittest.TestCase):
         
         sample = Sample()
         sample.name = "SampleName"
-        sample.sample_accession_number = "AccNr123"
+        sample.accession_number = "AccNr123"
         otherSample = Sample()
         otherSample.name = "OtherSampleName"
-        otherSample.sample_accession_number = "ACCNr456"
+        otherSample.accession_number = "ACCNr456"
         
         self.subfile.library_list.append(self.lib)
         self.subfile.sample_list.append(self.sample)
@@ -156,16 +156,16 @@ class TestSubmittedFileWorker(unittest.TestCase):
         lib = Library()
         lib.name = "LibraryName"
         lib.library_type = "LibType"
-        lib.library_public_name = "NewLibPublicName"
+        lib.public_name = "NewLibPublicName"
         
         sample = Sample()
         sample.name = "SampleName"
-        sample.sample_accession_number = "AccNr123"
+        sample.accession_number = "AccNr123"
         sample.geographical_region = "New SAMPLE GeographReg"
         
         self.subfile.add_or_update_lib(lib)
         for l in self.subfile.library_list:
-            self.assertEqual(l.library_public_name, lib.library_public_name)
+            self.assertEqual(l.public_name, lib.public_name)
             
         self.subfile.add_or_update_sample(sample)
         for s in self.subfile.sample_list:

@@ -11,6 +11,7 @@ ENTITY_META_FIELDS = ['is_complete', 'has_minimal', '__meta_last_modified__']
 class Entity(object):
     def __init__(self):
         self.internal_id = None
+        self.name = None
         self.is_complete = False        # Fields used for implementing the application's logic
         self.has_minimal = False        #
         
@@ -51,21 +52,20 @@ class Entity(object):
     
 
 class Study(Entity):
-    def __init__(self, acc_nr=None, name=None, study_type=None, title=None, sponsor=None, ena_prj_id=None, ref_genome=None):
-        self.study_accession_nr = acc_nr
-        self.name = name
+    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, faculty_sponsor=None, ena_project_id=None, reference_genome=None):
+        self.accession_number = accession_number
         self.study_type = study_type
-        self.study_title = title
-        self.study_faculty_sponsor = sponsor 
-        self.ena_project_id = ena_prj_id
-        self.study_reference_genome = ref_genome
+        self.study_title = study_title
+        self.faculty_sponsor = faculty_sponsor  
+        self.ena_project_id = ena_project_id
+        self.reference_genome = reference_genome
         super(Study, self).__init__()
     
     def __eq__(self, other):
         if super(Study, self).__eq__(other) == True:
             return True
         if isinstance(other, Study):
-            if self.study_accession_nr != None and self.study_accession_nr == other.study_accession_nr:
+            if self.accession_number != None and self.accession_number == other.accession_number:
                 return True
             elif self.name != None and self.name == other.name:
                 return True
@@ -73,7 +73,7 @@ class Study(Entity):
      
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        if self.study_accession_nr != None and self.study_title != None:
+        if self.accession_number != None and self.study_title != None:
             return True
         return False
     
@@ -89,14 +89,8 @@ class Study(Entity):
     @staticmethod
     def build_from_seqscape(study_mdata):
         study = Study()
-        study.internal_id = study_mdata['internal_id']
-        study.study_accession_nr = study_mdata['accession_number']
-        study.ena_project_id = study_mdata['ena_project_id']
-        study.study_faculty_sponsor = study_mdata['faculty_sponsor']
-        study.name = study_mdata['name']
-        study.study_title = study_mdata['study_title']
-        study.study_reference_genome = study_mdata['reference_genome']
-        study.study_type = study_mdata['study_type']
+        for field_name in study_mdata:
+            setattr(study, field_name, study_mdata[field_name])
         return study
 
     #internal_id = IntField() # to be used only for link table
@@ -105,10 +99,11 @@ class Study(Entity):
     
 class Library(Entity):
     def __init__(self, name=None, lib_type=None, public_name=None):
-        self.name = name    # identifies a library 
         self.library_type = lib_type
-        self.library_public_name = public_name
+        self.public_name = public_name
         super(Library, self).__init__()
+        #sample_internal_id = IntField()
+
         
     def __eq__(self, other):
         if super(Library, self).__eq__(other) == True:
@@ -136,10 +131,12 @@ class Library(Entity):
     @staticmethod
     def build_from_seqscape(lib_mdata):
         lib = Library()
-        lib.internal_id = lib_mdata['internal_id']
-        lib.name = lib_mdata['name']
-        lib.library_public_name = lib_mdata['public_name']
-        lib.library_type = lib_mdata['library_type']
+        for field_name in lib_mdata:
+            setattr(lib, field_name, lib_mdata[field_name])
+#        lib.internal_id = lib_mdata['internal_id']
+#        lib.name = lib_mdata['name']
+#        lib.public_name = lib_mdata['public_name']
+#        lib.library_type = lib_mdata['library_type']
         return lib
     
     @staticmethod
@@ -150,49 +147,46 @@ class Library(Entity):
             setattr(lib, key, attr_val)
         return lib
     
-    # internal_id        
-    #sample_internal_id = IntField()
     
 
 class Sample(Entity): # one sample can be member of many studies
     # each sample relates to EXACTLY 1 individual
-    def __init__(self, acc_nr=None, ssi=None, name=None, public_name=None, tissue_type=None, ref_genome=None,
+    def __init__(self, accession_number=None, sanger_sample_id=None, name=None, public_name=None, tissue_type=None, ref_genome=None,
                  taxon_id=None, sex=None, cohort=None, ethnicity=None, country_of_origin=None, geographical_region=None,
                  organism=None, common_name=None):
-        self.sample_accession_number = acc_nr
-        self.sanger_sample_id = ssi
-        self.name = name # UNIQUE
-        self.sample_public_name = public_name
+        self.accession_number = accession_number
+        self.sanger_sample_id = sanger_sample_id
+        self.public_name = public_name
         self.sample_tissue_type = tissue_type
         self.reference_genome = ref_genome
             
         # Fields relating to the individual:
         self.taxon_id = taxon_id
-        self.individual_gender = sex
-        self.individual_cohort = cohort
-        self.individual_ethnicity = ethnicity
+        self.gender = sex
+        self.cohort = cohort
+        self.ethnicity = ethnicity
         self.country_of_origin = country_of_origin
         self.geographical_region = geographical_region
         self.organism = organism
-        self.sample_common_name = common_name
+        self.common_name = common_name
         super(Sample, self).__init__()
         
         
     # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
-    def __eq__(self, other):                #Some samples are identified by name, others by accession_nr
+    def __eq__(self, other):                #Some samples are identified by name, others by accession_number
         if super(Sample, self).__eq__(other) == True:
             return True
         if isinstance(other, Sample):
             if self.name != None and self.name == other.name:
                 return True
-            elif self.sample_accession_number != None and self.sample_accession_number == other.name:
+            elif self.accession_number != None and self.accession_number == other.name:
                 return True
         return False
     
     def check_if_has_minimal_mdata(self):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-            if self.sample_accession_number != (None or "") and self.name != (None or ""):
+            if self.accession_number != (None or "") and self.name != (None or ""):
                 self.has_minimal = True
         return self.has_minimal
       
@@ -206,23 +200,25 @@ class Sample(Entity): # one sample can be member of many studies
         return sampl
   
     @staticmethod
-    def build_from_seqscape(sampl_mdata):
-        sampl = Sample()  
-        sampl.internal_id = sampl_mdata['internal_id']
-        sampl.sample_accession_number = sampl_mdata['accession_number']
-        sampl.name = sampl_mdata['name']
-        sampl.sample_public_name = sampl_mdata['public_name']
-        sampl.individual_cohort = sampl_mdata['cohort']
-        sampl.individual_ethnicity = sampl_mdata['ethnicity']
-        sampl.individual_gender = sampl_mdata['gender']
-        sampl.country_of_origin = sampl_mdata['country_of_origin']
-        sampl.sanger_sample_id = sampl_mdata['sanger_sample_id']
-        sampl.geographical_region = sampl_mdata['geographical_region']
-        sampl.organism = sampl_mdata['organism']
-        sampl.sample_common_name = sampl_mdata['common_name']
-        sampl.reference_genome = sampl_mdata['reference_genome']
-        sampl.taxon_id = sampl_mdata['taxon_id']
-        return sampl
+    def build_from_seqscape(sample_mdata):
+        sample = Sample()
+        for field_name in sample_mdata:
+            setattr(sample, field_name, sample_mdata[field_name])
+#        sampl.internal_id = sampl_mdata['internal_id']
+#        sampl.accession_number = sampl_mdata['accession_number']
+#        sampl.name = sampl_mdata['name']
+#        sampl.public_name = sampl_mdata['public_name']
+#        sampl.cohort = sampl_mdata['cohort']
+#        sampl.ethnicity = sampl_mdata['ethnicity']
+#        sampl.gender = sampl_mdata['gender']
+#        sampl.country_of_origin = sampl_mdata['country_of_origin']
+#        sampl.sanger_sample_id = sampl_mdata['sanger_sample_id']
+#        sampl.geographical_region = sampl_mdata['geographical_region']
+#        sampl.organism = sampl_mdata['organism']
+#        sampl.common_name = sampl_mdata['common_name']
+#        sampl.reference_genome = sampl_mdata['reference_genome']
+#        sampl.taxon_id = sampl_mdata['taxon_id']
+        return sample
     
 
 
@@ -355,7 +351,7 @@ class SubmittedFile():
     
     def contains_sample(self, sample_name):
         for sample in self.sample_list:
-            if sample.name == sample_name or sample.sample_accession_number == sample_name:
+            if sample.name == sample_name or sample.accession_number == sample_name:
                 return True
         return False
     
