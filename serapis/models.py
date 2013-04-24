@@ -45,10 +45,27 @@ class PilotModel(DynamicDocument):
 ####------------------- Utils functions -------------
 
 
+def check_if_entity_has_identifying_fields(json_entity):
+    ''' Entities to be inserted in the DB MUST have at least one of the uniquely
+        identifying fields that are defined in ENTITY_IDENTIFYING_FIELDS list.
+        If an entity doesn't contain any of these fields, then it won't be 
+        inserted in the database, as it would be confusing to have entities
+        that only have one insignificant field lying around and this could 
+        lead to entities added multiple times in the DB.
+    '''
+    for identifying_field in ENTITY_IDENTITYING_FIELDS:
+        if json_entity.has_key(identifying_field):
+            return True
+    return False
+    
+    
 def build_entity_from_json(json_entity, entity_type, source):
     ''' Function that builds a new Entity from a json representation.
         Returns the newly created entity or None if the entity_type
         is not within the known ones.'''
+    has_identifying_fields = check_if_entity_has_identifying_fields(json_entity)
+    if not has_identifying_fields:
+        return None
     result_entity = None
     if entity_type == LIBRARY_TYPE:
         result_entity = Library.build_from_json(json_entity, source)
@@ -113,12 +130,25 @@ def compare_sender_priority(source1, source2):
 
 # ------------------- Model classes ----------------------------------
     
+#ENTITY_APP_MDATA_FIELDS = ['is_complete', 'has_minimal', '__meta_last_modified__']
+ENTITY_APP_MDATA_FIELDS = ['__meta_last_modified__']
+ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
+
 class Entity(DynamicEmbeddedDocument):
     internal_id = IntField()
     name = StringField()    # UNIQUE
+    
+    # APPLICATION METADATA FIELDS:
     is_complete = BooleanField()
     has_minimal = BooleanField()
     __meta_last_modified__ = DictField()        # keeps name of the field - source that last modified this field
+    
+    def are_the_same(self, json_obj):
+        for identif_field in ENTITY_IDENTITYING_FIELDS:
+            if identif_field in json_obj and hasattr(self, identif_field) and json_obj[identif_field] != None:
+                return json_obj[identif_field] == getattr(self, identif_field)
+        return False
+    
     
     def update_from_json(self, json_obj, sender):
         ''' Compare the properties of this instance with the json_obj in the json object.
@@ -127,7 +157,7 @@ class Entity(DynamicEmbeddedDocument):
         has_changed = False
         for key in json_obj:
             old_val = getattr(self, key)
-            if key == '__meta_last_modified__' or key == None:
+            if key in ENTITY_APP_MDATA_FIELDS or key == None:
                 continue
             elif old_val == None:
                 setattr(self, key, json_obj[key])
@@ -170,19 +200,19 @@ class Study(Entity):
             if key not in Study._fields:
                 raise KeyError
 
-    def are_the_same(self, json_obj):
-        if 'internal_id' in json_obj and self.internal_id != None:
-            return json_obj['internal_id'] == self.internal_id
-        elif self.name == json_obj['name']:
-            return True
-        return False
+#    def are_the_same(self, json_obj):
+#        if 'internal_id' in json_obj and hasattr(self, 'internal_id') and self.internal_id != None:
+#            return json_obj['internal_id'] == self.internal_id
+#        elif 'name' in json_obj and hasattr(self, 'name') and self.name == json_obj['name']:
+#            return True
+#        return False
     
     @staticmethod
     def build_from_json(json_obj, source):
         study = Study()
         has_field = False
         for key in json_obj:
-            if key in Study._fields  and key not in ['__meta_last_modified__'] and key != None:
+            if key in Study._fields  and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(study, key, json_obj[key])
                 study.__meta_last_modified__[key] = source
                 has_field = True
@@ -210,21 +240,21 @@ class Library(Entity):
                 raise KeyError
     
     # TODO: what if a library is defined by other fields, and I will add it twice?!
-    # It should have also a "impossible to decide - too little info" option
-    def are_the_same(self, json_obj):
-        if 'internal_id' in json_obj and self.internal_id != None:
-            return json_obj['internal_id'] == self.internal_id
-        if self.name == json_obj['name']:
-            return True
-        return False
-    
+    # It should have also a "impossible to decide - too little info" option --- SOLVED: I only accept entities given by either id or name
+#    def are_the_same(self, json_obj):
+#        if 'internal_id' in json_obj and self.internal_id != None:
+#            return json_obj['internal_id'] == self.internal_id
+#        if self.name == json_obj['name']:
+#            return True
+#        return False
+#    
     @staticmethod
     def build_from_json(json_obj, source):
         print "From BUILD JSON - json obj received: ", json_obj
         lib = Library()
         has_new_field = False
         for key in json_obj:
-            if key in Library._fields  and key not in ['__meta_last_modified__'] and key != None:
+            if key in Library._fields  and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(lib, key, json_obj[key])
                 lib.__meta_last_modified__[key] = source
                 has_new_field = True
@@ -268,21 +298,21 @@ class Sample(Entity):          # one sample can be member of many studies
                 raise KeyError
 
 
-    def are_the_same(self, json_obj):
-        if 'internal_id' in json_obj and self.internal_id != None:
-            return json_obj['internal_id'] == self.internal_id
-        if self.name == json_obj['name']:
-            return True
-        elif self.accession_number == json_obj['accession_number']:
-            return True
-        return False
+#    def are_the_same(self, json_obj):
+#        if 'internal_id' in json_obj and self.internal_id != None:
+#            return json_obj['internal_id'] == self.internal_id
+#        if self.name == json_obj['name']:
+#            return True
+#        elif self.accession_number == json_obj['accession_number']:
+#            return True
+#        return False
     
     @staticmethod
     def build_from_json(json_obj, source):
         sampl = Sample()
         has_field = False
         for key in json_obj:
-            if key in Sample._fields and key not in ['__meta_last_modified__'] and key != None:
+            if key in Sample._fields and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(sampl, key, json_obj[key])
                 sampl.__meta_last_modified__[key] = source
                 has_field = True
@@ -337,7 +367,8 @@ class SubmittedFile(DynamicDocument):
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {
-            'indexes' : ['submission_id', 'file_id']
+            'indexes' : ['submission_id', 'file_id'],
+            'allow_inheritance': True
             }
     
     __meta_last_modified__ = DictField()                # keeps name of the field - source that last modified this field 

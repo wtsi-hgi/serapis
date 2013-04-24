@@ -53,6 +53,7 @@ class SubmissionsMainPageRequestHandler(APIView):
     # GET all the submissions for a user_id
     def get(self, request, format=None):
         ''' Retrieves all the submissions for this user. '''
+        print "POST REQUEST RECEIVED ------------", vars(request)
         user_id = "ic4"
         submissions_list = controller.get_all_submissions(user_id)
         subm_serialized = serializers.serialize(submissions_list)
@@ -60,7 +61,7 @@ class SubmissionsMainPageRequestHandler(APIView):
     
     
     # POST = create a new submission, for uploading the list of files given as param
-    def post(self, request, format=None):
+    def post(self, request):
         ''' Creates a new submission, given a set of files.
             No submission is created if the list of files is empty.
             Returns:
@@ -69,12 +70,16 @@ class SubmissionsMainPageRequestHandler(APIView):
         '''
         user_id = "ic4"
         try:
-            data = request.POST['_content']
-            data_deserial = json.loads(data)
+#            data = request.POST['_content']
+#            data_deserial = json.loads(data)
+            data_deserial = request.DATA
+            print "DATA RECEIVED ON THE POST REQUEST: ::::::::::::::::::::::", data_deserial
+#            data_deserial = json.loads(data)
         except ValueError:
             return Response("Not JSON format", status=400)
         else:
-            files_list = data_deserial["files"]
+            print "DATA DESERIAL:--------------------------- ", data_deserial
+            files_list = data_deserial['files']
             result_dict = controller.create_submission(user_id, files_list)
             submission_id = result_dict['submission_id']
             if submission_id == None:

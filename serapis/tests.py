@@ -17,16 +17,18 @@ Replace this with more appropriate tests for your application.
 from serapis import models
 from serapis.constants import *
 import unittest
+import requests
+from bzrlib.plugins.launchpad.lp_api_lite import json
 
 class TestLibraryFctController(unittest.TestCase):
     def setUp(self):
         json_lib = {"name" : "test_lib"}
-        self.lib = models.Library.build_from_json(json_lib)
+        self.lib = models.Library.build_from_json(json_lib, constants.EXTERNAL_SOURCE)
         
     def test_build_from_json(self):
         self.assertIsNotNone(self.lib)
         json_obj = {"another_field" : "some_val"}
-        lib2 = models.Library.build_from_json(json_obj)
+        lib2 = models.Library.build_from_json(json_obj, constants.EXTERNAL_SOURCE)
         self.assertIsNone(lib2)
 
 
@@ -173,7 +175,25 @@ class TestSubmittedFileWorker(unittest.TestCase):
         
         
         
+class TestRequests(unittest.TestCase):
+    
+    import requests
+    import json
+    
+    URL = "http://127.0.0.1:8000/api-rest/submissions/"
+    
+    def test_create_submission(self):
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        payload = {"files" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        r = requests.post(self.URL, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 201)
         
+        submission = r.text
+        submission = json.loads(submission)['submission_id']
+         
+        print "AND TEXT: ", submission
+
+
         
 
 if __name__ == '__main__':

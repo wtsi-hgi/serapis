@@ -589,7 +589,7 @@ def add_library_to_file_mdata(submission_id, file_id, data):
         else:
             raise exceptions.NoEntityCreated(data, "Library already exists in the library list. For update, please send a PUT request.")
     else:
-        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or they are all empty.")
+        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
     
 
 
@@ -691,7 +691,7 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
         else:
             raise exceptions.NoEntityCreated(data, "Sample already exists in the sample list. For update, please send a PUT request.")
     else:
-        raise exceptions.NoEntityCreated(data, "No sample could be created. Either none of the fields is valid or they are all empty.")
+        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
     
 
 def update_sample(submission_id, file_id, sample_id, data):
@@ -792,7 +792,7 @@ def add_study_to_file_mdata(submission_id, file_id, data):
         else:
             raise exceptions.NoEntityCreated(data, "Study already exists in the study list. For update, please send a PUT request.")
     else:
-        raise exceptions.NoEntityCreated(data, "No study could be created. Either none of the fields is valid or they are all empty.")
+        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
     
 
 
