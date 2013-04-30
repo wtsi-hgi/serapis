@@ -499,9 +499,11 @@ class SubmittedFile(DynamicDocument):
                 elif key == 'study_list':
                     self.__update_entity_list__(self.study_list, val, update_source, STUDY_TYPE)       #self.study_list.extend(val)
                 elif key == 'seq_centers':
-                    if val not in self.seq_centers:
-                        self.seq_centers.extend(val)
-                        self.last_updates_source[key] = update_source
+                    print "TYPE OF SEQ CENTER VAL:"
+                    for seq_center in val:
+                        if seq_center not in self.seq_centers:
+                            self.seq_centers.append(seq_center)
+                            self.last_updates_source[key] = update_source
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     # TODO: make file_error a map, instead of a list

@@ -288,7 +288,7 @@ class SubmittedFile():
         subm_file = SubmittedFile()
         for key in json_file:
             # TODO: WHAT happens with the keys that aren't declared here?!?!?! By default I add them - is this what we want?! #if key in SubmittedFile._fields:
-            print "KEY TO BE BUILT FILE SUBMITTED *****************************", key
+            #print "KEY TO BE BUILT FILE SUBMITTED *****************************", key
             if key == 'study_list':
                 subm_file.study_list = []
                 for study_json in json_file['study_list']:
@@ -302,7 +302,7 @@ class SubmittedFile():
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
             elif key not in FILE_META_FIELDS:        
-                print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
+                #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
         return subm_file
             
