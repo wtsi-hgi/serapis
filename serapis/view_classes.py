@@ -7,14 +7,16 @@ from serapis import controller
 from serapis import models
 from serapis import exceptions
 from serapis import serializers
+from serapis import validator
 
+from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-#from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from serapis.models import Submission
+#from rest_framework.decorators import api_view
+
 from serializers import ObjectIdEncoder
 
 from os import listdir
@@ -26,7 +28,6 @@ import errno
 import json
 import logging
 from mongoengine.queryset import DoesNotExist
-from serapis.exceptions import ResourceNotFoundError
 from celery.bin.celery import result
 logging.basicConfig(level=logging.DEBUG)
 #from serapis.controller import get_submission
@@ -39,12 +40,62 @@ logging.basicConfig(level=logging.DEBUG)
 #    
 #    submission = submission_qset.get()   
 
+
+
+# ----------------------------- AUXILIARY FCTIONS ---------------------------
+
+def _decode_list(data):
+    rv = []
+    for item in data:
+        if isinstance(item, unicode):
+            item = item.encode('utf-8')
+        elif isinstance(item, list):
+            item = _decode_list(item)
+        elif isinstance(item, dict):
+            item = _decode_dict(item)
+        rv.append(item)
+    return rv
+
+def _decode_dict(data):
+    rv = {}
+    for key, value in data.iteritems():
+        if isinstance(key, unicode):
+            key = key.encode('utf-8')
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        elif isinstance(value, list):
+            value = _decode_list(value)
+        elif isinstance(value, dict):
+            value = _decode_dict(value)
+        rv[key] = value
+    return rv
+
+#obj = json.loads(s, object_hook=_decode_dict)
+
         
 #----------------------------- AUXILIARY TEMPORARY --------------------------
 def replace_null_id_json(file_submitted):
     if 'null' in file_submitted:
         file_submitted['null'] = '_id'
-    
+        
+#def from_unicode_to_string(data):
+#    new_data = dict()
+#    for elem in data:
+#        key = ''.join(chr(ord(c)) for c in elem)
+#        val = ''.join(chr(ord(c)) for c in data[elem])
+#        new_data[key] = val
+#    return new_data
+#            
+
+def from_unicode_to_string(input):
+    if isinstance(input, dict):
+        return dict((from_unicode_to_string(key), from_unicode_to_string(value)) for key, value in input.iteritems())
+    elif isinstance(input, list):
+        return [from_unicode_to_string(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
@@ -71,25 +122,31 @@ class SubmissionsMainPageRequestHandler(APIView):
         user_id = "ic4"
         try:
 #            data = request.POST['_content']
-#            data_deserial = json.loads(data)
-            data_deserial = request.DATA
-            print "DATA RECEIVED ON THE POST REQUEST: ::::::::::::::::::::::", data_deserial
-#            data_deserial = json.loads(data)
-        except ValueError:
-            return Response("Not JSON format", status=400)
+            result = dict()
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.submission_schema(data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
+#        except ValueError:
+#            return Response("Not JSON format", status=400)
         else:
-            print "DATA DESERIAL:--------------------------- ", data_deserial
-            files_list = data_deserial['files']
-            result_dict = controller.create_submission(user_id, files_list)
+            result_dict = controller.create_submission(user_id, data)
             submission_id = result_dict['submission_id']
             if submission_id == None:
-                # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically)?
+                # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically incorrect)?
                 msg = "Submission not created."
                 result_dict['message'] = msg
                 return Response(result_dict, status=400)
             else:
-                msg = "Submission created"    
+                msg = "Submission created"  
                 result_dict['message'] = msg
+                # TESTING PURPOSES:
+                files = [str(f.id) for f in models.SubmittedFile.objects(submission_id=result_dict['submission_id']).all()]
+                #files = models.SubmittedFile.objects(submission_id=submission_id).all()
+                result_dict['testing'] = files
+                # END TESTING
                 return Response(result_dict, status=201)
                 
     
@@ -150,10 +207,15 @@ class SubmissionRequestHandler(APIView):
         
     def put(self, request, submission_id, format=None):
         ''' Updates a submission with the data provided on the POST request.'''
-        data = request.DATA
         try:
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.submission_schema(data)
             result = dict()
-            unregistered_fields = controller.update_submission(submission_id, data)
+            controller.update_submission(submission_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
         except InvalidId:
             result['errors'] = "Invalid id"
             return Response(result, status=404)
@@ -164,7 +226,6 @@ class SubmissionRequestHandler(APIView):
             result['errors'] = "Bad request. "+e.message+e.args
             return Response(result, status=400)
         else:
-            result['errors'] = dict({"Unregistered fields were not added" : unregistered_fields})
             result['message'] = "Successfully updated"
             return Response(status=200)
 
@@ -261,7 +322,7 @@ class SubmittedFileRequestHandler(APIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=404)
-        except ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
         else:
@@ -279,18 +340,22 @@ class SubmittedFileRequestHandler(APIView):
             with a parameter indicating how he solved the pb - if he ran himself a worker or just changed file permissions. 
             POST req body should look like: 
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
-        data = request.DATA
-        print "POST REQ MADE - DATA: ", data
         try:
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.submitted_file_schema(data)
             result = dict()
             error_list = controller.resubmit_jobs(submission_id, file_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=404)
-        except ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
         else:
@@ -310,7 +375,12 @@ class SubmittedFileRequestHandler(APIView):
         logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
             result = dict()
+            data = from_unicode_to_string(data)
+            validator.submitted_file_schema(data)
             controller.update_file_submitted(submission_id, file_id, data)
+#        except MultipleInvalid as e:
+#            result['error'] = "Message contents invalid: "+e.msg
+#            return Response(result, status=400)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
@@ -380,31 +450,32 @@ class LibrariesMainPageRequestHandler(APIView):
             successfully added, False if not.
         '''
         try:
-            data = request.POST['_content']
-            data = json.loads(data)
-        except ValueError:
-            return Response("Not JSON format", status=400)
+#           data = request.POST['_content']
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.library_schema(data)
+            result = dict()
+            controller.add_library_to_file_mdata(submission_id, file_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        except exceptions.NoEntityCreated as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         else:
-            try:
-                result = dict()
-                controller.add_library_to_file_mdata(submission_id, file_id, data)
-            except InvalidId:
-                result['error'] = "Invalid id"
-                return Response(result, status=404)
-            except DoesNotExist:        # thrown when searching for a submission
-                result['errors'] = "Submission not found" 
-                return Response(result, status=404)
-            except exceptions.ResourceNotFoundError as e:
-                result['errors'] = e.message
-                return Response(result, status=404)
-            except exceptions.NoEntityCreated as e:
-                result['errors'] = e.message
-                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-            else:
-                result['result'] = "Library added"
-                #result = serializers.serialize(result)
-                logging.debug("RESULT IS: "+str(result))
-                return Response(result, status=200)
+            result['result'] = "Library added"
+            #result = serializers.serialize(result)
+            logging.debug("RESULT IS: "+str(result))
+            return Response(result, status=200)
             
     
 
@@ -439,20 +510,21 @@ class LibraryRequestHandler(APIView):
 
     def put(self, request, submission_id, file_id, library_id, format=None):
         ''' Updates the metadata associated to a particular library.'''
-        logging.info("FROM PUT request - req looks like:-------------"+str(request))
-        data = request.DATA
-        #logging.info("FROM PUT request - req looks like:-------------"+str(data))
-#        data = json.loads(data)
-#        logging.info("FROM PUT request - req looks like:-------------"+str(data))
         try:
+#            result = dict()
+#            new_data = dict()
+#            for elem in data:
+#                key = ''.join(chr(ord(c)) for c in elem)
+#                val = ''.join(chr(ord(c)) for c in data[elem])
+#                new_data[key] = val
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.library_schema(data)
             result = dict()
-            new_data = dict()
-            for elem in data:
-                key = ''.join(chr(ord(c)) for c in elem)
-                val = ''.join(chr(ord(c)) for c in data[elem])
-                new_data[key] = val
-                
-            was_updated = controller.update_library(submission_id, file_id, library_id, new_data)
+            was_updated = controller.update_library(submission_id, file_id, library_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
@@ -462,9 +534,6 @@ class LibraryRequestHandler(APIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=400)
-#        except exceptions.ResourceNotFoundError as e:
-#            result['errors'] = e.message
-#            return Response(result, status=404)
         else:
             if was_updated:
                 result['message'] = "Successfully updated"
@@ -541,32 +610,32 @@ class SamplesMainPageRequestHandler(APIView):
             successfully added, False if not.
         '''
         try:
-            data = request.POST['_content']
-            data = json.loads(data)
-        except ValueError:
-            return Response("Not JSON format", status=400)
+            result = dict()
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.sample_schema(data)
+            controller.add_sample_to_file_mdata(submission_id, file_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        except exceptions.NoEntityCreated as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         else:
-            try:
-                result = dict()
-                controller.add_sample_to_file_mdata(submission_id, file_id, data)
-            except InvalidId:
-                result['error'] = "Invalid id"
-                return Response(result, status=404)
-            except DoesNotExist:        # thrown when searching for a submission
-                result['errors'] = "Submission not found" 
-                return Response(result, status=404)
-            except exceptions.ResourceNotFoundError as e:
-                result['errors'] = e.message
-                return Response(result, status=404)
-            except exceptions.NoEntityCreated as e:
-                result['errors'] = e.message
-                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-            else:
-                result['result'] = "Sample added"
-                #result = serializers.serialize(result)
-                logging.debug("RESULT IS: "+str(result))
-                return Response(result, status=200)
-            
+            result['result'] = "Sample added"
+            #result = serializers.serialize(result)
+            logging.debug("RESULT IS: "+str(result))
+            return Response(result, status=200)
+        
     
     
 class SampleRequestHandler(APIView):
@@ -603,16 +672,21 @@ class SampleRequestHandler(APIView):
     def put(self, request, submission_id, file_id, sample_id, format=None):
         ''' Updates the metadata associated to a particular sample.'''
         #logging.info("FROM PUT request - req looks like:-------------"+str(request))
-        data = request.DATA
         try:
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.sample_schema(data)
             result = dict()
-            new_data = dict()   # Convert from u'str' to str
-            for elem in data:
-                key = ''.join(chr(ord(c)) for c in elem)
-                val = ''.join(chr(ord(c)) for c in data[elem])
-                new_data[key] = val
-                
-            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
+#            new_data = dict()   # Convert from u'str' to str
+#            for elem in data:
+#                key = ''.join(chr(ord(c)) for c in elem)
+#                val = ''.join(chr(ord(c)) for c in data[elem])
+#                new_data[key] = val
+#            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
+            was_updated = controller.update_sample(submission_id, file_id, sample_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
@@ -697,32 +771,33 @@ class StudyMainPageRequestHandler(APIView):
             successfully added, False if not.
         '''
         try:
-            data = request.POST['_content']
-            data = json.loads(data)
-        except ValueError:
-            return Response("Not JSON format", status=400)
+#            data = request.POST['_content']
+            result = dict()
+            data = request.DATA
+            data = from_unicode_to_string(data)
+            validator.study_schema(data)
+            controller.add_study_to_file_mdata(submission_id, file_id, data)
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
+        except InvalidId:
+            result['error'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        except exceptions.NoEntityCreated as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         else:
-            try:
-                result = dict()
-                controller.add_study_to_file_mdata(submission_id, file_id, data)
-            except InvalidId:
-                result['error'] = "Invalid id"
-                return Response(result, status=404)
-            except DoesNotExist:        # thrown when searching for a submission
-                result['errors'] = "Submission not found" 
-                return Response(result, status=404)
-            except exceptions.ResourceNotFoundError as e:
-                result['errors'] = e.message
-                return Response(result, status=404)
-            except exceptions.NoEntityCreated as e:
-                result['errors'] = e.message
-                return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-            else:
-                result['result'] = "Study added"
-                #result = serializers.serialize(result)
-                logging.debug("RESULT IS: "+str(result))
-                return Response(result, status=200)
-            
+            result['result'] = "Study added"
+            #result = serializers.serialize(result)
+            logging.debug("RESULT IS: "+str(result))
+            return Response(result, status=200)
+        
             
     
 class StudyRequestHandler(APIView):

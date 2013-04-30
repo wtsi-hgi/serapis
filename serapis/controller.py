@@ -60,7 +60,10 @@ update_file_task = tasks.UpdateFileMdataTask()
 
 def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+    print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
     file_serialized = serializers.serialize(file_submitted)
+    print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER AFTER SERIAL -----------------------", vars(file_submitted)
+    
     
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
@@ -76,6 +79,13 @@ def launch_upload_job(user_id, file_submitted, queue=None):
     else:
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
     file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+    
+
+    
+def launch_update_file_job(file_submitted):
+    file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
+    file_serialized = serializers.serialize(file_submitted)
+    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
     
 
 #def launch_upload_job(user_id, file_submitted):
@@ -137,11 +147,7 @@ def launch_upload_job(user_id, file_submitted, queue=None):
 #    #parse_header_async_res = seqscape_async_res.parent
 #    #return permission_denied
     
-    
-def launch_update_file_job(file_submitted):
-    file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
-    file_serialized = serializers.serialize(file_submitted)
-    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
+
     
 
 def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_task_queue=None):
@@ -265,7 +271,7 @@ def init_submission(user_id, files_list):
 
 
 # PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file, if I do have it, then I save files that don't exist...
-def create_submission(user_id, files_list):
+def create_submission(user_id, data):
     ''' Creates a submission - given a list of files: initializes 
         a submission object and submits jobs for all the files in the list.
         
@@ -275,6 +281,7 @@ def create_submission(user_id, files_list):
              a dictionary containing: 
              { submission_id : 123 , errors: {..dictionary of errors..}
         '''
+    files_list = data['files_list']
     result_init_submission = init_submission(user_id, files_list)
     result = dict()
     errors_dict = result_init_submission['errors']
@@ -446,6 +453,7 @@ def update_file_submitted(submission_id, file_id, data):
     #logging.info("FILE ID:"+str(file_id) + " INFO TO UPDATE: " + str(data))
     sender = get_request_source(data)
     has_new_entities = check_if_has_new_entities(data, file_to_update)
+    print "HAS NEW ENTIEIS IS: ---------", has_new_entities
     # Modify the file:
     file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
     #print "DATA THAT SUPPOSEDLY MODIFIED THE ENTITY::::::::::::::::::::::::::", str(data)

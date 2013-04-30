@@ -99,9 +99,10 @@ def encode_model(obj):
         
 def serialize(data):
     serialized = simplejson.dumps(data, default=encode_model)
-    if '__meta_last_modified__' in serialized:
-        serialized.pop['__meta_last_modified__']
+    if 'last_updates_source' in serialized:
+        serialized.pop['last_updates_source']
     return serialized
+
 
 def compare_sender_priority(source1, source2):
         ''' Compares the priority of the sender taking into account 
@@ -130,8 +131,8 @@ def compare_sender_priority(source1, source2):
 
 # ------------------- Model classes ----------------------------------
     
-#ENTITY_APP_MDATA_FIELDS = ['is_complete', 'has_minimal', '__meta_last_modified__']
-ENTITY_APP_MDATA_FIELDS = ['__meta_last_modified__']
+#ENTITY_APP_MDATA_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
+ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
 
 class Entity(DynamicEmbeddedDocument):
@@ -141,12 +142,23 @@ class Entity(DynamicEmbeddedDocument):
     # APPLICATION METADATA FIELDS:
     is_complete = BooleanField()
     has_minimal = BooleanField()
-    __meta_last_modified__ = DictField()        # keeps name of the field - source that last modified this field
+    last_updates_source = DictField()        # keeps name of the field - source that last modified this field
     
+    
+    def __eq__(self, other):
+        if other == None:
+            return False
+        for id_field in ENTITY_IDENTITYING_FIELDS:
+            if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
+                return other[id_field] == getattr(self, id_field)
+        return False
+    
+    
+    # TODO: Uncaught case: self.internal_id = None, name !=None, and json_obj.internal_id !=None, name == None => can't decide... 
     def are_the_same(self, json_obj):
-        for identif_field in ENTITY_IDENTITYING_FIELDS:
-            if identif_field in json_obj and hasattr(self, identif_field) and json_obj[identif_field] != None:
-                return json_obj[identif_field] == getattr(self, identif_field)
+        for id_field in ENTITY_IDENTITYING_FIELDS:
+            if id_field in json_obj and hasattr(self, id_field) and json_obj[id_field] != None and getattr(self, id_field) != None:
+                return json_obj[id_field] == getattr(self, id_field)
         return False
     
     
@@ -161,21 +173,21 @@ class Entity(DynamicEmbeddedDocument):
                 continue
             elif old_val == None:
                 setattr(self, key, json_obj[key])
-                self.__meta_last_modified__[key] = sender
+                self.last_updates_source[key] = sender
                 has_changed = True
                 continue
             elif key in ['internal_id', 'name']:
                 if sender == EXTERNAL_SOURCE:
-                    if self.__meta_last_modified__[key] == EXTERNAL_SOURCE:
+                    if self.last_updates_source[key] == EXTERNAL_SOURCE:
                         setattr(self, key, json_obj[key])
                         has_changed = True
             else:
-#                if key not in self.__meta_last_modified__:
-#                    self.__meta_last_modified__[key] = INIT_SOURCE
-                priority_comparison = compare_sender_priority(sender, self.__meta_last_modified__[key]) 
+#                if key not in self.last_updates_source:
+#                    self.last_updates_source[key] = INIT_SOURCE
+                priority_comparison = compare_sender_priority(sender, self.last_updates_source[key]) 
                 if priority_comparison >= 0:
                     setattr(self, key, json_obj[key])
-                    self.__meta_last_modified__[key] = sender
+                    self.last_updates_source[key] = sender
                     has_changed = True
         return has_changed
 
@@ -214,7 +226,7 @@ class Study(Entity):
         for key in json_obj:
             if key in Study._fields  and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(study, key, json_obj[key])
-                study.__meta_last_modified__[key] = source
+                study.last_updates_source[key] = source
                 has_field = True
         if has_field:
             return study
@@ -256,7 +268,7 @@ class Library(Entity):
         for key in json_obj:
             if key in Library._fields  and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(lib, key, json_obj[key])
-                lib.__meta_last_modified__[key] = source
+                lib.last_updates_source[key] = source
                 has_new_field = True
         if has_new_field:
             return lib
@@ -314,7 +326,7 @@ class Sample(Entity):          # one sample can be member of many studies
         for key in json_obj:
             if key in Sample._fields and key not in ENTITY_APP_MDATA_FIELDS and key != None:
                 setattr(sampl, key, json_obj[key])
-                sampl.__meta_last_modified__[key] = source
+                sampl.last_updates_source[key] = source
                 has_field = True
         if has_field:
             return sampl
@@ -366,12 +378,12 @@ class SubmittedFile(DynamicDocument):
     file_error_log = ListField(StringField)
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
-    meta = {
+    meta = {                                            # Mongoengine specific field for metadata.
             'indexes' : ['submission_id', 'file_id'],
             'allow_inheritance': True
             }
     
-    __meta_last_modified__ = DictField()                # keeps name of the field - source that last modified this field 
+    last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
     
     
     
@@ -444,13 +456,13 @@ class SubmittedFile(DynamicDocument):
 #    def __add_entity_attrs__(self, old, new_entity_json, new_source):
 #        ''' Update the old entity with the attributes of the new entity.'''
 #        for att, val in new_entity_json.items():                                           #for att, val in vars(new).items():
-#            if not att in old.__meta_last_modified__:
-#                old.__meta_last_modified__[att] = INIT_SOURCE
-#            old_sender = old.__meta_last_modified__[att]
+#            if not att in old.last_updates_source:
+#                old.last_updates_source[att] = INIT_SOURCE
+#            old_sender = old.last_updates_source[att]
 #            priority_comparison = compare_sender_priority(old_sender, new_source) 
 #            if priority_comparison >= 0:
 #                setattr(old, att, val)
-#                old.__meta_last_modified__[att] = new_source
+#                old.last_updates_source[att] = new_source
 
             
     def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source, entity_type):
@@ -489,33 +501,36 @@ class SubmittedFile(DynamicDocument):
                 elif key == 'seq_centers':
                     if val not in self.seq_centers:
                         self.seq_centers.extend(val)
-                        self.__meta_last_modified__[key] = update_source
+                        self.last_updates_source[key] = update_source
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     # TODO: make file_error a map, instead of a list
                     self.file_error_log.extend(val)
-                #    self.__meta_last_modified__['file_error_log'] = update_source
+                #    self.last_updates_source['file_error_log'] = update_source
                 elif key == 'missing_entities_error_dict':
                     self.missing_entities_error_dict.update(val)
+#                    for (key, val) in self.missing_entities_error_dict.iteritems():
+#                        print "KEY TO BE INSERTED: ", key, "VAL: ", val
+#                        update_dict = {str('set__missing_entities_error_dict__' + key) : val}
+#                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        #SubmittedFile.objects(id=self.id).update_one(push_all__missing_entities_error_dict=val)
                 elif key == 'not_unique_entity_error_dict':
                     self.not_unique_entity_error_dict.update(val)
                 elif key == 'file_mdata_status':
                     if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE):
-                        #SubmittedFile.objects(id=self.id).update(set__file_mdata_status=val, set__myField="Renewed!")
-                        self.file_mdata_status = val
-                        self.__meta_last_modified__[key] = update_source
+                        update_dict = {'set__file_mdata_status' : val, str('set__last_updates_source__'+key) : update_source}
+                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
                 elif key == 'header_has_mdata':
                     if update_source == PARSE_HEADER_MSG_SOURCE:
-                        self.header_has_mdata = val
-                        self.__meta_last_modified__[key] = update_source
+                        update_dict = {'set__header_has_mdata' : val, str('set__last_updates_source__'+key) : update_source}
+                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
                 elif key == 'file_submission_status':
-                    #SubmittedFile.objects(id=self.id).update_one(set__file_submission_status=val, set____meta_last_modified__=update_source)
-                    self.file_submission_status = val
-                    self.__meta_last_modified__[key] = update_source
-                elif key in ['submission_id', 'file_id', 'file_path_irods', 'file_path_client', 'file_type', '__meta_last_modified__']:
+                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
+                    SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                elif key in ['submission_id', 'file_id', 'file_path_irods', 'file_path_client', 'file_type', 'last_updates_source']:
                     pass
                 elif key == 'md5':
-                    # TODO: from here I don't add these fields to the __meta dict, should I?
+                    # TODO: from here I don't add these fields to the last_updates_source dict, should I?
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
                         SubmittedFile.objects(id=self.id).update_one(set__md5=val)
                         #self.md5 = val
@@ -530,12 +545,12 @@ class SubmittedFile(DynamicDocument):
                 # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
                 elif key == 'file_update_mdata_job_status':
                     if update_source == UPDATE_MDATA_MSG_SOURCE:
-                        SubmittedFile.objects(id=self.id).update_one(set__file_update_mdata_job=val)
+                        SubmittedFile.objects(id=self.id).update_one(set__file_update_mdata_job_status=val)
                         #self.file_update_mdata_job_status = val
                 elif key != None and key != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
-                    self.__meta_last_modified__[key] = update_source
+                    self.last_updates_source[key] = update_source
             else:
                 print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
                 #raise KeyError
@@ -561,8 +576,8 @@ class SubmittedFile(DynamicDocument):
     # NOT USED YET
     def serialize(self, data):
         serialized = simplejson.dumps(data, default=encode_model)
-        if '__meta_last_modified__' in serialized:
-            serialized.pop['__meta_last_modified__']
+        if 'last_updates_source' in serialized:
+            serialized.pop['last_updates_source']
         return serialized
         
 
@@ -698,12 +713,25 @@ class Submission(DynamicDocument):
 class MyEmbed(EmbeddedDocument):
     embedField = StringField(primary_key=True)
     varField = StringField()
+    
+    def __eq__(self, other):
+        if hasattr(self, 'embedField') and hasattr(other, 'embedField'):
+            return self.embedField == other.embedField
+        return False
+
 
 class TestDoc(Document):
-    id_field = ObjectId()
+#    id_field = ObjectId()
     myField = StringField()
-    secondField = StringField()
+#    secondField = StringField()
     embed_list = ListField(EmbeddedDocumentField(MyEmbed))
+    
+    
+    
+class TestDoc2(Document):
+    name = StringField()
+    friends = ListField(StringField())
+    address_book = DictField()
 
   
 #  OPTIONAL FIELDS AFTER ELIMINATED FOR CLEANING PURPOSES:

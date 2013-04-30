@@ -53,6 +53,14 @@ def build_result(submission_id, file_id):
     return result
 
 
+def filter_none_fields(data_dict):
+    filtered_dict = dict()
+    for (key, val) in data_dict.iteritems():
+        if val != None and val != 'null':
+            filtered_dict[key] = val
+    return filtered_dict
+
+
 ################ TO BE MOVED ########################
 
 def send_http_PUT_req(msg, submission_id, file_id, sender):
@@ -61,6 +69,7 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     #print  "IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)), " and msg: ", str(msg)
     #submission_id = msg['submission_id']
     #file_id = msg['file_id']
+    msg = filter_none_fields(msg)
     if 'submission_id' in msg:
         msg.pop('submission_id')
     if 'file_id' in msg:
@@ -68,6 +77,7 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     msg['sender'] = sender
     url_str = build_url(submission_id, file_id)
     response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
+    print "REQUEST DATA TO SEND================================", msg
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
 
@@ -109,6 +119,7 @@ class QuerySeqScape():
                     else:
                         query = query + key + "=" + str(val) + " and "
             query = query + " is_current=1;"
+            print "QUERY BEFORE EXECUTING:*************************", query
             cursor.execute(query)
             data = cursor.fetchall()
             print "DATABASE SAMPLES FOUND: ", data
@@ -157,7 +168,8 @@ class QuerySeqScape():
             print "DATABASE STUDY FOUND: ", data    
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
-        return data
+        else:
+            return data
 
     
     
@@ -457,7 +469,7 @@ class ParseBAMHeaderTask(Task):
         update_msg_dict = build_result(file_mdata.submission_id, file_mdata.id)
         update_msg_dict['file_header_parsing_job_status'] = file_mdata.file_header_parsing_job_status
         update_msg_dict['header_has_mdata'] = file_mdata.header_has_mdata
-        update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
+        #update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
         print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
         self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
         send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.id, PARSE_HEADER_MSG_SOURCE)
@@ -573,6 +585,8 @@ class UpdateFileMdataTask(Task):
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         file_submitted = SubmittedFile.build_from_json(file_mdata)
         file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
+        
+        print "UPDATE TASKxxxxxxxxxxxxxxxxxxxxxxxxxxx -- AFTER BUILDING FROM JSON A FILE ---", vars(file_submitted)
         
         incomplete_libs_list = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)

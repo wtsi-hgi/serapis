@@ -6,7 +6,8 @@ from serapis import constants
 
 # TODO: to RENAME the class to: logical_model
 
-ENTITY_META_FIELDS = ['is_complete', 'has_minimal', '__meta_last_modified__']
+ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
+FILE_META_FIELDS = ['last_updates_source']
 
 class Entity(object):
     def __init__(self):
@@ -81,7 +82,9 @@ class Study(Entity):
     def build_from_json(json_obj):
         study = Study()
         for key in json_obj:
-            if key not in ['__meta_last_modified__']:
+            if key not in FILE_META_FIELDS:
+            #if key in Study._fields:
+            #if key in study._fields:
                 setattr(study, key, json_obj[key])
         return study
     
@@ -124,7 +127,7 @@ class Library(Entity):
     def build_from_json(json_obj):
         lib = Library()
         for key in json_obj:
-            if key not in ['__meta_last_modified__']:
+            if key not in FILE_META_FIELDS:
                 setattr(lib, key, json_obj[key])
         return lib
 
@@ -195,7 +198,7 @@ class Sample(Entity): # one sample can be member of many studies
     def build_from_json(json_obj):
         sampl = Sample()
         for key in json_obj:
-            if key not in ['__meta_last_modified__']:
+            if key not in FILE_META_FIELDS:
                 setattr(sampl, key, json_obj[key])
         return sampl
   
@@ -285,6 +288,7 @@ class SubmittedFile():
         subm_file = SubmittedFile()
         for key in json_file:
             # TODO: WHAT happens with the keys that aren't declared here?!?!?! By default I add them - is this what we want?! #if key in SubmittedFile._fields:
+            print "KEY TO BE BUILT FILE SUBMITTED *****************************", key
             if key == 'study_list':
                 subm_file.study_list = []
                 for study_json in json_file['study_list']:
@@ -297,7 +301,8 @@ class SubmittedFile():
                 subm_file.sample_list = []
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            elif key not in ['__meta_last_modified__']:        
+            elif key not in FILE_META_FIELDS:        
+                print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
         return subm_file
             
@@ -376,6 +381,13 @@ class SubmittedFile():
                 result_dict[k] = v
         return result_dict
     
+    def __remove_fields__dict(self, obj_to_modify):
+        result_dict = dict()
+        for k, v in vars(obj_to_modify).items():
+            if k not in FILE_META_FIELDS:
+                result_dict[k] = v
+        return result_dict
+    
         
     def __encode_model__(self, obj):
         if isinstance(obj, (Entity, SubmittedFile)):
@@ -386,6 +398,7 @@ class SubmittedFile():
             out = obj
         elif isinstance(obj, dict):
             out = self.__remove_nulls_dict__(obj)
+            out = self.__remove_fields__dict(out)
         else:
             raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
         return out         

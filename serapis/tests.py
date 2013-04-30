@@ -23,27 +23,52 @@ from bzrlib.plugins.launchpad.lp_api_lite import json
 class TestLibraryFctController(unittest.TestCase):
     def setUp(self):
         json_lib = {"name" : "test_lib"}
-        self.lib = models.Library.build_from_json(json_lib, constants.EXTERNAL_SOURCE)
+        self.lib = models.Library.build_from_json(json_lib, EXTERNAL_SOURCE)
         
     def test_build_from_json(self):
         self.assertIsNotNone(self.lib)
         json_obj = {"another_field" : "some_val"}
-        lib2 = models.Library.build_from_json(json_obj, constants.EXTERNAL_SOURCE)
+        lib2 = models.Library.build_from_json(json_obj, EXTERNAL_SOURCE)
         self.assertIsNone(lib2)
 
 
 
-from serapis.entities import *
+
+# TESTS FOR SERVER CODE:
+
+class TestEntityFunctionsServer(unittest.TestCase):
+    
+    def test_entity_eq(self):
+        study1 = models.Study()
+        study1.name = "WTCCC2-Pilot"
+       
+        study2 = models.Study()
+        study2.name = "WTCCC2-Pilot"
+        study2.faculty_sponsor = "Panos Deloukas"
+        
+        study3 = {"name" : "WTCCC2-Pilot", "faculty_sponsor" : "Panos Deloukas"}
+        
+        self.assertTrue(study1.are_the_same(study2))
+        self.assertTrue(study1.are_the_same(study3))
+        
+        st_list = [study1]
+        self.assertTrue(study2 in st_list)
+
+
+
+
+from serapis import entities
 
 # TESTS FOR WORKER CODE
 class TestSamplesFunctionsWoker(unittest.TestCase):
+   
 
     def setUp(self):
-        self.sample = Sample()
+        self.sample = entities.Sample()
         self.sample.name = "SampleName"
         self.sample.accession_number = "AccNr123"
         
-        self.otherSample = Sample()
+        self.otherSample = entities.Sample()
         self.otherSample.name = "OtherSampleName"
         self.otherSample.accession_number = "ACCNr456"
         
@@ -58,16 +83,16 @@ class TestSamplesFunctionsWoker(unittest.TestCase):
         
 class TestLibrariesFunctionsWorker(unittest.TestCase):
     def setUp(self):
-        self.lib = Library()
+        self.lib = entities.Library()
         self.lib.internal_id = "MyLibID"
         self.lib.name = "LibraryName"
         self.lib.library_type = "LibType"
         
-        self.otherLib = Library()
+        self.otherLib = entities.Library()
         self.otherLib.name = "OtherLibName"
         self.lib.library_type = "OtherLibType"
         
-        self.eqLib = Library()
+        self.eqLib = entities.Library()
         self.eqLib.internal_id = "MyLibID"
         self.eqLib.name = "LibraryName"
         
@@ -86,22 +111,22 @@ class TestLibrariesFunctionsWorker(unittest.TestCase):
         
 class TestSubmittedFileWorker(unittest.TestCase):
     def setUp(self):
-        self.subfile = SubmittedFile()
+        self.subfile = entities.SubmittedFile()
         self.subfile.submission_id = "SubmId"
         
-        self.lib = Library()
+        self.lib = entities.Library()
         self.lib.name = "LibraryName"
         self.lib.library_type = "LibType"
         
-        self.otherLib = Library()
+        self.otherLib = entities.Library()
         self.otherLib.name = "OtherLibName"
         self.lib.library_type = "OtherLibType"
         
-        self.sample = Sample()
+        self.sample = entities.Sample()
         self.sample.name = "SampleName"
         self.sample.accession_number = "AccNr123"
         
-        self.otherSample = Sample()
+        self.otherSample = entities.Sample()
         self.otherSample.name = "OtherSampleName"
         self.otherSample.accession_number = "ACCNr456"
         
@@ -128,17 +153,17 @@ class TestSubmittedFileWorker(unittest.TestCase):
         self.assertEqual(self.subfile.file_mdata_status, INCOMPLETE_STATUS)
     
     def test_contains_fct(self):
-        lib = Library()
+        lib = entities.Library()
         lib.name = "LibraryName"
         lib.library_type = "LibType"
-        otherLib = Library()
+        otherLib = entities.Library()
         otherLib.name = "OtherLibName"
         lib.library_type = "OtherLibType"
         
-        sample = Sample()
+        sample = entities.Sample()
         sample.name = "SampleName"
         sample.accession_number = "AccNr123"
-        otherSample = Sample()
+        otherSample = entities.Sample()
         otherSample.name = "OtherSampleName"
         otherSample.accession_number = "ACCNr456"
         
@@ -155,12 +180,12 @@ class TestSubmittedFileWorker(unittest.TestCase):
         self.assertTrue(contains_ent)
         
     def test_add_or_update_fct(self):
-        lib = Library()
+        lib = entities.Library()
         lib.name = "LibraryName"
         lib.library_type = "LibType"
         lib.public_name = "NewLibPublicName"
         
-        sample = Sample()
+        sample = entities.Sample()
         sample.name = "SampleName"
         sample.accession_number = "AccNr123"
         sample.geographical_region = "New SAMPLE GeographReg"
@@ -184,14 +209,29 @@ class TestRequests(unittest.TestCase):
     
     def test_create_submission(self):
         headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
-        payload = {"files" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
         r = requests.post(self.URL, data=json.dumps(payload), headers = headers)
+        print "POST REQ made -- response:", r.text
         self.assertEqual(r.status_code, 201)
         
-        submission = r.text
-        submission = json.loads(submission)['submission_id']
-         
-        print "AND TEXT: ", submission
+        submission_info = r.text
+        print "AND TEXT: ", submission_info
+        submission = json.loads(submission_info)['submission_id']
+     
+     
+    #   file_id = submission_info['testing']
+    
+    #def test_POST_sample(self):
+#        url = self.URL+submission+"/files/"+file_id[0]+"/samples/"
+#        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+#        payload = {"name" : "TB 10010_03"}
+#        r = requests.post(url, data=json.dumps(payload), headers = headers)
+#        self.assertEqual(r.status_code, 200)
+#        
+#        
+#        # PUT REQUEST:
+#        payload = {"ethnicity" : "German"}
+        
 
 
         
