@@ -154,11 +154,12 @@ class Entity(DynamicEmbeddedDocument):
         return False
     
     
-    # TODO: Uncaught case: self.internal_id = None, name !=None, and json_obj.internal_id !=None, name == None => can't decide... 
+    # TODO: Uncaught case: self.internal_id = None, name !=None, and json_obj.internal_id !=None, name == None => SHOULD output -- can't decide... 
     def are_the_same(self, json_obj):
         for id_field in ENTITY_IDENTITYING_FIELDS:
             if id_field in json_obj and hasattr(self, id_field) and json_obj[id_field] != None and getattr(self, id_field) != None:
-                return json_obj[id_field] == getattr(self, id_field)
+                are_same = json_obj[id_field] == getattr(self, id_field)
+                return are_same
         return False
     
     
@@ -303,6 +304,15 @@ class Sample(Entity):          # one sample can be member of many studies
     common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
 
+    
+    def __eq__(self, other):
+        if other == None:
+            return False
+        for id_field in ENTITY_IDENTITYING_FIELDS:
+            if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
+                return other[id_field] == getattr(self, id_field)
+        return False
+    
     @staticmethod
     def check_keys(sample_json):
         for key in sample_json:
@@ -574,6 +584,21 @@ class SubmittedFile(DynamicDocument):
     def get_study_by_id(self, study_id):
         return self.__get_entity_by_id__(study_id, self.study_list)
             
+    
+    def __contains_entity__(self, entity, entity_list):
+        for other_entity in entity_list:
+            if other_entity.are_the_same(entity):
+                return True
+        return False
+    
+    def contains_sample(self, sample):
+        return self.__contains_entity__(sample, self.sample_list)
+    
+    def contains_study(self, study):
+        return self.__contains_entity__(study, self.study_list)
+    
+    def contains_lib(self, lib):
+        return self.__contains_entity__(lib, self.library_list)
         
     # NOT USED YET
     def serialize(self, data):

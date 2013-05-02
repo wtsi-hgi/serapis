@@ -1,6 +1,8 @@
 
 import simplejson
 from serapis import constants
+from django.conf.locale import id
+from serapis.constants import SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE
 #import json
 # ------------------ ENTITIES ---------------------------
 
@@ -8,6 +10,8 @@ from serapis import constants
 
 ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
 FILE_META_FIELDS = ['last_updates_source']
+ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
+
 
 class Entity(object):
     def __init__(self):
@@ -17,16 +21,18 @@ class Entity(object):
         self.has_minimal = False        #
         
     def __eq__(self, other):
-        ''' Checks if the entities are equal. This applies only for the entities
-            that have an internal id. If any of the entity's internal_id is None, 
-            then the method returns False. '''
-        if hasattr(self, 'internal_id') and self.internal_id != None:
-            if hasattr(other, 'internal_id') and self.internal_id == other.internal_id:
-                return True
-        elif hasattr(self, 'name') and self.name != None:
-            if hasattr(other, 'name') and self.name == other.name:
-                return True
+        if other == None:
+            return False
+        if not isinstance(other, self.__class__):
+            return False
+        for id_field in ENTITY_IDENTITYING_FIELDS:
+            if hasattr(other, id_field) and hasattr(self, id_field) and getattr(other, id_field) != None and getattr(self, id_field) != None:
+                are_same = (getattr(self, id_field) == getattr(other, id_field))
+                return are_same
         return False
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __repr__(self):
         return "%r" % self.__dict__
@@ -34,14 +40,14 @@ class Entity(object):
     def update(self, new_entity):
         ''' Compare the properties of this instance with the new_entity object properties.
             Update the fields in this object(self) and return True if anything was changed.'''
-        has_changed = False
+        #has_changed = False
         for field in vars(new_entity):
             #crt_val = getattr(self, field)
             new_val = getattr(new_entity, field)
             #if crt_val == None and new_val != None:
             setattr(self, field, new_val)
-            has_changed = True
-        return has_changed
+        #    has_changed = True
+        #return has_changed
     
     def check_if_complete_mdata(self):
         ''' Checks if the mdata corresponding to this entity is complete. '''
@@ -62,15 +68,15 @@ class Study(Entity):
         self.reference_genome = reference_genome
         super(Study, self).__init__()
     
-    def __eq__(self, other):
-        if super(Study, self).__eq__(other) == True:
-            return True
-        if isinstance(other, Study):
-            if self.accession_number != None and self.accession_number == other.accession_number:
-                return True
-            elif self.name != None and self.name == other.name:
-                return True
-        return False
+#    def __eq__(self, other):
+#        if super(Study, self).__eq__(other) == True:
+#            return True
+#        if isinstance(other, Study):
+#            if self.accession_number != None and self.accession_number == other.accession_number:
+#                return True
+#            elif self.name != None and self.name == other.name:
+#                return True
+#        return False
      
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
@@ -108,13 +114,13 @@ class Library(Entity):
         #sample_internal_id = IntField()
 
         
-    def __eq__(self, other):
-        if super(Library, self).__eq__(other) == True:
-            return True
-        if isinstance(other, Library):
-            if self.name != None and self.name == other.name:
-                return True
-        return False
+#    def __eq__(self, other):
+#        if super(Library, self).__eq__(other) == True:
+#            return True
+#        if isinstance(other, Library):
+#            if self.name != None and self.name == other.name:
+#                return True
+#        return False
 
     def check_if_has_minimal_mdata(self):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
@@ -174,18 +180,8 @@ class Sample(Entity): # one sample can be member of many studies
         self.common_name = common_name
         super(Sample, self).__init__()
         
-        
-    # Possible flow here: if acc_nr != None and the 2 obj have diff acc_nrs - PROBLEMATIC -it's a logic conflict!!!
-    def __eq__(self, other):                #Some samples are identified by name, others by accession_number
-        if super(Sample, self).__eq__(other) == True:
-            return True
-        if isinstance(other, Sample):
-            if self.name != None and self.name == other.name:
-                return True
-            elif self.accession_number != None and self.accession_number == other.name:
-                return True
-        return False
-    
+
+
     def check_if_has_minimal_mdata(self):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
@@ -266,22 +262,26 @@ class SubmittedFile():
         self.not_unique_entity_error_dict = dict()       #DictField()     # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}   
         
     def __add_or_update_entity__(self, new_entity, entity_list):
+        was_found = False
         for old_entity in entity_list:
             if new_entity == old_entity:
-                return old_entity.update(new_entity)
-        entity_list.append(new_entity)
-        return True
+                old_entity.update(new_entity)
+                was_found = True
+                #return old_entity.update(new_entity)
+        if not was_found:
+            entity_list.append(new_entity)
+        #return True
 
     def add_or_update_lib(self, new_lib):
         ''' Add the library to the library_list if it doesn't already exist.
             Update the existing lib in library_list if it already exists. '''
-        return self.__add_or_update_entity__(new_lib, self.library_list)
+        self.__add_or_update_entity__(new_lib, self.library_list)
         
     def add_or_update_sample(self, new_sample):
-        return self.__add_or_update_entity__(new_sample, self.sample_list)
+        self.__add_or_update_entity__(new_sample, self.sample_list)
 
     def add_or_update_study(self, new_study):
-        return self.__add_or_update_entity__(new_study, self.study_list)
+        self.__add_or_update_entity__(new_study, self.study_list)
 
     @staticmethod
     def build_from_json(json_file):
@@ -348,31 +348,52 @@ class SubmittedFile():
     
     
     # CAREFUL! Here I assumed that the identifier in header LB field is the library name. If not, this should be changed!!!
-    def contains_lib(self, lib_name):
-        for lib in self.library_list:
-            if lib.name == lib_name:
-                return True
+#    def contains_lib(self, lib_name):
+#        for lib in self.library_list:
+#            if lib.name == lib_name:
+#                return True
+#        return False
+#    
+#    def contains_sample(self, sample_name):
+#        for sample in self.sample_list:
+#            if sample.name == sample_name or sample.accession_number == sample_name:
+#                return True
+#        return False
+#    
+#    def contains_study(self, study_name):
+#        for study in self.study_list:
+#            if study.name == study_name:
+#                return True
+#        return False
+    
+    
+    
+    # TODO: throw an exception if the entity_type is not known
+    def __get_entity_list__(self, entity_type):
+        ''' Returns the list of entities corresponding to the entity type
+            or None if the type is not known.
+        '''
+        entity_list = None
+        if entity_type == SAMPLE_TYPE:
+            entity_list = self.sample_list
+        elif entity_type == LIBRARY_TYPE:
+            entity_list = self.library_list
+        elif entity_type == STUDY_TYPE:
+            entity_list = self.study_list
+        return entity_list
+            
+            
+    def fuzzy_contains_entity(self, entity_identifier, entity_type):
+        ''' Searches for the entity given by the entity_identifier in the list of entities.
+            It is called fuzzy because it is not known what field is it given by entity_identifier
+            parameters, hence it tries to match this parameters with all the identifying fields of the entity.'''
+        entity_list = self.__get_entity_list__(entity_type)
+        for entity in entity_list:
+            for identifier in ENTITY_IDENTITYING_FIELDS:
+                if hasattr(entity, identifier) and getattr(entity, identifier) == identifier:
+                    return True
         return False
     
-    def contains_sample(self, sample_name):
-        for sample in self.sample_list:
-            if sample.name == sample_name or sample.accession_number == sample_name:
-                return True
-        return False
-    
-    def contains_study(self, study_name):
-        for study in self.study_list:
-            if study.name == study_name:
-                return True
-        return False
-    
-    def contains_entity(self, entity_name, entity_type):
-        if entity_type == constants.SAMPLE_TYPE:
-            return self.contains_sample(entity_name)
-        elif entity_type == constants.LIBRARY_TYPE:
-            return self.contains_lib(entity_name)
-        elif entity_type == constants.STUDY_TYPE:
-            return self.contains_study(entity_name)   
     
     def __remove_null_props_dict__(self, obj_to_modify):       # Deletes properties that are null from an object
         result_dict = dict()

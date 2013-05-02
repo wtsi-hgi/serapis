@@ -692,7 +692,9 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
     sample = models.build_entity_from_json(data, constants.SAMPLE_TYPE, sender)
     if sample != None:     # here should this be an exception? Again the question about unregistered fields...
         # TODO: Check if the sample doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-        if sample not in submitted_file.sample_list:
+        #if not sample in submitted_file.sample_list:    -- OUTPUTS AN ERROR...
+        if not submitted_file.contains_sample(sample):
+            print "CONTAINS SAMPLE RETURNED FALSE...", str(sample), " AND LIST: ", [ s.name for s in submitted_file.sample_list]
             submitted_file.sample_list.append(sample)
             submitted_file.save()
             launch_update_file_job(submitted_file)

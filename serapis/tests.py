@@ -14,7 +14,7 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis import models
+from serapis import models, controller
 from serapis.constants import *
 import unittest
 import requests
@@ -36,7 +36,7 @@ class TestLibraryFctController(unittest.TestCase):
 
 # TESTS FOR SERVER CODE:
 
-class TestEntityFunctionsServer(unittest.TestCase):
+class TestEntityFunctionsController(unittest.TestCase):
     
     def test_entity_eq(self):
         study1 = models.Study()
@@ -53,6 +53,25 @@ class TestEntityFunctionsServer(unittest.TestCase):
         
         st_list = [study1]
         self.assertTrue(study2 in st_list)
+        
+        st_list = [study2]
+        self.assertFalse(study1 not in st_list)
+        
+        
+    def test_samples_are_same(self):
+        sample1 = models.Sample()
+        sample1.name = "AA"
+        sample1.internal_id = 123
+        #sample1.save()
+        
+        sample2 = models.Sample()
+        sample2.internal_id = 123
+        
+        self.assertTrue(sample2.are_the_same({"name" : "AA", "internal_id" : 123}))
+        self.assertTrue(sample1.are_the_same(sample2))
+        
+        
+
 
 
 
@@ -109,6 +128,7 @@ class TestLibrariesFunctionsWorker(unittest.TestCase):
         is_eq = (self.lib == self.eqLib)
         self.assertTrue(is_eq)
         
+        
 class TestSubmittedFileWorker(unittest.TestCase):
     def setUp(self):
         self.subfile = entities.SubmittedFile()
@@ -129,6 +149,51 @@ class TestSubmittedFileWorker(unittest.TestCase):
         self.otherSample = entities.Sample()
         self.otherSample.name = "OtherSampleName"
         self.otherSample.accession_number = "ACCNr456"
+    
+    
+    def test_add_or_update_eq_fct(self):
+        self.subfile.sample_list = []
+        self.subfile.sample_list.append(self.sample)
+        
+        sample2 = entities.Sample()
+        sample2.internal_id = 123
+        sample2.name = "SampleName"
+        
+        
+        are_eq = self.sample.__eq__(sample2)
+        self.assertTrue(are_eq)
+        
+        are_equal = (sample2 == self.sample)
+        self.assertTrue(are_equal)
+        
+        are_equal = (self.sample == sample2)
+        self.assertTrue(are_equal)
+        
+        #  self.assertTrue(self.subfile.contains_sample(sample2))
+        self.subfile.add_or_update_sample(sample2)
+        #  self.assertTrue(self.subfile.contains_sample(sample2))
+        
+        
+        
+    def test_add_or_update_fct(self):
+        lib = entities.Library()
+        lib.name = "LibraryName"
+        lib.library_type = "LibType"
+        lib.public_name = "NewLibPublicName"
+        
+        sample = entities.Sample()
+        sample.name = "SampleName"
+        sample.accession_number = "AccNr123"
+        sample.geographical_region = "New SAMPLE GeographReg"
+        
+        self.subfile.add_or_update_lib(lib)
+        for l in self.subfile.library_list:
+            self.assertEqual(l.public_name, lib.public_name)
+            
+        self.subfile.add_or_update_sample(sample)
+        for s in self.subfile.sample_list:
+            self.assertEqual(s.geographical_region, sample.geographical_region)
+        
         
         
     def test_mdata_status_fcts(self):
@@ -152,53 +217,34 @@ class TestSubmittedFileWorker(unittest.TestCase):
         self.subfile.update_file_mdata_status()
         self.assertEqual(self.subfile.file_mdata_status, INCOMPLETE_STATUS)
     
-    def test_contains_fct(self):
-        lib = entities.Library()
-        lib.name = "LibraryName"
-        lib.library_type = "LibType"
-        otherLib = entities.Library()
-        otherLib.name = "OtherLibName"
-        lib.library_type = "OtherLibType"
+#    def test_contains_fct(self):
+#        lib = entities.Library()
+#        lib.name = "LibraryName"
+#        lib.library_type = "LibType"
+#        otherLib = entities.Library()
+#        otherLib.name = "OtherLibName"
+#        lib.library_type = "OtherLibType"
+#        
+#        sample = entities.Sample()
+#        sample.name = "SampleName"
+#        sample.accession_number = "AccNr123"
+#        otherSample = entities.Sample()
+#        otherSample.name = "OtherSampleName"
+#        otherSample.accession_number = "ACCNr456"
+#        
+#        self.subfile.library_list.append(self.lib)
+#        self.subfile.sample_list.append(self.sample)
+#        
+#        contains_lib = self.subfile.contains_lib(lib.name)
+#        self.assertTrue(contains_lib)
+#        
+#        contains_sampl = self.subfile.contains_sample(sample.name)
+#        self.assertTrue(contains_sampl)
+#        
+#        contains_ent = self.subfile.fuzzy_contains_entity(lib.name,LIBRARY_TYPE)
+#        self.assertTrue(contains_ent)
         
-        sample = entities.Sample()
-        sample.name = "SampleName"
-        sample.accession_number = "AccNr123"
-        otherSample = entities.Sample()
-        otherSample.name = "OtherSampleName"
-        otherSample.accession_number = "ACCNr456"
-        
-        self.subfile.library_list.append(self.lib)
-        self.subfile.sample_list.append(self.sample)
-        
-        contains_lib = self.subfile.contains_lib(lib.name)
-        self.assertTrue(contains_lib)
-        
-        contains_sampl = self.subfile.contains_sample(sample.name)
-        self.assertTrue(contains_sampl)
-        
-        contains_ent = self.subfile.contains_entity(lib.name,LIBRARY_TYPE)
-        self.assertTrue(contains_ent)
-        
-    def test_add_or_update_fct(self):
-        lib = entities.Library()
-        lib.name = "LibraryName"
-        lib.library_type = "LibType"
-        lib.public_name = "NewLibPublicName"
-        
-        sample = entities.Sample()
-        sample.name = "SampleName"
-        sample.accession_number = "AccNr123"
-        sample.geographical_region = "New SAMPLE GeographReg"
-        
-        self.subfile.add_or_update_lib(lib)
-        for l in self.subfile.library_list:
-            self.assertEqual(l.public_name, lib.public_name)
-            
-        self.subfile.add_or_update_sample(sample)
-        for s in self.subfile.sample_list:
-            self.assertEqual(s.geographical_region, sample.geographical_region)
-        
-        
+   
         
 class TestRequests(unittest.TestCase):
     
@@ -207,30 +253,77 @@ class TestRequests(unittest.TestCase):
     
     URL = "http://127.0.0.1:8000/api-rest/submissions/"
     
-    def test_create_submission(self):
+    def setUp(self):
         headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
         payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
-        r = requests.post(self.URL, data=json.dumps(payload), headers = headers)
-        print "POST REQ made -- response:", r.text
-        self.assertEqual(r.status_code, 201)
+        self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = headers)
+        print "POST REQ made -- response:", self.post_req.text
+        submission_info = self.post_req.text
+        #print "AND TEXT: ", submission_info
+        submission_info = json.loads(submission_info)
+        self.submission = submission_info['submission_id']
+        self.file_id = submission_info['testing'][0]
         
-        submission_info = r.text
-        print "AND TEXT: ", submission_info
-        submission = json.loads(submission_info)['submission_id']
-     
-     
-    #   file_id = submission_info['testing']
+    
+    def test_create_submission_samples(self):
+        self.assertEqual(self.post_req.status_code, 201)
+        
+    #def test_DB_submission(self):
+        db_submission = controller.get_submission(self.submission)
+        self.assertTrue(len(db_submission.files_list) == 1)
+        
+        
+        db_file = controller.get_submitted_file(self.file_id)
+        print "1. DB FILE: ", [s.name for s in db_file.sample_list]
+        #print "SAMPLES LIST: ", db_file.sample_list
+        
+        import time
+        time.sleep(4)
+        db_file = controller.get_submitted_file(self.file_id)
+        print "2. DB FILE: ", [s.name for s in db_file.sample_list]
+        
+        self.assertEqual(len(db_file.sample_list), 1)
+        self.assertIsNotNone(db_file.sample_list[0].internal_id)
+        
     
     #def test_POST_sample(self):
-#        url = self.URL+submission+"/files/"+file_id[0]+"/samples/"
-#        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        url = self.URL+self.submission+"/files/"+self.file_id+"/samples/"
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
 #        payload = {"name" : "TB 10010_03"}
 #        r = requests.post(url, data=json.dumps(payload), headers = headers)
 #        self.assertEqual(r.status_code, 200)
 #        
+#        # Test what is actually in DB:
+#        db_file = controller.get_submitted_file(self.file_id)
+#        self.assertEqual(len(db_file.sample_list), 2)
 #        
-#        # PUT REQUEST:
-#        payload = {"ethnicity" : "German"}
+    
+    #def test_RE_POST_sample(self):
+        ''' Repeat the POST sample request => expect error'''
+#        payload = {"name" : "TB 10010_03"}
+#        r = requests.post(url, data=json.dumps(payload), headers = headers)
+#        self.assertEqual(r.status_code, 422)
+        
+    #def test_adding_Sample_by_id
+        payload = {"internal_id" : 3007}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 200)
+     
+        samples = controller.get_all_samples(self.submission, self.file_id)
+        print "3. DB FILE: ", [s.name for s in samples]
+        #time.sleep(5)
+        
+    #def test_RE_POST_sample, but by name, after it has been POSt-ed by id
+        payload = {"name" : "PK50-C 300"}    #same sample, given by name this time
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        
+        samples = controller.get_all_samples(self.submission, self.file_id)
+        print "4. DB FILE: ", [s.name for s in samples]
+        self.assertEqual(r.status_code, 422)
+    
+        
+        # PUT REQUEST:
+        payload = {"ethnicity" : "German"}
         
 
 

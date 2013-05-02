@@ -446,14 +446,18 @@ class ParseBAMHeaderTask(Task):
     def select_new_incomplete_entities(self, header_entity_list, entity_type, file_submitted):
         ''' Searches in the list of samples for each sample identifier (string) from header_library_name_list. 
             If the sample exists already, nothing happens. 
-            If it doesn't exist, than it adds the sample to a list of incomplete samples. '''
+            If it doesn't exist, than it adds the sample to a list of incomplete samples. 
+            
+            Note: it only deals with library and sample types because these 
+                  are the only entities to be found in the BAM header.
+        '''
 #        if len(file_submitted.sample_list) == 0:
 #            return header_entity_list
         if len(header_entity_list) == 0:
             return []
         incomplete_ent_list = []
         for ent_name_h in header_entity_list:
-            if not file_submitted.contains_entity(ent_name_h, entity_type):
+            if not file_submitted.fuzzy_contains_entity(ent_name_h, entity_type):
                 if entity_type == LIBRARY_TYPE:
                     entity_dict = {'name' : ent_name_h}
                 else:
@@ -590,6 +594,7 @@ class UpdateFileMdataTask(Task):
         
         incomplete_libs_list = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)
+        print "INCOMPLETE SAMPLES LIST ----- BEFORE SEARCHING SEQSCAPE***************************************", incomplete_samples_list
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
         
         print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
