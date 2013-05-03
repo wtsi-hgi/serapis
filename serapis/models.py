@@ -10,7 +10,6 @@ import logging
 
 
 
-
 FILE_TYPES = (BAM_FILE, VCF_FILE)
 SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
@@ -134,6 +133,17 @@ def compare_sender_priority(source1, source2):
 #ENTITY_APP_MDATA_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
 ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
+
+FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status', 
+                              'file_header_parsing_job_status', 
+                              'header_has_mdata', 
+                              'file_update_mdata_job_status', 
+                              'last_updates_source',
+                              'file_mdata_status',
+                              'file_submission_status',
+                              'file_error_log',
+                              ]
+  
 
 class Entity(DynamicEmbeddedDocument):
     internal_id = IntField()
@@ -305,13 +315,13 @@ class Sample(Entity):          # one sample can be member of many studies
     
 
     
-    def __eq__(self, other):
-        if other == None:
-            return False
-        for id_field in ENTITY_IDENTITYING_FIELDS:
-            if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
-                return other[id_field] == getattr(self, id_field)
-        return False
+#    def __eq__(self, other):
+#        if other == None:
+#            return False
+#        for id_field in ENTITY_IDENTITYING_FIELDS:
+#            if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
+#                return other[id_field] == getattr(self, id_field)
+#        return False
     
     @staticmethod
     def check_keys(sample_json):
@@ -759,6 +769,7 @@ class TestDoc2(Document):
     name = StringField()
     friends = ListField(StringField())
     address_book = DictField()
+    version = IntField()
 
   
 #  OPTIONAL FIELDS AFTER ELIMINATED FOR CLEANING PURPOSES:

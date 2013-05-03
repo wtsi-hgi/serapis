@@ -61,7 +61,8 @@ update_file_task = tasks.UpdateFileMdataTask()
 def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
     print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
-    file_serialized = serializers.serialize(file_submitted)
+    #file_serialized = serializers.serialize(file_submitted)
+    file_serialized = serializers.serialize_file(file_submitted)
     print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER AFTER SERIAL -----------------------", vars(file_submitted)
     
     

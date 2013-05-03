@@ -6,8 +6,6 @@ import os
 import requests
 import errno
 import logging
-
-import simplejson       
 import time
 import hashlib
 #import MySQLdb
