@@ -60,7 +60,7 @@ def deserialize(data):
 # ------------------------ FILE SUBMITTED SERIALIZER ---------------------------
 
     
-def encode_subm_file(obj):
+def encode_excluding_meta(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
         out = dict(obj._data)
         for k,v in out.items():
@@ -82,8 +82,11 @@ def encode_subm_file(obj):
         
 
 
-def serialize_file(data):
+def serialize_excluding_meta(data):
+    ''' Serializer that uses an encoding function which excludes all the 
+        implementation-specific metadata - data showing the statuses of the jobs
+        or who did the last updates = fields not relevant for the user, only for the logic behind.'''
     import simplejson
-    return simplejson.dumps(data, default=encode_subm_file, indent=4)
+    return simplejson.dumps(data, default=encode_excluding_meta, indent=4)
 
 

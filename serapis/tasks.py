@@ -483,9 +483,9 @@ class ParseBAMHeaderTask(Task):
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
         file_mdata['id'] = str(file_id)
-        print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
+        #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
         file_mdata.pop('null')
-        print "FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
+        print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
         #submitted_file = SubmittedFile()
@@ -544,7 +544,7 @@ class ParseBAMHeaderTask(Task):
         serial = file_mdata.to_json()
         #print "FILE serialized - JSON: ", serial
         deserial = simplejson.loads(serial)
-        print "BEFORE EXITING WORKER RETURNS.......................", deserial
+        print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
         #res = file_mdata.to_dict()
         resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
@@ -588,7 +588,7 @@ class UpdateFileMdataTask(Task):
         file_submitted = SubmittedFile.build_from_json(file_mdata)
         file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
         
-        print "UPDATE TASKxxxxxxxxxxxxxxxxxxxxxxxxxxx -- AFTER BUILDING FROM JSON A FILE ---", vars(file_submitted)
+        #print "UPDATE TASKxxxxxxxxxxxxxxxxxxxxxxxxxxx -- AFTER BUILDING FROM JSON A FILE ---", vars(file_submitted)
         
         incomplete_libs_list = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)

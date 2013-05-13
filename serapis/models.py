@@ -5,6 +5,7 @@ from serapis.constants import *
 from bson.objectid import ObjectId
 #from mongoengine.base import ObjectIdField
 
+import re
 import simplejson
 import logging
 
@@ -126,6 +127,72 @@ def compare_sender_priority(source1, source2):
             return -1
         elif diff >= 0:
             return 1
+        
+def increment_version(data_dict, update_type):
+    ''' This function adds to the file-update dictionary the incremented 
+        version number according to the update_type of update:
+        - LIBRARY_TYPE = update of any entity within a file's library list
+        - SAMPLE_TYPE = update of any entity within a file's samples list
+        - STUDY_TYPE = update of any entity within a file's study list.
+        The increase ration is defined as a constant for each type.
+        Returns the modified data dictionary.
+    '''
+    if update_type == LIBRARY_UPDATE:
+        data_dict['inc__version'] = LIBRARIES_VERSION_INCREMENT + FILE_FIELDS_UPDATE
+    elif update_type == SAMPLE_UPDATE:
+        data_dict['inc__version'] = SAMPLES_VERSION_INCREMENT + FILE_FIELDS_UPDATE
+    elif update_type == STUDY_UPDATE:
+        data_dict['inc__version'] = STUDIES_VERSION_INCREMENT + FILE_FIELDS_UPDATE
+    elif update_type == FILE_FIELDS_UPDATE:
+        data_dict['inc__version'] = FILE_VERSION_INCREMENT
+    return data_dict
+    
+    
+#def get_library_version(version):
+#    #v = str(version)
+#    return version[2]
+#
+#def get_sample_version(version):
+#    #v = str(version)
+#    return version[1]
+#
+#def get_study_version(version):
+#    #v = str(version)
+#    return version[3]
+#
+#def get_file_version(version):
+#    #v = str(version)
+#    return version[0]
+
+#''' Version field holds a 4 digit number - each digit having a different meaning:
+#        1 2 3 4:
+#        - 1 digit = version of the file mdata (fields specific to the file, excluding the lists of entities)
+#        - 2 digit = version of the list of samples mdata
+#        - 3 digit = version of the list of libraries mdata
+#        - 4 digit = version of the list of studies mdata
+#        The version digits 2,3,4 are independent of each other, while digit 1 depends on all
+#        => any change of version in digits 2,3,4 will result in a change of digit 1.
+#    '''
+def set_version_changes(update_type, version):
+    ''' Helper function that only sets the version digit, if it's not already set.
+        Params:
+            - update_type - a constant indicating which type of change has been made
+            - version - string that indicates the current changes in this update.
+                        Has only 1 and 0, so that many changes of the same type
+                        will lead to only one version update.
+        Returns:
+            - updated version - a string made of 1 and 0.'''
+    version_string = str(version)
+    if update_type == LIBRARY_UPDATE and version_string[2] == '0':
+        version_string[2] = "1"
+    elif update_type == SAMPLE_UPDATE and version_string[1] == '0':
+        version_string[1] = '1'
+    elif update_type == STUDY_UPDATE and version_string[3] == '0':
+        version_string[3] = '1'
+    elif update_type == FILE_FIELDS_UPDATE:
+        version_string[0] = '0'
+    return version_string
+    
 
 
 # ------------------- Model classes ----------------------------------
@@ -141,7 +208,7 @@ FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
                               'last_updates_source',
                               'file_mdata_status',
                               'file_submission_status',
-                              'file_error_log',
+                              #'file_error_log',
                               ]
   
 
@@ -151,7 +218,7 @@ class Entity(DynamicEmbeddedDocument):
     
     # APPLICATION METADATA FIELDS:
     is_complete = BooleanField()
-    has_minimal = BooleanField()
+    has_minimal = BooleanField(default=False)
     last_updates_source = DictField()        # keeps name of the field - source that last modified this field
     
     
@@ -247,9 +314,11 @@ class Study(Entity):
   
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        if self.accession_number != None and self.study_title != None:
-            return True
-        return False
+        if self.has_minimal == True:
+            return self.has_minimal
+        elif self.accession_number != None and self.study_title != None:
+            self.has_minimal = True
+        return self.has_minimal
 
 
 class Library(Entity):
@@ -357,6 +426,7 @@ class Sample(Entity):          # one sample can be member of many studies
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
             if self.accession_number != (None or "") and self.name != (None or ""):
+                print "SAMPLE HAS MINIMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                 self.has_minimal = True
         return self.has_minimal
     
@@ -379,9 +449,25 @@ class SubmittedFile(DynamicDocument):
     
     
     ############### APPLICATION - LEVEL METADATA #######################
+
+    ''' Version field holds a list of 4 version numbers(int) - each nr having a different meaning:
+        0 1 2 3:
+        - 1st elem of the list = version of the file mdata (fields specific to the file, excluding the lists of entities)
+        - 2nd elem of the list = version of the list of samples mdata
+        - 3rd elem of the list = version of the list of libraries mdata
+        - 4th elem of the list = version of the list of studies mdata
+        The version numbers corresponding to 2,3,4th elem of the list are independent of each other,
+        while the 1st version nr depends on all the others 
+        => any change of version in elements 2,3,4 will result in a change of elem 1 of the list.
+    '''
+    version = ListField(default=lambda : [0,0,0,0])
+    
     ######################## STATUSES ##################################
     # UPLOAD JOB:
     file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+    
+    # FIELDS FOR FILE MDATA:
+    has_minimal = BooleanField(default=False)
     
     # HEADER PARSING JOB:
     file_header_parsing_job_status = StringField(choices=HEADER_PARSING_JOB_STATUS) # ("SUCCESS", "FAILURE")
@@ -390,7 +476,7 @@ class SubmittedFile(DynamicDocument):
     # UPDATE MDATA JOB:
     file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
     
-    #GENERAL STATUSES
+    #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
@@ -406,8 +492,26 @@ class SubmittedFile(DynamicDocument):
     last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
     
     
+    def get_library_version(self):
+        return self.version[2]
     
-    def check_if_has_min_mdata(self):
+    def get_sample_version(self):
+        return self.version[1]
+    
+    def get_study_version(self):
+        return self.version[3]
+    
+    def get_file_version(self):
+        return self.version[0]
+    
+    def inc_file_version(self, update_dict):
+        update_dict['inc__version__0'] = 1
+        return update_dict
+    
+    def check_if_has_min_mdata_and_update(self):
+        print "ENTERED IN CHECK IF HAS MIN MDATA AND UPDATE..................................................."
+        if self.has_minimal == True:
+            return self.has_minimal
         file_has_minimal_mdata = True
         for study in self.study_list:
             if not study.check_if_has_minimal_mdata():
@@ -423,13 +527,17 @@ class SubmittedFile(DynamicDocument):
                 if not lib.check_if_has_minimal_mdata():
                     file_has_minimal_mdata = False
                     break
-        if len(self.sample_list) == 0 or len(self.library_list) == 0:       
+        #if len(self.sample_list) == 0 or len(self.library_list) == 0:       
             # TODO: add study
             # !!! HERE I IMPOSED THE CONDITION according to which there has to be at least one entity of each kind!!!
-            file_has_minimal_mdata = False
-        if self.file_header_parsing_job_status == FINISHED_STATUS and self.file_update_mdata_job_status in FINISHED_STATUS:
+        #    file_has_minimal_mdata = False
+        print "BEFORE IF ------ FILE HEADER PARSING JOB STATUS: ", self.file_header_parsing_job_status, " and RESULT OF IF: ", self.file_header_parsing_job_status in FINISHED_STATUS
+        if self.file_header_parsing_job_status in FINISHED_STATUS: # and self.file_update_mdata_job_status in FINISHED_STATUS:
             if file_has_minimal_mdata == True:
-                self.file_mdata_status = HAS_MINIMAL_STATUS
+                print "IMMEDIATELY BEFORE UPDATE IN DB, let's see what do I have in my obj: ************************** ", self.file_mdata_status
+                SubmittedFile.objects(id=self.id, version__0=self.get_file_version()).update_one(set__file_mdata_status=HAS_MINIMAL_STATUS, inc__version__0=1)
+                print "IMMEDIATELY AFTER UPDATE IN DB, LET'S SEE WHAT DO I HAVE IN MY OBJ: **************************  ", self.file_mdata_status
+                #self.file_mdata_status = HAS_MINIMAL_STATUS
             else:
                 self.file_mdata_status = INCOMPLETE_STATUS
         else:
@@ -438,14 +546,15 @@ class SubmittedFile(DynamicDocument):
     
     
     # TODO: this is incomplete
-    def check_all_statuses(self):
+    def check_and_update_all_statuses(self):
+        print "ENTERED IN CHECK ALL STATUSES...........................................................STATUSES: ", self.file_header_parsing_job_status, " and upload: ", self.file_upload_job_status
         if self.file_upload_job_status == FAILURE_STATUS:
             #TODO: DELETE ALL MDATA AND FILE
             pass
+        SubmittedFile.objects(id=self.id, file_upload_job_status=SUCCESS_STATUS, file_header_parsing_job_status=SUCCESS_STATUS).update_one()
         if self.file_upload_job_status == SUCCESS_STATUS and self.file_header_parsing_job_status == SUCCESS_STATUS:
-            if self.check_mdata_status() == HAS_MINIMAL_STATUS:
-                if self.file_upload_job_status == SUCCESS_STATUS:
-                    self.file_submission_status = READY_FOR_SUBMISSION
+            if self.check_if_has_min_mdata_and_update() == HAS_MINIMAL_STATUS:
+                self.file_submission_status = READY_FOR_SUBMISSION
                 
         if self.file_upload_job_status == IN_PROGRESS_STATUS or self.file_header_parsing_job_status == IN_PROGRESS_STATUS or self.file_update_mdata_job_status == IN_PROGRESS_STATUS:
             self.file_submission_status = IN_PROGRESS_STATUS
@@ -465,7 +574,7 @@ class SubmittedFile(DynamicDocument):
             found = False
             for old_entity in old_entity_list:
                 if old_entity.are_the_same(new_entity):             #if old_entity.is_equal(new_entity):
-                    print "HAS NEW ENTITIES => RETURNS FALSE---------------"
+                    #print "HAS NEW ENTITIES => RETURNS FALSE---------------"
                     found = True
             if not found:
                 return True
@@ -488,11 +597,12 @@ class SubmittedFile(DynamicDocument):
     def __update_entity_list__(self, old_entity_list, new_entity_list_json, new_source, entity_type):
         ''' Compares an old library object with a new json representation of a lib
             and updates the old one accordingly. '''
+        was_updated = False
         for new_entity_json in new_entity_list_json:
             was_found = False
             for old_entity in old_entity_list:
                 if old_entity.are_the_same(new_entity_json):                      #if new_entity.is_equal(old_entity):
-                    old_entity.update_from_json(new_entity_json, new_source)
+                    was_updated = old_entity.update_from_json(new_entity_json, new_source)
                     was_found = True
                     break
             if not was_found:
@@ -500,7 +610,9 @@ class SubmittedFile(DynamicDocument):
                     entity = build_entity_from_json(new_entity_json, entity_type, new_source)
                     #if entity != None:    - this should be here, but I commented it out for testing purposes
                     old_entity_list.append(entity)
-                # V - solved--TODO: possible BUG! - here it adds None, if PUT req with fields unknown, like {"library_list" : [{"library_name" : "NZO_1 1 5"}]} - WHY????
+                    was_updated = True
+        return was_updated
+        
     
         
 #    updated = Feed.objects(posts__uid=post.uid).update_one(set__posts__S=post)
@@ -512,25 +624,52 @@ class SubmittedFile(DynamicDocument):
             if val == 'null' or val == None:
                 continue
             if key in self._fields:          #if key in vars(submission):
-                if key == 'library_list':
-                    self.__update_entity_list__(self.library_list, val, update_source, LIBRARY_TYPE)
+                if key in ['submission_id', 
+                             'id',
+                             '_id',
+                             'version',
+                             'file_type', 
+                             'file_path_irods', 
+                             'file_path_client', 
+                             'last_updates_source', 
+                             'file_mdata_status',
+                             'file_submission_status']:
+                    pass
+                elif key == 'library_list':
+                    was_updated = self.__update_entity_list__(self.library_list, val, update_source, LIBRARY_TYPE)
+                    if was_updated:
+                        lib_version = self.get_library_version()
+                        #SubmittedFile.objects(id=self.id, version=re.compile(r'[**'+lib_version+'*]')).update_one(set__library_list=self.library_list)
+                        upd = SubmittedFile.objects(id=self.id, version__2=lib_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=self.library_list)
+                        print "UPDATING LIBRARY LIST.................................", upd
                 elif key == 'sample_list':
-                    self.__update_entity_list__(self.sample_list, val, update_source, SAMPLE_TYPE)
+                    was_updated = self.__update_entity_list__(self.sample_list, val, update_source, SAMPLE_TYPE)
+                    if was_updated:
+                        upd = SubmittedFile.objects(id=self.id, version__1=self.get_sample_version()).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=self.sample_list)
+                        print "UPDATING SAMPLE LIST..................................", upd
                 elif key == 'study_list':
-                    self.__update_entity_list__(self.study_list, val, update_source, STUDY_TYPE)       #self.study_list.extend(val)
+                    was_updated = self.__update_entity_list__(self.study_list, val, update_source, STUDY_TYPE)       #self.study_list.extend(val)
+                    if was_updated:
+                        upd = SubmittedFile.objects(id=self.id, version__3=self.get_study_version()).update_one(inc__version__3=1, inc__version__0=1, set__study_list=self.study_list)
+                        print "UPDATING STUDY LIST...................................", upd
                 elif key == 'seq_centers':
                     print "TYPE OF SEQ CENTER VAL:"
                     for seq_center in val:
                         if seq_center not in self.seq_centers:
                             self.seq_centers.append(seq_center)
                             self.last_updates_source[key] = update_source
+                    update_dict = {'set__seq_centers' : self.seq_centers, str('set__last_updates_source__'+key) : update_source, 'inc__version__0' : 1}
+                    upd = SubmittedFile.objects(id=self.id, version__0=self.get_file_version()).update_one(**update_dict)
+                    print "UPDATING SEQ CENTERS>.........................", upd
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif key == 'file_error_log':
                     # TODO: make file_error a map, instead of a list
                     self.file_error_log.extend(val)
                 #    self.last_updates_source['file_error_log'] = update_source
+                    print "UPDATING ERROR LOG FILE..........................................."
                 elif key == 'missing_entities_error_dict':
                     self.missing_entities_error_dict.update(val)
+                    print "UPDATING MISSING ENTITIES DICT......................................."
 #                    for (key, val) in self.missing_entities_error_dict.iteritems():
 #                        print "KEY TO BE INSERTED: ", key, "VAL: ", val
 #                        update_dict = {str('set__missing_entities_error_dict__' + key) : val}
@@ -538,37 +677,50 @@ class SubmittedFile(DynamicDocument):
                         #SubmittedFile.objects(id=self.id).update_one(push_all__missing_entities_error_dict=val)
                 elif key == 'not_unique_entity_error_dict':
                     self.not_unique_entity_error_dict.update(val)
-                elif key == 'file_mdata_status':
-                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE):
-                        update_dict = {'set__file_mdata_status' : val, str('set__last_updates_source__'+key) : update_source}
-                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                    print "UPDATING NOT UNIQUE....................."
+#                elif key == 'file_mdata_status':
+#                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE):
+#                        update_dict = {'set__file_mdata_status' : val, str('set__last_updates_source__'+key) : update_source}
+#                        self.inc_file_version(update_dict)
+#                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
+#                        print "UPDATING FILE MDATA STATUS.........................................."
                 elif key == 'header_has_mdata':
                     if update_source == PARSE_HEADER_MSG_SOURCE:
                         update_dict = {'set__header_has_mdata' : val, str('set__last_updates_source__'+key) : update_source}
-                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
-                elif key == 'file_submission_status':
-                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
-                    SubmittedFile.objects(id=self.id).update_one(**update_dict)
-                elif key in ['submission_id', 'file_id', 'file_path_irods', 'file_path_client', 'file_type', 'last_updates_source']:
-                    pass
+                        self.inc_file_version(update_dict)
+                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        print "UPDATING HEADER HAS MDATA............................................", upd
+#                elif key == 'file_submission_status':
+#                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
+#                    self.inc_file_version(update_dict)
+#                    SubmittedFile.objects(id=self.id).update_one(**update_dict)
+#                    print "UPDATING FILE SUBMISSION STATUS.........................................."
                 elif key == 'md5':
                     # TODO: from here I don't add these fields to the last_updates_source dict, should I?
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
-                        SubmittedFile.objects(id=self.id).update_one(set__md5=val)
-                        #self.md5 = val
+                        update_dict = {'set__md5' : val}
+                        self.inc_file_version(update_dict)
+                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        print "UPDATING MD5..............................................", upd
                 elif key == 'file_upload_job_status':
                     if update_source == UPLOAD_FILE_MSG_SOURCE:
-                        SubmittedFile.objects(id=self.id).update_one(set__file_upload_job_status=val)
-                        #self.file_upload_job_status = val
+                        update_dict = {'set__file_upload_job_status' : val}
+                        self.inc_file_version(update_dict)
+                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        print "UPDATING UPLOAD FILE JOB STATUS...........................", upd, " and self upload status: ", self.file_upload_job_status
                 elif key == 'file_header_parsing_job_status':
                     if update_source == PARSE_HEADER_MSG_SOURCE:
-                        SubmittedFile.objects(id=self.id).update_one(set__file_header_parsing_job_status=val)
-                        #self.file_header_parsing_job_status = val
+                        update_dict = {'set__file_header_parsing_job_status' : val}
+                        self.inc_file_version(update_dict)
+                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
                 # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
                 elif key == 'file_update_mdata_job_status':
                     if update_source == UPDATE_MDATA_MSG_SOURCE:
-                        SubmittedFile.objects(id=self.id).update_one(set__file_update_mdata_job_status=val)
-                        #self.file_update_mdata_job_status = val
+                        update_dict = {'set__file_update_mdata_job_status' : val}
+                        self.inc_file_version(update_dict)
+                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
+                        print "UPDATING FILE UPDATE MDATA JOB STATUS............................................",upd
                 elif key != None and key != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
                     setattr(self, key, val)
@@ -576,6 +728,7 @@ class SubmittedFile(DynamicDocument):
             else:
                 print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
                 #raise KeyError
+        self.check_and_update_all_statuses()
         
         #self.save(validate=False)
         
@@ -622,7 +775,7 @@ class SubmittedFile(DynamicDocument):
 
 class BAMFile(SubmittedFile):
     bam_type = StringField()
-    lane_nrs_list = ListField()
+    #lane_nrs_list = ListField()
     
     
 class VCFFile(SubmittedFile):

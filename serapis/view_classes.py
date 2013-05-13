@@ -170,17 +170,6 @@ class SubmissionsMainPageRequestHandler(APIView):
 #                return Response("Created the submission with id="+str(submission_id), status=201)
 
 
-#---------- OLD VERSION:----------
-#        except IOError as e:
-#            if e.errno == errno.ENOENT:
-#                print "NO SUCH FILE"
-#                return Response("No such file!!!", status=422) # Unprocessable Entity - here TODO: think about the functionality - subm created or NOT?
-#                # or 424: Method Failure
-#            else:
-#                print "ERROR: ", e
-#                return Response(status=424)
-#           
-        
         
     
 # ---------------------- HANDLE 1 SUBMISSION -------------
@@ -294,7 +283,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
             #file_serial = serializers.serialize(files)
             #result['result'] = file_serial
             result['result'] = files
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.info("Submitted files list: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -328,7 +317,7 @@ class SubmittedFileRequestHandler(APIView):
         else:
             #file_serial = serializers.serialize(file_req)
             result["result"] = file_req
-            res_serial = serializers.serialize(result)
+            res_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+res_serial)
             return Response(res_serial, status=200)
 
@@ -415,7 +404,28 @@ class SubmittedFileRequestHandler(APIView):
             result['result'] = "Successfully deleted"
             return Response(result, status=200)
         
-        
+
+# /submissions/submission_id/123/files/33/status
+class SubmittedFileStatusRequestHandler(APIView):
+    def get(self, request, submission_id, format=None):
+        ''' Retrieves the status of the submitted file:
+            - the upload status
+            - the file metadata status
+        '''
+        # example of implementation (copied from Submission)
+#        try:
+#            result = dict()
+#            subm_statuses = controller.get_submission_status(submission_id)
+#        except InvalidId:
+#            result['errors'] = "InvalidId"
+#            return Response(result, status=404)
+#        except DoesNotExist:
+#            result['errors'] = "Submission not found"
+#            return Response(result, status=404)
+#        else:
+#            result['result'] = subm_statuses
+#            return Response(result, status=200)
+#        
 # ------------------- ENTITIES -----------------------------
 
 # -------------------- LIBRARIES ---------------------------
@@ -439,7 +449,7 @@ class LibrariesMainPageRequestHandler(APIView):
             return Response(result, status=404)
         else:
             result['result'] = libs
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -503,7 +513,7 @@ class LibraryRequestHandler(APIView):
 #            return Response(result, status=404)
         else:
             result['result'] = lib
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -599,7 +609,7 @@ class SamplesMainPageRequestHandler(APIView):
             return Response(result, status=404)
         else:
             result['result'] = samples
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -664,7 +674,7 @@ class SampleRequestHandler(APIView):
 #            return Response(result, status=404)
         else:
             result['result'] = lib
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -737,7 +747,7 @@ class SampleRequestHandler(APIView):
                 return Response(result_serial, status=304)
             
 
-# ----------
+
     
 class StudyMainPageRequestHandler(APIView):
     ''' Handles requests for /submissions/123/files/12/studies/
@@ -760,7 +770,7 @@ class StudyMainPageRequestHandler(APIView):
             return Response(result, status=404)
         else:
             result['result'] = studies
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
@@ -826,7 +836,7 @@ class StudyRequestHandler(APIView):
 #            return Response(result, status=404)
         else:
             result['result'] = lib
-            result_serial = serializers.serialize(result)
+            result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         
