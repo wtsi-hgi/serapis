@@ -459,7 +459,7 @@ def update_file_submitted(submission_id, file_id, data):
     file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
     #print "DATA THAT SUPPOSEDLY MODIFIED THE ENTITY::::::::::::::::::::::::::", str(data)
     #print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(file_to_update.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__['_data']['library_list'])
-    file_to_update.save()
+#    file_to_update.save()
     
     # Submit jobs for it, if the case:
     if has_new_entities and sender == constants.EXTERNAL_SOURCE:

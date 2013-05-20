@@ -14,62 +14,85 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis import models, controller
+from serapis import models, controller, db_model_operations
 from serapis.constants import *
 import unittest
 import requests
-from bzrlib.plugins.launchpad.lp_api_lite import json
+import json
 
-class TestLibraryFctController(unittest.TestCase):
-    def setUp(self):
-        json_lib = {"name" : "test_lib"}
-        self.lib = models.Library.build_from_json(json_lib, EXTERNAL_SOURCE)
-        
-    def test_build_from_json(self):
-        self.assertIsNotNone(self.lib)
-        json_obj = {"another_field" : "some_val"}
-        lib2 = models.Library.build_from_json(json_obj, EXTERNAL_SOURCE)
-        self.assertIsNone(lib2)
+from bson.objectid import ObjectId
 
 
-
-
-# TESTS FOR SERVER CODE:
-
-class TestEntityFunctionsController(unittest.TestCase):
+class TestLibraryFctControllerNEW(unittest.TestCase):
     
-    def test_entity_eq(self):
-        study1 = models.Study()
-        study1.name = "WTCCC2-Pilot"
-       
-        study2 = models.Study()
-        study2.name = "WTCCC2-Pilot"
-        study2.faculty_sponsor = "Panos Deloukas"
+    def test_insert_lib(self):
+        subm_file = db_model_operations.retrieve_submitted_file(ObjectId("519111cfd83619257ef7398b"))
+        print [str(lib) for lib in subm_file.library_list]
+        subm_file.library_list = []
+        subm_file.save()
         
-        study3 = {"name" : "WTCCC2-Pilot", "faculty_sponsor" : "Panos Deloukas"}
+        print db_model_operations.insert_library({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", ObjectId("519111cfd83619257ef7398b"), subm_file)
+        subm_file.reload()
+        print [lib.name for lib in subm_file.library_list]
         
-        self.assertTrue(study1.are_the_same(study2))
-        self.assertTrue(study1.are_the_same(study3))
+        print db_model_operations.update_library({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", ObjectId("519111cfd83619257ef7398b"), subm_file, save_to_db=True, force_update=False)
+        print [(lib.name, lib.library_type) for lib in subm_file.library_list]
+        subm_file.reload()
+        print [(lib.name, lib.library_type) for lib in subm_file.library_list]
         
-        st_list = [study1]
-        self.assertTrue(study2 in st_list)
-        
-        st_list = [study2]
-        self.assertFalse(study1 not in st_list)
-        
-        
-    def test_samples_are_same(self):
-        sample1 = models.Sample()
-        sample1.name = "AA"
-        sample1.internal_id = 123
-        #sample1.save()
-        
-        sample2 = models.Sample()
-        sample2.internal_id = 123
-        
-        self.assertTrue(sample2.are_the_same({"name" : "AA", "internal_id" : 123}))
-        self.assertTrue(sample1.are_the_same(sample2))
-        
+
+
+
+#class TestLibraryFctController(unittest.TestCase):
+#    def setUp(self):
+#        json_lib = {"name" : "test_lib"}
+#        self.lib = models.Library.build_from_json(json_lib, EXTERNAL_SOURCE)
+#        
+#    def test_build_from_json(self):
+#        self.assertIsNotNone(self.lib)
+#        json_obj = {"another_field" : "some_val"}
+#        lib2 = models.Library.build_from_json(json_obj, EXTERNAL_SOURCE)
+#        self.assertIsNone(lib2)
+#
+#
+#
+#
+## TESTS FOR SERVER CODE:
+#
+#class TestEntityFunctionsController(unittest.TestCase):
+#    
+#    def test_entity_eq(self):
+#        study1 = models.Study()
+#        study1.name = "WTCCC2-Pilot"
+#       
+#        study2 = models.Study()
+#        study2.name = "WTCCC2-Pilot"
+#        study2.faculty_sponsor = "Panos Deloukas"
+#        
+#        study3 = {"name" : "WTCCC2-Pilot", "faculty_sponsor" : "Panos Deloukas"}
+#        
+#        self.assertTrue(study1.are_the_same(study2))
+#        self.assertTrue(study1.are_the_same(study3))
+#        
+#        st_list = [study1]
+#        self.assertTrue(study2 in st_list)
+#        
+#        st_list = [study2]
+#        self.assertFalse(study1 not in st_list)
+#        
+#        
+#    def test_samples_are_same(self):
+#        sample1 = models.Sample()
+#        sample1.name = "AA"
+#        sample1.internal_id = 123
+#        #sample1.save()
+#        
+#        sample2 = models.Sample()
+#        sample2.internal_id = 123
+#        
+#        self.assertTrue(sample2.are_the_same({"name" : "AA", "internal_id" : 123}))
+#        self.assertTrue(sample1.are_the_same(sample2))
+#        
         
 
 from serapis import entities

@@ -484,7 +484,7 @@ class ParseBAMHeaderTask(Task):
         file_id = kwargs['file_id']
         file_mdata['id'] = str(file_id)
         #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
-        file_mdata.pop('null')
+#        file_mdata.pop('null')
         print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 

@@ -301,7 +301,7 @@ class SubmittedFile():
                 subm_file.sample_list = []
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            elif key not in FILE_META_FIELDS:        
+            elif key not in FILE_META_FIELDS and key != 'file_error_log':        
                 #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
         return subm_file
