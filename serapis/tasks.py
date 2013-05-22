@@ -178,6 +178,8 @@ class QuerySeqScape():
 class ProcessSeqScapeData():
     
     def __init__(self):
+        # TODO: retry to connect 
+        # TODO: try: catch: OperationalError (2003) - can't connect to MySQL, to deal with this error!!!
         self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
         
@@ -514,6 +516,7 @@ class ParseBAMHeaderTask(Task):
             file_mdata.seq_centers = header_processed['CN']
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
+                # TODO: to add the entities in the header to the file_mdata
                 file_mdata.header_has_mdata = True
             else:
                 file_mdata.file_error_log.append(constants.FILE_HEADER_EMPTY)

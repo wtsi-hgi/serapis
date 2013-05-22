@@ -12,7 +12,24 @@ NR_RETRIES = 5
 #---------------------- AUXILIARY (HELPER) FUNCTIONS -------------------------
 
 
+def check_if_entity_has_identifying_fields(json_entity):
+    ''' Entities to be inserted in the DB MUST have at least one of the uniquely
+        identifying fields that are defined in ENTITY_IDENTIFYING_FIELDS list.
+        If an entity doesn't contain any of these fields, then it won't be 
+        inserted in the database, as it would be confusing to have entities
+        that only have one insignificant field lying around and this could 
+        lead to entities added multiple times in the DB.
+    '''
+    for identifying_field in models.ENTITY_IDENTITYING_FIELDS:
+        if json_entity.has_key(identifying_field):
+            return True
+    return False
+
+
 def json2library(json_obj, source):
+    has_identifying_fields = check_if_entity_has_identifying_fields(json_obj)
+    if not has_identifying_fields:
+        return None
     lib = models.Library()
     has_new_field = False
     for key in json_obj:
@@ -27,6 +44,9 @@ def json2library(json_obj, source):
     
     
 def json2study(json_obj, source):
+    has_identifying_fields = check_if_entity_has_identifying_fields(json_obj)
+    if not has_identifying_fields:
+        return None
     study = models.Study()
     has_field = False
     for key in json_obj:
@@ -41,17 +61,20 @@ def json2study(json_obj, source):
 
 
 def json2sample(json_obj, source):
-        sampl = models.Sample()
-        has_field = False
-        for key in json_obj:
-            if key in models.Sample._fields and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
-                setattr(sampl, key, json_obj[key])
-                sampl.last_updates_source[key] = source
-                has_field = True
-        if has_field:
-            return sampl
-        else:
-            return None
+    has_identifying_fields = check_if_entity_has_identifying_fields(json_obj)
+    if not has_identifying_fields:
+        return None
+    sampl = models.Sample()
+    has_field = False
+    for key in json_obj:
+        if key in models.Sample._fields and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
+            setattr(sampl, key, json_obj[key])
+            sampl.last_updates_source[key] = source
+            has_field = True
+    if has_field:
+        return sampl
+    else:
+        return None
 
 
 def get_entity_by_field(field_name, field_value, entity_list):
@@ -100,6 +123,30 @@ def compare_sender_priority(source1, source2):
         return -1
     elif diff >= 0:
         return 1
+    
+    
+def check_if_study_has_minimal_mdata(study):
+    if study.has_minimal == True:
+        return study.has_minimal
+    elif study.accession_number != None and study.study_title != None:
+        study.has_minimal = True
+    return study.has_minimal
+
+def check_if_library_has_minimal_mdata(library):
+    ''' Checks if the library has the minimal mdata. Returns boolean.'''
+    if not library.has_minimal:
+        if library.name != None and library.library_type != None:
+            library.has_minimal = True
+    return library.has_minimal
+
+def check_if_sample_has_minimal_mdata(sample):
+    ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
+    if sample.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
+        if sample.accession_number != (None or "") and sample.name != (None or ""):
+            print "SAMPLE HAS MINIMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            sample.has_minimal = True
+    return sample.has_minimal
+        
     
 #--------------------- GENERAL AUX FUNCTIONS ----------------------------------
 
@@ -326,20 +373,8 @@ def update_library_list(library_list, sender, file_id, submitted_file=None, save
         libs_version = get_library_version(submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=libs_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
     return upd
-#    if save_to_db == True:
-#        was_successful = False
-#        nr_tries = NR_RETRIES
-#        while nr_tries > 0 and was_successful == False:
-#            for lib in library_list:
-#                insert_or_update_library(lib, sender, file_id, submitted_file=submitted_file, save_to_db=False)
-#            libs_version = get_library_version(submitted_file)
-#            was_successful = models.SubmittedFile.objects(id=file_id, version__2=libs_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
-#            nr_tries = nr_tries - 1
-#            if not was_successful:
-#                submitted_file = retrieve_submitted_file(file_id)
-#        return was_successful
-#    return True
 
+#------------------ SAMPLE UPDATES ---------------------------------
 
 def insert_sample(sample_json, sender, file_id, submitted_file=None, save_to_db=True):
     if submitted_file == None:
@@ -424,7 +459,7 @@ def update_study_list(study_list, sender, file_id, submitted_file=None, save_to_
 
 
 
-def update_submitted_file(file_id, update_dict, update_source, atomic_update=False):
+def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
     submitted_file = retrieve_submitted_file(id)
     update_db_dict = dict()
     for (key, val) in update_dict.iteritems():
@@ -452,9 +487,6 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
                     update_db_dict['inc__version__2'] = 1
                     update_db_dict['inc__version__0'] = 1
                 if was_updated:
-                    #lib_version = get_library_version()
-                    #SubmittedFile.objects(id=self.id, version=re.compile(r'[**'+lib_version+'*]')).update_one(set__library_list=self.library_list)
-                    #upd = models.SubmittedFile.objects(id=id, version__2=lib_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
                     print "UPDATING LIBRARY LIST.................................", was_updated
             elif key == 'sample_list':
                 if atomic_update == False:
@@ -467,11 +499,6 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
                     update_db_dict['inc__version__0'] = 1
                 if was_updated:
                     print "UPDATING SAMPLE LIST..................................", was_updated
-#                was_updated = self.__update_entity_list__(self.sample_list, val, update_source, SAMPLE_TYPE)
-#                if was_updated:
-#                    upd = SubmittedFile.objects(id=self.id, version__1=self.get_sample_version()).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=self.sample_list)
-#                    print "UPDATING SAMPLE LIST..................................", upd
-#                    self.reload()
             elif key == 'study_list':
                 if atomic_update == False:
                     was_updated = update_study_list(submitted_file.study_list, update_source, file_id, submitted_file, save_to_db=True)
@@ -489,74 +516,30 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
                     for seq_center in val:
                         update_db_dict['add_to_set__seq_centers'] = seq_center
                     update_db_dict['inc__version__0'] = 1
-#                    if atomic_update == False:
-#                        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version()).update_one(**update_db_dict)
-#                        submitted_file.reload()
-#                    #update_db_dict[str('set__last_updates_source__'+key)] = update_source
-                
-#                    for seq_center in val:
-#                        if seq_center not in self.seq_centers:
-#                            self.seq_centers.append(seq_center)
-#                            self.last_updates_source[key] = update_source
-#                    update_dict = {'set__seq_centers' : self.seq_centers, str('set__last_updates_source__'+key) : update_source, 'inc__version__0' : 1}
-#                    upd = SubmittedFile.objects(id=self.id, version__0=self.get_file_version()).update_one(**update_dict)
-#                for seq_center in val:
-#                    update_db_dict['add_to_set__seq_centers'] = seq_center
-                #update_db_dict['set__last_updates_source__'+key] = update_source
-#                    print "UPDATING SEQ CENTERS>.........................", upd
             # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
             elif key == 'file_error_log':
                 # TODO: make file_error a map, instead of a list
-                #self.file_error_log.extend(val)
-            #    self.last_updates_source['file_error_log'] = update_source
                 comp_lists = cmp(submitted_file.file_error_log, val)
                 if comp_lists == -1:
                     for error in val:
                         update_db_dict['add_to_set__file_error_log'] = error
                     update_db_dict['inc__version__0'] = 1
-#                    if atomic_update == False:
-#                        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version()).update_one(**update_db_dict)
-#                        submitted_file.reload()
-
-#                if atomic_update == False:
-#                    upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_dict)
-#                    submitted_file.reload()
-#                    print "UPDATING ERROR LOG FILE...........................................", upd
             elif key == 'missing_entities_error_dict':
-                #self.missing_entities_error_dict.update(val)
                 for entity_categ, entities in val.iteritems():
                     update_db_dict['push_all__missing_entities_error_dict__'+entity_categ] = entities
                 update_db_dict['inc__version__0'] = 1
                     # TODO - MAYBE add_to_set ?????
-                
-                    
-#                    print "UPDATING MISSING ENTITIES DICT......................................."
-#                    for (key, val) in self.missing_entities_error_dict.iteritems():
-#                        print "KEY TO BE INSERTED: ", key, "VAL: ", val
-#                        update_dict = {str('set__missing_entities_error_dict__' + key) : val}
-#                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
                     #SubmittedFile.objects(id=self.id).update_one(push_all__missing_entities_error_dict=val)
             elif key == 'not_unique_entity_error_dict':
 #                    self.not_unique_entity_error_dict.update(val)
                 for entity_categ, entities in val.iteritems():
                     update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                 update_db_dict['inc__version__0'] = 1
-#                    print "UPDATING NOT UNIQUE....................."
-#                elif key == 'file_mdata_status':
-#                    if update_source in (PARSE_HEADER_MSG_SOURCE, UPDATE_MDATA_MSG_SOURCE, EXTERNAL_SOURCE):
-#                        update_dict = {'set__file_mdata_status' : val, str('set__last_updates_source__'+key) : update_source}
-#                        self.inc_file_version(update_dict)
-#                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
-#                        print "UPDATING FILE MDATA STATUS.........................................."
+                print "UPDATING NOT UNIQUE....................."
             elif key == 'header_has_mdata':
                 if update_source == constants.PARSE_HEADER_MSG_SOURCE:
-#                        update_dict = {'set__header_has_mdata' : val, str('set__last_updates_source__'+key) : update_source}
-                    #update_dict = {'set__header_has_mdata' : val}
                     update_db_dict['set__header_has_mdata'] = val
                     update_db_dict['inc__version__0'] = 1
-#                        self.inc_file_version(update_dict)
-#                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
-#                        print "UPDATING HEADER HAS MDATA............................................", upd
 #                elif key == 'file_submission_status':
 #                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
 #                    self.inc_file_version(update_dict)
@@ -567,31 +550,22 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
                 if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
                     update_db_dict['set__md5'] = val
                     update_db_dict['inc__version__0'] = 1
-#                        self.inc_file_version(update_dict)
-#                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
-#                        print "UPDATING MD5..............................................", upd
+                    print "UPDATING MD5.............................................."
             elif key == 'file_upload_job_status':
                 if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
                     update_db_dict['set__file_upload_job_status'] = val
                     update_db_dict['inc__version__0'] = 1
-#                        self.inc_file_version(update_dict)
-#                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
 #                        print "UPDATING UPLOAD FILE JOB STATUS...........................", upd, " and self upload status: ", self.file_upload_job_status
             elif key == 'file_header_parsing_job_status':
                 if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                     update_db_dict['set__file_header_parsing_job_status'] = val
                     update_db_dict['inc__version__0'] = 1
-#                        self.inc_file_version(update_dict)
-#                        upd = SubmittedFile.objects(id=self.id).update_one(**update_dict)
 #                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
             # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
             elif key == 'file_update_mdata_job_status':
                 if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-                    #update_dict = {'set__file_update_mdata_job_status' : val}
                     update_db_dict['set__file_update_mdata_job_status'] = val
                     update_db_dict['inc__version__0'] = 1
-#                        self.inc_file_version(update_dict)
-#                        SubmittedFile.objects(id=self.id).update_one(**update_dict)
 #                        print "UPDATING FILE UPDATE MDATA JOB STATUS............................................",upd
             elif key != None and key != "null":
                 import logging
@@ -602,31 +576,41 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
             print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
             #raise KeyError
         if atomic_update == False and len(update_db_dict) > 0:
-            upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
-            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd
-            submitted_file.reload()
-            update_db_dict = {}
-    if atomic_update == True:
+            i = 0
+            while i < nr_retries:
+                if independent_fields == False:
+                    upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
+                else:
+                    upd = models.SubmittedFile.objects(id=file_id).update_one(**update_db_dict)
+                print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd
+                submitted_file.reload()
+                update_db_dict = {}
+                if upd == True:
+                    break
+                i+=1
+    if atomic_update == True and len(update_db_dict) > 0:
         upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
         print "ATOMIC UPDATE RESULT: ================", upd
-#    update_db_dict['inc__version__0'] = 1
     print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
 #    SubmittedFile.objects(id=self.id).update_one(**update_db_dict)
+
+
+
+def file_update_logic(file_id, update_dict, update_source):
+    if update_source == constants.EXTERNAL_SOURCE:
+        update_submitted_file(file_id, update_dict, update_source, atomic_update=True, nr_retries=3)
+    elif update_source in [constants.PARSE_HEADER_MSG_SOURCE or constants.UPLOAD_FILE_MSG_SOURCE]:
+        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=True)
+    elif update_source == constants.UPDATE_MDATA_MSG_SOURCE:
+        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=3)
+        #TODO: implement a all or nothing strategy...
+
 
 def update_submission(id):
     pass
 
 
 #-------------------------- INSERT ------------------------------------
-
-def insert_sample(sample_json):
-    pass
-
-#def insert_library(library_json):
-#    pass
-
-def insert_study(study_json):
-    pass
 
 
 

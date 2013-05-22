@@ -264,8 +264,8 @@ class Entity(DynamicEmbeddedDocument):
                         setattr(self, key, json_obj[key])
                         has_changed = True
             else:
-#                if key not in self.last_updates_source:
-#                    self.last_updates_source[key] = INIT_SOURCE
+                if key not in self.last_updates_source:
+                    self.last_updates_source[key] = INIT_SOURCE
                 priority_comparison = compare_sender_priority(sender, self.last_updates_source[key]) 
                 if priority_comparison >= 0:
                     setattr(self, key, json_obj[key])
