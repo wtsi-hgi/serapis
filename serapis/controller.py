@@ -3,14 +3,14 @@ import os
 import errno
 import logging
 from bson.objectid import ObjectId
-from serapis import tasks
+from serapis import tasks, db_model_operations
 from serapis import exceptions
 from serapis import models
 from serapis import constants, serializers
 
 from celery import chain
 from serapis.entities import SubmittedFile
-
+from serapis import db_model_operations
 
 
 
@@ -434,7 +434,7 @@ def update_file_submitted(submission_id, file_id, data):
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         KeyError -- if a key does not exist in the model of the submitted file
     '''
-    logging.info("*********************************** START ************************************************" + str(file_id))
+    #logging.info("*********************************** START ************************************************" + str(file_id))
     # INNER FUNCTIONS - I ONLY USE IT HERE
     def check_if_has_new_entities(data, file_to_update):
         # print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
@@ -448,24 +448,22 @@ def update_file_submitted(submission_id, file_id, data):
             logging.debug("Has new studies!")
             return True
         return False
-            
-    # Working function:   (CODE OF THE OUTER FUNCTION)            
-    file_to_update = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    #logging.info("FILE ID:"+str(file_id) + " INFO TO UPDATE: " + str(data))
+        
+    # Working function:   (CODE OF THE OUTER FUNCTION)          
     sender = get_request_source(data)
-    has_new_entities = check_if_has_new_entities(data, file_to_update)
-    print "HAS NEW ENTIEIS IS: ---------", has_new_entities
+    if sender == constants.EXTERNAL_SOURCE:               
+        file_to_update = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+        has_new_entities = check_if_has_new_entities(data, file_to_update)
+        print "HAS NEW ENTIEIS IS: ---------", has_new_entities
     # Modify the file:
-    file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
-    #print "DATA THAT SUPPOSEDLY MODIFIED THE ENTITY::::::::::::::::::::::::::", str(data)
-    #print "FILE ID:", str(file_id), "SUBMISSION ----------------- AFTER MODIFYING FIELDS: ", str(file_to_update.__dict__), "and FILE MODIFIED: ", str(file_to_update.__dict__['_data']['library_list'])
-#    file_to_update.save()
+    ####file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
+    db_model_operations.update_submitted_file_logic(file_id, data, sender) 
     
     # Submit jobs for it, if the case:
-    if has_new_entities and sender == constants.EXTERNAL_SOURCE:
+    if sender == constants.EXTERNAL_SOURCE and has_new_entities == True:
         launch_update_file_job(file_to_update)
         print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    logging.info("*********************************** END ************************************************"+str(file_id))
+    #logging.info("*********************************** END ************************************************"+str(file_id))
             
 
 def resubmit_jobs(submission_id, file_id, data):
@@ -547,10 +545,8 @@ def get_all_libraries(submission_id, file_id):
     Returns:
         list of libraries
     '''
-#    submission = get_submission(submission_id)
-#    submitted_file = submission.get_file_by_id(file_id)
-    #submitted_file = get_submitted_file(file_id)
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
     libs = submitted_file.library_list
     logging.info("Library list: "+str(libs)) 
     return libs
@@ -565,11 +561,10 @@ def get_library(submission_id, file_id, library_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist. 
         '''
-#    submission = get_submission(submission_id)
-#    submitted_file = submission.get_file_by_id(file_id)
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    library_id = int(library_id)
-    lib = submitted_file.get_library_by_id(library_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    library_id = int(library_id)
+#    lib = submitted_file.get_library_by_id(library_id)
+    lib = db_model_operations.retrieve_library_by_id(library_id, file_id)
     logging.info("Library is: "+ str(lib))
     if lib == None:
         raise exceptions.ResourceNotFoundError(library_id, "Library not found")
@@ -581,24 +576,30 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
+        NoEntityIdentifyingFieldsProvided -- if there isn't enough information regarding this library provided within the request
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
+        #### -- NOT ANY MORE! NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
                           either because the provided fields were all empty or they were all invalid.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
+                                             doesn't contain neither internal_id nor name.
+        DeprecatedDocument -- my custom exception, thrown if the version of the document to be
+                              modified is older than the current document in the DB. 
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     sender = get_request_source(data)
-    lib = models.build_entity_from_json(data, constants.LIBRARY_TYPE, sender)
-    if lib != None:     # here should this be an exception? Again the question about unregistered fields...
+#   lib = models.build_entity_from_json(data, constants.LIBRARY_TYPE, sender)
+    inserted = db_model_operations.insert_library_in_db(data, sender, file_id)
+    if inserted == True:     # here should this be an exception? Again the question about unregistered fields...
         # TODO: Check if the library doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-        if lib not in submitted_file.library_list:
-            submitted_file.library_list.append(lib)
-            #submission.save(validate=False)
-            submitted_file.save()
-            launch_update_file_job(submitted_file)
-        else:
-            raise exceptions.NoEntityCreated(data, "Library already exists in the library list. For update, please send a PUT request.")
-    else:
-        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
+#        if lib not in submitted_file.library_list:
+#            submitted_file.library_list.append(lib)
+#            submitted_file.save()
+        submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        launch_update_file_job(submitted_file)
+#    else:
+#        raise exceptions.NoEntityCreated(data, "Library already exists in the library list. For update, please send a PUT request.")
+#    else:
+#        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
     
 
 
@@ -608,18 +609,26 @@ def update_library(submission_id, file_id, library_id, data):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
+                                            doesn't contain neither internal_id nor name.
+        DeprecatedDocument -- my custom exception, thrown if the version of the document to be
+                              modified is older than the current document in the DB.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    library_id = int(library_id)
-    lib = submitted_file.get_library_by_id(library_id)
-    if lib == None:
-        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-    else:
-        sender = get_request_source(data)
-        models.Library.check_keys(data)
-        has_updated = lib.update_from_json(data, sender)
-    submitted_file.save()
-    return has_updated
+    sender = get_request_source(data)
+    return db_model_operations.update_library_in_db(data, sender, file_id)
+        
+    
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    library_id = int(library_id)
+#    lib = submitted_file.get_library_by_id(library_id)
+#    if lib == None:
+#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
+#    else:
+#        sender = get_request_source(data)
+#        models.Library.check_keys(data)
+#        has_updated = lib.update_from_json(data, sender)
+#    submitted_file.save()
+#    return has_updated
     
 
 def delete_library(submission_id, file_id, library_id):
@@ -688,21 +697,28 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
         NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
                           either because the provided fields were all empty or they were all invalid.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     sender = get_request_source(data)
-    sample = models.build_entity_from_json(data, constants.SAMPLE_TYPE, sender)
-    if sample != None:     # here should this be an exception? Again the question about unregistered fields...
-        # TODO: Check if the sample doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-        #if not sample in submitted_file.sample_list:    -- OUTPUTS AN ERROR...
-        if not submitted_file.contains_sample(sample):
-            print "CONTAINS SAMPLE RETURNED FALSE...", str(sample), " AND LIST: ", [ s.name for s in submitted_file.sample_list]
-            submitted_file.sample_list.append(sample)
-            submitted_file.save()
-            launch_update_file_job(submitted_file)
-        else:
-            raise exceptions.NoEntityCreated(data, "Sample already exists in the sample list. For update, please send a PUT request.")
-    else:
-        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
+    inserted = db_model_operations.insert_sample_in_db(data, sender, file_id)
+    if inserted == 1:     # here should this be an exception? Again the question about unregistered fields...
+        submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        print "SUBMITTED FILE AFTER SAMPLE INSERT-----------------=========-----------=========----------=", submitted_file
+        launch_update_file_job(submitted_file)
+
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    sender = get_request_source(data)
+#    sample = models.build_entity_from_json(data, constants.SAMPLE_TYPE, sender)
+#    if sample != None:     # here should this be an exception? Again the question about unregistered fields...
+#        # TODO: Check if the sample doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
+#        #if not sample in submitted_file.sample_list:    -- OUTPUTS AN ERROR...
+#        if not submitted_file.contains_sample(sample):
+#            print "CONTAINS SAMPLE RETURNED FALSE...", str(sample), " AND LIST: ", [ s.name for s in submitted_file.sample_list]
+#            submitted_file.sample_list.append(sample)
+#            submitted_file.save()
+#            launch_update_file_job(submitted_file)
+#        else:
+#            raise exceptions.NoEntityCreated(data, "Sample already exists in the sample list. For update, please send a PUT request.")
+#    else:
+#        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
     
 
 def update_sample(submission_id, file_id, sample_id, data):
@@ -711,18 +727,25 @@ def update_sample(submission_id, file_id, sample_id, data):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
+                                            doesn't contain neither internal_id nor name.
+        DeprecatedDocument -- my custom exception, thrown if the version of the document to be
+                              modified is older than the current document in the DB.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    sample_id = int(sample_id)
-    sample = submitted_file.get_sample_by_id(sample_id)
-    if sample == None:
-        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-    else:
-        sender = get_request_source(data)
-        models.Sample.check_keys(data)
-        has_updated = sample.update_from_json(data, sender)
-    submitted_file.save()
-    return has_updated
+    sender = get_request_source(data)
+    return db_model_operations.update_sample_in_db(data, sender, file_id)
+    
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    sample_id = int(sample_id)
+#    sample = submitted_file.get_sample_by_id(sample_id)
+#    if sample == None:
+#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+#    else:
+#        sender = get_request_source(data)
+#        models.Sample.check_keys(data)
+#        has_updated = sample.update_from_json(data, sender)
+#    submitted_file.save()
+#    return has_updated
     
 
 def delete_sample(submission_id, file_id, sample_id):

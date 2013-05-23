@@ -377,8 +377,21 @@ class SubmittedFileRequestHandler(APIView):
             result['errors'] = "File not found" 
             return Response(result, status=404)
         except exceptions.ResourceNotFoundError as e:
-            result['errors'] = e.strerror
+            result['errors'] = e.message
             return Response(result, status=404)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
+                                                    # but was unable to be followed due to semantic errors.
+        except exceptions.ResourceNotFoundError as e:
+            result['erors'] = e.message
+            return Response(result, status=404)
+        except exceptions.DeprecatedDocument as e:
+            result['errors'] = e.message
+            return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
+                                                    # where a client GETs a resource's state, modifies it, and PUTs it back 
+                                                    # to the server, when meanwhile a third party has modified the state on the server, 
+                                                    # leading to a conflict
         else:
             result['message'] = "Successfully updated"
             #result_serial = serializers.serialize(result)
@@ -478,9 +491,12 @@ class LibrariesMainPageRequestHandler(APIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
-        except exceptions.NoEntityCreated as e:
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.message
-            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+            return Response(result, status=422)
+#        except exceptions.NoEntityCreated as e:
+#            result['errors'] = e.message
+#            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         else:
             result['result'] = "Library added"
             #result = serializers.serialize(result)
@@ -544,6 +560,18 @@ class LibraryRequestHandler(APIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=400)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed but was unable to be followed due to semantic errors.
+        except exceptions.ResourceNotFoundError as e:
+            result['erors'] = e.message
+            return Response(result, status=404)
+        except exceptions.DeprecatedDocument as e:
+            result['errors'] = e.message
+            return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
+                                                    # where a client GETs a resource's state, modifies it, and PUTs it back 
+                                                    # to the server, when meanwhile a third party has modified the state 
+                                                    # on the server, leading to a conflict
         else:
             if was_updated:
                 result['message'] = "Successfully updated"
@@ -706,6 +734,18 @@ class SampleRequestHandler(APIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=400)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
+                                                    # but was unable to be followed due to semantic errors.
+        except exceptions.ResourceNotFoundError as e:
+            result['erors'] = e.message
+            return Response(result, status=404)
+        except exceptions.DeprecatedDocument as e:
+            result['errors'] = e.message
+            return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
+                                                    # where a client GETs a resource's state, modifies it, and PUTs it back 
+                                                    # to the server, when meanwhile a third party has modified the state on the server, leading to a conflict
 #        except exceptions.ResourceNotFoundError as e:
 #            result['errors'] = e.message
 #            return Response(result, status=404)
@@ -863,6 +903,19 @@ class StudyRequestHandler(APIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=400)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.msg
+            return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
+                                                    # but was unable to be followed due to semantic errors.
+        except exceptions.ResourceNotFoundError as e:
+            result['erors'] = e.msg
+            return Response(result, status=404)
+        except exceptions.DeprecatedDocument as e:
+            result['errors'] = e.msg
+            return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
+                                                    # where a client GETs a resource's state, modifies it, and PUTs it back 
+                                                    # to the server, when meanwhile a third party has modified the state on the server, 
+                                                    # leading to a conflict
 #        except exceptions.ResourceNotFoundError as e:
 #            result['errors'] = e.message
 #            return Response(result, status=404)

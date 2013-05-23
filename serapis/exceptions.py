@@ -44,6 +44,17 @@ class NoEntityCreated(Exception):
     def __str__(self):
         return 'Not created. '+ self.faulty_expression + ' - ' + self.message
     
+class NoEntityIdentifyingFieldsProvided(Exception):
+    ''' Exception thrown when a POST/PUT request comes in containing the information
+        for creating/updating an entity, but the description of the entity does not contain
+        any identifier for that entity.'''
+    def __init__(self, faulty_expression, msg):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Not enough information provided. '+ self.faulty_expression + ' - ' + self.message
+    
     
 class NotSupportedFileType(Exception):
     ''' Exception thrown when one of the files given for submission is not
@@ -69,7 +80,10 @@ class DeprecatedDocument(Exception):
         return 'Document not up to date. '+ self.faulty_expression + ' - ' + self.message
     
     
+class EditConflictError(Exception):
+    ''' This exception is thrown when an atomic update to a document fails 
+        because another thread is in the process of modifying the data.'''
     
-    
+
     
     

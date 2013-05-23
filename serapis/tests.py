@@ -26,16 +26,17 @@ from bson.objectid import ObjectId
 class TestLibraryFctControllerNEW(unittest.TestCase):
     
     def test_insert_lib(self):
-        subm_file = db_model_operations.retrieve_submitted_file(ObjectId("519111cfd83619257ef7398b"))
+        file_id = ObjectId("519ce663d836192526bf50c1")
+        subm_file = db_model_operations.retrieve_submitted_file(file_id)
         print [str(lib) for lib in subm_file.library_list]
         subm_file.library_list = []
         subm_file.save()
         
-        print db_model_operations.insert_library({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", ObjectId("519111cfd83619257ef7398b"), subm_file)
+        print db_model_operations.insert_library_in_db({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", file_id)
         subm_file.reload()
         print [lib.name for lib in subm_file.library_list]
         
-        print db_model_operations.update_library({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", ObjectId("519111cfd83619257ef7398b"), subm_file, save_to_db=True, force_update=False)
+        print db_model_operations.update_library_in_db({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", file_id)
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
         subm_file.reload()
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
