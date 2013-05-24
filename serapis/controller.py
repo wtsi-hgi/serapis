@@ -451,7 +451,7 @@ def update_file_submitted(submission_id, file_id, data):
         
     # Working function:   (CODE OF THE OUTER FUNCTION)          
     sender = get_request_source(data)
-    if sender == constants.EXTERNAL_SOURCE:               
+    if sender == constants.EXTERNAL_SOURCE:            
         file_to_update = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
         has_new_entities = check_if_has_new_entities(data, file_to_update)
         print "HAS NEW ENTIEIS IS: ---------", has_new_entities
@@ -575,31 +575,24 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     ''' Adds a new library to the metadata of this file. 
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
-        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        NoEntityIdentifyingFieldsProvided -- if there isn't enough information regarding this library provided within the request
+        DoesNotExist -- if there is no submission or file with this id in the DB (Mongoengine specific error)
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-        #### -- NOT ANY MORE! NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
-                          either because the provided fields were all empty or they were all invalid.
+        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
+                          but the entity could not be created because it exists already.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
-                                             doesn't contain neither internal_id nor name.
-        DeprecatedDocument -- my custom exception, thrown if the version of the document to be
-                              modified is older than the current document in the DB. 
+                                             doesn't contain any identifying field (e.g.internal_id, name).
+        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+                             because of an editing conflict
     '''
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     sender = get_request_source(data)
-#   lib = models.build_entity_from_json(data, constants.LIBRARY_TYPE, sender)
+    if db_model_operations.search_JSONLibrary(data, file_id) != None:
+        raise exceptions.NoEntityCreated(None, "Library already exists in the list. For update, please send a PUT request.")
     inserted = db_model_operations.insert_library_in_db(data, sender, file_id)
-    if inserted == True:     # here should this be an exception? Again the question about unregistered fields...
-        # TODO: Check if the library doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-#        if lib not in submitted_file.library_list:
-#            submitted_file.library_list.append(lib)
-#            submitted_file.save()
+    if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
         launch_update_file_job(submitted_file)
-#    else:
-#        raise exceptions.NoEntityCreated(data, "Library already exists in the library list. For update, please send a PUT request.")
-#    else:
-#        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
+    else:
+        raise exceptions.EditConflictError(None, "Library couldn't be inserted.")
     
 
 
@@ -610,7 +603,7 @@ def update_library(submission_id, file_id, library_id, data):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
-                                            doesn't contain neither internal_id nor name.
+                                             doesn't contain any identifying field (e.g.internal_id, name).
         DeprecatedDocument -- my custom exception, thrown if the version of the document to be
                               modified is older than the current document in the DB.
     '''
@@ -661,10 +654,11 @@ def get_all_samples(submission_id, file_id):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         #### -- NOT ANY MORE! --ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     Returns:
-        list of samples
+        - list of samples
     '''
     submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     samples = submitted_file.sample_list
+    print [(s.name, s.internal_id) for s in samples]
     logging.info("Sample list: "+str(samples)) 
     return samples
     
@@ -694,15 +688,24 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
-                          either because the provided fields were all empty or they were all invalid.
+        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
+                          but the entity could not be created because it exists already.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the sample 
+                                             doesn't contain any identifying field (e.g.internal_id, name).
+        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+                             because of an editing conflict
     '''
+
     sender = get_request_source(data)
+    if db_model_operations.search_JSONSample(data, file_id) != None:
+        raise exceptions.NoEntityCreated(data, "Sample already exists in the list. For update, please send a PUT request.")
     inserted = db_model_operations.insert_sample_in_db(data, sender, file_id)
-    if inserted == 1:     # here should this be an exception? Again the question about unregistered fields...
+    if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-        print "SUBMITTED FILE AFTER SAMPLE INSERT-----------------=========-----------=========----------=", submitted_file
         launch_update_file_job(submitted_file)
+    else:
+        raise exceptions.EditConflictError(data, "Sample couldn't be added.")
+
 
 #    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
 #    sender = get_request_source(data)
@@ -726,9 +729,9 @@ def update_sample(submission_id, file_id, sample_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
-        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
-                                            doesn't contain neither internal_id nor name.
+ ##       ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the sample 
+                                             doesn't contain any identifying field (e.g.internal_id, name).
         DeprecatedDocument -- my custom exception, thrown if the version of the document to be
                               modified is older than the current document in the DB.
     '''
@@ -810,44 +813,52 @@ def add_study_to_file_mdata(submission_id, file_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, but the entity could not be created
-                          either because the provided fields were all empty or they were all invalid.
+        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file 
+                                                        with the file_id does not exist within this submission.
+        NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
+                          but the entity could not be created because it exists already.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the study 
+                                             doesn't contain any identifying field (e.g.internal_id, name).
+        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+                             because of an editing conflict
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     sender = get_request_source(data)
-    study = models.build_entity_from_json(data, constants.STUDY_TYPE, sender)
-    if study != None:     # here should this be an exception? Again the question about unregistered fields...
-        # TODO: Check if the study doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-        if study not in submitted_file.study_list:
-            submitted_file.study_list.append(study)
-            submitted_file.save()
-            launch_update_file_job(submitted_file)
-        else:
-            raise exceptions.NoEntityCreated(data, "Study already exists in the study list. For update, please send a PUT request.")
+    if db_model_operations.search_JSONStudy(data, file_id) != None:
+        raise exceptions.NoEntityCreated(data, "Study already exists in the list. For update, please send a PUT request.")
+    inserted = db_model_operations.insert_study_in_db(data, sender, file_id)
+    if inserted == True:
+        submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        launch_update_file_job(submitted_file)
     else:
-        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
+        raise exceptions.EditConflictError(data, "Study couldn't be added.")
     
 
 
 def update_study(submission_id, file_id, study_id, data):
     ''' Updates the study with the data received from the request. 
     Throws:
-        InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
-        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist.
+        InvalidId -- if the submission_id or file_id is not corresponding to MongoDB rules (pymongo specific error)
+        DoesNotExist -- if there is no submission nor file_id with this id in the DB (Mongoengine specific error)
+##        ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
+        NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the sample 
+                                             doesn't contain any identifying field (e.g.internal_id, name).
+        DeprecatedDocument -- my custom exception, thrown if the version of the document to be
+                              modified is older than the current document in the DB.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    study_id = int(study_id)
-    study = submitted_file.get_study_by_id(study_id)
-    if study == None:
-        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-    else:
-        sender = get_request_source(data)
-        models.Study.check_keys(data)
-        has_updated = study.update_from_json(data, sender)
-    submitted_file.save()
-    return has_updated
+    sender = get_request_source(data)
+    return db_model_operations.update_study_in_db(data, sender, file_id)
+    
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    study_id = int(study_id)
+#    study = submitted_file.get_study_by_id(study_id)
+#    if study == None:
+#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+#    else:
+#        sender = get_request_source(data)
+#        models.Study.check_keys(data)
+#        has_updated = study.update_from_json(data, sender)
+#    submitted_file.save()
+#    return has_updated
     
 
 def delete_study(submission_id, file_id, study_id):

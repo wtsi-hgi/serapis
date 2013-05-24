@@ -569,7 +569,8 @@ class UpdateFileMdataTask(Task):
             return []
         incomplete_entities = []
         for entity in entity_list:
-            if entity != None and not entity.check_if_has_minimal_mdata():     #if not entity.check_if_has_minimal_mdata():
+            #if entity != None and not entity.check_if_has_minimal_mdata():     #if not entity.check_if_has_minimal_mdata():
+            if entity != None and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
                 entity_dict = self.__filter_fields__(vars(entity))
                 incomplete_entities.append(entity_dict)
         return incomplete_entities

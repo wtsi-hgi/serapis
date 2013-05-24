@@ -637,7 +637,9 @@ class SamplesMainPageRequestHandler(APIView):
             return Response(result, status=404)
         else:
             result['result'] = samples
+            logging.debug("NOT SERIALIZED RESULT: "+str([(s.name,s.internal_id) for s in samples]))
             result_serial = serializers.serialize_excluding_meta(result)
+            print "PRINT RESULT SERIAL: ", result_serial
             logging.debug("RESULT IS: "+result_serial)
             return Response(result_serial, status=200)
         

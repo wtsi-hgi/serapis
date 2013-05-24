@@ -83,6 +83,12 @@ class DeprecatedDocument(Exception):
 class EditConflictError(Exception):
     ''' This exception is thrown when an atomic update to a document fails 
         because another thread is in the process of modifying the data.'''
+    def __init__(self, faulty_expression, msg):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Editing conflict. '+ self.faulty_expression + ' - ' + self.message
     
 
     

@@ -45,7 +45,7 @@ class PilotModel(DynamicDocument):
 ####------------------- Utils functions -------------
 
 
-def check_if_entity_has_identifying_fields(json_entity):
+def check_if_JSONEntity_has_identifying_fields(json_entity):
     ''' Entities to be inserted in the DB MUST have at least one of the uniquely
         identifying fields that are defined in ENTITY_IDENTIFYING_FIELDS list.
         If an entity doesn't contain any of these fields, then it won't be 
@@ -63,7 +63,7 @@ def build_entity_from_json(json_entity, entity_type, source):
     ''' Function that builds a new Entity from a json representation.
         Returns the newly created entity or None if the entity_type
         is not within the known ones.'''
-    has_identifying_fields = check_if_entity_has_identifying_fields(json_entity)
+    has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_entity)
     if not has_identifying_fields:
         return None
     result_entity = None
