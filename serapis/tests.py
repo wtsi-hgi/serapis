@@ -306,7 +306,83 @@ class TestSubmittedFileWorker(unittest.TestCase):
 #        self.assertTrue(contains_ent)
         
    
+class TestAddEntityAndDBModelRequests(unittest.TestCase):
+    ''' Test after radically changed the model to db_model fct.
+        Testing the entities as well as the db_model.'''
+    
+    
+    import requests
+    import json
+    
+    URL = "http://127.0.0.1:8000/api-rest/submissions/"
+    
+    def setUp(self):
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = headers)
+        print "POST REQ made -- response:", self.post_req.text
+        submission_info = self.post_req.text
+        #print "AND TEXT: ", submission_info
+        submission_info = json.loads(submission_info)
+        self.submission = submission_info['submission_id']
+        self.file_id = submission_info['testing'][0]
+        print "SUBMISSION ID: ",self.submission, " AND FILE ID: ", self.file_id
+    
+    
+    def test_concurrency_POST_libraries(self):
+        url = self.URL+self.submission+"/files/"+self.file_id+"/libraries/"
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
         
+        # FIRST POST REQ:
+        payload = {"name" : "NZO_1 1 5"}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 200)
+#        
+#        # Test what is actually in DB:
+        db_file = controller.get_submitted_file(self.file_id)
+        self.assertEqual(len(db_file.library_list), 1)
+        
+        # SECOND POST REQ:
+        payload = {"name" : "NZO_1 1 4"}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 200)
+        
+        # TEST WHAT IS IN DB:
+        db_file = controller.get_submitted_file(self.file_id)
+        self.assertEqual(len(db_file.library_list), 2)
+               
+        # THIRD POST REQ:
+        payload = {"name" : "NZO_1 1 3"}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 200)
+        
+        # TEST WHAT IS IN DB:
+        db_file = controller.get_submitted_file(self.file_id)
+        self.assertEqual(len(db_file.library_list), 3)
+        
+        # FORTH POST REQ:
+        payload = {"name" : "NZO_1 1 2"}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 200)
+        
+        # TEST WHAT IS IN DB:
+        db_file = controller.get_submitted_file(self.file_id)
+        self.assertEqual(len(db_file.library_list), 4)
+        
+        
+        # 5 th POST REQ -- except exception:
+        payload = {"library_type" : "DOUBLE SIZE DNA"}
+        r = requests.post(url, data=json.dumps(payload), headers = headers)
+        self.assertEqual(r.status_code, 422)
+        
+        # TEST DB:
+        db_file = controller.get_submitted_file(self.file_id)
+        self.assertEqual(len(db_file.library_list), 4)
+        
+
+    
+    
+    
 class TestRequests(unittest.TestCase):
     
     import requests

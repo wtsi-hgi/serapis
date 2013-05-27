@@ -22,14 +22,20 @@ class ResourceNotFoundError(Exception):
         or an operation on a resource that does not exist in the DB
         
     Attributes:
-        resource -- missing resource that cause the exception
-        message  -- explanation of the error 
+        resource -- missing resource that cause the exception (mandatory)
+        message  -- explanation of the error (optional)
      '''
-    def __init__(self, faulty_expression, msg):
+    def __init__(self, faulty_expression, msg=None):
         self.faulty_expression = faulty_expression
         self.message = msg
         
     def __str__(self):
+        text = 'Missing resource: '
+        text += str(self.faulty_expression)
+        text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
         return 'Missing resource: '+ self.faulty_expression + ' - ' + self.message
     
     
@@ -37,58 +43,81 @@ class NoEntityCreated(Exception):
     ''' Exception thrown when there the entity desired couldn't created. 
         Either the fields were not valid or they were all empty.
         An entity will no be created if it has no valid, non-empty fields.'''
-    def __init__(self, faulty_expression, msg):
-        self.faulty_expression = faulty_expression
+    def __init__(self, msg=None):
         self.message = msg
         
     def __str__(self):
-        return 'Not created. '+ self.faulty_expression + ' - ' + self.message
+        text = 'Entity not created.'
+        if self.message != None:
+            text += self.message
+        return text
+  
     
 class NoEntityIdentifyingFieldsProvided(Exception):
     ''' Exception thrown when a POST/PUT request comes in containing the information
         for creating/updating an entity, but the description of the entity does not contain
         any identifier for that entity.'''
-    def __init__(self, faulty_expression, msg):
-        self.faulty_expression = faulty_expression
+    def __init__(self, msg=None):
         self.message = msg
         
     def __str__(self):
-        return 'Not enough information provided. '+ self.faulty_expression + ' - ' + self.message
-    
-    
+        text = 'No identifying fields for this entity provided.'
+        if self.message != None:
+            text += self.message
+        return text
+
+
 class NotSupportedFileType(Exception):
     ''' Exception thrown when one of the files given for submission is not
         in the list of supported files.    
     '''
-    def __init__(self, faulty_expression, msg):
+    def __init__(self, faulty_expression=None, msg=None):
         self.faulty_expression = faulty_expression
         self.message = msg
         
     def __str__(self):
-        return 'Not supported file type. '+ self.faulty_expression + ' - ' + self.message
-    
+        text = 'Not supported file type. '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text +=self.message
+        return text 
+
     
 class DeprecatedDocument(Exception):
     ''' Exception thrown if there is an attempt to update a mongoDB document that 
         has been modified in the meantime, so the information is not up to date.
     '''
-    def __init__(self, faulty_expression, msg):
+    def __init__(self, faulty_expression, msg=None):
         self.faulty_expression = faulty_expression
         self.message = msg
         
     def __str__(self):
-        return 'Document not up to date. '+ self.faulty_expression + ' - ' + self.message
-    
+        text = 'Deprecated document. Document has been modified since the last read. '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text +=self.message
+        return text 
+
     
 class EditConflictError(Exception):
     ''' This exception is thrown when an atomic update to a document fails 
         because another thread is in the process of modifying the data.'''
-    def __init__(self, faulty_expression, msg):
+    def __init__(self, faulty_expression=None, msg=None):
         self.faulty_expression = faulty_expression
         self.message = msg
         
     def __str__(self):
-        return 'Editing conflict. '+ self.faulty_expression + ' - ' + self.message
+        text = 'Editing conflict'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
     
 
     

@@ -494,9 +494,12 @@ class LibrariesMainPageRequestHandler(APIView):
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.message
             return Response(result, status=422)
-#        except exceptions.NoEntityCreated as e:
-#            result['errors'] = e.message
-#            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+        except exceptions.NoEntityCreated as e:
+            result['errors'] = e.message
+            return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+        except exceptions.EditConflictError as e:
+            result['errors'] = e.message
+            return Response(result, status=409)     # 409 = EditConflict
         else:
             result['result'] = "Library added"
             #result = serializers.serialize(result)
@@ -667,9 +670,16 @@ class SamplesMainPageRequestHandler(APIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.message
+            return Response(result, status=422)
         except exceptions.NoEntityCreated as e:
             result['errors'] = e.message
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+        except exceptions.EditConflictError as e:
+            result['errors'] = e.message
+            return Response(result, status=409)     # 409 = EditConflict
+
         else:
             result['result'] = "Sample added"
             #result = serializers.serialize(result)
@@ -748,9 +758,6 @@ class SampleRequestHandler(APIView):
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
                                                     # to the server, when meanwhile a third party has modified the state on the server, leading to a conflict
-#        except exceptions.ResourceNotFoundError as e:
-#            result['errors'] = e.message
-#            return Response(result, status=404)
         else:
             if was_updated:
                 result['message'] = "Successfully updated"
@@ -841,9 +848,16 @@ class StudyMainPageRequestHandler(APIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.message
+            return Response(result, status=422)
         except exceptions.NoEntityCreated as e:
             result['errors'] = e.message
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
+        except exceptions.EditConflictError as e:
+            result['errors'] = e.message
+            return Response(result, status=409)     # 409 = EditConflict
+
         else:
             result['result'] = "Study added"
             #result = serializers.serialize(result)

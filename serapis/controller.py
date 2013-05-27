@@ -586,13 +586,13 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     '''
     sender = get_request_source(data)
     if db_model_operations.search_JSONLibrary(data, file_id) != None:
-        raise exceptions.NoEntityCreated(None, "Library already exists in the list. For update, please send a PUT request.")
+        raise exceptions.NoEntityCreated("Library already exists in the list. For update, please send a PUT request.")
     inserted = db_model_operations.insert_library_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
         launch_update_file_job(submitted_file)
     else:
-        raise exceptions.EditConflictError(None, "Library couldn't be inserted.")
+        raise exceptions.EditConflictError("Library couldn't be inserted.")
     
 
 
@@ -608,7 +608,7 @@ def update_library(submission_id, file_id, library_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_library_in_db(data, sender, file_id)
+    return db_model_operations.update_library_in_db(data, sender, file_id, library_id=library_id)
         
     
 #    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
@@ -698,13 +698,13 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
 
     sender = get_request_source(data)
     if db_model_operations.search_JSONSample(data, file_id) != None:
-        raise exceptions.NoEntityCreated(data, "Sample already exists in the list. For update, please send a PUT request.")
+        raise exceptions.NoEntityCreated("Sample already exists in the list. For update, please send a PUT request.")
     inserted = db_model_operations.insert_sample_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
         launch_update_file_job(submitted_file)
     else:
-        raise exceptions.EditConflictError(data, "Sample couldn't be added.")
+        raise exceptions.EditConflictError("Sample couldn't be added.")
 
 
 #    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
@@ -736,7 +736,7 @@ def update_sample(submission_id, file_id, sample_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_sample_in_db(data, sender, file_id)
+    return db_model_operations.update_sample_in_db(data, sender, file_id, sample_id=sample_id)
     
 #    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
 #    sample_id = int(sample_id)
@@ -824,13 +824,13 @@ def add_study_to_file_mdata(submission_id, file_id, data):
     '''
     sender = get_request_source(data)
     if db_model_operations.search_JSONStudy(data, file_id) != None:
-        raise exceptions.NoEntityCreated(data, "Study already exists in the list. For update, please send a PUT request.")
+        raise exceptions.NoEntityCreated("Study already exists in the list. For update, please send a PUT request.")
     inserted = db_model_operations.insert_study_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
         launch_update_file_job(submitted_file)
     else:
-        raise exceptions.EditConflictError(data, "Study couldn't be added.")
+        raise exceptions.EditConflictError("Study couldn't be added.")
     
 
 
@@ -846,7 +846,7 @@ def update_study(submission_id, file_id, study_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_study_in_db(data, sender, file_id)
+    return db_model_operations.update_study_in_db(data, sender, file_id, study_id=study_id)
     
 #    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
 #    study_id = int(study_id)

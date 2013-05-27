@@ -28,7 +28,7 @@ def check_if_JSONEntity_has_identifying_fields(json_entity):
 def json2library(json_obj, source):
     has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
     if not has_identifying_fields:
-        raise exceptions.NoEntityIdentifyingFieldsProvided(json_obj, "No identifying fields for this entity have been given. Please provide either name or internal_id.")
+        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
     lib = models.Library()
     has_new_field = False
     for key in json_obj:
@@ -45,7 +45,7 @@ def json2library(json_obj, source):
 def json2study(json_obj, source):
     has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
     if not has_identifying_fields:
-        raise exceptions.NoEntityIdentifyingFieldsProvided(json_obj, "No identifying fields for this entity have been given. Please provide either name or internal_id.")
+        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
     study = models.Study()
     has_field = False
     for key in json_obj:
@@ -62,7 +62,7 @@ def json2study(json_obj, source):
 def json2sample(json_obj, source):
     has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
     if not has_identifying_fields:
-        raise exceptions.NoEntityIdentifyingFieldsProvided(json_obj, "No identifying fields for this entity have been given. Please provide either name or internal_id.")
+        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
     sampl = models.Sample()
     has_field = False
     for key in json_obj:
@@ -487,35 +487,55 @@ def update_study_in_SFObj(study_json, sender, submitted_file):
 
 #---------------------------------------------------------------
 
-def update_library_in_db(library_json, sender, file_id):
+def update_library_in_db(library_json, sender, file_id, library_id=None):
     ''' Throws:
-            - DoesNotExist exception -- if the file being queried does not exist in the DB'''
+            - DoesNotExist exception -- if the file being queried does not exist in the DB
+            - exceptions.NoEntityIdentifyingFieldsProvided -- if the library_id isn't provided
+                                                          neither as a parameter, nor in the library_json
+    '''
+    if library_id == None and check_if_JSONEntity_has_identifying_fields(library_json) == False:
+        raise exceptions.NoEntityIdentifyingFieldsProvided()
     submitted_file = retrieve_submitted_file(file_id)
+    if library_id != None:
+        library_json['internal_id'] = int(library_id)
     has_changed = update_library_in_SFObj(library_json, sender, submitted_file)
     if has_changed == True:
         lib_list_version = get_library_version(submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=lib_list_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
     return False
     
-def update_sample_in_db(sample_json, sender, file_id):
+def update_sample_in_db(sample_json, sender, file_id, sample_id=None):
     ''' Updates the metadata for a sample in the DB. 
     Throws:
         - DoesNotExist exception -- if the file being queried does not exist in the DB
+        - exceptions.NoEntityIdentifyingFieldsProvided -- if the sample_id isn't provided
+                                                          neither as a parameter, nor in the sample_json
     '''
+    if sample_id == None and check_if_JSONEntity_has_identifying_fields(sample_json) == False:
+        raise exceptions.NoEntityIdentifyingFieldsProvided()
     submitted_file = retrieve_submitted_file(file_id)
-    print "UPDATE SAMPLE IN DB**************************** sample json===", sample_json
+    print "UPDATE SAMPLE IN DB**************************** sample json===", sample_json, " and sample_id param=", sample_id
+    if sample_id != None:
+        sample_json['internal_id'] = int(sample_id)
+    print "UPDATE SAMPLE IN DB --- SAMPLE JSON IS: ", sample_json
     has_changed = update_sample_in_SFObj(sample_json, sender, submitted_file)
     if has_changed == True:
         sample_list_version = get_sample_version(submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
-        #submitted_file.reload()
-        #print "FROM UPDATE SAMPLE IN DB FCT ---------------------------- ++++++++++++++++-----------", [vars(s) for s in submitted_file.sample_list]
     return False
 
-def update_study_in_db(study_json, sender, file_id):
+def update_study_in_db(study_json, sender, file_id, study_id=None):
     ''' Throws:
-            - DoesNotExist exception -- if the file being queried does not exist in the DB'''
+            - DoesNotExist exception -- if the file being queried does not exist in the DB
+            - exceptions.NoEntityIdentifyingFieldsProvided -- if the study_id isn't provided
+                                                              neither as a parameter, nor in the study_json            
+    '''
+
+    if study_id == None and check_if_JSONEntity_has_identifying_fields(study_json) == False:
+        raise exceptions.NoEntityIdentifyingFieldsProvided()
     submitted_file = retrieve_submitted_file(file_id)
+    if study_id != None:
+        study_json['internal_id'] = int(study_id)
     has_changed = update_study_in_SFObj(study_json, sender, submitted_file)
     if has_changed == True:
         lib_list_version = get_study_version(submitted_file)
@@ -676,143 +696,153 @@ def update_and_save_study_list(study_list, sender, file_id):
     return True    
 
 
+def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file, atomic_update=False, nr_retries=1):
+    update_db_dict = dict()
+#    if field_val == 'null' or field_val == None:
+#        return None
+    if field_name in submitted_file._fields:        
+        if field_name in ['submission_id', 
+                     'id',
+                     '_id',
+                     'version',
+                     'file_type', 
+                     'file_path_irods', 
+                     'file_path_client', 
+                     'last_updates_source', 
+                     'file_mdata_status',
+                     'file_submission_status']:
+            pass
+        elif field_name == 'library_list':
+            if  len(field_val) <= 0:
+                return update_db_dict
+            if atomic_update == False:
+                was_updated = update_and_save_library_list(field_val, update_source, file_id)
+                submitted_file.reload()
+            else:
+                was_updated = update_library_list(field_val, update_source, submitted_file)
+                update_db_dict['set__library_list'] = submitted_file.library_list
+                update_db_dict['inc__version__2'] = 1
+                update_db_dict['inc__version__0'] = 1
+            if was_updated:
+                print "UPDATING LIBRARY LIST.................................", was_updated
+        elif field_name == 'sample_list':
+            if  len(field_val) <= 0:
+                return update_db_dict
+            if atomic_update == False:
+                was_updated = update_and_save_sample_list(field_val, update_source, file_id)
+                submitted_file.reload()
+            else:
+                was_updated = update_sample_list(field_val, update_source, submitted_file)
+                update_db_dict['set__sample_list'] = submitted_file.sample_list
+                update_db_dict['inc__version__1'] = 1
+                update_db_dict['inc__version__0'] = 1
+            if was_updated:
+                print "UPDATING SAMPLE LIST..................................", was_updated
+        elif field_name == 'study_list':
+            if  len(field_val) <= 0:
+                return update_db_dict
+            if atomic_update == False:
+                was_updated = update_study_list(field_val, update_source, file_id, submitted_file, save_to_db=True)
+                submitted_file.reload()
+            else:
+                was_updated = update_study_list(field_val, update_source, file_id, submitted_file, save_to_db=False)
+                update_db_dict['set__study_list'] = submitted_file.study_list
+                update_db_dict['inc__version__3'] = 1
+                update_db_dict['inc__version__0'] = 1
+            if was_updated:
+                print "UPDATING study LIST..................................", was_updated
+        elif field_name == 'seq_centers':
+            if  len(field_val) <= 0:
+                return update_db_dict
+            comp_lists = cmp(submitted_file.seq_centers, field_val)
+            if comp_lists == -1:
+                for seq_center in field_val:
+                    update_db_dict['add_to_set__seq_centers'] = seq_center
+                update_db_dict['inc__version__0'] = 1
+        # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
+        elif field_name == 'file_error_log':
+            # TODO: make file_error a map, instead of a list
+            comp_lists = cmp(submitted_file.file_error_log, field_val)
+            if comp_lists == -1:
+                for error in field_val:
+                    update_db_dict['add_to_set__file_error_log'] = error
+                update_db_dict['inc__version__0'] = 1
+        elif field_name == 'missing_entities_error_dict':
+            for entity_categ, entities in field_val.iteritems():
+                update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
+            update_db_dict['inc__version__0'] = 1
+        elif field_name == 'not_unique_entity_error_dict':
+    #                    self.not_unique_entity_error_dict.update(val)
+            for entity_categ, entities in field_val.iteritems():
+                update_db_dict['push_all__not_unique_entity_error_dict'] = entities
+            update_db_dict['inc__version__0'] = 1
+            print "UPDATING NOT UNIQUE....................."
+        elif field_name == 'header_has_mdata':
+            if update_source == constants.PARSE_HEADER_MSG_SOURCE:
+                update_db_dict['set__header_has_mdata'] = field_val
+                update_db_dict['inc__version__0'] = 1
+    #                elif key == 'file_submission_status':
+    #                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
+    #                    self.inc_file_version(update_dict)
+    #                    SubmittedFile.objects(id=self.id).update_one(**update_dict)
+    #                    print "UPDATING FILE SUBMISSION STATUS.........................................."
+        elif field_name == 'md5':
+            # TODO: from here I don't add these fields to the last_updates_source dict, should I?
+            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+                update_db_dict['set__md5'] = field_val
+                update_db_dict['inc__version__0'] = 1
+                print "UPDATING MD5.............................................."
+        elif field_name == 'file_upload_job_status':
+            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+                update_db_dict['set__file_upload_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
+    #                        print "UPDATING UPLOAD FILE JOB STATUS...........................", upd, " and self upload status: ", self.file_upload_job_status
+        elif field_name == 'file_header_parsing_job_status':
+            if update_source == constants.PARSE_HEADER_MSG_SOURCE:
+                update_db_dict['set__file_header_parsing_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
+    #                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
+        # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
+        elif field_name == 'file_update_mdata_job_status':
+            if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
+                update_db_dict['set__file_update_mdata_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
+    #                        print "UPDATING FILE UPDATE MDATA JOB STATUS............................................",upd
+        elif field_name != None and field_name != "null":
+            import logging
+            logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
+    #                    setattr(self, key, val)
+    #                    self.last_updates_source[key] = update_source
+    else:
+        print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", field_name, " VAL:", field_val
+        #raise KeyError
+    #if atomic_update == True:
+    return update_db_dict
+    #return None
+    
+
 
 def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
     submitted_file = retrieve_submitted_file(file_id)
-    update_db_dict = dict()
-    for (key, val) in update_dict.iteritems():
-        if val == 'null' or val == None:
-            continue
-        if key in submitted_file._fields:          
-            if key in ['submission_id', 
-                         'id',
-                         '_id',
-                         'version',
-                         'file_type', 
-                         'file_path_irods', 
-                         'file_path_client', 
-                         'last_updates_source', 
-                         'file_mdata_status',
-                         'file_submission_status']:
-                pass
-            elif key == 'library_list':
-                if  len(val) <= 0:
-                    continue
-                if atomic_update == False:
-                    was_updated = update_and_save_library_list(val, update_source, file_id)
-                    submitted_file.reload()
-                else:
-                    was_updated = update_library_list(val, update_source, submitted_file)
-                    update_db_dict['set__library_list'] = submitted_file.library_list
-                    update_db_dict['inc__version__2'] = 1
-                    update_db_dict['inc__version__0'] = 1
-                if was_updated:
-                    print "UPDATING LIBRARY LIST.................................", was_updated
-            elif key == 'sample_list':
-                if  len(val) <= 0:
-                    continue
-                if atomic_update == False:
-                    was_updated = update_and_save_sample_list(val, update_source, file_id)
-                    submitted_file.reload()
-                else:
-                    was_updated = update_sample_list(val, update_source, submitted_file)
-                    update_db_dict['set__sample_list'] = submitted_file.sample_list
-                    update_db_dict['inc__version__1'] = 1
-                    update_db_dict['inc__version__0'] = 1
-                if was_updated:
-                    print "UPDATING SAMPLE LIST..................................", was_updated
-            elif key == 'study_list':
-                if  len(val) <= 0:
-                    continue
-                if atomic_update == False:
-                    was_updated = update_study_list(val, update_source, file_id, submitted_file, save_to_db=True)
-                    submitted_file.reload()
-                else:
-                    was_updated = update_study_list(val, update_source, file_id, submitted_file, save_to_db=False)
-                    update_db_dict['set__study_list'] = submitted_file.study_list
-                    update_db_dict['inc__version__3'] = 1
-                    update_db_dict['inc__version__0'] = 1
-                if was_updated:
-                    print "UPDATING study LIST..................................", was_updated
-            elif key == 'seq_centers':
-                if  len(val) <= 0:
-                    continue
-                comp_lists = cmp(submitted_file.seq_centers, val)
-                if comp_lists == -1:
-                    for seq_center in val:
-                        update_db_dict['add_to_set__seq_centers'] = seq_center
-                    update_db_dict['inc__version__0'] = 1
-            # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
-            elif key == 'file_error_log':
-                # TODO: make file_error a map, instead of a list
-                comp_lists = cmp(submitted_file.file_error_log, val)
-                if comp_lists == -1:
-                    for error in val:
-                        update_db_dict['add_to_set__file_error_log'] = error
-                    update_db_dict['inc__version__0'] = 1
-            elif key == 'missing_entities_error_dict':
-                for entity_categ, entities in val.iteritems():
-                    update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                update_db_dict['inc__version__0'] = 1
-            elif key == 'not_unique_entity_error_dict':
-#                    self.not_unique_entity_error_dict.update(val)
-                for entity_categ, entities in val.iteritems():
-                    update_db_dict['push_all__not_unique_entity_error_dict'] = entities
-                update_db_dict['inc__version__0'] = 1
-                print "UPDATING NOT UNIQUE....................."
-            elif key == 'header_has_mdata':
-                if update_source == constants.PARSE_HEADER_MSG_SOURCE:
-                    update_db_dict['set__header_has_mdata'] = val
-                    update_db_dict['inc__version__0'] = 1
-#                elif key == 'file_submission_status':
-#                    update_dict = {'set__file_submission_status': val, str('set__last_updates_source__'+key) : update_source }
-#                    self.inc_file_version(update_dict)
-#                    SubmittedFile.objects(id=self.id).update_one(**update_dict)
-#                    print "UPDATING FILE SUBMISSION STATUS.........................................."
-            elif key == 'md5':
-                # TODO: from here I don't add these fields to the last_updates_source dict, should I?
-                if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-                    update_db_dict['set__md5'] = val
-                    update_db_dict['inc__version__0'] = 1
-                    print "UPDATING MD5.............................................."
-            elif key == 'file_upload_job_status':
-                if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-                    update_db_dict['set__file_upload_job_status'] = val
-                    update_db_dict['inc__version__0'] = 1
-#                        print "UPDATING UPLOAD FILE JOB STATUS...........................", upd, " and self upload status: ", self.file_upload_job_status
-            elif key == 'file_header_parsing_job_status':
-                if update_source == constants.PARSE_HEADER_MSG_SOURCE:
-                    update_db_dict['set__file_header_parsing_job_status'] = val
-                    update_db_dict['inc__version__0'] = 1
-#                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
-            # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
-            elif key == 'file_update_mdata_job_status':
-                if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-                    update_db_dict['set__file_update_mdata_job_status'] = val
-                    update_db_dict['inc__version__0'] = 1
-#                        print "UPDATING FILE UPDATE MDATA JOB STATUS............................................",upd
-            elif key != None and key != "null":
-                import logging
-                logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+key)
-#                    setattr(self, key, val)
-#                    self.last_updates_source[key] = update_source
-        else:
-            print "KEY ERROR RAISED !!!!!!!!!!!!!!!!!!!!!", "KEY IS:", key, " VAL:", val
-            #raise KeyError
-        if atomic_update == False and len(update_db_dict) > 0:
+    file_update_db_dict = dict()
+    for (field_name, field_val) in update_dict.iteritems():
+        field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file, atomic_update, nr_retries)
+        if atomic_update == False and field_update_dict != None and len(field_update_dict) > 0:
             i = 0
             upd = False
             while i < nr_retries:
                 if independent_fields == False:
-                    upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
+                    upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**field_update_dict)
                 else:
-                    upd = models.SubmittedFile.objects(id=file_id).update_one(**update_db_dict)
+                    upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
                 submitted_file.reload()
                 update_db_dict = {}
                 if upd == True:
                     break
                 i+=1
-            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", key
+            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", field_name
+        else:
+            file_update_db_dict.update(field_update_dict)
     if atomic_update == True and len(update_db_dict) > 0:
         upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
         print "ATOMIC UPDATE RESULT: =================================================================", upd
