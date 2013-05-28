@@ -545,11 +545,11 @@ def get_all_libraries(submission_id, file_id):
     Returns:
         list of libraries
     '''
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-    libs = submitted_file.library_list
-    logging.info("Library list: "+str(libs)) 
-    return libs
+    return db_model_operations.retrieve_library_list(file_id)
+#    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+#    libs = submitted_file.library_list
+#    logging.info("Library list: "+str(libs)) 
+#    return libs
     
 
 def get_library(submission_id, file_id, library_id):
@@ -560,15 +560,17 @@ def get_library(submission_id, file_id, library_id):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist. 
-        '''
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    library_id = int(library_id)
-#    lib = submitted_file.get_library_by_id(library_id)
+    '''
     lib = db_model_operations.retrieve_library_by_id(library_id, file_id)
-    logging.info("Library is: "+ str(lib))
     if lib == None:
-        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-    return lib 
+        raise exceptions.ResourceNotFoundError(library_id)
+    else:
+        return lib
+#    lib = db_model_operations.retrieve_library_by_id(library_id, file_id)
+#    logging.info("Library is: "+ str(lib))
+#    if lib == None:
+#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
+#    return lib 
 
 
 def add_library_to_file_mdata(submission_id, file_id, data):
@@ -609,20 +611,7 @@ def update_library(submission_id, file_id, library_id, data):
     '''
     sender = get_request_source(data)
     return db_model_operations.update_library_in_db(data, sender, file_id, library_id=library_id)
-        
-    
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    library_id = int(library_id)
-#    lib = submitted_file.get_library_by_id(library_id)
-#    if lib == None:
-#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-#    else:
-#        sender = get_request_source(data)
-#        models.Library.check_keys(data)
-#        has_updated = lib.update_from_json(data, sender)
-#    submitted_file.save()
-#    return has_updated
-    
+            
 
 def delete_library(submission_id, file_id, library_id):
     ''' Deletes a library specified by library id.
@@ -633,15 +622,16 @@ def delete_library(submission_id, file_id, library_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library does not exist.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    library_id = int(library_id)
-    lib = submitted_file.get_library_by_id(library_id)
-    if lib == None:
-        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-    else:
-        submitted_file.library_list.remove(lib)
-        submitted_file.save()
-        return True
+    return db_model_operations.delete_library(file_id, library_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    library_id = int(library_id)
+#    lib = submitted_file.get_library_by_id(library_id)
+#    if lib == None:
+#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
+#    else:
+#        submitted_file.library_list.remove(lib)
+#        submitted_file.save()
+#        return True
 
 
 
@@ -656,11 +646,11 @@ def get_all_samples(submission_id, file_id):
     Returns:
         - list of samples
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    samples = submitted_file.sample_list
-    print [(s.name, s.internal_id) for s in samples]
-    logging.info("Sample list: "+str(samples)) 
-    return samples
+    return db_model_operations.retrieve_sample_list(file_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    samples = submitted_file.sample_list
+#    logging.info("Sample list: "+str(samples)) 
+#    return samples
     
 
 def get_sample(submission_id, file_id, sample_id):
@@ -672,14 +662,17 @@ def get_sample(submission_id, file_id, sample_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if there is no sample with this id associated with this file. 
     
-        '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    sample_id = int(sample_id)
-    sample = submitted_file.get_sample_by_id(sample_id)
-    logging.info("Sample is: "+ str(sample))
+    '''
+    sample = db_model_operations.retrieve_sample_by_id(sample_id, file_id)
     if sample == None:
-        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-    return sample 
+        raise exceptions.ResourceNotFoundError(sample_id)
+    else:
+        return sample
+#    sample = db_model_operations.retrieve_sample_by_id(sample_id, file_id)
+#    logging.info("Library is: "+ str(sample))
+#    if sample == None:
+#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+#    return sample
 
 
 def add_sample_to_file_mdata(submission_id, file_id, data):
@@ -707,23 +700,6 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
         raise exceptions.EditConflictError("Sample couldn't be added.")
 
 
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    sender = get_request_source(data)
-#    sample = models.build_entity_from_json(data, constants.SAMPLE_TYPE, sender)
-#    if sample != None:     # here should this be an exception? Again the question about unregistered fields...
-#        # TODO: Check if the sample doesn't exist already!!!!!!!!!!!!!! - VVV IMP!!!
-#        #if not sample in submitted_file.sample_list:    -- OUTPUTS AN ERROR...
-#        if not submitted_file.contains_sample(sample):
-#            print "CONTAINS SAMPLE RETURNED FALSE...", str(sample), " AND LIST: ", [ s.name for s in submitted_file.sample_list]
-#            submitted_file.sample_list.append(sample)
-#            submitted_file.save()
-#            launch_update_file_job(submitted_file)
-#        else:
-#            raise exceptions.NoEntityCreated(data, "Sample already exists in the sample list. For update, please send a PUT request.")
-#    else:
-#        raise exceptions.NoEntityCreated(data, "No library could be created. Either none of the fields is valid or the defining ones are empty. Make sure you have included either name or (seqScape) internal_id of the entity you wish to add.")
-    
-
 def update_sample(submission_id, file_id, sample_id, data):
     ''' Updates the sample with the data received from the request. 
     Throws:
@@ -738,18 +714,6 @@ def update_sample(submission_id, file_id, sample_id, data):
     sender = get_request_source(data)
     return db_model_operations.update_sample_in_db(data, sender, file_id, sample_id=sample_id)
     
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    sample_id = int(sample_id)
-#    sample = submitted_file.get_sample_by_id(sample_id)
-#    if sample == None:
-#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-#    else:
-#        sender = get_request_source(data)
-#        models.Sample.check_keys(data)
-#        has_updated = sample.update_from_json(data, sender)
-#    submitted_file.save()
-#    return has_updated
-    
 
 def delete_sample(submission_id, file_id, sample_id):
     ''' Deletes a sample specified by sample id.
@@ -760,15 +724,16 @@ def delete_sample(submission_id, file_id, sample_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the sample does not exist.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    sample_id = int(sample_id)
-    sample = submitted_file.get_sample_by_id(sample_id)
-    if sample == None:
-        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-    else:
-        submitted_file.sample_list.remove(sample)
-        submitted_file.save()
-        return True
+    return db_model_operations.delete_sample(file_id, sample_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    sample_id = int(sample_id)
+#    sample = submitted_file.get_sample_by_id(sample_id)
+#    if sample == None:
+#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
+#    else:
+#        submitted_file.sample_list.remove(sample)
+#        submitted_file.save()
+#        return True
 
 
 
@@ -784,10 +749,11 @@ def get_all_studies(submission_id, file_id):
     Returns:
         list of libraries
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    studies = submitted_file.study_list
-    logging.info("Study list: "+str(studies)) 
-    return studies
+    return db_model_operations.retrieve_study_list(file_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    studies = submitted_file.study_list
+#    logging.info("Study list: "+str(studies)) 
+#    return studies
     
 
 def get_study(submission_id, file_id, study_id):
@@ -799,14 +765,17 @@ def get_study(submission_id, file_id, study_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist. 
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    study_id = int(study_id)
-    study = submitted_file.get_study_by_id(study_id)
-    logging.info("Study is: "+ str(study))
+    study = db_model_operations.retrieve_study_by_id(study_id, file_id)
     if study == None:
-        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-    return study
-
+        raise exceptions.ResourceNotFoundError(study_id)
+    else:
+        return study
+#    study = db_model_operations.retrieve_study_by_id(study_id, file_id)
+#    logging.info("Library is: "+ str(study))
+#    if study == None:
+#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+#    return study
+    
 
 def add_study_to_file_mdata(submission_id, file_id, data):
     ''' Adds a new study to the metadata of this file. 
@@ -848,18 +817,6 @@ def update_study(submission_id, file_id, study_id, data):
     sender = get_request_source(data)
     return db_model_operations.update_study_in_db(data, sender, file_id, study_id=study_id)
     
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    study_id = int(study_id)
-#    study = submitted_file.get_study_by_id(study_id)
-#    if study == None:
-#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-#    else:
-#        sender = get_request_source(data)
-#        models.Study.check_keys(data)
-#        has_updated = study.update_from_json(data, sender)
-#    submitted_file.save()
-#    return has_updated
-    
 
 def delete_study(submission_id, file_id, study_id):
     ''' Deletes a study specified by study id.
@@ -870,15 +827,16 @@ def delete_study(submission_id, file_id, study_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the study does not exist.
     '''
-    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    study_id = int(study_id)
-    study = submitted_file.get_study_by_id(study_id)
-    if study == None:
-        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-    else:
-        submitted_file.study_list.remove(study)
-        submitted_file.save()
-        return True
+    return db_model_operations.delete_study(file_id, study_id)
+#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+#    study_id = int(study_id)
+#    study = submitted_file.get_study_by_id(study_id)
+#    if study == None:
+#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
+#    else:
+#        submitted_file.study_list.remove(study)
+#        submitted_file.save()
+#        return True
     
     
 

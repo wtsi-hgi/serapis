@@ -567,7 +567,7 @@ class LibraryRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
-            result['erors'] = e.message
+            result['erors'] = e.faulty_expression
             return Response(result, status=404)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.message
@@ -751,7 +751,7 @@ class SampleRequestHandler(APIView):
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
-            result['erors'] = e.message
+            result['erors'] = e.faulty_expression
             return Response(result, status=404)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.message
@@ -924,7 +924,7 @@ class StudyRequestHandler(APIView):
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
-            result['erors'] = e.msg
+            result['erors'] = e.faulty_expression
             return Response(result, status=404)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.msg

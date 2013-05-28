@@ -30,13 +30,13 @@ class ResourceNotFoundError(Exception):
         self.message = msg
         
     def __str__(self):
-        text = 'Missing resource: '
+        text = 'Resource not found: '
         text += str(self.faulty_expression)
         text += ' - '
         if self.message != None:
             text += self.message
         return text
-        return 'Missing resource: '+ self.faulty_expression + ' - ' + self.message
+        #return 'Missing resource: '+ self.faulty_expression + ' - ' + self.message
     
     
 class NoEntityCreated(Exception):

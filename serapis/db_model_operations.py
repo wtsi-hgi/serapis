@@ -175,11 +175,11 @@ def update_file_mdata_status(file_id):
     if submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS: # and self.file_update_mdata_job_status in FINISHED_STATUS:
         file_has_min_mdata = check_if_file_has_min_mdata(submitted_file)
         if file_has_min_mdata == True:
-            return models.SubmittedFile.objects(id=submitted_file.id, version__0=submitted_file.get_file_version()).update_one(set__file_mdata_status=constants.HAS_MINIMAL_STATUS, inc__version__0=1)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.HAS_MINIMAL_STATUS, inc__version__0=1)
         else:
-            return models.SubmittedFile.objects(id=submitted_file.id, version__0=submitted_file.get_file_version()).update_one(set__file_mdata_status=constants.INCOMPLETE_STATUS, inc__version__0=1)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.INCOMPLETE_STATUS, inc__version__0=1)
     else:
-        return models.SubmittedFile.objects(id=submitted_file.id, version__0=submitted_file.get_file_version()).update_one(set__file_mdata_status=constants.IN_PROGRESS_STATUS, inc__version__0=1)
+        return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.IN_PROGRESS_STATUS, inc__version__0=1)
 
     
 # !!!!!!!!!!!!!!!!!!!
@@ -194,38 +194,14 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
     if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status == constants.SUCCESS_STATUS:
         if check_if_file_has_min_mdata(submitted_file) == constants.HAS_MINIMAL_STATUS:
             submitted_file.file_submission_status = constants.READY_FOR_SUBMISSION
-            models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file)).update_one(set__file_submission_status=constants.READY_FOR_SUBMISSION)
+            models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_submission_status=constants.READY_FOR_SUBMISSION)
             
     if submitted_file.file_upload_job_status == constants.IN_PROGRESS_STATUS or submitted_file.file_header_parsing_job_status == constants.IN_PROGRESS_STATUS or submitted_file.file_update_mdata_job_status == constants.IN_PROGRESS_STATUS:
         submitted_file.file_submission_status = constants.IN_PROGRESS_STATUS
-        models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file)).update_one(set__file_submission_status=constants.IN_PROGRESS_STATUS)
+        models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_submission_status=constants.IN_PROGRESS_STATUS)
         
     
-#--------------------- GENERAL AUX FUNCTIONS ----------------------------------
 
-#def list_contains_list(list1, list2):
-#    ''' Returns True if list1 contains list 2,
-#        False otherwise. '''
-#    for el in list2:
-#        if not el in list1:
-#            return False
-#    return True
-#
-#
-#def cmp_lists(list1, list2):
-#    ''' Returns:
-#        - 1 if list1 contains list2.
-#        - 0 if list1 == list2
-#        - -1 if list 2 contains list1
-#    '''
-#    if list_contains_list(list1, list2):
-#        if list_contains_list(list2, list1):
-#            return 0
-#        else:
-#            return 1
-#    else:
-#        return -1
-     
     
 #---------------------- RETRIEVE ------------------------------------
 
@@ -237,87 +213,98 @@ def retrieve_submitted_file(file_id):
     return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
 
 
+def retrieve_sample_list(file_id):
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only('sample_list').get().sample_list
+
+def retrieve_library_list(file_id):
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only('library_list').get().library_list
+
+def retrieve_study_list(file_id):
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only('study_list').get().study_list
+
+def retrieve_version(file_id):
+    ''' Returns the list of versions for this file (e.g. [9,1,0,1]).'''
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only('version').get().version
+
+def retrieve_SFile_fields_only(file_id, list_of_field_names):
+    ''' Returns a SubmittedFile object which has only the mentioned fields
+        retrieved from DB - from efficiency reasons. The rest of the fields
+        are set to None or default values.'''
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only(*list_of_field_names).get()
+
 
 def retrieve_sample_by_name(sample_name, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('name', sample_name, submitted_file.sample_list)
+        sample_list = retrieve_sample_list(file_id)
+    return get_entity_by_field('name', sample_name, sample_list)
 
 def retrieve_library_by_name(lib_name, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('name', lib_name, submitted_file.library_list)
+        library_list = retrieve_library_list(file_id)
+    return get_entity_by_field('name', lib_name, library_list)
 
 def retrieve_study_by_name(study_name, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('name', study_name, submitted_file.study_list)
+        study_list = retrieve_study_list(file_id)
+    return get_entity_by_field('name', study_name, study_list)
 
 
 
 def retrieve_sample_by_id(sample_id, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('internal_id', int(sample_id), submitted_file.sample_list)
+        sample_list = retrieve_sample_list(file_id)
+    return get_entity_by_field('internal_id', int(sample_id), sample_list)
 
 def retrieve_library_by_id(lib_id, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('internal_id', int(lib_id), submitted_file.library_list)
+        library_list = retrieve_library_list(file_id)
+    return get_entity_by_field('internal_id', int(lib_id), library_list)
 
 def retrieve_study_by_id(study_id, file_id, submitted_file=None):
     if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    return get_entity_by_field('internal_id', study_id, submitted_file.study_list)
+        study_list = retrieve_study_list(file_id)
+    return get_entity_by_field('internal_id', study_id, study_list)
 
 
  
-def get_file_version(submitted_file):
+def get_file_version(file_id, submitted_file=None):
+    if submitted_file == None:
+        version = retrieve_version(file_id)
+        return version[0]
     return submitted_file.version[0]
 
-def get_sample_version(submitted_file):
+def get_sample_version(file_id, submitted_file=None):
+    if submitted_file == None:
+        version = retrieve_version(file_id)
+        return version[1]
     return submitted_file.version[1]
 
-def get_library_version(submitted_file):
+def get_library_version(file_id, submitted_file=None):
+    if submitted_file == None:
+        version = retrieve_version(file_id)
+        return version[2]
     return submitted_file.version[2]
  
-def get_study_version(submitted_file):
+def get_study_version(file_id, submitted_file=None):
+    if submitted_file == None:
+        version = retrieve_version(file_id)
+        return version[3]
     return submitted_file.version[3]
 
 
+#
+#def compare_versions(file_json, file_id, submitted_file=None):
+#    if submitted_file == None:
+#        submitted_file = retrieve_submitted_file(file_id)
+#    lib_vers_file = get_library_version(submitted_file)
+#    lib_vers_json = file_json['version']
+#    return lib_vers_file == lib_vers_json
+#    
+#    
 
-def compare_versions(file_json, file_id, submitted_file=None):
-    if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    lib_vers_file = get_library_version(submitted_file)
-    lib_vers_json = file_json['version']
-    return lib_vers_file == lib_vers_json
-    
-    
-
-# ------------------------ SEARCH ENTITY ---------------------------------
+#------------------------ SEARCH ENTITY ---------------------------------
 
 
-
-#def search_JSONEntity_in_list(entity_json, entity_list):
-#    if entity_list == None or len(entity_list) == 0:
-#        return False
-#    id_fields_list = []
-#    for id_field in models.ENTITY_IDENTITYING_FIELDS:
-#        if id_field in entity_json:
-#            id_fields_list.append(id_field)
-#    if len(id_fields_list) == 0:
-#        raise exceptions.NoEntityIdentifyingFieldsProvided(entity_json, "No identifying fields for this entity. Please include internal_id or name.")
-#    else: 
-#        crt_library = None
-#        for id_field in id_fields_list:
-#            crt_library = get_entity_by_field(id_field, entity_json[id_field], entity_list)
-#            if crt_library != None:
-#                break
-##    if crt_library == None:
-##        raise exceptions.ResourceNotFoundError(entity_json, "This entity hasn't been found in the metadata of this file.")
-##    else:
-#        return crt_library
 
 def search_JSONEntity_in_list(entity_json, entity_list):
     ''' Searches for the JSON entity within the entity list.
@@ -365,7 +352,7 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
 
 
 
-# ----------------------------- UPDATE ENTITY -------------------------------
+#----------------------------- UPDATE ENTITY -------------------------------
 
 
 def update_entity(entity_json, crt_ent, sender):
@@ -430,7 +417,7 @@ def insert_library_in_db(library_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
     inserted = insert_library_in_SFObj(library_json, sender, submitted_file)
     if inserted == True:
-        library_version = get_library_version(submitted_file)
+        library_version = get_library_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=library_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
     return 0
 
@@ -444,7 +431,7 @@ def insert_sample_in_db(sample_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
     inserted = insert_sample_in_SFObj(sample_json, sender, submitted_file)
     if inserted == True:
-        sample_version = get_sample_version(submitted_file)
+        sample_version = get_sample_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
     return 0
 
@@ -453,7 +440,7 @@ def insert_study_in_db(study_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
     inserted = insert_study_in_SFObj(study_json, sender, submitted_file)
     if inserted == True:
-        study_version = get_study_version(submitted_file)
+        study_version = get_study_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__3=study_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)
     return 0
 
@@ -500,7 +487,7 @@ def update_library_in_db(library_json, sender, file_id, library_id=None):
         library_json['internal_id'] = int(library_id)
     has_changed = update_library_in_SFObj(library_json, sender, submitted_file)
     if has_changed == True:
-        lib_list_version = get_library_version(submitted_file)
+        lib_list_version = get_library_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=lib_list_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
     return False
     
@@ -520,7 +507,7 @@ def update_sample_in_db(sample_json, sender, file_id, sample_id=None):
     print "UPDATE SAMPLE IN DB --- SAMPLE JSON IS: ", sample_json
     has_changed = update_sample_in_SFObj(sample_json, sender, submitted_file)
     if has_changed == True:
-        sample_list_version = get_sample_version(submitted_file)
+        sample_list_version = get_sample_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
     return False
 
@@ -530,7 +517,6 @@ def update_study_in_db(study_json, sender, file_id, study_id=None):
             - exceptions.NoEntityIdentifyingFieldsProvided -- if the study_id isn't provided
                                                               neither as a parameter, nor in the study_json            
     '''
-
     if study_id == None and check_if_JSONEntity_has_identifying_fields(study_json) == False:
         raise exceptions.NoEntityIdentifyingFieldsProvided()
     submitted_file = retrieve_submitted_file(file_id)
@@ -538,7 +524,7 @@ def update_study_in_db(study_json, sender, file_id, study_id=None):
         study_json['internal_id'] = int(study_id)
     has_changed = update_study_in_SFObj(study_json, sender, submitted_file)
     if has_changed == True:
-        lib_list_version = get_study_version(submitted_file)
+        lib_list_version = get_study_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__3=lib_list_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)
     return False
 
@@ -593,9 +579,6 @@ def insert_or_update_study_in_SFObj(study_json, sender, submitted_file):
 
 def insert_or_update_library_in_db(library_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
-#    for old_library in submitted_file.library_list:
-#        if check_if_entities_are_equal(old_library, library_json) == True:                      #if new_entity.is_equal(old_entity):
-#            print "INSERT OR UPDATE -------------------- WAS FOUND = TRUE: library json", library_json, "  and Old library: ", old_library
     done = False
     lib_exists = search_JSONEntity_in_list(library_json, submitted_file.library_list)
     if lib_exists == None:
@@ -604,7 +587,7 @@ def insert_or_update_library_in_db(library_json, sender, file_id):
     else:
         done = update_library_in_SFObj(library_json, sender, submitted_file)
     if done == True:
-        lib_list_version = get_library_version(submitted_file)
+        lib_list_version = get_library_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=lib_list_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
     
    
@@ -612,10 +595,6 @@ def insert_or_update_library_in_db(library_json, sender, file_id):
 
 def insert_or_update_sample_in_db(sample_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
-#    for old_sample in submitted_file.sample_list:
-#        check = check_if_entities_are_equal(old_sample, sample_json)
-#        if check_if_entities_are_equal(old_sample, sample_json) == True:                      #if new_entity.is_equal(old_entity):
-#            print "INSERT OR UPDATE => UPDATE -------------------- WAS FOUND = TRUE: sample json", sample_json, "  and Old sample: ", vars(old_sample)
     done = False
     sample_exists = search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
     if sample_exists == None:
@@ -624,7 +603,7 @@ def insert_or_update_sample_in_db(sample_json, sender, file_id):
     else:
         done = update_sample_in_db(sample_json, sender, file_id)
     if done == True:
-        sample_list_version = get_sample_version(submitted_file)
+        sample_list_version = get_sample_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list) 
 
     
@@ -642,7 +621,7 @@ def insert_or_update_study_in_db(study_json, sender, file_id):
     else:
         done = update_study_in_db(study_json, sender, file_id)
     if done == True:
-        study_list_version = get_study_version(submitted_file)
+        study_list_version = get_study_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__3=study_list_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list) 
 
     
@@ -832,7 +811,7 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
             upd = False
             while i < nr_retries:
                 if independent_fields == False:
-                    upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**field_update_dict)
+                    upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**field_update_dict)
                 else:
                     upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
                 submitted_file.reload()
@@ -844,7 +823,7 @@ def update_submitted_file(file_id, update_dict, update_source, atomic_update=Fal
         else:
             file_update_db_dict.update(field_update_dict)
     if atomic_update == True and len(update_db_dict) > 0:
-        upd = models.SubmittedFile.objects(id=file_id, version__0=submitted_file.get_file_version()).update_one(**update_db_dict)
+        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
         print "ATOMIC UPDATE RESULT: =================================================================", upd
     print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
 #    SubmittedFile.objects(id=self.id).update_one(**update_db_dict)
@@ -864,14 +843,49 @@ def update_submitted_file_logic(file_id, update_dict, update_source):
 def update_submission(id):
     pass
 
+#----------------------- DELETE----------------------------------
 
-#-------------------------- INSERT ------------------------------------
+def delete_library(file_id, library_id):
+    submitted_file = retrieve_SFile_fields_only(file_id, ['library_list', 'version'])
+    new_list = []
+    found = False
+    for lib in submitted_file.library_list:
+        if lib.internal_id != int(library_id):
+            new_list.append(lib)
+        else:
+            found = True
+    if found == True:
+        return models.SubmittedFile.objects(id=file_id, version__2=get_library_version(submitted_file.id, submitted_file)).update_one(inc__version__2=1, inc__version__0=1, set__library_list=new_list)
+    else:
+        raise exceptions.ResourceNotFoundError(library_id)
 
 
+def delete_sample(file_id, sample_id):
+    submitted_file = retrieve_SFile_fields_only(file_id, ['sample_list', 'version'])
+    new_list = []
+    found = False
+    for lib in submitted_file.sample_list:
+        if lib.internal_id != int(sample_id):
+            new_list.append(lib)
+        else:
+            found = True
+    if found == True:
+        return models.SubmittedFile.objects(id=file_id, version__1=get_sample_version(submitted_file.id, submitted_file)).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=new_list)
+    else:
+        raise exceptions.ResourceNotFoundError(sample_id)
 
-def insert_submitted_file(file_json):
-    pass
 
-def insert_submission(submission_json):
-    pass
+def delete_study(file_id, study_id):
+    submitted_file = retrieve_SFile_fields_only(file_id, ['study_list', 'version'])
+    new_list = []
+    found = False
+    for lib in submitted_file.study_list:
+        if lib.internal_id != int(study_id):
+            new_list.append(lib)
+        else:
+            found = True
+    if found == True:
+        return models.SubmittedFile.objects(id=file_id, version__3=get_study_version(submitted_file.id, submitted_file)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
+    else:
+        raise exceptions.ResourceNotFoundError(study_id)
 
