@@ -216,9 +216,11 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
     'serapis',
-    'rest_framework'
+    'rest_framework',
+#    'tastypie_swagger'
 )
 
+#TASTYPIE_SWAGGER_API_MODULE = 'urls.api'
 
 
 # FILE UPLOADING:

@@ -312,7 +312,7 @@ class TestAddEntityAndDBModelRequests(unittest.TestCase):
     
     
     import requests
-    import json
+ #   import json
     
     URL = "http://127.0.0.1:8000/api-rest/submissions/"
     

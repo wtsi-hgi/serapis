@@ -36,6 +36,11 @@ print "PROCESS ID: ", daemon_process.pid
 from django.contrib import admin
 admin.autodiscover()
 
+#from tastypie import api
+#from api import resources
+#v1_api = api.Api(api_name='v1')
+#v1_api.register(resources.PersonResource())
+
 urlpatterns = patterns('',
     # Examples:
     # url(r'^$', 'Celery_Django_Prj.views.home', name='home'),
@@ -49,6 +54,10 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
     
-    url(r'^api-rest/', include('serapis.rest_urls', namespace='rest_framework'))
+    url(r'^api-rest/', include('serapis.rest_urls', namespace='rest_framework')),
+    
+#    url(r'api/doc/', include('tastypie_swagger.urls', namespace='tastypie_swagger')),
+    
+#    url(r'^api/', include(v1_api.urls),)
     
 )

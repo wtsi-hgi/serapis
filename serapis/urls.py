@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, include, url
 
 from serapis import views
-from serapis.view_classes import UploadView
+#from serapis.view_classes import UploadView
 from django.views.generic import TemplateView
 
     
@@ -12,14 +12,14 @@ urlpatterns = patterns('',
     
     # url(r'^$', TemplateView.as_view(template_name="login.html")),
     
-    url(r'^upload/$', UploadView.as_view()),
+    #url(r'^upload/$', UploadView.as_view()),
     
     
     # Function-based views:
     #url(r'^upload/$', views.upload, name='upload'),
-    url(r'^success/$', views.success, name='success'),
+    #url(r'^success/$', views.success, name='success'),
     
-    url(r'^/test/(\d*)/$', views.test, name='test'),
+    #url(r'^/test/(\d*)/$', views.test, name='test'),
 
 #
 #    url(r'^(?P<file_batch_id>\d+)/detail/$', views.detail, name='detail'),
