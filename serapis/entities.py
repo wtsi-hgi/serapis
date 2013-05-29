@@ -469,7 +469,7 @@ class SubmittedFile():
         elif self.check_if_has_minimal_mdata() == True:
             self.file_mdata_status = constants.HAS_MINIMAL_STATUS
         else:
-            self.file_mdata_status = constants.INCOMPLETE_STATUS
+            self.file_mdata_status = constants.NOT_ENOUGH_METADATA_STATUS
     
 #    def to_dict(self):
 #        out = dict()

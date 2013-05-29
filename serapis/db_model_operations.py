@@ -174,6 +174,9 @@ def check_if_sample_has_minimal_mdata(sample):
 def check_and_update_if_file_has_min_mdata(submitted_file):
     if submitted_file.has_minimal == True:
         return submitted_file.has_minimal
+    # TO DECOMMENT - it is commented only for testing purposes
+#    if len(submitted_file.library_list) == 0 or len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
+#        return False
     for study in submitted_file.study_list:
         if check_if_study_has_minimal_mdata(study) == False:
             return False
@@ -195,46 +198,9 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     upd_dict['inc__version__3'] = 1
     models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     return True
-#
-#
-#def check_and_update_if_file_has_min_mdata(submitted_file):
-#    print "ENTERED IN CHECK IF HAS MIN MDATA AND UPDATE..................................................."
-#    if submitted_file.has_minimal == True:
-#        return submitted_file.has_minimal
-#    file_has_minimal_mdata = True
-#    for study in submitted_file.study_list:
-#        if not check_if_study_has_minimal_mdata(study):
-#            file_has_minimal_mdata = False
-#            break
-#    if file_has_minimal_mdata == True:
-#        for sample in submitted_file.sample_list:
-#            if not check_if_sample_has_minimal_mdata(sample):
-#                file_has_minimal_mdata = False
-#                break
-#    if file_has_minimal_mdata == True:
-#        for lib in submitted_file.library_list:
-#            if not check_if_library_has_minimal_mdata(lib):
-#                file_has_minimal_mdata = False
-#                break
-#    return file_has_minimal_mdata
 
 
-    #if len(self.sample_list) == 0 or len(self.library_list) == 0:       
-        # !!! HERE I IMPOSED THE CONDITION according to which there has to be at least one entity of each kind!!!
-    #    file_has_minimal_mdata = False
-    
-#def update_file_mdata_status(file_id):
-#    submitted_file = retrieve_submitted_file(file_id)
-#    if submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS: # and self.file_update_mdata_job_status in FINISHED_STATUS:
-#        file_has_min_mdata = check_and_update_if_file_has_min_mdata(submitted_file)
-#        if file_has_min_mdata == True:
-#            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.HAS_MINIMAL_STATUS, inc__version__0=1)
-#        else:
-#            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.NOT_ENOUGH_METADATA_STATUS, inc__version__0=1)
-#    else:
-#        return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.IN_PROGRESS_STATUS, inc__version__0=1)
 
-    
 # !!!!!!!!!!!!!!!!!!!
 # TODO: this is incomplete
 def check_and_update_all_statuses(file_id, submitted_file=None):
@@ -428,12 +394,11 @@ def update_entity(entity_json, crt_ent, sender):
             has_changed = True
             continue
         else:
-            if key in entity_json and hasattr(crt_ent, key):
-                if entity_json[key] == getattr(crt_ent, key):
-                    continue 
+            if hasattr(crt_ent, key) and entity_json[key] == getattr(crt_ent, key):
+                continue
             if key not in crt_ent.last_updates_source:
                 crt_ent.last_updates_source[key] = constants.INIT_SOURCE
-            priority_comparison = compare_sender_priority(sender, crt_ent.last_updates_source[key]) 
+            priority_comparison = compare_sender_priority(crt_ent.last_updates_source[key], sender)
             if priority_comparison >= 0:
                 setattr(crt_ent, key, entity_json[key])
                 crt_ent.last_updates_source[key] = sender
@@ -571,6 +536,7 @@ def update_sample_in_db(sample_json, sender, file_id, sample_id=None):
     print "UPDATE SAMPLE IN DB --- SAMPLE JSON IS: ", sample_json
     has_changed = update_sample_in_SFObj(sample_json, sender, submitted_file)
     if has_changed == True:
+        print "WAS UPDATED IN OBJ, now goes to the DB..........."
         sample_list_version = get_sample_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
     return 0

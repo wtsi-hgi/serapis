@@ -277,7 +277,7 @@ class TestSubmittedFileWorker(unittest.TestCase):
         self.assertTrue(self.sample.has_minimal)
         
         self.subfile.update_file_mdata_status()
-        self.assertEqual(self.subfile.file_mdata_status, INCOMPLETE_STATUS)
+        self.assertEqual(self.subfile.file_mdata_status, NOT_ENOUGH_METADATA_STATUS)
     
 #    def test_contains_fct(self):
 #        lib = entities.Library()

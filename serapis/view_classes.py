@@ -759,7 +759,8 @@ class SampleRequestHandler(APIView):
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
                                                     # to the server, when meanwhile a third party has modified the state on the server, leading to a conflict
         else:
-            if was_updated:
+            print "WAS UPDATED? -- from views: ", was_updated
+            if was_updated == 1:
                 result['message'] = "Successfully updated"
                 return Response(result, status=200)
             else:
@@ -908,7 +909,6 @@ class StudyRequestHandler(APIView):
                 key = ''.join(chr(ord(c)) for c in elem)
                 val = ''.join(chr(ord(c)) for c in data[elem])
                 new_data[key] = val
-                
             was_updated = controller.update_study(submission_id, file_id, study_id, new_data)
         except InvalidId:
             result['error'] = "Invalid id"
@@ -936,7 +936,7 @@ class StudyRequestHandler(APIView):
 #            result['errors'] = e.message
 #            return Response(result, status=404)
         else:
-            if was_updated:
+            if was_updated == 1:
                 result['message'] = "Successfully updated"
                 return Response(result, status=200)
             else:
