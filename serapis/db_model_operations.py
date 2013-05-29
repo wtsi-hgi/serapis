@@ -144,61 +144,95 @@ def compare_sender_priority(source1, source2):
  
     
 def check_if_study_has_minimal_mdata(study):
-    if study.has_minimal == True:
-        return study.has_minimal
-    elif study.accession_number != None and study.study_title != None:
-        study.has_minimal = True
+#    if study.has_minimal == True:
+#        return study.has_minimal
+    #elif study.accession_number != None and study.study_title != None:
+    if study.has_minimal == False:
+        if study.name != None and study.study_type != None:
+            print "STUDY HAS MINIMAAAAAAAAAAAAAAALlll"
+            study.has_minimal = True
     return study.has_minimal
 
 def check_if_library_has_minimal_mdata(library):
     ''' Checks if the library has the minimal mdata. Returns boolean.'''
-    if not library.has_minimal:
+    if library.has_minimal == False:
         if library.name != None and library.library_type != None:
+            print "LIBRARY HAS MINIMAAAAAAAAAAAAAAAL!!!"
             library.has_minimal = True
     return library.has_minimal
 
 def check_if_sample_has_minimal_mdata(sample):
     ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
     if sample.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-        if sample.accession_number != (None or "") and sample.name != (None or ""):
+        #if sample.accession_number != (None or "") and sample.name != (None or ""):
+        #if sample.name not in [None, ""] and sample.taxon_id not in [None, ""]:
+        if sample.name != None and sample.taxon_id != None:
             print "SAMPLE HAS MINIMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
             sample.has_minimal = True
     return sample.has_minimal
 
-def check_if_file_has_min_mdata(submitted_file):
-    print "ENTERED IN CHECK IF HAS MIN MDATA AND UPDATE..................................................."
+def check_and_update_if_file_has_min_mdata(submitted_file):
     if submitted_file.has_minimal == True:
         return submitted_file.has_minimal
-    file_has_minimal_mdata = True
     for study in submitted_file.study_list:
-        if not check_if_study_has_minimal_mdata(study):
-            file_has_minimal_mdata = False
-            break
-    if file_has_minimal_mdata == True:
-        for sample in submitted_file.sample_list:
-            if not check_if_sample_has_minimal_mdata(sample):
-                file_has_minimal_mdata = False
-                break
-    if file_has_minimal_mdata == True:
-        for lib in submitted_file.library_list:
-            if not check_if_library_has_minimal_mdata(lib):
-                file_has_minimal_mdata = False
-                break
-    return file_has_minimal_mdata
+        if check_if_study_has_minimal_mdata(study) == False:
+            return False
+    for sample in submitted_file.sample_list:
+        if check_if_sample_has_minimal_mdata(sample) == False:
+            return False
+    for lib in submitted_file.library_list:
+        if check_if_library_has_minimal_mdata(lib) == False:
+            return False
+    # UPDATE IN DB:
+    upd_dict = {}
+    upd_dict['set__has_minimal'] = True
+    upd_dict['set__library_list'] = submitted_file.library_list
+    upd_dict['set__sample_list'] = submitted_file.sample_list
+    upd_dict['set__study_list'] = submitted_file.study_list
+    upd_dict['inc__version__0'] = 1
+    upd_dict['inc__version__1'] = 1
+    upd_dict['inc__version__2'] = 1
+    upd_dict['inc__version__3'] = 1
+    models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
+    return True
+#
+#
+#def check_and_update_if_file_has_min_mdata(submitted_file):
+#    print "ENTERED IN CHECK IF HAS MIN MDATA AND UPDATE..................................................."
+#    if submitted_file.has_minimal == True:
+#        return submitted_file.has_minimal
+#    file_has_minimal_mdata = True
+#    for study in submitted_file.study_list:
+#        if not check_if_study_has_minimal_mdata(study):
+#            file_has_minimal_mdata = False
+#            break
+#    if file_has_minimal_mdata == True:
+#        for sample in submitted_file.sample_list:
+#            if not check_if_sample_has_minimal_mdata(sample):
+#                file_has_minimal_mdata = False
+#                break
+#    if file_has_minimal_mdata == True:
+#        for lib in submitted_file.library_list:
+#            if not check_if_library_has_minimal_mdata(lib):
+#                file_has_minimal_mdata = False
+#                break
+#    return file_has_minimal_mdata
+
+
     #if len(self.sample_list) == 0 or len(self.library_list) == 0:       
         # !!! HERE I IMPOSED THE CONDITION according to which there has to be at least one entity of each kind!!!
     #    file_has_minimal_mdata = False
     
-def update_file_mdata_status(file_id):
-    submitted_file = retrieve_submitted_file(file_id)
-    if submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS: # and self.file_update_mdata_job_status in FINISHED_STATUS:
-        file_has_min_mdata = check_if_file_has_min_mdata(submitted_file)
-        if file_has_min_mdata == True:
-            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.HAS_MINIMAL_STATUS, inc__version__0=1)
-        else:
-            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.INCOMPLETE_STATUS, inc__version__0=1)
-    else:
-        return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.IN_PROGRESS_STATUS, inc__version__0=1)
+#def update_file_mdata_status(file_id):
+#    submitted_file = retrieve_submitted_file(file_id)
+#    if submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS: # and self.file_update_mdata_job_status in FINISHED_STATUS:
+#        file_has_min_mdata = check_and_update_if_file_has_min_mdata(submitted_file)
+#        if file_has_min_mdata == True:
+#            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.HAS_MINIMAL_STATUS, inc__version__0=1)
+#        else:
+#            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.NOT_ENOUGH_METADATA_STATUS, inc__version__0=1)
+#    else:
+#        return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_mdata_status=constants.IN_PROGRESS_STATUS, inc__version__0=1)
 
     
 # !!!!!!!!!!!!!!!!!!!
@@ -209,16 +243,22 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
     if submitted_file.file_upload_job_status == constants.FAILURE_STATUS:
         #TODO: DELETE ALL MDATA AND FILE
         pass
-#       SubmittedFile.objects(id=self.id, file_upload_job_status=SUCCESS_STATUS, file_header_parsing_job_status=SUCCESS_STATUS).update_one()
-    if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status == constants.SUCCESS_STATUS:
-        if check_if_file_has_min_mdata(submitted_file) == constants.HAS_MINIMAL_STATUS:
-            submitted_file.file_submission_status = constants.READY_FOR_SUBMISSION
-            models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_submission_status=constants.READY_FOR_SUBMISSION)
-            
-    if submitted_file.file_upload_job_status == constants.IN_PROGRESS_STATUS or submitted_file.file_header_parsing_job_status == constants.IN_PROGRESS_STATUS or submitted_file.file_update_mdata_job_status == constants.IN_PROGRESS_STATUS:
-        submitted_file.file_submission_status = constants.IN_PROGRESS_STATUS
-        models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(set__file_submission_status=constants.IN_PROGRESS_STATUS)
-        
+    if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS:
+        print "CHECK STATUSES ---- IN CHECK AND UPDATE!!!!"
+        if check_and_update_if_file_has_min_mdata(submitted_file) == True:
+            print "HAS MIN MDATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            upd_dict = {}
+            upd_dict['set__file_submission_status'] = constants.READY_FOR_SUBMISSION_STATUS
+            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_STATUS
+            upd_dict['inc__version__0'] = 1
+            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+        else:
+            upd_dict = {}
+            upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
+            upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
+            upd_dict['inc__version__0'] = 1
+            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+    return 0
     
 
     
@@ -426,7 +466,7 @@ def insert_sample_in_SFObj(sample_json, sender, submitted_file):
 def insert_study_in_SFObj(study_json, sender, submitted_file):
     if submitted_file == None:
         return False
-    if search_JSONStudy(study_json, submitted_file.id, submitted_file):
+    if search_JSONStudy(study_json, submitted_file.id, submitted_file) == None:
         study = json2study(study_json, sender)
         submitted_file.study_list.append(study)
         return True
@@ -513,7 +553,7 @@ def update_library_in_db(library_json, sender, file_id, library_id=None):
     if has_changed == True:
         lib_list_version = get_library_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__2=lib_list_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
-    return False
+    return 0
     
 def update_sample_in_db(sample_json, sender, file_id, sample_id=None):
     ''' Updates the metadata for a sample in the DB. 
@@ -533,7 +573,7 @@ def update_sample_in_db(sample_json, sender, file_id, sample_id=None):
     if has_changed == True:
         sample_list_version = get_sample_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
-    return False
+    return 0
 
 def update_study_in_db(study_json, sender, file_id, study_id=None):
     ''' Throws:
@@ -550,7 +590,7 @@ def update_study_in_db(study_json, sender, file_id, study_id=None):
     if has_changed == True:
         lib_list_version = get_study_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__3=lib_list_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)
-    return False
+    return 0
 
    
 #------------------------------------------------------------------------------------
@@ -745,10 +785,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             if  len(field_val) <= 0:
                 return update_db_dict
             if atomic_update == False:
-                was_updated = update_study_list(field_val, update_source, file_id, submitted_file, save_to_db=True)
+                was_updated = update_study_list(field_val, update_source, submitted_file)
                 submitted_file.reload()
             else:
-                was_updated = update_study_list(field_val, update_source, file_id, submitted_file, save_to_db=False)
+                was_updated = update_study_list(field_val, update_source, submitted_file)
                 update_db_dict['set__study_list'] = submitted_file.study_list
                 update_db_dict['inc__version__3'] = 1
 #                update_db_dict['inc__version__0'] = 1
@@ -862,8 +902,25 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
     return upd
 
 def update_file_submission_status(file_id, status):
-    upd_dict = {'set__file_submission_status' : constants.READY_FOR_SUBMISSION_STATUS, 'inc__version__0' : 1}
+    upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    
+def update_file_mdata_status(file_id, status):
+    upd_dict = {'set__file_mdata_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    
+    
+def update_file_upload_job_status(file_id, status):
+    upd_dict = {'set__file_upload_job_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    
+def update_file_parse_header_job_status(file_id, status):
+    upd_dict = {'set__file_header_parsing_job_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    
+def update_file_error_log(submitted_file):
+    upd_dict = {'set__file_error_log' : submitted_file.file_error_log, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
 
 #def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):

@@ -463,27 +463,28 @@ def update_file_submitted(submission_id, file_id, data):
     file_to_update.reload()
     
     # Submit jobs for it, if the case:
-    if sender == constants.EXTERNAL_SOURCE and has_new_entities == True:
-        launch_update_file_job(file_to_update)
-        print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    elif sender == constants.UPLOAD_FILE_MSG_SOURCE and data['file_upload_job_status'] == constants.SUCCESS_STATUS:
-        #        else:
-#            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
-#            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
+    if sender == constants.EXTERNAL_SOURCE:
+        if has_new_entities == True:
+            db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+            db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+            launch_update_file_job(file_to_update)
+            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        else:
+            db_model_operations.check_and_update_all_statuses(file_id)
+    elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
+        if data['file_upload_job_status'] == constants.SUCCESS_STATUS:
 #            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-#                print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_to_update.__dict__
+                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
                 if file_to_update.file_type == constants.BAM_FILE:
                     launch_parse_BAM_header_job(file_to_update, read_on_client=True)
                 elif file_to_update.file_type == constants.VCF_FILE:
                     pass
-    elif sender == constants.PARSE_HEADER_MSG_SOURCE and data['file_header_parsing_job_status'] == constants.SUCCESS_STATUS:
-        has_min_mdata = db_model_operations.check_if_file_has_min_mdata(file_to_update)
-        if has_min_mdata == True:
-            db_model_operations.update_file_submission_status(file_id, constants.READY_FOR_SUBMISSION_STATUS)
-        else:
-            db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_USER_STATUS)
-
+        elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
+            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)
+    elif sender == constants.PARSE_HEADER_MSG_SOURCE or sender == constants.UPDATE_MDATA_MSG_SOURCE:
+        db_model_operations.check_and_update_all_statuses(file_id) 
 
 
 def resubmit_jobs(submission_id, file_id, data):
@@ -501,21 +502,23 @@ def resubmit_jobs(submission_id, file_id, data):
     # TODO: success and fail -statuses...
     # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
     if file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        file_to_resubmit.file_submission_status = constants.PENDING_ON_WORKER_STATUS
+        db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
     if file_to_resubmit.file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        file_to_resubmit.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
+        db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
     if file_to_resubmit.file_header_parsing_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]: 
-        file_to_resubmit.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+        db_model_operations.update_file_parse_header_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+    file_to_resubmit.reload()
     
     permission_denied = False
     try:
-        with open(file_to_resubmit.file_path_client): pass       # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
+        with open(file_to_resubmit.file_path_client): pass       
     except IOError as e:
         if e.errno == errno.EACCES:
             permission_denied = True
     if permission_denied == False:     
         error_list = submit_jobs_for_file(user_id, file_to_resubmit)
         file_to_resubmit.file_error_log.extend(error_list)
+        db_model_operations.update_file_error_log(file_to_resubmit)
     else:
         error_list = submit_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
     file_to_resubmit.save(validate=False)
@@ -536,7 +539,6 @@ def delete_submitted_file(submission_id, file_id):
     # Check on the submission that this file was part of
     # if submission empty => delete submission
     submission = db_model_operations.retrieve_submission(submission_id) 
-    #print "List of files: ", submission.files_list
     file_obj_id = ObjectId(file_id)
     if file_obj_id in submission.files_list:
         submission.files_list.remove(ObjectId(file_id))
@@ -600,6 +602,9 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     inserted = db_model_operations.insert_library_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+        db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+        submitted_file.reload()
         launch_update_file_job(submitted_file)
     else:
         raise exceptions.EditConflictError("Library couldn't be inserted.")
@@ -618,7 +623,11 @@ def update_library(submission_id, file_id, library_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_library_in_db(data, sender, file_id, library_id=library_id)
+    upd = db_model_operations.update_library_in_db(data, sender, file_id, library_id=library_id)
+    print "UPDATE LIBRARY: ", upd
+    if upd == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return upd
             
 
 def delete_library(submission_id, file_id, library_id):
@@ -630,7 +639,10 @@ def delete_library(submission_id, file_id, library_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the library does not exist.
     '''
-    return db_model_operations.delete_library(file_id, library_id)
+    deleted = db_model_operations.delete_library(file_id, library_id)
+    if deleted == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return deleted
 
 
 # ------------------------------- SAMPLES ----------------------
@@ -684,6 +696,9 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
     inserted = db_model_operations.insert_sample_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+        db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+        submitted_file.reload()
         launch_update_file_job(submitted_file)
     else:
         raise exceptions.EditConflictError("Sample couldn't be added.")
@@ -701,7 +716,10 @@ def update_sample(submission_id, file_id, sample_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_sample_in_db(data, sender, file_id, sample_id=sample_id)
+    upd = db_model_operations.update_sample_in_db(data, sender, file_id, sample_id=sample_id)
+    if upd == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return upd
     
 
 def delete_sample(submission_id, file_id, sample_id):
@@ -713,7 +731,10 @@ def delete_sample(submission_id, file_id, sample_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the sample does not exist.
     '''
-    return db_model_operations.delete_sample(file_id, sample_id)
+    deleted = db_model_operations.delete_sample(file_id, sample_id)
+    if deleted == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return deleted
 
 
 # ---------------------------------- STUDIES -----------------------
@@ -767,6 +788,9 @@ def add_study_to_file_mdata(submission_id, file_id, data):
     inserted = db_model_operations.insert_study_in_db(data, sender, file_id)
     if inserted == True:
         submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+        db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+        db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+        submitted_file.reload()
         launch_update_file_job(submitted_file)
     else:
         raise exceptions.EditConflictError("Study couldn't be added.")
@@ -785,7 +809,10 @@ def update_study(submission_id, file_id, study_id, data):
                               modified is older than the current document in the DB.
     '''
     sender = get_request_source(data)
-    return db_model_operations.update_study_in_db(data, sender, file_id, study_id=study_id)
+    upd = db_model_operations.update_study_in_db(data, sender, file_id, study_id=study_id)
+    if upd == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return upd
     
 
 def delete_study(submission_id, file_id, study_id):
@@ -797,7 +824,10 @@ def delete_study(submission_id, file_id, study_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the study does not exist.
     '''
-    return db_model_operations.delete_study(file_id, study_id)   
+    deleted = db_model_operations.delete_study(file_id, study_id)
+    if deleted == 1:
+        db_model_operations.check_and_update_all_statuses(file_id)
+    return deleted   
 
 
 
