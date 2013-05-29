@@ -88,6 +88,25 @@ def get_entity_by_field(field_name, field_value, entity_list):
     return None
 
 
+def check_if_list_has_new_entities(old_entity_list, new_entity_list):
+    ''' old_entity_list = list of entity objects
+        new_entity_list = json list of entities
+    '''
+    if len(new_entity_list) == 0:
+        return False
+    if len(old_entity_list) == 0 and len(new_entity_list) > 0:
+        return True
+    for new_json_entity in new_entity_list:
+        found = False
+        for old_entity in old_entity_list:
+            if check_if_entities_are_equal(old_entity, new_json_entity):
+                found = True
+        if not found:
+            return True
+    return False
+
+
+
 def check_if_entities_are_equal(entity, json_entity):
     ''' Checks if an entity and a json_entity are equal.
         Returns boolean.
@@ -208,6 +227,8 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
 def retrieve_submission(subm_id):
     return models.Submission.objects(_id=ObjectId(subm_id)).get()
 
+def retrieve_all_files_from_submission(subm_id):
+    return models.Submission.objects(id=ObjectId(subm_id)).only('files_list').get()
 
 def retrieve_submitted_file(file_id):
     return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()

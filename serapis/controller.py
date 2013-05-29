@@ -69,7 +69,7 @@ def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     # WORKING PART  
     # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
-    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id, 'on_client' : read_on_client })
+    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id, 'read_on_client' : read_on_client })
     
     
 def launch_upload_job(user_id, file_submitted, queue=None):
@@ -160,17 +160,17 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
         except IOError as e:
             io_errors_list.append(e)
             file_submitted.file_error_log.append(e.strerror)
-        else:
-            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
-            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
-            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
-            if file_submitted.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-                print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_submitted.__dict__
-                if file_submitted.file_type == constants.BAM_FILE:
-                    launch_parse_BAM_header_job(file_submitted, read_on_client)
-                elif file_submitted.file_type == constants.VCF_FILE:
-                    pass
-            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
+#        else:
+#            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
+#            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
+#            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
+#            if file_submitted.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+#                print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_submitted.__dict__
+#                if file_submitted.file_type == constants.BAM_FILE:
+#                    launch_parse_BAM_header_job(file_submitted, read_on_client)
+#                elif file_submitted.file_type == constants.VCF_FILE:
+#                    pass
+#            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
         return io_errors_list
     else:
         return None
@@ -439,32 +439,44 @@ def update_file_submitted(submission_id, file_id, data):
     # INNER FUNCTIONS - I ONLY USE IT HERE
     def check_if_has_new_entities(data, file_to_update):
         # print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
-        if 'library_list' in data and models.SubmittedFile.has_new_entities(file_to_update.library_list, data['library_list']) == True: 
+        if 'library_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.library_list, data['library_list']) == True: 
             logging.debug("Has new libraries!")
             return True
-        elif 'sample_list' in data and models.SubmittedFile.has_new_entities(file_to_update.sample_list, data['sample_list']) == True:
+        elif 'sample_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.sample_list, data['sample_list']) == True:
             logging.debug("Has new samples!")
             return True
-        elif 'study_list' in data and models.SubmittedFile.has_new_entities(file_to_update.study_list, data['study_list']) == True:
+        elif 'study_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.study_list, data['study_list']) == True:
             logging.debug("Has new studies!")
             return True
         return False
         
     # Working function:   (CODE OF THE OUTER FUNCTION)          
     sender = get_request_source(data)
+    file_to_update = db_model_operations.retrieve_submitted_file(file_id)
     if sender == constants.EXTERNAL_SOURCE:            
-        file_to_update = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
         has_new_entities = check_if_has_new_entities(data, file_to_update)
-        print "HAS NEW ENTIEIS IS: ---------", has_new_entities
+#        print "HAS NEW ENTIEIS IS: ---------", has_new_entities
+   
     # Modify the file:
-    ####file_to_update.update_from_json(data, sender)   # This throws KeyError if a key is not in the ones defined for the model
     db_model_operations.update_submitted_file_logic(file_id, data, sender) 
+    file_to_update.reload()
     
     # Submit jobs for it, if the case:
     if sender == constants.EXTERNAL_SOURCE and has_new_entities == True:
         launch_update_file_job(file_to_update)
         print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    #logging.info("*********************************** END ************************************************"+str(file_id))
+    elif sender == constants.UPLOAD_FILE_MSG_SOURCE and data['file_upload_job_status'] == constants.SUCCESS_STATUS:
+        #        else:
+#            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
+#            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
+#            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
+            if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+#                print "*********************** BEFORE LAUNCHING JOB ----- FILE IS------: ", file_to_update.__dict__
+                if file_to_update.file_type == constants.BAM_FILE:
+                    launch_parse_BAM_header_job(file_to_update, read_on_client=True)
+                elif file_to_update.file_type == constants.VCF_FILE:
+                    pass
+#            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
             
 
 def resubmit_jobs(submission_id, file_id, data):
@@ -477,7 +489,7 @@ def resubmit_jobs(submission_id, file_id, data):
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         '''
     user_id = 'ic4'
-    file_to_resubmit = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
     
     # TODO: success and fail -statuses...
     # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
@@ -514,12 +526,9 @@ def delete_submitted_file(submission_id, file_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     '''
-#    submission = get_submission(submission_id)
-#    submission.delete_file_by_id(file_id)
-    
     # Check on the submission that this file was part of
     # if submission empty => delete submission
-    submission = models.Submission.objects(_id=ObjectId(submission_id)).get()
+    submission = db_model_operations.retrieve_submission(submission_id) 
     #print "List of files: ", submission.files_list
     file_obj_id = ObjectId(file_id)
     if file_obj_id in submission.files_list:

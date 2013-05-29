@@ -416,12 +416,15 @@ class TestRequests(unittest.TestCase):
         #print "SAMPLES LIST: ", db_file.sample_list
         
         import time
-        time.sleep(4)
+        time.sleep(10)
         db_file = controller.get_submitted_file(self.file_id)
         print "2. DB FILE: ", [s.name for s in db_file.sample_list]
         
-        self.assertEqual(len(db_file.sample_list), 1)
-        self.assertIsNotNone(db_file.sample_list[0].internal_id)
+        if db_file.file_upload_job_status == SUCCESS_STATUS:
+            self.assertEqual(len(db_file.sample_list), 1)
+            self.assertIsNotNone(db_file.sample_list[0].internal_id)
+        else:
+            print "UPLOAD NOT FINISHED YET!!!!", vars(db_file)
         
     
     #def test_POST_sample(self):

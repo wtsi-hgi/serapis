@@ -494,7 +494,7 @@ class ParseBAMHeaderTask(Task):
         file_mdata = SubmittedFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         
-        on_client_flag = kwargs['on_client']
+        on_client_flag = kwargs['read_on_client']
         if on_client_flag:
             file_path = file_mdata.file_path_client
         else:

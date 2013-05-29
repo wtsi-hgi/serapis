@@ -3,7 +3,7 @@ from django.views.generic.edit import FormView
 from django.http import HttpResponseRedirect
 
 #from serapis.forms import UploadForm
-from serapis import controller
+from serapis import controller, db_model_operations
 from serapis import models
 from serapis import exceptions
 from serapis import serializers
@@ -143,8 +143,8 @@ class SubmissionsMainPageRequestHandler(APIView):
                 msg = "Submission created"  
                 result_dict['message'] = msg
                 # TESTING PURPOSES:
+                #files = [str(f.id) for f in db_model_operations.retrieve_all_files_from_submission(result_dict['submission_id'])]
                 files = [str(f.id) for f in models.SubmittedFile.objects(submission_id=result_dict['submission_id']).all()]
-                #files = models.SubmittedFile.objects(submission_id=submission_id).all()
                 result_dict['testing'] = files
                 # END TESTING
                 return Response(result_dict, status=201)
