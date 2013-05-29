@@ -699,7 +699,7 @@ def update_and_save_study_list(study_list, sender, file_id):
     return True    
 
 
-def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file, atomic_update=False, nr_retries=1):
+def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file, atomic_update=False):
     update_db_dict = dict()
 #    if field_val == 'null' or field_val == None:
 #        return None
@@ -725,7 +725,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 was_updated = update_library_list(field_val, update_source, submitted_file)
                 update_db_dict['set__library_list'] = submitted_file.library_list
                 update_db_dict['inc__version__2'] = 1
-                update_db_dict['inc__version__0'] = 1
+#                update_db_dict['inc__version__0'] = 1
             if was_updated:
                 print "UPDATING LIBRARY LIST.................................", was_updated
         elif field_name == 'sample_list':
@@ -738,7 +738,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 was_updated = update_sample_list(field_val, update_source, submitted_file)
                 update_db_dict['set__sample_list'] = submitted_file.sample_list
                 update_db_dict['inc__version__1'] = 1
-                update_db_dict['inc__version__0'] = 1
+#                update_db_dict['inc__version__0'] = 1
             if was_updated:
                 print "UPDATING SAMPLE LIST..................................", was_updated
         elif field_name == 'study_list':
@@ -751,7 +751,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 was_updated = update_study_list(field_val, update_source, file_id, submitted_file, save_to_db=False)
                 update_db_dict['set__study_list'] = submitted_file.study_list
                 update_db_dict['inc__version__3'] = 1
-                update_db_dict['inc__version__0'] = 1
+#                update_db_dict['inc__version__0'] = 1
             if was_updated:
                 print "UPDATING study LIST..................................", was_updated
         elif field_name == 'seq_centers':
@@ -825,44 +825,85 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
     
 
 
-def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
-    submitted_file = retrieve_submitted_file(file_id)
-    file_update_db_dict = dict()
-    for (field_name, field_val) in update_dict.iteritems():
-        field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file, atomic_update, nr_retries)
-        if atomic_update == False and field_update_dict != None and len(field_update_dict) > 0:
-            i = 0
-            upd = False
-            while i < nr_retries:
-                if independent_fields == False:
-                    upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**field_update_dict)
-                else:
-                    upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
-                submitted_file.reload()
-                update_db_dict = {}
-                if upd == True:
-                    break
-                i+=1
-            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", field_name
-        else:
-            file_update_db_dict.update(field_update_dict)
-    if atomic_update == True and len(update_db_dict) > 0:
-        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-        print "ATOMIC UPDATE RESULT: =================================================================", upd
-    print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
-#    SubmittedFile.objects(id=self.id).update_one(**update_db_dict)
+def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
+    upd = 0
+    i = 0
+    while i < nr_retries: 
+        submitted_file = retrieve_submitted_file(file_id)
+        #file_update_db_dict = dict()
+        update_db_dict = dict()
+        for (field_name, field_val) in update_dict.iteritems():
+            field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file, atomic_update=True)
+            update_db_dict.update(field_update_dict)
+    #        if field_update_dict != None and len(field_update_dict) > 0:
+    #            i = 0
+    #            upd = False
+    #            while i < nr_retries:
+    #                if independent_fields == False:
+    #                    upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**field_update_dict)
+    #                else:
+    #                    upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
+    #                submitted_file.reload()
+    #                update_db_dict = {}
+    #                if upd == True:
+    #                    break
+    #                i+=1
+    #            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", field_name
+    #        else:
+    #            file_update_db_dict.update(field_update_dict)
+    #    if atomic_update == True and len(update_db_dict) > 0:
+        if len(update_db_dict) > 0:
+            upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
+            print "ATOMIC UPDATE RESULT: =================================================================", upd
+        print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
+        if upd == 1:
+            break
+        i+=1
+    return upd
 
+def update_file_submission_status(file_id, status):
+    upd_dict = {'set__file_submission_status' : constants.READY_FOR_SUBMISSION_STATUS, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    
 
-
-def update_submitted_file_logic(file_id, update_dict, update_source):
-    if update_source == constants.EXTERNAL_SOURCE:
-        update_submitted_file(file_id, update_dict, update_source, atomic_update=True, nr_retries=3)
-    elif update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.UPLOAD_FILE_MSG_SOURCE]:
-        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=True)
-    elif update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=3)
-        #TODO: implement a all or nothing strategy for this case...
-    check_and_update_all_statuses(file_id)
+#def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
+#    submitted_file = retrieve_submitted_file(file_id)
+#    file_update_db_dict = dict()
+#    for (field_name, field_val) in update_dict.iteritems():
+#        field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file, atomic_update, nr_retries)
+#        if atomic_update == False and field_update_dict != None and len(field_update_dict) > 0:
+#            i = 0
+#            upd = False
+#            while i < nr_retries:
+#                if independent_fields == False:
+#                    upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**field_update_dict)
+#                else:
+#                    upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
+#                submitted_file.reload()
+#                update_db_dict = {}
+#                if upd == True:
+#                    break
+#                i+=1
+#            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", field_name
+#        else:
+#            file_update_db_dict.update(field_update_dict)
+#    if atomic_update == True and len(update_db_dict) > 0:
+#        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
+#        print "ATOMIC UPDATE RESULT: =================================================================", upd
+#    print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
+##    SubmittedFile.objects(id=self.id).update_one(**update_db_dict)
+#
+#
+#
+#def update_submitted_file_logic(file_id, update_dict, update_source):
+#    if update_source == constants.EXTERNAL_SOURCE:
+#        update_submitted_file(file_id, update_dict, update_source, atomic_update=True, nr_retries=3)
+#    elif update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.UPLOAD_FILE_MSG_SOURCE]:
+#        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=True)
+#    elif update_source == constants.UPDATE_MDATA_MSG_SOURCE:
+#        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=3)
+#        #TODO: implement a all or nothing strategy for this case...
+#    check_and_update_all_statuses(file_id)
 
 def update_submission(id):
     pass

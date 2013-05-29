@@ -458,7 +458,8 @@ def update_file_submitted(submission_id, file_id, data):
 #        print "HAS NEW ENTIEIS IS: ---------", has_new_entities
    
     # Modify the file:
-    db_model_operations.update_submitted_file_logic(file_id, data, sender) 
+    #db_model_operations.update_submitted_file_logic(file_id, data, sender)
+    db_model_operations.update_submitted_file(file_id, data, sender) 
     file_to_update.reload()
     
     # Submit jobs for it, if the case:
@@ -476,8 +477,14 @@ def update_file_submitted(submission_id, file_id, data):
                     launch_parse_BAM_header_job(file_to_update, read_on_client=True)
                 elif file_to_update.file_type == constants.VCF_FILE:
                     pass
-#            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
-            
+    elif sender == constants.PARSE_HEADER_MSG_SOURCE and data['file_header_parsing_job_status'] == constants.SUCCESS_STATUS:
+        has_min_mdata = db_model_operations.check_if_file_has_min_mdata(file_to_update)
+        if has_min_mdata == True:
+            db_model_operations.update_file_submission_status(file_id, constants.READY_FOR_SUBMISSION_STATUS)
+        else:
+            db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_USER_STATUS)
+
+
 
 def resubmit_jobs(submission_id, file_id, data):
     ''' Function called for resubmitting the jobs for a file, as a result
