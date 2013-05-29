@@ -25,6 +25,8 @@ from bson.objectid import ObjectId
 
 class TestLibraryFctControllerNEW(unittest.TestCase):
     
+    
+    
     def test_insert_lib(self):
         file_id = ObjectId("519ce663d836192526bf50c1")
         subm_file = db_model_operations.retrieve_submitted_file(file_id)
@@ -41,8 +43,7 @@ class TestLibraryFctControllerNEW(unittest.TestCase):
         subm_file.reload()
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
         
-
-
+        
 
 #class TestLibraryFctController(unittest.TestCase):
 #    def setUp(self):
@@ -476,6 +477,12 @@ class TestRequests(unittest.TestCase):
         db_file = controller.get_submitted_file(self.file_id)
         sample = controller.get_sample(self.submission, self.file_id, 3007)
         self.assertEqual(sample.ethnicity, "German")
+        
+        list_len = len(db_model_operations.retrieve_sample_list(self.file_id))
+        r = requests.delete(url, headers=headers)
+        self.assertEqual(r.status_code, 200)
+        
+        self.assertEqual(len(db_model_operations.retrieve_sample_list(self.file_id)), list_len - 1)
         
 
 if __name__ == '__main__':

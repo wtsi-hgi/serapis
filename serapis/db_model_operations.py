@@ -152,17 +152,17 @@ def check_if_file_has_min_mdata(submitted_file):
         return submitted_file.has_minimal
     file_has_minimal_mdata = True
     for study in submitted_file.study_list:
-        if not study.check_if_has_minimal_mdata():
+        if not check_if_study_has_minimal_mdata(study):
             file_has_minimal_mdata = False
             break
     if file_has_minimal_mdata == True:
         for sample in submitted_file.sample_list:
-            if not sample.check_if_has_minimal_mdata():
+            if not check_if_sample_has_minimal_mdata(sample):
                 file_has_minimal_mdata = False
                 break
     if file_has_minimal_mdata == True:
         for lib in submitted_file.library_list:
-            if not lib.check_if_has_minimal_mdata():
+            if not check_if_library_has_minimal_mdata(lib):
                 file_has_minimal_mdata = False
                 break
     return file_has_minimal_mdata
@@ -452,7 +452,8 @@ def update_library_in_SFObj(library_json, sender, submitted_file):
         return False
     crt_library = search_JSONEntity_in_list(library_json, submitted_file.library_list)
     if crt_library == None:
-        return False
+        raise exceptions.ResourceNotFoundError(library_json)
+        #return False
     return update_entity(library_json, crt_library, sender)
 
 def update_sample_in_SFObj(sample_json, sender, submitted_file):
@@ -460,7 +461,8 @@ def update_sample_in_SFObj(sample_json, sender, submitted_file):
         return False
     crt_sample = search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
     if crt_sample == None:
-        return False
+        raise exceptions.ResourceNotFoundError(sample_json)
+        #return False
     return update_entity(sample_json, crt_sample, sender)
 
 def update_study_in_SFObj(study_json, sender, submitted_file):
@@ -468,7 +470,8 @@ def update_study_in_SFObj(study_json, sender, submitted_file):
         return False
     crt_study = search_JSONEntity_in_list(study_json, submitted_file.study_list)
     if crt_study == None:
-        return False
+        raise exceptions.ResourceNotFoundError(study_json)
+        #return False
     return update_entity(study_json, crt_study, sender)
 
 

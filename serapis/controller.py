@@ -325,7 +325,8 @@ def get_submitted_file(file_id):
     Throws:
         InvalidId -- if the id is invalid
         DoesNotExist -- if there is no resource with this id in the DB.'''
-    return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    return db_model_operations.retrieve_submitted_file(file_id)
+    #return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
     
 
 # Apparently it is just returned an empty list if user_id doesn't exist
@@ -418,7 +419,7 @@ def get_all_submitted_files(submission_id):
     Returns:
         list of files for this submission
     '''
-    models.Submission.objects(_id=ObjectId(submission_id)).get()    # This makes sure that the submission exists, otherwise throws an exception
+    #models.Submission.objects(_id=ObjectId(submission_id)).get()    # This makes sure that the submission exists, otherwise throws an exception
     files = models.SubmittedFile.objects(submission_id=submission_id).all()
     return files
     
@@ -546,10 +547,6 @@ def get_all_libraries(submission_id, file_id):
         list of libraries
     '''
     return db_model_operations.retrieve_library_list(file_id)
-#    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-#    libs = submitted_file.library_list
-#    logging.info("Library list: "+str(libs)) 
-#    return libs
     
 
 def get_library(submission_id, file_id, library_id):
@@ -566,11 +563,6 @@ def get_library(submission_id, file_id, library_id):
         raise exceptions.ResourceNotFoundError(library_id)
     else:
         return lib
-#    lib = db_model_operations.retrieve_library_by_id(library_id, file_id)
-#    logging.info("Library is: "+ str(lib))
-#    if lib == None:
-#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-#    return lib 
 
 
 def add_library_to_file_mdata(submission_id, file_id, data):
@@ -623,16 +615,6 @@ def delete_library(submission_id, file_id, library_id):
         ResourceNotFoundError -- my custom exception, thrown if the library does not exist.
     '''
     return db_model_operations.delete_library(file_id, library_id)
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    library_id = int(library_id)
-#    lib = submitted_file.get_library_by_id(library_id)
-#    if lib == None:
-#        raise exceptions.ResourceNotFoundError(library_id, "Library not found")
-#    else:
-#        submitted_file.library_list.remove(lib)
-#        submitted_file.save()
-#        return True
-
 
 
 # ------------------------------- SAMPLES ----------------------
@@ -647,10 +629,6 @@ def get_all_samples(submission_id, file_id):
         - list of samples
     '''
     return db_model_operations.retrieve_sample_list(file_id)
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    samples = submitted_file.sample_list
-#    logging.info("Sample list: "+str(samples)) 
-#    return samples
     
 
 def get_sample(submission_id, file_id, sample_id):
@@ -668,11 +646,6 @@ def get_sample(submission_id, file_id, sample_id):
         raise exceptions.ResourceNotFoundError(sample_id)
     else:
         return sample
-#    sample = db_model_operations.retrieve_sample_by_id(sample_id, file_id)
-#    logging.info("Library is: "+ str(sample))
-#    if sample == None:
-#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-#    return sample
 
 
 def add_sample_to_file_mdata(submission_id, file_id, data):
@@ -725,16 +698,6 @@ def delete_sample(submission_id, file_id, sample_id):
         ResourceNotFoundError -- my custom exception, thrown if the sample does not exist.
     '''
     return db_model_operations.delete_sample(file_id, sample_id)
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    sample_id = int(sample_id)
-#    sample = submitted_file.get_sample_by_id(sample_id)
-#    if sample == None:
-#        raise exceptions.ResourceNotFoundError(sample_id, "Sample not found")
-#    else:
-#        submitted_file.sample_list.remove(sample)
-#        submitted_file.save()
-#        return True
-
 
 
 # ---------------------------------- STUDIES -----------------------
@@ -750,11 +713,7 @@ def get_all_studies(submission_id, file_id):
         list of libraries
     '''
     return db_model_operations.retrieve_study_list(file_id)
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    studies = submitted_file.study_list
-#    logging.info("Study list: "+str(studies)) 
-#    return studies
-    
+
 
 def get_study(submission_id, file_id, study_id):
     ''' Queries the DB for the requested study from the file identified by file_id.
@@ -770,11 +729,6 @@ def get_study(submission_id, file_id, study_id):
         raise exceptions.ResourceNotFoundError(study_id)
     else:
         return study
-#    study = db_model_operations.retrieve_study_by_id(study_id, file_id)
-#    logging.info("Library is: "+ str(study))
-#    if study == None:
-#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-#    return study
     
 
 def add_study_to_file_mdata(submission_id, file_id, data):
@@ -827,18 +781,7 @@ def delete_study(submission_id, file_id, study_id):
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         ResourceNotFoundError -- my custom exception, thrown if the study does not exist.
     '''
-    return db_model_operations.delete_study(file_id, study_id)
-#    submitted_file = models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-#    study_id = int(study_id)
-#    study = submitted_file.get_study_by_id(study_id)
-#    if study == None:
-#        raise exceptions.ResourceNotFoundError(study_id, "Study not found")
-#    else:
-#        submitted_file.study_list.remove(study)
-#        submitted_file.save()
-#        return True
-    
-    
+    return db_model_operations.delete_study(file_id, study_id)   
 
 
 
@@ -851,62 +794,62 @@ def abort_task(task_id):
     #bortable_async_result.abort()
     task_id.abort()
 
-
-def form2json(form, files_list):
-    print 'submit task called!!!'
-    print 'Fields received: ', form.data['lane_name']
-    print form.data['name']
+#
+#def form2json(form, files_list):
+#    print 'submit task called!!!'
+#    print 'Fields received: ', form.data['lane_name']
+#    print form.data['name']
+#    
+#    pilot_object = models.PilotModel()
+#    pilot_object.lane_name = form.data['lane_name']
+#    pilot_object.name = form.data['name']
+#    pilot_object.name = form.data['name']
+#    pilot_object.individual_name = form.data['individual_name']
+#    pilot_object.name = form.data['name']
+#    pilot_object.file_list = files_list
+#
+#    
+#    data_serialized = json.dumps(pilot_object.__dict__["_data"])
+#    print "SERIALIZED DATA: ", str(data_serialized)
+#
+#
+#    orig = json.loads(data_serialized)
+#    print "DESERIALIZED: ", orig
     
-    pilot_object = models.PilotModel()
-    pilot_object.lane_name = form.data['lane_name']
-    pilot_object.name = form.data['name']
-    pilot_object.name = form.data['name']
-    pilot_object.individual_name = form.data['individual_name']
-    pilot_object.name = form.data['name']
-    pilot_object.file_list = files_list
-
-    
-    data_serialized = json.dumps(pilot_object.__dict__["_data"])
-    print "SERIALIZED DATA: ", str(data_serialized)
-
-
-    orig = json.loads(data_serialized)
-    print "DESERIALIZED: ", orig
-    
-    
-    
-    
-def upload_files(request_files, form):
-    print "TYpe of request file type: ", type(request_files)
-    files_list = handle_multi_uploads(request_files)
-        
-    for f in files_list:
-        data_dict = parse_BAM_header_task(f)
-        print "DATA FROM BAM FILES HEADER: ", data_dict
-        
-    form2json(form, files_list)
-    
-    
-
-def upload_test(f):
-    data_dict = parse_BAM_header_task(f)
-    print "DATA FROM BAM FILES HEADER: ", data_dict
-    return data_dict
-    
-    
-    
-# Gets the list of uploaded files and moves them in the specified area (path)
-# keeps the original file name
-def handle_multi_uploads(files):
-    files_list = []
-    for upfile in files.getlist('file_field'):
-        filename = upfile.name
-        print "upfile.name = ", upfile.name
-        
-        path="/home/ic4/tmp/serapis_dest/"+filename
-        files_list.append(path)
-        fd = open(path, 'w')
-        for chunk in upfile.chunks():
-            fd.write(chunk)
-        fd.close()  
-    return files_list
+#    
+#    
+#    
+#def upload_files(request_files, form):
+#    print "TYpe of request file type: ", type(request_files)
+#    files_list = handle_multi_uploads(request_files)
+#        
+#    for f in files_list:
+#        data_dict = parse_BAM_header_task(f)
+#        print "DATA FROM BAM FILES HEADER: ", data_dict
+#        
+#    form2json(form, files_list)
+##    
+#    
+#
+#def upload_test(f):
+#    data_dict = parse_BAM_header_task(f)
+#    print "DATA FROM BAM FILES HEADER: ", data_dict
+#    return data_dict
+#    
+#    
+#    
+## Gets the list of uploaded files and moves them in the specified area (path)
+## keeps the original file name
+#def handle_multi_uploads(files):
+#    files_list = []
+#    for upfile in files.getlist('file_field'):
+#        filename = upfile.name
+#        print "upfile.name = ", upfile.name
+#        
+#        path="/home/ic4/tmp/serapis_dest/"+filename
+#        files_list.append(path)
+#        fd = open(path, 'w')
+#        for chunk in upfile.chunks():
+#            fd.write(chunk)
+#        fd.close()  
+#    return files_list
