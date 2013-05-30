@@ -283,28 +283,6 @@ class SubmittedFile():
     def add_or_update_study(self, new_study):
         self.__add_or_update_entity__(new_study, self.study_list)
 
-    @staticmethod
-    def build_from_json(json_file):
-        subm_file = SubmittedFile()
-        for key in json_file:
-            # TODO: WHAT happens with the keys that aren't declared here?!?!?! By default I add them - is this what we want?! #if key in SubmittedFile._fields:
-            #print "KEY TO BE BUILT FILE SUBMITTED *****************************", key
-            if key == 'study_list':
-                subm_file.study_list = []
-                for study_json in json_file['study_list']:
-                    subm_file.study_list.append(Study.build_from_json(study_json))
-            elif key == 'library_list':
-                subm_file.library_list = []
-                for lib_json in json_file['library_list']:
-                    subm_file.library_list.append(Library.build_from_json(lib_json))
-            elif key == 'sample_list':
-                subm_file.sample_list = []
-                for sampl_json in json_file['sample_list']:
-                    subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            elif key not in FILE_META_FIELDS and key != 'file_error_log':        
-                #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
-                setattr(subm_file, key, json_file[key])
-        return subm_file
             
     def __remove_from_erors_dict__(self, entity, entity_type, problematic_entity_dict):
         ''' Private method!!!
@@ -366,7 +344,29 @@ class SubmittedFile():
 #                return True
 #        return False
     
-    
+    @staticmethod
+    def build_from_json(json_file):
+        subm_file = SubmittedFile()
+        for key in json_file:
+            # TODO: WHAT happens with the keys that aren't declared here?!?!?! By default I add them - is this what we want?! #if key in SubmittedFile._fields:
+            #print "KEY TO BE BUILT FILE SUBMITTED *****************************", key
+            if key == 'study_list':
+                subm_file.study_list = []
+                for study_json in json_file['study_list']:
+                    subm_file.study_list.append(Study.build_from_json(study_json))
+            elif key == 'library_list':
+                subm_file.library_list = []
+                for lib_json in json_file['library_list']:
+                    subm_file.library_list.append(Library.build_from_json(lib_json))
+            elif key == 'sample_list':
+                subm_file.sample_list = []
+                for sampl_json in json_file['sample_list']:
+                    subm_file.sample_list.append(Sample.build_from_json(sampl_json))
+            elif key not in FILE_META_FIELDS and key != 'file_error_log':        
+                #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
+                setattr(subm_file, key, json_file[key])
+        return subm_file
+
     
     # TODO: throw an exception if the entity_type is not known
     def __get_entity_list__(self, entity_type):
@@ -483,6 +483,19 @@ class SubmittedFile():
 #        print "NEW FCT ++++++++++++++++++++------------------ OUT IS: ", out
 #        return out
         
+
+class BAMFile(SubmittedFile):
+    bam_type = None
+    seq_centers = []          # List of sequencing centres
+    lane_list = []
+    tag_list = []
+    run_list = []
+    platform_list = []
+    date_list = []
+    header_associations = []   # List of maps, as they are extracted from the header: [{}, {}, {}]
+
+
+
 
 class Submission():
     def __init__(self, user_id, status=None, files_list=None):

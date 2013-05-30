@@ -349,8 +349,16 @@ class UploadFileTask(Task):
             md5.update(data)
         return md5.hexdigest()
     
-    # file_id, file_submitted.file_path_client, submission_id, user_id
     def run(self, **kwargs):
+        result = {}
+        result['file_upload_job_status'] = SUCCESS_STATUS
+        file_id = kwargs['file_id']
+        submission_id = str(kwargs['submission_id'])
+
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        
+    # file_id, file_submitted.file_path_client, submission_id, user_id
+    def run2(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -393,7 +401,7 @@ class UploadFileTask(Task):
 
 
 class ParseBAMHeaderTask(Task):
-    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT'}  # PU, PL, DS?
+    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     ignore_result = True
     
     def trigger_event(self, event_type, state, result):
@@ -422,7 +430,7 @@ class ParseBAMHeaderTask(Task):
             for header_elem_key in header_grp.keys():
                 if header_elem_key not in self.HEADER_TAGS:
                     header_grp.pop(header_elem_key) 
-        print "HEADER -----------------", header
+        #print "HEADER -----------------", header
         return header
     
     
@@ -440,6 +448,30 @@ class ParseBAMHeaderTask(Task):
         return back_to_list
     
     
+    def extract_lane_from_PUHeader(self, pu_header):
+        ''' This method extracts the lane from the string found in
+            the BAM header's RG section, under PU entry => between last _ and #. 
+            A PU entry looks like: '120815_HS16_08276_A_C0NKKACXX_4#1'. '''
+        beats_list = pu_header.split("_")
+        last_beat = beats_list[-1] 
+        return last_beat[0]
+
+    def extract_tag_from_PUHeader(self, pu_header):
+        ''' This method extracts the tag nr from the string found in the 
+            BAM header - section RG, under PU entry => the nr after last #'''
+        last_hash_index = pu_header.rfind("#", 0, len(pu_header))
+        return pu_header[last_hash_index + 1 :]     
+
+    def extract_run_from_PUHeader(self, pu_header):
+        ''' This method extracts the run nr from the string found in
+            the BAM header's RG section, under PU entry => between 2nd and 3rd _.'''
+        beats_list = pu_header.split("_")
+        run_beat = beats_list[2]
+        if run_beat[0] == '0':
+            return run_beat[1:]
+        return run_beat
+    
+        
     ######### ENTITIES IN HEADER LOOKUP ########################
      
  
@@ -491,7 +523,7 @@ class ParseBAMHeaderTask(Task):
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
         #submitted_file = SubmittedFile()
-        file_mdata = SubmittedFile.build_from_json(file_mdata)
+        file_mdata = BAMFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         
         on_client_flag = kwargs['read_on_client']
@@ -503,8 +535,6 @@ class ParseBAMHeaderTask(Task):
             header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
             
-            header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
-            header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
             #header_seq_centers = header_processed['CN']
         except ValueError:      # This comes from BAM header parsing
             file_mdata.file_header_parsing_job_status = FAILURE_STATUS
@@ -514,6 +544,26 @@ class ParseBAMHeaderTask(Task):
         else:
             # Updating fields of my file_submitted object
             file_mdata.seq_centers = header_processed['CN']
+            header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
+            header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
+            
+            # NEW FIELDS:
+            file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
+            file_mdata.date_list = header_processed['DT']
+            
+            lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            print "LANE LISTTTTTTTTTTTTTTTTTT: ", str(lanes)
+            file_mdata.lane_list = lanes
+            
+            runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            print "RUUUUUUUUUUUUUUUUUNS : ", runs
+            file_mdata.run_list = runs
+            
+            tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            print "TAGGGGGGGGGGGS: ", tags
+            file_mdata.tag_list = tags
+            
+            
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
                 # TODO: to add the entities in the header to the file_mdata
@@ -540,7 +590,8 @@ class ParseBAMHeaderTask(Task):
             print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
             print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
         
-        file_mdata.update_file_mdata_status()           # update the status after the last findings
+        # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
+        #file_mdata.update_file_mdata_status()           # update the status after the last findings
         file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
         
         # Exception or not - either way - send file_mdata to the server:  

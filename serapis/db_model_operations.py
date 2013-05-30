@@ -704,6 +704,22 @@ def update_and_save_study_list(study_list, sender, file_id):
         upsert = insert_or_update_study_in_db(study, sender, file_id)
     return True    
 
+def __upd_list_of_primary_types__(crt_list, update_list_json):
+    #upd_dict = {}
+    if  len(update_list_json) <= 0:
+        return 
+    crt_set = set(crt_list)
+    print "CRT SET::::::::::::::::::::::::::", crt_set
+    new_set = set(update_list_json)
+    print "NEW SETTT:::::::::::::::::::", new_set
+    res = crt_set.union(new_set)
+    print "UNION RESULT:::::::::::::", res
+    crt_list = list(res)
+    return crt_list
+    #crt_list = crt_set
+    #operation = 'set__' + field_name
+    #upd_dict[operation] = crt_set
+    #return upd_dict
 
 def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file):
     update_db_dict = dict()
@@ -724,47 +740,42 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
         elif field_name == 'library_list':
             if  len(field_val) <= 0:
                 return update_db_dict
-#            if atomic_update == False:
-#                was_updated = update_and_save_library_list(field_val, update_source, file_id)
-#                submitted_file.reload()
-#            else:
             was_updated = update_library_list(field_val, update_source, submitted_file)
             update_db_dict['set__library_list'] = submitted_file.library_list
             update_db_dict['inc__version__2'] = 1
-#            if was_updated:
             print "UPDATING LIBRARY LIST.................................", was_updated
         elif field_name == 'sample_list':
             if  len(field_val) <= 0:
                 return update_db_dict
-#            if atomic_update == False:
-#                was_updated = update_and_save_sample_list(field_val, update_source, file_id)
-#                submitted_file.reload()
-#            else:
             was_updated = update_sample_list(field_val, update_source, submitted_file)
             update_db_dict['set__sample_list'] = submitted_file.sample_list
             update_db_dict['inc__version__1'] = 1
-#            if was_updated:
             print "UPDATING SAMPLE LIST..................................", was_updated
         elif field_name == 'study_list':
             if  len(field_val) <= 0:
                 return update_db_dict
-#            if atomic_update == False:
-#                was_updated = update_study_list(field_val, update_source, submitted_file)
-#                submitted_file.reload()
-#            else:
             was_updated = update_study_list(field_val, update_source, submitted_file)
             update_db_dict['set__study_list'] = submitted_file.study_list
             update_db_dict['inc__version__3'] = 1
-#            if was_updated:
             print "UPDATING study LIST..................................", was_updated
         elif field_name == 'seq_centers':
-            if  len(field_val) <= 0:
-                return update_db_dict
-            comp_lists = cmp(submitted_file.seq_centers, field_val)
-            if comp_lists == -1:
-                for seq_center in field_val:
-                    update_db_dict['add_to_set__seq_centers'] = seq_center
-                update_db_dict['inc__version__0'] = 1
+            updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
+            update_db_dict['set__seq_centers'] = updated_list
+        elif field_name == 'run_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
+            update_db_dict['set__run_list'] = updated_list
+        elif field_name == 'platform_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
+            update_db_dict['set__platform_list'] = updated_list
+        elif field_name == 'date_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.date_list, field_val)
+            update_db_dict['set__date_list'] = updated_list
+        elif field_name == 'lane_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.lane_list, field_val)
+            update_db_dict['set__lane_list'] = updated_list
+        elif field_name == 'tag_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.tag_list, field_val)
+            update_db_dict['set__tag_list'] = updated_list
         # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
         elif field_name == 'file_error_log':
             # TODO: make file_error a map, instead of a list

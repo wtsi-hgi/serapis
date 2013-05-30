@@ -115,7 +115,6 @@ class SubmittedFile(DynamicDocument):
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
-    seq_centers = ListField(StringField())          # List of sequencing centers where the data has been sequenced
     
     
     ############### APPLICATION - LEVEL METADATA #######################
@@ -165,7 +164,15 @@ class SubmittedFile(DynamicDocument):
 
 class BAMFile(SubmittedFile):
     bam_type = StringField()
-    #lane_nrs_list = ListField()
+    seq_centers = ListField(default=[])           # list of strings - List of sequencing centers where the data has been sequenced
+    lane_list = ListField(default=[])             # list of strings
+    tag_list = ListField(default=[])              # list of strings
+    run_list = ListField(default=[])              # list of strings
+    platform_list = ListField(default=[])         # list of strings
+    date_list = ListField(default=[])             # list of strings
+    header_associations = ListField(default=[])   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    
+    
     
     
 class VCFFile(SubmittedFile):
@@ -185,27 +192,6 @@ class Submission(DynamicDocument):
         'indexes': ['sanger_user_id', '_id'],
             }
     
- 
-
-    # OPERATIONS ON INDIVIDUAL FILES:
-#    def get_file_by_id(self, file_id):
-#        ''' Returns the corresponding SubmittedFile identified by file_id
-#            and None if there is no file with this id. '''
-#        for f in self.files_list:
-#            if f.file_id == int(file_id):
-#                return f
-#        return None
-#
-#    def delete_file_by_id(self, file_id):
-#        ''' Deletes the file identified by the file_id and raises a
-#            ResoueceDoesNotExist if there is not file with this id. '''
-#        file_to_del = self.get_file_by_id(file_id)
-#        if file_to_del == None:
-#            raise exceptions.ResourceNotFoundError(file_id, "File not found")
-#        else:
-#            self.files_list.remove(file_to_del)
-
-
     
 #    meta = {
 #        'allow_inheritance': True,
