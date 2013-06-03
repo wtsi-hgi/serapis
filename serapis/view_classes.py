@@ -332,8 +332,8 @@ class SubmittedFileRequestHandler(APIView):
         try:
             data = request.DATA
             data = from_unicode_to_string(data)
-            validator.submitted_file_schema(data)
             result = dict()
+            validator.submitted_file_schema(data)
             error_list = controller.resubmit_jobs(submission_id, file_id, data)
         except MultipleInvalid as e:
             result['error'] = "Message contents invalid: "+e.msg

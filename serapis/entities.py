@@ -65,7 +65,7 @@ class Study(Entity):
         self.study_title = study_title
         self.faculty_sponsor = faculty_sponsor  
         self.ena_project_id = ena_project_id
-        self.reference_genome = reference_genome
+#        self.reference_genome = reference_genome
         super(Study, self).__init__()
     
 #    def __eq__(self, other):
@@ -494,7 +494,8 @@ class BAMFile(SubmittedFile):
     date_list = []
     header_associations = []   # List of maps, as they are extracted from the header: [{}, {}, {}]
 
-
+    # Optional - alternative - special cases when lib is multiplexed
+    library_well_list = []
 
 
 class Submission():

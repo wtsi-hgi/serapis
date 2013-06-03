@@ -75,7 +75,7 @@ class Study(Entity):
     study_title = StringField()
     faculty_sponsor = StringField()
     ena_project_id = StringField()
-    reference_genome = StringField()
+#    reference_genome = StringField()
     
 
 class Library(Entity):
@@ -91,7 +91,7 @@ class Sample(Entity):          # one sample can be member of many studies
     reference_genome = StringField()
     
     # Fields relating to the individual:
-    taxon_id = StringField()
+    taxon_id = IntField()
     gender = StringField()
     cohort = StringField()
     ethnicity = StringField()
@@ -104,7 +104,6 @@ class Sample(Entity):          # one sample can be member of many studies
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
-    #file_id = Field(required=True)
     submission_id = StringField()
     id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
@@ -164,14 +163,16 @@ class SubmittedFile(DynamicDocument):
 
 class BAMFile(SubmittedFile):
     bam_type = StringField()
-    seq_centers = ListField(default=[])           # list of strings - List of sequencing centers where the data has been sequenced
-    lane_list = ListField(default=[])             # list of strings
-    tag_list = ListField(default=[])              # list of strings
-    run_list = ListField(default=[])              # list of strings
-    platform_list = ListField(default=[])         # list of strings
-    date_list = ListField(default=[])             # list of strings
-    header_associations = ListField(default=[])   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
+    lane_list = ListField()             # list of strings
+    tag_list = ListField()              # list of strings
+    run_list = ListField()              # list of strings
+    platform_list = ListField()         # list of strings
+    date_list = ListField()             # list of strings
+    header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
     
+    # optional:
+    library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
     
     
     

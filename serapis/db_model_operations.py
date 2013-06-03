@@ -1,6 +1,7 @@
 from serapis import models, constants, exceptions
 
 from bson.objectid import ObjectId
+from compiler.ast import Getattr
 
 
 #------------------- CONSTANTS - USEFUL ONLY IN THIS SCRIPT -----------------
@@ -88,6 +89,31 @@ def get_entity_by_field(field_name, field_value, entity_list):
     return None
 
 
+def update_entity(entity_json, crt_ent, sender):
+    has_changed = False
+    for key in entity_json:
+        old_val = getattr(crt_ent, key)
+        if key in models.ENTITY_APP_MDATA_FIELDS or key == None:
+            continue
+        elif old_val == None:
+            setattr(crt_ent, key, entity_json[key])
+            crt_ent.last_updates_source[key] = sender
+            has_changed = True
+            continue
+        else:
+            if hasattr(crt_ent, key) and entity_json[key] == getattr(crt_ent, key):
+                continue
+            if key not in crt_ent.last_updates_source:
+                crt_ent.last_updates_source[key] = constants.INIT_SOURCE
+            priority_comparison = compare_sender_priority(crt_ent.last_updates_source[key], sender)
+            if priority_comparison >= 0:
+                setattr(crt_ent, key, entity_json[key])
+                crt_ent.last_updates_source[key] = sender
+                has_changed = True
+    return has_changed
+
+
+
 def check_if_list_has_new_entities(old_entity_list, new_entity_list):
     ''' old_entity_list = list of entity objects
         new_entity_list = json list of entities
@@ -144,12 +170,8 @@ def compare_sender_priority(source1, source2):
  
     
 def check_if_study_has_minimal_mdata(study):
-#    if study.has_minimal == True:
-#        return study.has_minimal
-    #elif study.accession_number != None and study.study_title != None:
     if study.has_minimal == False:
         if study.name != None and study.study_type != None:
-            print "STUDY HAS MINIMAAAAAAAAAAAAAAALlll"
             study.has_minimal = True
     return study.has_minimal
 
@@ -157,19 +179,16 @@ def check_if_library_has_minimal_mdata(library):
     ''' Checks if the library has the minimal mdata. Returns boolean.'''
     if library.has_minimal == False:
         if library.name != None and library.library_type != None:
-            print "LIBRARY HAS MINIMAAAAAAAAAAAAAAAL!!!"
             library.has_minimal = True
     return library.has_minimal
 
 def check_if_sample_has_minimal_mdata(sample):
     ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
     if sample.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-        #if sample.accession_number != (None or "") and sample.name != (None or ""):
-        #if sample.name not in [None, ""] and sample.taxon_id not in [None, ""]:
         if sample.name != None and sample.taxon_id != None:
-            print "SAMPLE HAS MINIMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
             sample.has_minimal = True
     return sample.has_minimal
+
 
 def check_and_update_if_file_has_min_mdata(submitted_file):
     if submitted_file.has_minimal == True:
@@ -227,6 +246,60 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
     return 0
     
 
+
+#def update_entity(entity_json, crt_ent, sender):
+    
+def merge_entities(ent1, ent2, result_entity):
+    ''' Merge 2 samples, considering that the senders have eqaual priority. '''    
+    #entity = models.Sample()
+    for key_s1, val_s1 in vars(ent1):
+        if key_s1 in models.ENTITY_APP_MDATA_FIELDS or key_s1 == None:
+            continue
+        if hasattr(ent2, key_s1):
+            attr_val = getattr(ent2, key_s1)
+            if attr_val == None or attr_val == "null" or attr_val == "":
+                setattr(result_entity, key_s1, val_s1)
+            else:
+                if not key_s1 in ent1.last_updates_source:
+                    ent1.last_updates_source[key_s1] = constants.INIT_SOURCE
+                if not key_s1 in ent2.last_updates_source:
+                    ent2.last_updates_source[key_s1] = constants.INIT_SOURCE
+                priority_comparison = compare_sender_priority(ent1.last_updates_source[key_s1], ent2.last_updates_source[key_s1])   
+                if priority_comparison <= 0:
+                    setattr(result_entity, key_s1, getattr(ent1, key_s1))
+                    result_entity.last_updates_source[key_s1] = ent1.last_updates_source[key_s1]
+                elif priority_comparison > 0:
+                    setattr(result_entity, key_s1, getattr(ent2, key_s1))
+                    result_entity.last_updates_source[key_s1] = ent2.last_updates_source[key_s1]
+    
+    for key_s2, val_s2 in vars(ent2):
+        if key_s2 in models.ENTITY_APP_MDATA_FIELDS or key_s2 == None:
+            continue
+        if hasattr(result_entity, key_s2) and getattr(result_entity, key_s2) != None:
+                continue
+        else:
+            setattr(result_entity, key_s2, val_s2)
+            result_entity.last_updates_source[key_s2] = ent2.last_updates_source[key_s2]
+    return result_entity
+
+
+
+def remove_duplicates(entity_list):
+    result_list = []
+    for ent1 in entity_list:
+        found = False
+        for ent2 in result_list:
+            if ent1 == ent2:
+                #merged_entity = update_entity(ent1, ent2, sender)
+                merged_entity = merge_entities(ent1, ent2)
+                result_list.append(merged_entity)
+                found = True
+        if found == False:
+            result_list.append(ent1)
+    return result_list
+    #entity_list = set(entity_list)
+    #return list(entity_list)
+        
     
 #---------------------- RETRIEVE ------------------------------------
 
@@ -377,33 +450,6 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
         submitted_file = retrieve_submitted_file(file_id)
     return search_JSONEntity_in_list(study_json, submitted_file.study_list)
 
-
-
-#----------------------------- UPDATE ENTITY -------------------------------
-
-
-def update_entity(entity_json, crt_ent, sender):
-    has_changed = False
-    for key in entity_json:
-        old_val = getattr(crt_ent, key)
-        if key in models.ENTITY_APP_MDATA_FIELDS or key == None:
-            continue
-        elif old_val == None:
-            setattr(crt_ent, key, entity_json[key])
-            crt_ent.last_updates_source[key] = sender
-            has_changed = True
-            continue
-        else:
-            if hasattr(crt_ent, key) and entity_json[key] == getattr(crt_ent, key):
-                continue
-            if key not in crt_ent.last_updates_source:
-                crt_ent.last_updates_source[key] = constants.INIT_SOURCE
-            priority_comparison = compare_sender_priority(crt_ent.last_updates_source[key], sender)
-            if priority_comparison >= 0:
-                setattr(crt_ent, key, entity_json[key])
-                crt_ent.last_updates_source[key] = sender
-                has_changed = True
-    return has_changed
 
 
 
@@ -709,17 +755,11 @@ def __upd_list_of_primary_types__(crt_list, update_list_json):
     if  len(update_list_json) <= 0:
         return 
     crt_set = set(crt_list)
-    print "CRT SET::::::::::::::::::::::::::", crt_set
     new_set = set(update_list_json)
-    print "NEW SETTT:::::::::::::::::::", new_set
     res = crt_set.union(new_set)
-    print "UNION RESULT:::::::::::::", res
     crt_list = list(res)
     return crt_list
-    #crt_list = crt_set
-    #operation = 'set__' + field_name
-    #upd_dict[operation] = crt_set
-    #return upd_dict
+
 
 def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file):
     update_db_dict = dict()
@@ -776,6 +816,13 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
         elif field_name == 'tag_list':
             updated_list = __upd_list_of_primary_types__(submitted_file.tag_list, field_val)
             update_db_dict['set__tag_list'] = updated_list
+        # TODO: check for duplicated in header_associations -- this requires equality between maps...
+        elif field_name == 'header_associations' and update_source == constants.PARSE_HEADER_MSG_SOURCE:
+            submitted_file.header_associations.append(field_val)
+            update_db_dict['set__header_associations'] = submitted_file.header_associations
+        elif field_name == 'library_well_list':
+            updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list,field_val)
+            update_db_dict['set__library_well_list'] = updated_list
         # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
         elif field_name == 'file_error_log':
             # TODO: make file_error a map, instead of a list
@@ -789,11 +836,9 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
             update_db_dict['inc__version__0'] = 1
         elif field_name == 'not_unique_entity_error_dict':
-    #                    self.not_unique_entity_error_dict.update(val)
             for entity_categ, entities in field_val.iteritems():
                 update_db_dict['push_all__not_unique_entity_error_dict'] = entities
             update_db_dict['inc__version__0'] = 1
-            print "UPDATING NOT UNIQUE....................."
         elif field_name == 'header_has_mdata':
             if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                 update_db_dict['set__header_has_mdata'] = field_val

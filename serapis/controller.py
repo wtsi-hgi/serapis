@@ -3,15 +3,15 @@ import os
 import errno
 import logging
 from bson.objectid import ObjectId
-from serapis import tasks, db_model_operations
+from serapis import tasks
 from serapis import exceptions
 from serapis import models
 from serapis import constants, serializers
 
 from celery import chain
-from serapis.entities import SubmittedFile
+#from serapis.entities import SubmittedFile
 from serapis import db_model_operations
-
+from serapis2irods import convert2irods_mdata
 
 
 
@@ -255,7 +255,9 @@ def init_submission(user_id, files_list):
             file_submitted.file_header_parsing_job_status = status
             file_submitted.file_upload_job_status = status
             file_submitted.file_submission_status = status
+            print "FILE TYPEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", file_type, type(file_type)
             file_submitted.file_type = file_type
+            print "FILE TYPEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", file_type
             file_submitted.save()
             submitted_files_list.append(file_submitted.id)
 
@@ -484,8 +486,37 @@ def update_file_submitted(submission_id, file_id, data):
         elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
             db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)
     elif sender == constants.PARSE_HEADER_MSG_SOURCE or sender == constants.UPDATE_MDATA_MSG_SOURCE:
-        db_model_operations.check_and_update_all_statuses(file_id) 
-
+        db_model_operations.check_and_update_all_statuses(file_id)
+        
+        # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
+        file_to_update.reload()
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
+        print "IRODS MDATA DICT:"
+        for mdata in irods_mdata_dict:
+            print mdata
+        
+        # REMOVE DUPLICATES:
+        file_to_update.reload() 
+        sampl_list = db_model_operations.remove_duplicates(file_to_update.sample_list)
+        lib_list = db_model_operations.remove_duplicates(file_to_update.library_list)
+        study_list = db_model_operations.remove_duplicates(file_to_update.study_list)
+        upd_dict = {}
+        if sampl_list != file_to_update.sample_list:
+            upd_dict['set__sample_list'] = sampl_list
+            upd_dict['inc__version__1'] = 1
+        if lib_list != file_to_update.library_list:
+            upd_dict['set__library_list'] = lib_list
+            upd_dict['inc__version__2'] = 1
+        if study_list != file_to_update.study_list:
+            upd_dict['set__study_list'] = study_list
+            upd_dict['inc__version__3'] = 1
+        if len(upd_dict) > 0:
+            upd_dict['inc__version__0'] = 1
+            was_upd = models.SubmittedFile.objects(id=file_id, version=db_model_operations.get_file_version(None, file_to_update)).update_one(**upd_dict)
+            print "REMOVE DUPLICATES ----- WAS UPDATED: ", was_upd
+        else:
+            print "NOTHING TO UPDATE!!!!!!!!!!!!!!!!!!!!!! -------))))))(((()()()()("
+            
 
 def resubmit_jobs(submission_id, file_id, data):
     ''' Function called for resubmitting the jobs for a file, as a result

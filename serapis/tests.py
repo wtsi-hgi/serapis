@@ -392,15 +392,29 @@ class TestRequests(unittest.TestCase):
     URL = "http://127.0.0.1:8000/api-rest/submissions/"
     
     def setUp(self):
-        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        self.headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
         payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
-        self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = headers)
+        self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = self.headers)
         print "POST REQ made -- response:", self.post_req.text
         submission_info = self.post_req.text
         #print "AND TEXT: ", submission_info
         submission_info = json.loads(submission_info)
         self.submission = submission_info['submission_id']
         self.file_id = submission_info['testing'][0]
+        
+        
+    def test_duplicates_in_entity_lists(self):
+        print "DUPLICATES TEST -- FILE ID: ", self.file_id
+        
+        url = self.URL + self.submission + '/files/' + self.file_id + '/samples/'
+        payload = {"internal_id" : 3009}
+        self.post_req = requests.post(url, data=json.dumps(payload), headers = self.headers)
+        print "1. DUPLICATES--------- POST REQ made -- response:", self.post_req.text
+        
+        payload = {"name" : "PK12-C 300"}
+        self.post_req = requests.post(url, data=json.dumps(payload), headers = self.headers)
+        print "2. DUPLICATES---------POST REQ made -- response:", self.post_req.text
+        
         
     
     def test_create_submission_samples(self):
