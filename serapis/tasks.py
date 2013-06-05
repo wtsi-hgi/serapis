@@ -73,7 +73,15 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     if 'file_id' in msg:
         msg.pop('file_id')
     msg['sender'] = sender
+    # url_str = build_url(submission_id, file_id)
+    # response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
+    # print "REQUEST DATA TO SEND================================", msg
+    # print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+    # return response
+
+    print "REQUEST DATA TO SEND================================", msg  
     url_str = build_url(submission_id, file_id)
+    #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
     response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
     print "REQUEST DATA TO SEND================================", msg
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
