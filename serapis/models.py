@@ -111,6 +111,10 @@ class SubmittedFile(DynamicDocument):
     file_path_irods = StringField()    
     md5 = StringField()
     
+    #OPTIONAL:
+    index_file_path = StringField()
+    index_file_md5 = StringField()
+    
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
@@ -133,7 +137,8 @@ class SubmittedFile(DynamicDocument):
     ######################## STATUSES ##################################
     # UPLOAD JOB:
     file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-    
+    index_file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
     
@@ -173,8 +178,8 @@ class BAMFile(SubmittedFile):
     date_list = ListField()             # list of strings
     header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
     
-    bai_file_path = StringField()
-    bai_md5 = StringField()
+#    bai_file_path = StringField()
+#    bai_md5 = StringField()
     
     # optional:
     library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table

@@ -2,6 +2,7 @@ import json
 import os
 import errno
 import logging
+import datetime
 from bson.objectid import ObjectId
 from serapis import tasks
 from serapis import exceptions
@@ -74,21 +75,19 @@ def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id, 'read_on_client' : read_on_client })
     
     
-def launch_upload_job(user_id, file_submitted, queue=None):
+def launch_upload_job(user_id, file_submitted, file_path, response_status, queue=None):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     if queue == None:
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id})
     else:
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
-        # ??? Why did I put this here?! => to move and save the file
-        file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue=queue)
+        setattr(file_submitted, response_status, constants.PENDING_ON_USER_STATUS)
         file_submitted.save()
-    
+
 
     
 def launch_update_file_job(file_submitted):
-    #file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
     task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
     file_submitted.reload()
@@ -164,7 +163,9 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
         io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
         try:
             if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-                launch_upload_job(user_id, file_submitted)
+                launch_upload_job(user_id, file_submitted, file_submitted.file_path_client, 'file_upload_job_status')
+            if file_submitted.index_file_path != None and file_submitted.index_file_path != '':
+                launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status')
         except IOError as e:
             io_errors_list.append(e)
             file_submitted.file_error_log.append(e.strerror)
@@ -200,6 +201,8 @@ def detect_file_type(file_path):
     _, file_extension = os.path.splitext(file_path)
     if file_extension == '.bam':
         return constants.BAM_FILE
+    elif file_extension == '.bai':
+        return constants.BAI_FILE
     elif file_extension == '.vcf':
         return constants.VCF_FILE
     else:
@@ -215,6 +218,57 @@ def append_to_errors_dict(error_source, error_type, submission_error_dict):
     submission_error_dict[error_type] = error_list
     
 
+def check_file_permissions_and_status(file_path, errors_dict):
+    try:
+        status = None       # this will be initialised below
+        with open(file_path): pass
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            append_to_errors_dict(str(file_path), constants.NON_EXISTING_FILES, errors_dict)
+            #continue
+        elif e.errno == errno.EACCES:
+            status = constants.PENDING_ON_USER_STATUS
+            append_to_errors_dict(str(file_path), constants.PERMISSION_DENIED, errors_dict)
+        else:
+            status = constants.PENDING_ON_WORKER_STATUS
+            append_to_errors_dict(str(e.errno) + e.message + str(file_path), constants.IO_ERROR, errors_dict)
+    else:
+        status = constants.PENDING_ON_WORKER_STATUS
+    return status
+
+
+def cmp_timestamp_files(file_path1, file_path2):
+    tstamp1 = os.path.getmtime(file_path1)
+    tstamp2 = os.path.getmtime(file_path2)
+    tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
+    tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
+    return cmp(tstamp1, tstamp2)
+    
+
+def associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict):
+    index_files_matched = []
+    for index_file_path in index_files_list:
+        _, tail = os.path.split(index_file_path) 
+        index_file_name, index_ext = os.path.splitext(tail)
+        index_ext = index_ext[1:]           # from '.bam' to 'bam' (eliminate first character
+        for submitted_file in submitted_files_list:
+            _, tail = os.path.split(submitted_file.file_path_client)
+            sub_file_name, sub_file_ext = os.path.splitext(tail)
+            sub_file_ext = sub_file_ext[1:]          # from '.bam' to 'bam'
+            if index_file_name == sub_file_name and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
+                if cmp_timestamp_files(submitted_file.file_path_client, index_file_path) == -1:         # compare file and index timestamp  
+                    submitted_file.index_file_path = index_file_path
+                    submitted_file.save()
+                    index_files_matched.append(index_file_path)
+                else:
+                    append_to_errors_dict(index_file_path, constants.INDEX_OLDER_THAN_FILE, errors_dict)
+    
+    # Check if there are any index files unmatched with submitted files => add them to the error dict
+    if len(index_files_matched) < len(index_files_list):
+        diff_set = set(index_files_list).difference(index_files_matched)
+        for unmatched_index in diff_set:
+            append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
+        
 
 def init_submission(user_id, files_list):
     ''' Initialises a new submission, given a list of files. 
@@ -223,28 +277,16 @@ def init_submission(user_id, files_list):
     submission = models.Submission(sanger_user_id=user_id)
     submission.save()
     submitted_files_list = []
+    index_files_list = []
     errors_dict = dict()
     for file_path in files_list:        
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
      
         # Checking the file's permissions and status
-        try:
-            status = None       # this will be initialized below
-            with open(file_path): pass
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                append_to_errors_dict(str(file_path), constants.NON_EXISTING_FILES, errors_dict)
-                continue
-            elif e.errno == errno.EACCES:
-                status = constants.PENDING_ON_USER_STATUS
-                append_to_errors_dict(str(file_path), constants.PERMISSION_DENIED, errors_dict)
-            else:
-                status = constants.PENDING_ON_WORKER_STATUS
-                append_to_errors_dict(str(e.errno) + e.message + str(file_path), constants.IO_ERROR, errors_dict)
-        else:
-            status = constants.PENDING_ON_WORKER_STATUS
-
+        status = check_file_permissions_and_status(file_path, errors_dict)
+        if status == None:
+            continue
         
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         # Checking the file type:
@@ -256,6 +298,9 @@ def init_submission(user_id, files_list):
         else:
             if file_type == constants.BAM_FILE:
                 file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)   # bam_type="LANEPLEX"
+            elif file_type == constants.BAI_FILE:
+                index_files_list.append(file_path)
+                continue
             elif file_type == constants.VCF_FILE:
                 pass
             
@@ -263,15 +308,16 @@ def init_submission(user_id, files_list):
             file_submitted.file_header_parsing_job_status = status
             file_submitted.file_upload_job_status = status
             file_submitted.file_submission_status = status
-            print "FILE TYPEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", file_type, type(file_type)
             file_submitted.file_type = file_type
-            print "FILE TYPEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", file_type
             file_submitted.save()
-            submitted_files_list.append(file_submitted.id)
+            submitted_files_list.append(file_submitted)
+
+    # ASSOCIATE ALL THE INDEX FILES IN THE LIST WITH THE FILES IN THE SUBMITTED_FILES_LIST:
+    associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict)
 
     result = dict()
     if len(submitted_files_list) > 0:
-        submission.files_list = submitted_files_list
+        submission.files_list = [f.id for f in submitted_files_list]
         submission.save(cascade=True)
         result['submission'] = submission
     else:
@@ -279,6 +325,7 @@ def init_submission(user_id, files_list):
         result['submission'] = None
     result['errors'] = errors_dict
     return result
+
 
 
 # PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file, if I do have it, then I save files that don't exist...
@@ -293,7 +340,8 @@ def create_submission(user_id, data):
              { submission_id : 123 , errors: {..dictionary of errors..}
         '''
     files_list = data['files_list']
-    result_init_submission = init_submission(user_id, files_list)
+    
+    result_init_submission = init_submission(user_id, set(files_list))
     result = dict()
     errors_dict = result_init_submission['errors']
     if result_init_submission['submission'] != None:
@@ -488,9 +536,21 @@ def update_file_submitted(submission_id, file_id, data):
         
         
     def update_from_UPLOAD_TASK_SRC(data, file_to_update):
-        db_model_operations.update_submitted_file(file_id, data, sender) 
+        if 'file_upload_job_status' in data:
+            status = 'file_upload_job_status'
+        elif 'index_file_upload_job_status' in data:
+            status = 'index_file_upload_job_status'
+            if 'md5' in data:
+                md5 = data['md5']
+                data.pop('md5')
+                data['index_file_md5'] = md5
+        else:
+            print "PROBLEEEEEEEEEEEEEEEEEM ------- status not file_upload, neither index_file_upload, and fct though called!!!"
+        
+        upd = db_model_operations.update_submitted_file(file_id, data, sender)
+        print "HAS THE FILE ACTUALLY BEEN UPDATED????????  " ,upd 
         file_to_update.reload()
-        if data['file_upload_job_status'] == constants.SUCCESS_STATUS:
+        if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS and file_to_update.index_file_upload_job_status == constants.SUCCESS_STATUS:
 #            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
                 db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
@@ -499,7 +559,7 @@ def update_file_submitted(submission_id, file_id, data):
                     launch_parse_BAM_header_job(file_to_update, read_on_client=True)
                 elif file_to_update.file_type == constants.VCF_FILE:
                     pass
-        elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
+        elif data[status] == constants.FAILURE_STATUS:
             db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)    
         
         
@@ -528,39 +588,6 @@ def update_file_submitted(submission_id, file_id, data):
     for mdata in irods_mdata_dict:
         print mdata
     
-    
-#    
-#    if sender == constants.EXTERNAL_SOURCE:            
-#        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
-#   
-#    # Modify the file:
-#    db_model_operations.update_submitted_file(file_id, data, sender) 
-#    file_to_update.reload()
-#    
-#    # Submit jobs for it, if the case:
-#    if sender == constants.EXTERNAL_SOURCE:
-#        if has_new_entities == True:
-#            db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-#            db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-#            launch_update_file_job(file_to_update)
-#            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
-#        else:
-#            db_model_operations.check_and_update_all_statuses(file_id)
-#    elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
-#        if data['file_upload_job_status'] == constants.SUCCESS_STATUS:
-##            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
-#            if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-#                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-#                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-#                if file_to_update.file_type == constants.BAM_FILE:
-#                    launch_parse_BAM_header_job(file_to_update, read_on_client=True)
-#                elif file_to_update.file_type == constants.VCF_FILE:
-#                    pass
-#        elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
-#            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)
-#    elif sender == constants.PARSE_HEADER_MSG_SOURCE or sender == constants.UPDATE_MDATA_MSG_SOURCE:
-#        db_model_operations.check_and_update_all_statuses(file_id)
-        
         
         
         # REMOVE DUPLICATES:

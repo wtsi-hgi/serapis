@@ -219,6 +219,14 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     return True
 
 
+def check_if_all_update_jobs_finished(file_id, submitted_file=None):
+    if submitted_file == None:
+        submitted_file = retrieve_submitted_file(file_id)
+    for task_status in submitted_file.file_update_jobs_dict.values():
+        if not task_status in constants.FINISHED_STATUS:
+            return False
+    return True
+    
 
 # !!!!!!!!!!!!!!!!!!!
 # TODO: this is incomplete
@@ -229,11 +237,10 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
         #TODO: DELETE ALL MDATA AND FILE
         pass
     if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS:
-        print "CHECK STATUSES ---- IN CHECK AND UPDATE!!!!"
         if check_and_update_if_file_has_min_mdata(submitted_file) == True:
-            print "HAS MIN MDATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
             upd_dict = {}
-            upd_dict['set__file_submission_status'] = constants.READY_FOR_SUBMISSION_STATUS
+            if check_if_all_update_jobs_finished(None, submitted_file):
+                upd_dict['set__file_submission_status'] = constants.READY_FOR_SUBMISSION_STATUS
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_STATUS
             upd_dict['inc__version__0'] = 1
             return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
@@ -852,6 +859,14 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
         elif field_name == 'file_upload_job_status':
             if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
                 update_db_dict['set__file_upload_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
+        elif field_name == 'index_file_upload_job_status':
+            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+                update_db_dict['set__index_file_upload_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
+        elif field_name == 'index_file_md5':
+            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+                update_db_dict['set__index_file_md5'] = field_val
                 update_db_dict['inc__version__0'] = 1
         elif field_name == 'file_header_parsing_job_status':
             if update_source == constants.PARSE_HEADER_MSG_SOURCE:
