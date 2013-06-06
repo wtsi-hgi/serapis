@@ -17,6 +17,8 @@ from MySQLdb import OperationalError
 from serapis.constants import *
 from serapis.entities import *
 
+from celery import current_task
+
 
 
 BASE_URL = "http://localhost:8000/api-rest/submissions/"
@@ -480,6 +482,48 @@ class UploadFileTask(Task):
         #return result
 
 
+    def run3(self, **kwargs):
+        ''' For the cluster...'''
+        file_id = kwargs['file_id']
+        file_path = kwargs['file_path']
+        submission_id = str(kwargs['submission_id'])
+        src_file_path = file_path
+        
+        #RESULT TO BE RETURNED:
+        result = dict()
+        #result['submission_id'] = submission_id
+        #result['file_id'] = file_id
+        result['file_upload_job_status'] = constants.IN_PROGRESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        
+        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        try:
+            md5_src = self.md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
+            md5_dest = self.calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+        except IOError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(constants.IO_ERROR)    # IO ERROR COPYING FILE
+            result['file_upload_job_status'] = FAILURE_STATUS
+            raise
+        
+        # Checking MD5 sum:
+        try:
+            if md5_src == md5_dest:
+                result[MD5] = md5_src
+            else:
+                raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
+        except MaxRetriesExceededError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
+            result['file_upload_job_status'] = FAILURE_STATUS
+            raise
+        else:
+            result['file_upload_job_status'] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        #return result
+
+
 class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     ignore_result = True
@@ -587,7 +631,7 @@ class ParseBAMHeaderTask(Task):
         update_msg_dict['header_has_mdata'] = file_mdata.header_has_mdata
         #update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
         print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
-        self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
+        #self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
         send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.id, PARSE_HEADER_MSG_SOURCE)
 
     ###############################################################
@@ -622,7 +666,8 @@ class ParseBAMHeaderTask(Task):
             file_mdata.header_has_mdata = False
             raise
         else:
-            file_mdata.header_associations = header_json
+            # TODO: to decomment in the real app
+            #file_mdata.header_associations = header_json
             
             # Updating fields of my file_submitted object
             file_mdata.seq_centers = header_processed['CN']
@@ -631,16 +676,16 @@ class ParseBAMHeaderTask(Task):
             
             # NEW FIELDS:
             file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
-            file_mdata.date_list = header_processed['DT']
+            file_mdata.date_list = list(set(header_processed['DT']))
             
             runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.run_list = runs
+            file_mdata.run_list = list(set(runs))
 
             lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.lane_list = lanes
+            file_mdata.lane_list = list(set(lanes))
             
             tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.tag_list = tags
+            file_mdata.tag_list = list(set(tags))
             
             
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
@@ -748,8 +793,13 @@ class UpdateFileMdataTask(Task):
 #            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
         
          
-        file_submitted.update_file_mdata_status()           # update the status after the last findings
-        file_submitted.file_update_mdata_job_status = SUCCESS_STATUS
+        #file_submitted.update_file_mdata_status()           # update the status after the last findings
+        #file_submitted.file_update_mdata_job_status = SUCCESS_STATUS
+        print "IS UPDATE JOB STATUS EMPTY????????????????????", str(file_submitted.file_update_jobs_dict)
+        file_submitted.file_update_jobs_dict = dict()
+        task_id = current_task.request.id
+        file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
+        
         serial = file_submitted.to_json()
         deserial = simplejson.loads(serial)
         print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial

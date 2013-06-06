@@ -59,7 +59,9 @@ update_file_task = tasks.UpdateFileMdataTask()
 # !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
 
 def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
-    file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+#    file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
+#    This shouldn't be here...
+    models.SubmittedFile.objects(id=file_submitted.id, version=db_model_operations.get_file_version(None, file_submitted)).update_one(set__file_header_parsing_job_status=constants.PENDING_ON_WORKER_STATUS)   
     print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
     #file_serialized = serializers.serialize(file_submitted)
     file_serialized = serializers.serialize_excluding_meta(file_submitted)
@@ -79,16 +81,22 @@ def launch_upload_job(user_id, file_submitted, queue=None):
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
     else:
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue=queue)
-    file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+        # ??? Why did I put this here?! => to move and save the file
+        file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
+        file_submitted.save()
     
 
     
 def launch_update_file_job(file_submitted):
-    file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
+    #file_submitted.file_update_mdata_job_status = constants.PENDING_ON_WORKER_STATUS
     file_serialized = serializers.serialize(file_submitted)
-    update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
+    task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
+    file_submitted.reload()
+    upd_str = 'set__file_update_jobs_dict__'+str(task_id)
+    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+    upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
+    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
     
-
 #def launch_upload_job(user_id, file_submitted):
 #    # SUBMIT UPLOAD TASK TO QUEUE:
 #    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
@@ -439,7 +447,7 @@ def update_file_submitted(submission_id, file_id, data):
     '''
     #logging.info("*********************************** START ************************************************" + str(file_id))
     # INNER FUNCTIONS - I ONLY USE IT HERE
-    def check_if_has_new_entities(data, file_to_update):
+    def __check_if_has_new_entities__(data, file_to_update):
         # print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
         if 'library_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.library_list, data['library_list']) == True: 
             logging.debug("Has new libraries!")
@@ -451,29 +459,37 @@ def update_file_submitted(submission_id, file_id, data):
             logging.debug("Has new studies!")
             return True
         return False
-        
-    # Working function:   (CODE OF THE OUTER FUNCTION)          
-    sender = get_request_source(data)
-    file_to_update = db_model_operations.retrieve_submitted_file(file_id)
-    if sender == constants.EXTERNAL_SOURCE:            
-        has_new_entities = check_if_has_new_entities(data, file_to_update)
-#        print "HAS NEW ENTIEIS IS: ---------", has_new_entities
-   
-    # Modify the file:
-    #db_model_operations.update_submitted_file_logic(file_id, data, sender)
-    db_model_operations.update_submitted_file(file_id, data, sender) 
-    file_to_update.reload()
     
-    # Submit jobs for it, if the case:
-    if sender == constants.EXTERNAL_SOURCE:
+    
+        
+    def update_from_EXTERNAL_SRC(data, file_to_update):
+        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
+        db_model_operations.update_submitted_file(file_id, data, sender) 
+        file_to_update.reload()
         if has_new_entities == True:
             db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
             db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
             launch_update_file_job(file_to_update)
-            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
         else:
             db_model_operations.check_and_update_all_statuses(file_id)
-    elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
+        
+            
+    def update_from_PARSE_HEADER_TASK_SRC(data, file_to_update):
+        db_model_operations.update_submitted_file(file_id, data, sender) 
+        file_to_update.reload()
+        db_model_operations.check_and_update_all_statuses(file_id)
+        # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
+        file_to_update.reload()
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
+        print "IRODS MDATA DICT:"
+        for mdata in irods_mdata_dict:
+            print mdata
+        
+        
+    def update_from_UPLOAD_TASK_SRC(data, file_to_update):
+        db_model_operations.update_submitted_file(file_id, data, sender) 
+        file_to_update.reload()
         if data['file_upload_job_status'] == constants.SUCCESS_STATUS:
 #            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
@@ -484,38 +500,87 @@ def update_file_submitted(submission_id, file_id, data):
                 elif file_to_update.file_type == constants.VCF_FILE:
                     pass
         elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
-            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)
-    elif sender == constants.PARSE_HEADER_MSG_SOURCE or sender == constants.UPDATE_MDATA_MSG_SOURCE:
+            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)    
+        
+        
+    def update_from_UPDATE_TASK_SRC(data, file_to_update):
         db_model_operations.check_and_update_all_statuses(file_id)
         
-        # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
-        file_to_update.reload()
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
-        print "IRODS MDATA DICT:"
-        for mdata in irods_mdata_dict:
-            print mdata
+    # (CODE OF THE OUTER FUNCTION)          
+    sender = get_request_source(data)
+    file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+    if sender == constants.PARSE_HEADER_MSG_SOURCE:
+        update_from_PARSE_HEADER_TASK_SRC(data, file_to_update)
+    elif sender == constants.UPDATE_MDATA_MSG_SOURCE:
+        update_from_UPDATE_TASK_SRC(data, file_to_update)
+    elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
+        update_from_UPLOAD_TASK_SRC(data, file_to_update)
+    elif sender == constants.EXTERNAL_SOURCE:
+        update_from_EXTERNAL_SRC(data, file_to_update)
+    
+    # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
+    file_to_update.reload()
+    irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
+    print "IRODS MDATA DICT:"
+    for mdata in irods_mdata_dict:
+        print mdata
+    
+    
+#    
+#    if sender == constants.EXTERNAL_SOURCE:            
+#        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
+#   
+#    # Modify the file:
+#    db_model_operations.update_submitted_file(file_id, data, sender) 
+#    file_to_update.reload()
+#    
+#    # Submit jobs for it, if the case:
+#    if sender == constants.EXTERNAL_SOURCE:
+#        if has_new_entities == True:
+#            db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+#            db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+#            launch_update_file_job(file_to_update)
+#            print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
+#        else:
+#            db_model_operations.check_and_update_all_statuses(file_id)
+#    elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
+#        if data['file_upload_job_status'] == constants.SUCCESS_STATUS:
+##            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
+#            if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+#                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+#                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+#                if file_to_update.file_type == constants.BAM_FILE:
+#                    launch_parse_BAM_header_job(file_to_update, read_on_client=True)
+#                elif file_to_update.file_type == constants.VCF_FILE:
+#                    pass
+#        elif data['file_upload_job_status'] == constants.FAILURE_STATUS:
+#            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)
+#    elif sender == constants.PARSE_HEADER_MSG_SOURCE or sender == constants.UPDATE_MDATA_MSG_SOURCE:
+#        db_model_operations.check_and_update_all_statuses(file_id)
+        
+        
         
         # REMOVE DUPLICATES:
-        file_to_update.reload() 
-        sampl_list = db_model_operations.remove_duplicates(file_to_update.sample_list)
-        lib_list = db_model_operations.remove_duplicates(file_to_update.library_list)
-        study_list = db_model_operations.remove_duplicates(file_to_update.study_list)
-        upd_dict = {}
-        if sampl_list != file_to_update.sample_list:
-            upd_dict['set__sample_list'] = sampl_list
-            upd_dict['inc__version__1'] = 1
-        if lib_list != file_to_update.library_list:
-            upd_dict['set__library_list'] = lib_list
-            upd_dict['inc__version__2'] = 1
-        if study_list != file_to_update.study_list:
-            upd_dict['set__study_list'] = study_list
-            upd_dict['inc__version__3'] = 1
-        if len(upd_dict) > 0:
-            upd_dict['inc__version__0'] = 1
-            was_upd = models.SubmittedFile.objects(id=file_id, version=db_model_operations.get_file_version(None, file_to_update)).update_one(**upd_dict)
-            print "REMOVE DUPLICATES ----- WAS UPDATED: ", was_upd
-        else:
-            print "NOTHING TO UPDATE!!!!!!!!!!!!!!!!!!!!!! -------))))))(((()()()()("
+#        file_to_update.reload() 
+#        sampl_list = db_model_operations.remove_duplicates(file_to_update.sample_list)
+#        lib_list = db_model_operations.remove_duplicates(file_to_update.library_list)
+#        study_list = db_model_operations.remove_duplicates(file_to_update.study_list)
+#        upd_dict = {}
+#        if sampl_list != file_to_update.sample_list:
+#            upd_dict['set__sample_list'] = sampl_list
+#            upd_dict['inc__version__1'] = 1
+#        if lib_list != file_to_update.library_list:
+#            upd_dict['set__library_list'] = lib_list
+#            upd_dict['inc__version__2'] = 1
+#        if study_list != file_to_update.study_list:
+#            upd_dict['set__study_list'] = study_list
+#            upd_dict['inc__version__3'] = 1
+#        if len(upd_dict) > 0:
+#            upd_dict['inc__version__0'] = 1
+#            was_upd = models.SubmittedFile.objects(id=file_id, version=db_model_operations.get_file_version(None, file_to_update)).update_one(**upd_dict)
+#            print "REMOVE DUPLICATES ----- WAS UPDATED: ", was_upd
+#        else:
+#            print "NOTHING TO UPDATE!!!!!!!!!!!!!!!!!!!!!! -------))))))(((()()()()("
             
 
 def resubmit_jobs(submission_id, file_id, data):

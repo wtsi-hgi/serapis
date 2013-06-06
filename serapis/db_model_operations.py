@@ -859,10 +859,22 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 update_db_dict['inc__version__0'] = 1
     #                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
         # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
-        elif field_name == 'file_update_mdata_job_status':
+#        elif field_name == 'file_update_mdata_job_status':
+        elif field_name == 'file_update_jobs_dict':
             if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-                update_db_dict['set__file_update_mdata_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
+                old_update_job_dict = submitted_file.file_update_jobs_dict
+                print "UPDATE JOB DICT---------------- OLD ONE: --------------", str(old_update_job_dict)
+                if len(field_val) > 1:
+                    print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - UPDATE DICT HAS MORE THAN ONE!!!"
+                else:
+                    task_id, task_status = field_val.items()[0]
+                    if not task_id in old_update_job_dict:
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
+                    old_update_job_dict[task_id] = task_status
+                    update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
+                    update_db_dict['inc__version__0'] = 1
+                    print "UPDATE JOB DICT-------------------- NEW ONE:---------------", str(old_update_job_dict)
         elif field_name != None and field_name != "null":
             import logging
             logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
