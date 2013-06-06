@@ -504,11 +504,14 @@ def update_file_submitted(submission_id, file_id, data):
         
         
     def update_from_UPDATE_TASK_SRC(data, file_to_update):
+        db_model_operations.update_submitted_file(file_id, data, sender) 
+        file_to_update.reload()
         db_model_operations.check_and_update_all_statuses(file_id)
+        
         
     # (CODE OF THE OUTER FUNCTION)          
     sender = get_request_source(data)
-    file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+    file_to_update = db_model_operations.retrieve_submitted_file(file_id)    
     if sender == constants.PARSE_HEADER_MSG_SOURCE:
         update_from_PARSE_HEADER_TASK_SRC(data, file_to_update)
     elif sender == constants.UPDATE_MDATA_MSG_SOURCE:
