@@ -246,8 +246,9 @@ class SubmittedFile():
         self.header_has_mdata = False                   #BooleanField()
         
         # UPDATE MDATA JOB STATUS:
-        self.file_update_mdata_job_status = None            # StringField(choices=UPDATE_MDATA_JOB_STATUS)
-        
+        #self.file_update_mdata_job_status = None            # StringField(choices=UPDATE_MDATA_JOB_STATUS)
+        file_update_jobs_dict = dict()                      # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
+                                                            # This dictionary on the worker side MUST contain ONLY one entry - for the crt job
         #GENERAL STATUSES
         self.file_mdata_status = None                   # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL") StringField(choices=FILE_MDATA_STATUS) 
         self.file_submission_status = None              # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")  StringField(choices=FILE_SUBMISSION_STATUS)

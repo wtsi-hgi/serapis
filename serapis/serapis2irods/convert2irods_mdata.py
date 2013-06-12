@@ -145,7 +145,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file):
-    FILE_FIELDS_LIST = ['file_type', 'md5', 'study_list', 'library_list', 'sample_list']
+    FILE_FIELDS_LIST = ['file_type', 'md5', 'study_list', 'library_list', 'sample_list', 'index_file_md5']
     irods_file_mdata = []
     for field_name in FILE_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) != None:
@@ -169,7 +169,7 @@ def convert_file_mdata(subm_file):
                 irods_file_mdata.append((field_name, field_val))
             else:
                 field_val = unicode2string(field_val)
-                irods_file_mdata.append(field_name, field_val)
+                irods_file_mdata.append((field_name, field_val))
     return irods_file_mdata
 #    return list(set(irods_file_mdata))
 

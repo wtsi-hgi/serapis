@@ -37,7 +37,7 @@ ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
 FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status', 
                               'file_header_parsing_job_status', 
                               'header_has_mdata', 
-                              'file_update_mdata_job_status', 
+                              'file_update_jobs_dict', 
                               'last_updates_source',
                               'file_mdata_status',
                               'file_submission_status',
@@ -111,6 +111,10 @@ class SubmittedFile(DynamicDocument):
     file_path_irods = StringField()    
     md5 = StringField()
     
+    #OPTIONAL:
+    index_file_path = StringField()
+    index_file_md5 = StringField()
+    
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
@@ -133,7 +137,8 @@ class SubmittedFile(DynamicDocument):
     ######################## STATUSES ##################################
     # UPLOAD JOB:
     file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-    
+    index_file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
     
@@ -142,7 +147,9 @@ class SubmittedFile(DynamicDocument):
     header_has_mdata = BooleanField()
     
     # UPDATE MDATA JOB:
-    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
+#    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
+    file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
+    
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
@@ -170,6 +177,9 @@ class BAMFile(SubmittedFile):
     platform_list = ListField()         # list of strings
     date_list = ListField()             # list of strings
     header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    
+#    bai_file_path = StringField()
+#    bai_md5 = StringField()
     
     # optional:
     library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table

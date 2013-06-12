@@ -70,7 +70,6 @@ submitted_file_schema = Schema({
     'file_upload_job_status' : str,           # = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
     'file_header_parsing_job_status' : str,    # = StringField(choices=HEADER_PARSING_JOB_STATUS) # ("SUCCESS", "FAILURE")
     'header_has_mdata' : bool,
-    'file_update_mdata_job_status' : str,    # = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
     'file_mdata_status' : str,                    # = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
     'file_submission_status' : str,          # = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     'file_error_log' : list,                 # = ListField(StringField)
@@ -87,7 +86,14 @@ submitted_file_schema = Schema({
     'platform_list' : list,
     'date_list' : list,
     'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
-    'library_well_list' : list
+    'library_well_list' : list,
+    
+    'file_update_jobs_dict' : dict,
+    
+    'index_file_path' : str,
+    'index_file_md5' : str,
+    'index_file_upload_job_status' : str
+    
 })
 
 submission_schema = Schema({
