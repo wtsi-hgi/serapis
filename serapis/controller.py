@@ -546,41 +546,7 @@ def update_file_submitted(submission_id, file_id, data):
             print mdata
         
         
-    def update_from_UPLOAD_TASK_SRC(data, file_to_update):
-        if 'file_upload_job_status' in data:
-            status = 'file_upload_job_status'
-        elif 'index_file_upload_job_status' in data:
-            status = 'index_file_upload_job_status'
-            if 'md5' in data:
-                md5 = data['md5']
-                data.pop('md5')
-                data['index_file_md5'] = md5
-        else:
-            print "PROBLEEEEEEEEEEEEEEEEEM ------- status not file_upload, neither index_file_upload, and fct though called!!!"
-        
-        upd = db_model_operations.update_submitted_file(file_id, data, sender)
-        print "HAS THE FILE ACTUALLY BEEN UPDATED????????  " ,upd 
-        file_to_update.reload()
-        is_successfull = False
-        if 'index_file_upload_job_status' in data:
-            if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS and file_to_update.index_file_upload_job_status == constants.SUCCESS_STATUS:
-                is_successfull = True
-        else:
-            if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS:
-                is_successfull = True
-        if is_successfull == True:
-#            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
-            if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-                if file_to_update.file_type == constants.BAM_FILE:
-                    launch_parse_BAM_header_job(file_to_update, read_on_client=True)
-                elif file_to_update.file_type == constants.VCF_FILE:
-                    pass
-        elif data[status] == constants.FAILURE_STATUS:
-            db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)    
-        
-        
+    
     def update_from_UPDATE_TASK_SRC(data, file_to_update):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         file_to_update.reload()
