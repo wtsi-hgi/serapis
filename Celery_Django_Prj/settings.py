@@ -11,6 +11,7 @@ setup_loader()
 
 
 BROKER_URL = 'amqp://guest@localhost:5672'
+#BROKER_URL = 'amqp://guest@hgi-serapis-dev:5672'
 
 # to be config by me...-> from http://docs.dotcloud.com/tutorials/python/django-celery/
 #BROKER_HOST = 
@@ -29,7 +30,9 @@ MANAGERS = ADMINS
 
 # Set of parameters enabled for the worker to produce events
 #CELERY_SEND_TASK_SENT_EVENT = True 
-CELERY_SEND_EVENTS = True
+
+# To decomment this if I want the events re-introduced in the future -- it's working
+#CELERY_SEND_EVENTS = True
 
 
 
@@ -156,7 +159,8 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    "/home/ic4/Work/Projects/Serapis-web/Celery_Django_Prj/serapis/static/serapis",
+    
+    #"/home/ic4/Work/Projects/Serapis-web/Celery_Django_Prj/serapis/static/serapis",
     #os.path.join(SITE_ROOT, 'static/serapis')
 )
 
@@ -199,7 +203,8 @@ TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    "/home/ic4/Work/Projects/Serapis-web/Celery_Django_Prj/serapis/templates/serapis"
+    
+    #"/home/ic4/Work/Projects/Serapis-web/Celery_Django_Prj/serapis/templates/serapis"
     #os.path.join(SITE_ROOT, 'templates/serapis')
 )
 
@@ -229,7 +234,8 @@ FILE_UPLOAD_HANDLERS = (
                          )
 
 
-FILE_UPLOAD_TEMP_DIR = "/home/ic4/tmp/serapis_staging_area"
+#FILE_UPLOAD_TEMP_DIR = "/home/ic4/tmp/serapis_staging_area"
+FILE_UPLOAD_TEMP_DIR = "~/tmp/serapis_staging_area"
 
 #from kombu import Queue, Exchange
  

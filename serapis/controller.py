@@ -28,6 +28,10 @@ update_file_task = tasks.UpdateFileMdataTask()
 #MDATA_ROUTING_KEY = 'mdata'
 #UPLOAD_EXCHANGE = 'UploadExchange'
 #MDATA_EXCHANGE = 'MdataExchange'
+
+DEFAULT_Q = "MyDefaultQ"
+
+
     
 #class MyRouter(object):
 #    def route_for_task(self, task, args=None, kwargs=None):
@@ -78,8 +82,15 @@ def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
 def launch_upload_job(user_id, file_submitted, file_path, response_status, queue=None):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
+    
+    print "I AM UPLOADING...putting the task in the queue!"
     if queue == None:
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id})
+        print "I Am putting the task in the default queue"
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue="celery")
+        print "AFTER SUBMITTING TASK: "
+        # from celery.task.control import inspect
+        # i = inspect()
+        # print i.scheduled()
     else:
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue=queue)
         setattr(file_submitted, response_status, constants.PENDING_ON_USER_STATUS)
@@ -550,7 +561,14 @@ def update_file_submitted(submission_id, file_id, data):
         upd = db_model_operations.update_submitted_file(file_id, data, sender)
         print "HAS THE FILE ACTUALLY BEEN UPDATED????????  " ,upd 
         file_to_update.reload()
-        if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS and file_to_update.index_file_upload_job_status == constants.SUCCESS_STATUS:
+        is_successfull = False
+        if 'index_file_upload_job_status' in data:
+            if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS and file_to_update.index_file_upload_job_status == constants.SUCCESS_STATUS:
+                is_successfull = True
+        else:
+            if file_to_update.file_upload_job_status == constants.SUCCESS_STATUS:
+                is_successfull = True
+        if is_successfull == True:
 #            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
             if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
                 db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)

@@ -440,6 +440,7 @@ class UploadFileTask(Task):
         return md5.hexdigest()
     
     def run(self, **kwargs):
+        print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
         file_id = kwargs['file_id']

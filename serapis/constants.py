@@ -4,11 +4,22 @@ MDATA_EXCHANGE = 'MdataExchange'
 UPLOAD_QUEUE_GENERAL = 'GeneralUploadQueue'
 MDATA_QUEUE = 'MdataQueue'
 
-SEQSC_HOST = "127.0.0.1"
-SEQSC_PORT = 3307
+
+## For a run from hgi-serapis-dev:
+SEQSC_HOST = "mcs7.internal.sanger.ac.uk"
+SEQSC_PORT = 3379
 #SEQSC_PORT = 20002
 SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
+
+#    ssh -L 3307:mcs7.internal.sanger.ac.uk:3379 ic4@hgi-team
+
+## For a run from my machine:
+# SEQSC_HOST = "127.0.0.1"
+# SEQSC_PORT = 3307
+# #SEQSC_PORT = 20002
+# SEQSC_USER = "warehouse_ro"
+# SEQSC_DB_NAME = "sequencescape_warehouse"
 
 
 #------------------- MSG SOURCE -------------------------
