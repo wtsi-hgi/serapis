@@ -100,7 +100,7 @@ HAS_MINIMAL_STATUS = "HAS_MINIMAL"
 
 # UPLOAD TASK
 #DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
-DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/"
+DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
 
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'
