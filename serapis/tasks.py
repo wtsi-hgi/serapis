@@ -434,7 +434,7 @@ class UploadFileTask(Task):
         return md5.hexdigest()
            
 
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -444,7 +444,7 @@ class UploadFileTask(Task):
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         
     # file_id, file_submitted.file_path_client, submission_id, user_id
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
