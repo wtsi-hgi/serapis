@@ -509,8 +509,8 @@ class UploadFileTask(Task):
 #        from serapis.tasks import upload_script
         
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
-        upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.cluster_fct("
-        upld_cmd = upld_cmd + src_file_path + ", " + dest_file_path + ", " + response_status + ", "+ str(submission_id) + ", "+ str(file_id)+ ")" 
+        upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.cluster_fct(\' "
+        upld_cmd = upld_cmd + src_file_path + "\',\' " + dest_file_path + "\', \'" + response_status + "\', \'"+ str(submission_id) + "\', \'"+ str(file_id)+ "\')" 
         call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", upld_cmd])
 
 
