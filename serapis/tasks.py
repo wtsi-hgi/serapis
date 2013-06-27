@@ -439,7 +439,8 @@ class UploadFileTask(Task):
         submission_id = str(kwargs['submission_id'])
 
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-        
+
+    # Working version - for upload on the worker        
     # file_id, file_submitted.file_path_client, submission_id, user_id
     def run(self, **kwargs):
         #time.sleep(2)
@@ -480,6 +481,48 @@ class UploadFileTask(Task):
             result[response_status] = SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         #return result
+
+    # Modified upload version for uploading fines on the cluster
+    def run3(self, **kwargs):
+        #time.sleep(2)
+        file_id = kwargs['file_id']
+        file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        submission_id = str(kwargs['submission_id'])
+        src_file_path = file_path
+        
+        #RESULT TO BE RETURNED:
+        result = dict()
+        result[response_status] = constants.IN_PROGRESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        
+        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        try:
+            md5_src = self.md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
+            md5_dest = self.calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+        except IOError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(constants.IO_ERROR)    # IO ERROR COPYING FILE
+            result[response_status] = FAILURE_STATUS
+            raise
+        
+        # Checking MD5 sum:
+        try:
+            if md5_src == md5_dest:
+                result[MD5] = md5_src
+            else:
+                raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
+        except MaxRetriesExceededError:
+            result[FILE_ERROR_LOG] = []
+            result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
+            result[response_status] = FAILURE_STATUS
+            raise
+        else:
+            result[response_status] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        #return result
+
 
 
 class ParseBAMHeaderTask(Task):
