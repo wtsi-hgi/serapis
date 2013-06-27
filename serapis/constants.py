@@ -32,6 +32,7 @@ EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
+MAX_RETRIES = 3
 
 # ----------------- VERSION INCREMENT -------------------
 FILE_VERSION_INCREMENT = 1000
