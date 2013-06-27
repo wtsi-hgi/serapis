@@ -67,7 +67,7 @@ def convert_library_mdata(lib):
             field_val = getattr(lib, field_name)
             #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
-            irods_lib_mdata.append(field_name, field_val)
+            irods_lib_mdata.append((field_name, field_val))
     return irods_lib_mdata
         
  
