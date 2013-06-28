@@ -544,6 +544,12 @@ def update_file_submitted(submission_id, file_id, data):
         print "IRODS MDATA DICT:"
         for mdata in irods_mdata_dict:
             print mdata
+
+
+        from subprocess import call
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/mdata-cluster.txt", "-G", "hgi", "imeta", "ls", "-d", file_to_update.file_path_irods])
+        #imeta ls -d /seq/9971/9971_1#0.bam
+        
         
      
     def update_from_UPLOAD_TASK_SRC(data, file_to_update):
