@@ -509,12 +509,22 @@ class UploadFileTask(Task):
 #        from serapis.tasks import upload_script
         
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
-        upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.cluster_fct(\""
-        upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", upld_cmd])
+        upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
+        #upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", upld_cmd, "--src_file_path", src_file_name, 
+              "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", submission_id, 
+              "--file_id", file_id])
+
+
+#'--src_file_path', dest='src_file_path', help='path of the source file', required=True)
+#parser.add_argument('--dest_file_path', dest='dest_file_path', required=True)
+#parser.add_argument('--response_status', dest='response_status', required=True)
+#parser.add_argument('--submission_id', dest='submission_id', required=True)
+#parser.add_argument('--file_id', dest='file_id', required=True)
 
 
 #        
+
 #        def cluster_fct(src_file_path, dest_file_path, response_status):
 #            from irods import *
 #            def md5_and_copy(self, source_file, dest_file_path):

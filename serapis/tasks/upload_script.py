@@ -1,4 +1,4 @@
-from irods import *
+#from irods import *
 import hashlib
 import logging
 import requests
@@ -115,3 +115,22 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 result[response_status] = FAILURE_STATUS
                 
     copy_file(src_file_path, dest_file_path, 0, submission_id, file_id)
+
+
+#python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.cluster_fct("/nfs/users/nfs_i/ic4/bams/bamfile.bam",
+#"/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area/bamfile.bam", "file_upload_job_status", "51cc5cf20cfd5f4b21fa0a75", 
+#"51cc5cf20cfd5f4b21fa0a76")'
+
+#def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id)
+import argparse
+
+parser = argparse.ArgumentParser(description='Upload file.')
+parser.add_argument('--src_file_path', dest='src_file_path', help='path of the source file', required=True)
+parser.add_argument('--dest_file_path', dest='dest_file_path', required=True)
+parser.add_argument('--response_status', dest='response_status', required=True)
+parser.add_argument('--submission_id', dest='submission_id', required=True)
+parser.add_argument('--file_id', dest='file_id', required=True)
+
+
+args = parser.parse_args()
+print(args.src_file_path)
