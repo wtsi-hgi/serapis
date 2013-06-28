@@ -530,10 +530,10 @@ def update_file_submitted(submission_id, file_id, data):
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
         file_to_update.reload()
         irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
-        print "IRODS MDATA DICT:"
-        for mdata in irods_mdata_dict:
-            print mdata
-        
+#        print "IRODS MDATA DICT:"
+#        for mdata in irods_mdata_dict:
+#            print mdata
+#        
         
     def update_from_UPLOAD_TASK_SRC(data, file_to_update):
         #Check if upload was successful:

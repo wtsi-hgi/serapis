@@ -433,7 +433,7 @@ class UploadFileTask(Task):
             md5.update(data)
         return md5.hexdigest()
            
-    def run2(self, **kwargs):
+    def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -444,7 +444,7 @@ class UploadFileTask(Task):
 
     # Working version - for upload on the worker        
     # file_id, file_submitted.file_path_client, submission_id, user_id
-    def run1(self, **kwargs):
+    def run2(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -486,7 +486,7 @@ class UploadFileTask(Task):
 
 
     # Modified upload version for uploading fines on the cluster
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -508,9 +508,9 @@ class UploadFileTask(Task):
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
         upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         #upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\""+upld_cmd+"\"", "--src_file_path", "\""+src_file_name+"\"", 
-              "--dest_file_path", "\""+dest_file_path+"\"", "--response_status", "\""+response_status+"\"", "--submission_id", "\""+submission_id+"\"", 
-              "--file_id", "\""+file_id+"\""])
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/upload-cluster.txt", "-G", "hgi", "\""+upld_cmd+"\"", "--src_file_path", "\""+src_file_path+"\"", 
+              "--dest_file_path", "\""+dest_file_path+"\"", "--response_status", "\""+response_status+"\"", "--submission_id", "\""+str(submission_id)+"\"", 
+              "--file_id", "\""+str(file_id)+"\""])
 
 
 #'--src_file_path', dest='src_file_path', help='path of the source file', required=True)
@@ -771,17 +771,19 @@ class ParseBAMHeaderTask(Task):
             header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
             
             # NEW FIELDS:
-            file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
-            file_mdata.date_list = list(set(header_processed['DT']))
-            
-            runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.run_list = list(set(runs))
-
-            lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.lane_list = list(set(lanes))
-            
-            tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            file_mdata.tag_list = list(set(tags))
+            if 'PL' in header_processed:
+                file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
+            if 'DT' in header_processed:
+                file_mdata.date_list = list(set(header_processed['DT']))
+            if 'PU' in header_processed:
+                runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+                file_mdata.run_list = list(set(runs))
+    
+                lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+                file_mdata.lane_list = list(set(lanes))
+                
+                tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+                file_mdata.tag_list = list(set(tags))
             
             
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
