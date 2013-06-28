@@ -511,9 +511,9 @@ class UploadFileTask(Task):
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
         upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         #upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", upld_cmd, "--src_file_path", src_file_name, 
-              "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", submission_id, 
-              "--file_id", file_id])
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\""+upld_cmd+"\"", "--src_file_path", "\""+src_file_name+"\"", 
+              "--dest_file_path", "\""+dest_file_path+"\"", "--response_status", "\""+response_status+"\"", "--submission_id", "\""+submission_id+"\"", 
+              "--file_id", "\""+file_id+"\""])
 
 
 #'--src_file_path', dest='src_file_path', help='path of the source file', required=True)
