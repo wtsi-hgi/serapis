@@ -3,6 +3,7 @@ from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 import pysam
 import os
+import re
 import requests
 import errno
 import logging
@@ -770,21 +771,41 @@ class ParseBAMHeaderTask(Task):
             header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
             header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
             
+            
             # NEW FIELDS:
             if 'PL' in header_processed:
                 file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
             if 'DT' in header_processed:
                 file_mdata.date_list = list(set(header_processed['DT']))
+            ### TODO: here I assumed the PU field looks like in the SC_GMFUL5306338.bam, which is the following format:
+            #     'PU': '120815_HS16_08276_A_C0NKKACXX_4#1',
+            # TO CHANGE - sometimes it can be:
+            #    'PU': '7947_1#53',
             if 'PU' in header_processed:
-                runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-                file_mdata.run_list = list(set(runs))
+                # PU can have different forms - try to match each of them:
+                # First possible PU HEADER:
+                for pu_entry in header_processed['PU']:
+                    pattern = re.compile(REGEX_PU_1)
+                    if pattern.match(pu_entry) != None:
+                        file_mdata.run_list.append(pu_entry)
+                    else:
+                        for pu_entry in header_processed['PU']:
+                            run = self.extract_run_from_PUHeader(pu_entry)
+                            lane = self.extract_lane_from_PUHeader(pu_entry)
+                            tag = self.extract_tag_from_PUHeader(pu_entry)
+                            run_id = str(run) + '_' + str(lane) + '#' + str(tag)
+                            file_mdata.run_list.append(run_id)
+                    
+            #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            #   file_mdata.run_list = list(set(runs))
     
-                lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-                file_mdata.lane_list = list(set(lanes))
+            #    lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            #   file_mdata.lane_list = list(set(lanes))
                 
-                tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-                file_mdata.tag_list = list(set(tags))
-            
+            #    tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+            #   file_mdata.tag_list = list(set(tags))
+             
+     
             
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
