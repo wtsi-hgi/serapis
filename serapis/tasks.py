@@ -447,7 +447,7 @@ class UploadFileTask(Task):
 
     # Working version - for upload on the worker        
     # file_id, file_submitted.file_path_client, submission_id, user_id
-    def run1(self, **kwargs):
+    def run2(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -511,11 +511,13 @@ class UploadFileTask(Task):
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
         upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         #upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
+
         # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'", "--src_file_path", "\'"+src_file_path+"\'", 
         #       "--dest_file_path", "\'"+dest_file_path+"\'", "--response_status", "\'"+response_status+"\'", "--submission_id", "\'"+str(submission_id)+"\'", 
         #       "--file_id", "\'"+str(file_id)+"\'"])
 
         call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
+
 
 
 #'--src_file_path', dest='src_file_path', help='path of the source file', required=True)

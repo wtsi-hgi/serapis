@@ -1,7 +1,7 @@
 from irods import *
 import hashlib
 import logging
-import requests
+#import requests
 import simplejson
 
 
