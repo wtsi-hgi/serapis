@@ -34,6 +34,10 @@ EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 UNKNOWN_FIELD = 'unknown_field'
 MAX_RETRIES = 3
 
+# HEADER constants:
+# PU header:
+REGEX_PU_1 = '[0-9]{4}_[0-9]{1}#[0-9]{2}'
+
 # ----------------- VERSION INCREMENT -------------------
 FILE_VERSION_INCREMENT = 1000
 SAMPLES_VERSION_INCREMENT = 100
