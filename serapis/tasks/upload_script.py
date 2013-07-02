@@ -1,8 +1,11 @@
-from irods import *
 import hashlib
 import logging
-#import requests
+import requests
 import simplejson
+
+import sys
+sys.path.append('/software/python-2.7.3/lib/python2.7/site-packages')
+from irods import *
 
 
 def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
@@ -21,7 +24,6 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
     
     
     def build_url(submission_id, file_id):
-        #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
         url_str = [BASE_URL, str(submission_id), "/files/", str(file_id),"/"]
         url_str = ''.join(url_str)
         return url_str
