@@ -170,8 +170,8 @@ def convert_file_mdata(subm_file):
             else:
                 field_val = unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))
-    return irods_file_mdata
-#    return list(set(irods_file_mdata))
+#    return irods_file_mdata
+    return list(set(irods_file_mdata))
 
 
 

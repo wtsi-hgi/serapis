@@ -36,7 +36,7 @@ MAX_RETRIES = 3
 
 # HEADER constants:
 # PU header:
-REGEX_PU_1 = '[0-9]{4}_[0-9]{1}#[0-9]{2}'
+REGEX_PU_1 = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
 
 # ----------------- VERSION INCREMENT -------------------
 FILE_VERSION_INCREMENT = 1000

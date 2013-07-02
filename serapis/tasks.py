@@ -366,7 +366,7 @@ class ProcessSeqScapeData():
                 self.fetch_and_process_sample_unknown_mdata_fields(sample_dict, file_submitted)
             else:
                 self.fetch_and_process_sample_known_mdata_fields(sample_dict, file_submitted)
-            print "SAMPLE_LIST: ", file_submitted.sample_list
+            #print "SAMPLE_LIST: ", file_submitted.sample_list
       
       
      
@@ -517,7 +517,7 @@ class UploadFileTask(Task):
         #       "--dest_file_path", "\'"+dest_file_path+"\'", "--response_status", "\'"+response_status+"\'", "--submission_id", "\'"+str(submission_id)+"\'", 
         #       "--file_id", "\'"+str(file_id)+"\'"])
 
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
+        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
 
 
 
@@ -793,8 +793,10 @@ class ParseBAMHeaderTask(Task):
                 # First possible PU HEADER:
                 for pu_entry in header_processed['PU']:
                     pattern = re.compile(REGEX_PU_1)
+                    print "PU HEADER: ", pu_entry
                     if pattern.match(pu_entry) != None:
                         file_mdata.run_list.append(pu_entry)
+                        print "PAttern MATCHED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                     else:
                         for pu_entry in header_processed['PU']:
                             run = self.extract_run_from_PUHeader(pu_entry)
@@ -840,7 +842,7 @@ class ParseBAMHeaderTask(Task):
             processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
             
             print "LIBRARY UPDATED LIST: ", file_mdata.library_list
-            print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
+            #print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
             print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
         
         # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
