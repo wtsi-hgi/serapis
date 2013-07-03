@@ -209,11 +209,11 @@ class ProcessSeqScapeData():
         self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
         
-    def is_accession_nr(self, sample_field):
-        ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
-        if sample_field.startswith('ER') or sample_field.startswith('SR') or sample_field.startswith('DR') or sample_field.startswith('EGA'):
-            return True
-        return False
+#    def is_accession_nr(self, sample_field):
+#        ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
+#        if sample_field.startswith('ER') or sample_field.startswith('SR') or sample_field.startswith('DR') or sample_field.startswith('EGA'):
+#            return True
+#        return False
 
     # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
     # Query SeqScape for all the library names found in BAM header
@@ -260,7 +260,7 @@ class ProcessSeqScapeData():
             => the method returns only boolean.
         '''
         lib_mdata = QuerySeqScape.get_library_data_from_lib_wells_table(self.connection, internal_id)
-        if len(lib_mdata) == 1:
+        if lib_mdata != None and len(lib_mdata) == 1:
             return True
         return False
         
@@ -333,12 +333,12 @@ class ProcessSeqScapeData():
                     
     
     def fetch_and_process_sample_unknown_mdata_fields(self, sample_dict, file_submitted):
-        if self.is_accession_nr(sample_dict[UNKNOWN_FIELD]):
-            search_field_name = 'accession_number'
-        else:
-            search_field_name = 'name'
-        search_field_dict = {search_field_name : sample_dict[UNKNOWN_FIELD]}
-        sampl_mdata = QuerySeqScape.get_sample_data(self.connection, search_field_dict)   
+#        if self.is_accession_nr(sample_dict[UNKNOWN_FIELD]):
+#            search_field_name = 'accession_number'
+#        else:
+#            search_field_name = 'name'
+#        search_field_dict = {search_field_name : sample_dict[UNKNOWN_FIELD]}
+        sampl_mdata = QuerySeqScape.get_sample_data(self.connection, sample_dict)   
         if len(sampl_mdata) == 1:           # Ideal case
             sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
             new_sample = Sample.build_from_seqscape(sampl_mdata)
@@ -347,7 +347,9 @@ class ProcessSeqScapeData():
             #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
             new_sample = Sample()
             if len(sampl_mdata) > 1:
-                setattr(new_sample, search_field_name, sample_dict[UNKNOWN_FIELD])
+                #setattr(new_sample, search_field_name, sample_dict[UNKNOWN_FIELD])
+                for k,v in sample_dict.iteritems:
+                    setattr(new_sample, k, v)
                 file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
             elif len(sampl_mdata) == 0:
                 search_field = UNKNOWN_FIELD   # Change back to UNKNOWN_FIELD
@@ -695,6 +697,23 @@ class ParseBAMHeaderTask(Task):
         
     ######### ENTITIES IN HEADER LOOKUP ########################
      
+    def is_accession_nr(self, sample_field):
+        ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
+        if sample_field.startswith('ER') or sample_field.startswith('SR') or sample_field.startswith('DR') or sample_field.startswith('EGA'):
+            return True
+        return False
+ 
+    def is_internal_id(self, field):
+        pattern = re.compile('[0-9]{4,9}')
+        if pattern.match(field) == None:
+            return False
+        return True
+    
+    def can_be_name(self, field):
+        is_match = re.search('[a-zA-Z]', field)
+        if is_match != None:
+            return True
+        return False
  
     def select_new_incomplete_entities(self, header_entity_list, entity_type, file_submitted):
         ''' Searches in the list of samples for each sample identifier (string) from header_library_name_list. 
@@ -712,10 +731,23 @@ class ParseBAMHeaderTask(Task):
         for ent_name_h in header_entity_list:
             if not file_submitted.fuzzy_contains_entity(ent_name_h, entity_type):
                 if entity_type == LIBRARY_TYPE:
-                    entity_dict = {'internal_id' : ent_name_h}
+                    if self.can_be_name(ent_name_h):
+                        search_field_name = 'name'
+                    elif self.is_internal_id(ent_name_h):
+                        search_field_name = 'internal_id'
+                elif entity_type == SAMPLE_TYPE:
+                    if self.is_accession_nr(ent_name_h):
+                        search_field_name = 'accession_number'
+                    else:
+                        search_field_name = 'name'
                 else:
-                    entity_dict = {UNKNOWN_FIELD : ent_name_h}
-                incomplete_ent_list.append(entity_dict)
+                    print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
+                    #entity_dict = {UNKNOWN_FIELD : ent_name_h}
+                    
+                    
+                if search_field_name != None:
+                    entity_dict = {search_field_name : ent_name_h}
+                    incomplete_ent_list.append(entity_dict)
         print "IN SELECT NEW INCOMPLETE ENTITIES - LIST OF DICT SHOULD BE RETURNED: ", str(incomplete_ent_list)
         return incomplete_ent_list
     
@@ -795,6 +827,7 @@ class ParseBAMHeaderTask(Task):
                             tag = self.extract_tag_from_PUHeader(pu_entry)
                             run_id = str(run) + '_' + str(lane) + '#' + str(tag)
                             file_mdata.run_list.append(run_id)
+                            
                     
             #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
             #   file_mdata.run_list = list(set(runs))
