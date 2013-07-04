@@ -415,10 +415,7 @@ def delete_submission(submission_id):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error) 
     '''
-    # TODO -- delete all the files from this submission!!!
-    submission = db_model_operations.retrieve_submission(submission_id) 
-    submission.delete()
-    return True
+    return db_model_operations.delete_submission(submission_id)
     
     
 #------------ FILE RELATED REQUESTS: ------------------
@@ -690,12 +687,11 @@ def delete_submitted_file(submission_id, file_id):
     submission = db_model_operations.retrieve_submission(submission_id) 
     file_obj_id = ObjectId(file_id)
     if file_obj_id in submission.files_list:
-        submission.files_list.remove(ObjectId(file_id))
+        submission.files_list.remove(file_obj_id)
         submission.save()
         if len(submission.files_list) == 0:
             submission.delete()
-    file_to_delete = models.SubmittedFile.objects(_id=file_obj_id).get()
-    file_to_delete.delete()
+    return db_model_operations.delete_submitted_file(file_id)
     
     
     

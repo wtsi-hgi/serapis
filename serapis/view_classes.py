@@ -202,25 +202,7 @@ class SubmissionRequestHandler(APIView):
 #        ''' Updates a submission with the data provided on the POST request.'''
 #        try:
 #            data = request.DATA
-#            data = from_unicode_to_string(data)
-#            validator.submission_schema(data)
-#            result = dict()
-#            controller.update_submission(submission_id, data)
-#        except MultipleInvalid as e:
-#            result['error'] = "Message contents invalid: "+e.msg
-#            return Response(result, status=400)
-#        except InvalidId:
-#            result['errors'] = "Invalid id"
-#            return Response(result, status=404)
-#        except DoesNotExist:
-#            result['errors'] = "Submission does not exist"
-#            return Response(result, status=404)
-#        except exceptions.JSONError as e:
-#            result['errors'] = "Bad request. "+e.message+e.args
-#            return Response(result, status=400)
-#        else:
-#            result['message'] = "Successfully updated"
-#            return Response(status=200)
+# ...
 
 
 
@@ -236,10 +218,13 @@ class SubmissionRequestHandler(APIView):
             result['errors'] = "Submission does not exist"
             return Response(result, status=404)
         else:
-            if was_deleted == True:
-                return Response(status=200)
+            if was_deleted:
+                result['result'] = "Submission successfully deleted."
+                return Response(result, status=200)
             else:
-                pass    # TODO
+                result['result'] = "Submission not deleted - probably because the files have been already submitted to iRODS"
+                return Response(result, status=424)   # Method failed OR 304 - Not modified (but this is more of an UPDATE status response
+                
             #TODO: here there MUST be treated also the other exceptions => nothing will happen if the app throws other type of exception,
             # it will just prin OTHER EXCEPTIOn - on that branch
         

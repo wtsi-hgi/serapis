@@ -243,13 +243,13 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
                 upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
         else:
             upd_dict = {}
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
     return 0
     
 
@@ -1070,4 +1070,45 @@ def delete_study(file_id, study_id):
         return models.SubmittedFile.objects(id=file_id, version__3=get_study_version(submitted_file.id, submitted_file)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
     else:
         raise exceptions.ResourceNotFoundError(study_id)
+
+def delete_submitted_file(file_id, submitted_file=None):
+    if submitted_file == None:
+        submitted_file = models.SubmittedFile.objects(id=file_id)
+    submitted_file.delete()
+    return True
+
+# !!! This is not ATOMIC!!!!
+def delete_submission(submission_id):
+    submission = retrieve_submission(submission_id)
+    # 1. Check that all the files can be deleted:
+    for file_id in submission.files_list:
+        subm_file = retrieve_submitted_file(file_id)
+        #### if subm_file != None:
+        check_and_update_all_statuses(None, subm_file)
+        if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
+            return False
+        
+    # 2. Delete the files and the submission 
+    models.Submission.objects(id=submission_id).delete()
+    for file_id in submission.files_list:
+        delete_submitted_file(file_id)
+    return True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
