@@ -964,6 +964,10 @@ class UpdateFileMdataTask(Task):
 # libs and decides whether it is complete or not
 
 
+class AddMdataToIRODSFileTask(Task):
+
+    def run(self, **kwargs):
+        pass
        
         
 

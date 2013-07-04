@@ -240,8 +240,8 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
         if check_and_update_if_file_has_min_mdata(submitted_file) == True:
             upd_dict = {}
             if check_if_all_update_jobs_finished(None, submitted_file):
-                upd_dict['set__file_submission_status'] = constants.READY_FOR_SUBMISSION_STATUS
-            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_STATUS
+                upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
             return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
         else:
@@ -253,8 +253,39 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
     return 0
     
 
+def decide_submission_status(nr_files, status_dict):
+    if status_dict["nr_success"] == nr_files:
+        return constants.SUCCESS_STATUS
+    elif status_dict["nr_fail"] == nr_files:
+        return constants.FAILURE_STATUS
+    elif status_dict["nr_fail"] > 0:
+        return constants.INCOMPLETE_SUBMISSION_TO_IRODS_STATUS
+    elif status_dict["nr_ready"] == nr_files:
+        return constants.READY_FOR_IRODS_SUBMISSION_STATUS
+    elif status_dict["nr_progress"] > 0:
+        return constants.IN_PROGRESS_STATUS
+    elif status_dict["nr_pending"] > 0:
+        return constants.SUBMISSION_IN_PREPARATION_STATUS
+    
 
-#def update_entity(entity_json, crt_ent, sender):
+def check_and_update_submission_status(submission_id, submission=None):
+    if submission == None:
+        submission = retrieve_submission(submission_id)
+    status_dict = dict.fromkeys(["nr_success", "nr_fail", "nr_pending", "nr_progress", "nr_ready"], 0)
+    for file_id in submission.files_list:
+        subm_file = retrieve_submitted_file(file_id)
+        if subm_file.file_submission_status == constants.SUCCESS_STATUS:
+            status_dict["nr_success"]+=1
+        elif subm_file.file_submission_status == constants.FAILURE_STATUS:
+            status_dict["nr_fail"] += 1
+        elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
+            status_dict["nr_pending"] += 1
+        elif subm_file.file_submission_status == constants.IN_PROGRESS_STATUS:
+            status_dict["nr_progress"] += 1
+        elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+            status_dict["nr_ready"] += 1
+    return decide_submission_status(len(submission.files_list), status_dict)
+
     
 def merge_entities(ent1, ent2, result_entity):
     ''' Merge 2 samples, considering that the senders have eqaual priority. '''    
@@ -309,6 +340,12 @@ def remove_duplicates(entity_list):
         
     
 #---------------------- RETRIEVE ------------------------------------
+
+def retrieve_all_submissions():
+    submission_list = models.Submission.objects()
+
+def retrieve_all_user_submissions(user_id):
+    return models.Submission.objects.filter(sanger_user_id=user_id)
 
 def retrieve_submission(subm_id):
     return models.Submission.objects(_id=ObjectId(subm_id)).get()
@@ -922,6 +959,7 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
             break
         i+=1
     return upd
+
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
