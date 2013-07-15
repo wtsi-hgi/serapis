@@ -229,7 +229,6 @@ class SubmissionRequestHandler(APIView):
             # it will just prin OTHER EXCEPTIOn - on that branch
         
 
-
 # /submissions/submission_id/status/
 class SubmissionStatusRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
@@ -273,25 +272,7 @@ class SubmittedFileStatusRequestHandler(APIView):
             result['result'] = subm_statuses
             return Response(result, status=200)
 
-
-#------------------- IRODS ----------------------------------------
-
-class SubmittedFileIRODSOperationsRequestHandler(APIView):
-    def post(self, request, submission_id, file_id, format=None):
-        ''' Submits the file to iRODS. (Probably only the metadata?!?!?!)'''
-        try:
-            result = dict()
-            irods_submission_status = controller.submit_to_irods(file_id)
-        except InvalidId:
-            result['errors'] = "InvalidId"
-            return Response(result, status=404)
-        except DoesNotExist:
-            result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
-        else:
-            result['result'] = irods_submission_status
-            return Response(result, status=200)
-        
+ 
 
 #----------------- HANDLE 1 SUBMITTED FILE REQUESTS ---------------
         
@@ -324,6 +305,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
     def post(self, request, submission_id, format=None):
         pass
     
+
     
 # URL: /submissions/123/files/1123445    
 class SubmittedFileRequestHandler(APIView):
@@ -397,6 +379,7 @@ class SubmittedFileRequestHandler(APIView):
         try:
             result = dict()
             data = from_unicode_to_string(data)
+            print "After converting to string: -------", str(data)
             validator.submitted_file_schema(data)
             controller.update_file_submitted(submission_id, file_id, data)
 #        except MultipleInvalid as e:
@@ -435,7 +418,7 @@ class SubmittedFileRequestHandler(APIView):
         ''' Deletes a file. Returns 404 if the file or submission don't exist. '''
         try:
             result = dict()
-            controller.delete_submitted_file(submission_id, file_id)
+            was_deleted = controller.delete_submitted_file(submission_id, file_id)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
@@ -446,8 +429,12 @@ class SubmittedFileRequestHandler(APIView):
             result['errors'] = e.strerror
             return Response(result, status=404)
         else:
-            result['result'] = "Successfully deleted"
-            return Response(result, status=200)
+            if was_deleted == True:
+                result['result'] = "Successfully deleted"
+                return Response(result, status=200)
+            else:
+                result['result'] = "File was not deleted, probably because it was already submitted to IRODS or in process."
+                return Response(result, status=424)
         
 
 #        try:
@@ -997,7 +984,52 @@ class StudyRequestHandler(APIView):
                 return Response(result_serial, status=304)
                 
     
-# ---------------------------------------------------------
+    
+# ------------------------------- IRODS -----------------------------
+
+
+# Submit Submission to iRODS:
+class SubmissionIRODSRequestHandler(APIView):
+    def post(self, request, submission_id, format=None):
+        ''' Makes the submission to IRODS of all the files 
+            contained in this submission. (Probably only the metadata?!?!?!)'''
+        try:
+            result = dict()
+            irods_submission_status = controller.submit_all_to_irods(submission_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        else:
+            result['result'] = irods_submission_status
+            return Response(result, status=200)
+
+
+
+# Submit File to iRODS:
+class SubmittedFileIRODSOperationsRequestHandler(APIView):
+    def post(self, request, submission_id, file_id, format=None):
+        ''' Submits the file to iRODS. (Probably only the metadata?!?!?!)'''
+        try:
+            result = dict()
+            irods_submission_status = controller.submit_file_to_irods(file_id, submission_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        else:
+            result['result'] = irods_submission_status
+            return Response(result, status=200)
+       
+       
+
+    
+# ------------------------------ NOT USED ---------------------------
+
 
 
 class GetFolderContent(APIView):
@@ -1029,6 +1061,9 @@ class GetStatusSubmissions(APIView):
     def get(self, status, request):
         submission_list = models.Submission.objects.filter(submission_status=status)
         return Response(submission_list)
+    
+    
+
     
     
 ####---------------------- FOR TESTING PURPOSES -----------

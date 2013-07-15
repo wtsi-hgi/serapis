@@ -436,7 +436,7 @@ class UploadFileTask(Task):
             md5.update(data)
         return md5.hexdigest()
            
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -489,7 +489,7 @@ class UploadFileTask(Task):
 
 
     # Modified upload version for uploading fines on the cluster
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -920,7 +920,7 @@ class UpdateFileMdataTask(Task):
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         file_submitted = SubmittedFile.build_from_json(file_mdata)
-        file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
+        # file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
         
         #print "UPDATE TASKxxxxxxxxxxxxxxxxxxxxxxxxxxx -- AFTER BUILDING FROM JSON A FILE ---", vars(file_submitted)
         
@@ -967,8 +967,18 @@ class UpdateFileMdataTask(Task):
 class AddMdataToIRODSFileTask(Task):
 
     def run(self, **kwargs):
-        pass
+        file_mdata = kwargs['file_mdata']
+        file_id = kwargs['file_id']
+        submission_id = kwargs['submission_id']
+        print "ADD MDATA TO IRODS JOB...works!"
        
+        # Run the pyrods or smth
+        result = dict()
+        file_update_jobs_dict = dict()
+        task_id = current_task.request.id
+        file_update_jobs_dict[task_id] = SUCCESS_STATUS
+        result['irods_jobs_dict'] = file_update_jobs_dict
+        send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
         
 
 # --------------------------- NOT USED ------------------------

@@ -4,7 +4,7 @@ import errno
 import logging
 import datetime
 from bson.objectid import ObjectId
-from serapis import tasks
+from serapis import tasks, serapis2irods
 from serapis import exceptions
 from serapis import models
 from serapis import constants, serializers
@@ -13,6 +13,7 @@ from celery import chain
 #from serapis.entities import SubmittedFile
 from serapis import db_model_operations
 from serapis2irods import convert2irods_mdata
+from compiler.ast import Const
 
 
 
@@ -22,6 +23,8 @@ from serapis2irods import convert2irods_mdata
 upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
+add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
+
 #query_seqscape = tasks.QuerySeqScapeTask()
 #query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
     
@@ -91,11 +94,27 @@ def launch_update_file_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
     task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
     file_submitted.reload()
+    
+    # Save to the DB the job id:
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
     print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
     
+    #testing:
+    file_submitted.reload()
+    print "DICT OF UPDATES: ==========-=-=-=-=============-=-=-=-=-=-", file_submitted.file_update_jobs_dict
+
+
+def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):    
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+    upd_str = 'set__irods_jobs_dict__'+str(task_id)
+    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+
+    
+
 #def launch_upload_job(user_id, file_submitted):
 #    # SUBMIT UPLOAD TASK TO QUEUE:
 #    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
@@ -482,9 +501,6 @@ def get_all_submitted_files(submission_id):
 #    return files
     return db_model_operations.retrieve_all_files_from_submission(submission_id)
     
-    
-def submit_to_irods(file_id):
-    pass
 
 
 def update_file_submitted(submission_id, file_id, data):
@@ -588,8 +604,12 @@ def update_file_submitted(submission_id, file_id, data):
         file_to_update.reload()
         db_model_operations.check_and_update_all_statuses(file_id)
         
+    def update_from_IRODS_SOURCE(data, file_to_update):
+        upd = db_model_operations.update_submitted_file(file_id, data, sender)
+        file_to_update.reload()
         
-    # (CODE OF THE OUTER FUNCTION)          
+        
+    # (CODE OF THE OUTER FUNCTION)
     sender = get_request_source(data)
     file_to_update = db_model_operations.retrieve_submitted_file(file_id)    
     if sender == constants.PARSE_HEADER_MSG_SOURCE:
@@ -600,6 +620,8 @@ def update_file_submitted(submission_id, file_id, data):
         update_from_UPLOAD_TASK_SRC(data, file_to_update)
     elif sender == constants.EXTERNAL_SOURCE:
         update_from_EXTERNAL_SRC(data, file_to_update)
+    elif sender == constants.IRODS_JOB_MSG_SOURCE:
+        update_from_IRODS_SOURCE(data, file_to_update)
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
     file_to_update.reload()
@@ -684,6 +706,9 @@ def delete_submitted_file(submission_id, file_id):
     '''
     # Check on the submission that this file was part of
     # if submission empty => delete submission
+    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
+        return False
     submission = db_model_operations.retrieve_submission(submission_id) 
     file_obj_id = ObjectId(file_id)
     if file_obj_id in submission.files_list:
@@ -691,7 +716,7 @@ def delete_submitted_file(submission_id, file_id):
         submission.save()
         if len(submission.files_list) == 0:
             submission.delete()
-    return db_model_operations.delete_submitted_file(file_id)
+    return db_model_operations.delete_submitted_file(None, subm_file)
     
     
     
@@ -976,6 +1001,24 @@ def delete_study(submission_id, file_id, study_id):
 
 
 
+# ------------------------------ IRODS ---------------------------
+
+    
+def submit_all_to_irods(submission_id):
+    pass
+
+
+def submit_file_to_irods(file_id, submission_id):
+#    upd_status = {"file_submission_status" : constants.SUBMISSION_IN_PROGRESS_STATUS}
+#    updated = models.SubmittedFile.objects(id=file_id, file_submission_status=constants.READY_FOR_IRODS_SUBMISSION_STATUS).update(**upd_status)
+    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+        db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
+        mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
+        launch_add_mdata2IRODS_job(file_id, submission_id, mdata_dict)
+        # for testing:
+        return True
+    return False
 # ---------------------------------- NOT USED ------------------
 
 # works only for the database backend, according to

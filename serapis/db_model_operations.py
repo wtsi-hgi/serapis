@@ -926,7 +926,25 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                     old_update_job_dict[task_id] = task_status
                     update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
                     update_db_dict['inc__version__0'] = 1
-                    print "UPDATE JOB DICT-------------------- NEW ONE:---------------", str(old_update_job_dict)
+        elif field_name == 'irods_jobs_dict':
+            if update_source == constants.IRODS_JOB_MSG_SOURCE:
+                old_irods_jobs_dict = submitted_file.irods_jobs_dict
+                print "IRODS JOB DICT---------------- OLD ONE: --------------", str(old_irods_jobs_dict)
+                if len(field_val) > 1:
+                    print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - IRODS JOB DICT HAS MORE THAN ONE!!!"
+                else:
+                    task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
+                    if not task_id in old_irods_jobs_dict:
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
+                        # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
+                    print "In UPDATE submitted file, got this dict for updating: ", task_status
+                    old_irods_jobs_dict[task_id] = task_status
+                    update_db_dict['set__irods_jobs_dict'] = old_irods_jobs_dict
+                    update_db_dict['inc__version__0'] = 1
+                    if task_status == constants.SUCCESS_STATUS:
+                        update_db_dict['set__file_submission_status'] = constants.SUCCESS_STATUS
+            
         elif field_name != None and field_name != "null":
             import logging
             logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
@@ -942,6 +960,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
 
 
 def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
+    print "IN DB UPDATE SUBMITTED FILE>...."
     upd = 0
     i = 0
     while i < nr_retries: 

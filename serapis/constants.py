@@ -17,6 +17,7 @@ INIT_SOURCE = "INIT"
 PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
 UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
 UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
+IRODS_JOB_MSG_SOURCE = "IRODS_JOB_MSG_SOURCE"
 EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 
 # ----------------- CONSTANTS USED IN TASKS -------------
@@ -184,4 +185,19 @@ PREDEFINED_ERRORS = {IO_ERROR,
 CURRENT_WELLS_SEQSC_TABLE = "current_wells"
 
 
+#----------------------------------- ENTITIES SPECIFICS ----------------
 
+STUDY_TYPE = {"Whole Genome Sequencing",
+    "Metagenomics",
+    "Transcriptome Analysis",
+    "Resequencing",
+    "Epigenetics",
+    "Synthetic Genomics",
+    "Forensic or Paleo-genomics",
+    "Gene Regulation Study",
+    "Cancer Genomics",
+    "Population Genomics",
+    "RNASeq",
+    "Exome Sequencing",
+    "Pooled Clone Sequencing"
+    }

@@ -386,8 +386,8 @@ class TestAddEntityAndDBModelRequests(unittest.TestCase):
     
 class TestRequests(unittest.TestCase):
     
-    import requests
-    import json
+    #import requests
+    #import json
     
     URL = "http://127.0.0.1:8000/api-rest/submissions/"
     
@@ -401,6 +401,36 @@ class TestRequests(unittest.TestCase):
         submission_info = json.loads(submission_info)
         self.submission = submission_info['submission_id']
         self.file_id = submission_info['testing'][0]
+        
+    def test_delete_submission(self):
+        url = self.URL + self.submission
+        #self.post_req = requests.delete(url, headers = self.headers)
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        r = requests.delete(url, headers = headers)
+        self.assertEqual(r.status_code, 200)
+        
+        url = self.URL + self.submission + '/files/' + self.file_id
+        r = requests.get(url, headers=headers)
+        self.assertEqual(r.status_code, 404)
+        
+        url = self.URL + self.submission
+        r = requests.get(url, headers=headers)
+        self.assertEqual(r.status_code, 404)
+        
+    def test_delete_file(self):
+        url = self.URL + self.submission + '/files/' + self.file_id
+        headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
+        
+        r = requests.delete(url, headers=headers)
+        self.assertEqual(r.status_code, 200)
+        
+        r = requests.get(url, headers=headers)
+        self.assertEqual(r.status_code, 404)
+        
+        url = self.URL + self.submission
+        r = requests.get(url, headers=headers)
+        self.assertEqual(r.status_code, 404)
+        
         
         
     def test_duplicates_in_entity_lists(self):

@@ -150,6 +150,9 @@ class SubmittedFile(DynamicDocument):
 #    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
     file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
     
+    # IRODS JOBS:
+    irods_jobs_dict = DictField()          # Keeps track of the output of the jobs in iRODS
+    
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
     file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
