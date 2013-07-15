@@ -511,11 +511,26 @@ class UploadFileTask(Task):
         
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
         upld_cmd = "python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
-        #upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
+        # upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
+
+        upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
+
+
 
         # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'", "--src_file_path", "\'"+src_file_path+"\'", 
         #       "--dest_file_path", "\'"+dest_file_path+"\'", "--response_status", "\'"+response_status+"\'", "--submission_id", "\'"+str(submission_id)+"\'", 
         #       "--file_id", "\'"+str(file_id)+"\'"])
+
+
+        #'python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py --src_file_path /nfs/users/nfs_i/ic4/bams/HG00119.chrom20.ILLUMINA.bwa.GBR.low_coverage.20101123.bam --dest_file_path /Sanger1-dev/home/ic4/HG00119.chrom20.ILLUMINA.bwa.GBR.low_coverage.20101123.bam --response_status file_upload_job_status --submission_id 51d29bf70cfd5f20b49c44f6 --file_id 51d29bf70cfd5f20b49c44f7'
+
+        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'", "--src_file_path", "\'"+src_file_path+"\'", 
+        #       "--dest_file_path", "\'"+dest_file_path+"\'", "--response_status", "\'"+response_status+"\'", "--submission_id", "\'"+str(submission_id)+"\'", 
+        #       "--file_id", "\'"+str(file_id)+"\'"])
+
+        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'"])
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", upld_cmd])
+
 
         # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
 

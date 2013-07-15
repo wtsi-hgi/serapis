@@ -134,5 +134,9 @@ parser.add_argument('--submission_id', dest='submission_id', required=True)
 parser.add_argument('--file_id', dest='file_id', required=True)
 
 
+print "Hello worlds, this is my job done!!!!!!!!!!!!!!!!!!!!!!"
 args = parser.parse_args()
 print(args.src_file_path)
+
+cluster_fct(args.src_file_path, args.dest_file_path, args.response_status, args.submission_id, args.file_id)
+#def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
