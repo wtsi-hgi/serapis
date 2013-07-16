@@ -548,6 +548,7 @@ def update_file_submitted(submission_id, file_id, data):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         file_to_update.reload()
         db_model_operations.check_and_update_all_statuses(file_id)
+        
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
         file_to_update.reload()
         irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)

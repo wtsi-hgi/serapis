@@ -3,6 +3,7 @@ import logging
 import requests
 import simplejson
 
+import os
 import sys
 sys.path.append('/software/python-2.7.3/lib/python2.7/site-packages')
 from irods import *
@@ -35,10 +36,20 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 filtered_dict[key] = val
         return filtered_dict
 
+    def progress_messages(progress, total_size):
+        progress_ratio = progress/total_size * 100.0
+        if progress_ratio > 25 and progress_ratio < 26:
+            print "25% done!"
+        elif progress_ratio > 50 and progress_ratio < 51:
+            print "50% done!"
+        elif progress_ratio > 75 and progress_ratio < 76:
+            print "75% done!"
 
-    def md5_and_copy(conn, source_file, dest_file_path):
-        src_fd = open(source_file, 'rb')
+    def md5_and_copy(conn, source_file_path, dest_file_path):
+        src_fd = open(source_file_path, 'rb')
         #dest_fd = open(dest_file, 'wb')
+        progress = 0
+        tot_size = os.path.getsize(source_file_path)
         dest_fd = irodsOpen(conn, dest_file_path, 'w')
         m = hashlib.md5()
         while True:
@@ -47,11 +58,13 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 break
             dest_fd.write(data)
             m.update(data)
+            progress += 128
+            progress_messages(progress, tot_size)
         src_fd.close()
         dest_fd.close()
         return m.hexdigest()
 
-    def calculate_md5(self, file_path):
+    def calculate_md5(conn, file_path):
         file_obj = file(file_path)
         md5 = hashlib.md5()
         while True:
@@ -92,8 +105,11 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         print "PATH where I am writing", path
 
         try:
-            md5_src = md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
-            md5_dest = calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+            dest_fd = irodsOpen(conn, dest_file_path, 'w')
+            md5_src = md5_and_copy(conn, src_file_path, dest_fd)          # CALCULATE MD5 and COPY FILE
+            md5_dest = dest_fd.getChecksum()
+            #md5_dest = calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+#            md5_dest = getChecksum()
         except IOError:
             result[FILE_ERROR_LOG] = []
             result[FILE_ERROR_LOG].append(IO_ERROR)    # IO ERROR COPYING FILE
