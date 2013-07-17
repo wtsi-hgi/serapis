@@ -12,7 +12,7 @@ import logging
 
 
 FILE_TYPES = (BAM_FILE, VCF_FILE)
-SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "PARTIAL_SUCCESS")
+
 # maybe also: PENDING, STARTED, RETRY - if using result-backend
 
 #FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
@@ -149,6 +149,9 @@ class SubmittedFile(DynamicDocument):
     # UPDATE MDATA JOB:
 #    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
     file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
+    
+    # IRODS JOBS:
+    irods_jobs_dict = DictField()          # Keeps track of the output of the jobs in iRODS
     
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER

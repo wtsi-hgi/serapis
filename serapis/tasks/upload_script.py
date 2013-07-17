@@ -9,7 +9,8 @@ from irods import *
 
 
 def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
-    BASE_URL = "http://localhost:8000/api-rest/submissions/"
+    #BASE_URL = "http://localhost:8000/api-rest/submissions/"
+    BASE_URL = "http://172.17.138.169:8000/api-rest/submissions/"
     FILE_ERROR_LOG = 'file_error_log'
     MD5 = "md5"
     UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
@@ -18,6 +19,10 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
     IO_ERROR = "IO_ERROR"
     UNEQUAL_MD5 = "UNEQUAL_MD5"
     FAILURE_STATUS = "FAILURE"
+
+    #BLOCK_SIZE = 65536
+    #BLOCK_SIZE = 524288
+    BLOCK_SIZE = 2097152
     
     def serialize(data):
         return simplejson.dumps(data)
@@ -34,32 +39,6 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
             if val != None and val != 'null':
                 filtered_dict[key] = val
         return filtered_dict
-
-
-    def md5_and_copy(conn, source_file, dest_file_path):
-        src_fd = open(source_file, 'rb')
-        #dest_fd = open(dest_file, 'wb')
-        dest_fd = irodsOpen(conn, dest_file_path, 'w')
-        m = hashlib.md5()
-        while True:
-            data = src_fd.read(128)
-            if not data:
-                break
-            dest_fd.write(data)
-            m.update(data)
-        src_fd.close()
-        dest_fd.close()
-        return m.hexdigest()
-
-    def calculate_md5(self, file_path):
-        file_obj = file(file_path)
-        md5 = hashlib.md5()
-        while True:
-            data = file_obj.read(128)
-            if not data:
-                break
-            md5.update(data)
-        return md5.hexdigest()
 
     def send_http_PUT_req(msg, submission_id, file_id, sender):
         logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
@@ -79,7 +58,43 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
         return response
 
-    
+
+
+    def md5_and_copy(conn, source_file, dest_fd):
+        src_fd = open(source_file, 'rb')
+        #dest_fd = open(dest_file, 'wb')
+        #dest_fd = irodsOpen(conn, dest_file_path, 'w')
+        md5_sum = hashlib.md5()
+        #data = ...
+        while True:
+            #data = src_fd.read(128)
+            #data = src_fd.read(16384)
+            data = src_fd.read(BLOCK_SIZE)
+            if not data:
+                break
+            dest_fd.write(data)
+            md5_sum.update(data)
+        src_fd.close()
+        #dest_fd.close()
+        return md5_sum.hexdigest()
+
+    def calculate_md5(fd):
+        #file_obj = file(file_path)
+        file_obj = fd
+        md5_sum = hashlib.md5()
+        while True:
+            #data = file_obj.read(128)
+            data = file_obj.read(BLOCK_SIZE)
+            #data = file_obj.read(8192)
+            if not data:
+                break
+            md5_sum.update(data)
+            del data
+        print "MD5 DIGEST - before returning: ", md5_sum.hexdigest()
+        return md5_sum.hexdigest()
+
+
+    import time
     def copy_file(src_file_path, dest_file_path, nth_try, submission_id, file_id):
         result = dict()
         status, myEnv = getRodsEnv()
@@ -88,12 +103,30 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         status = clientLogin(conn)
         
         print "IRODS home path: ", myEnv.rodsHome
-        path = myEnv.rodsHome + '/testsimpleio.txt'
-        print "PATH where I am writing", path
+        # path = myEnv.rodsHome + '/testsimpleio.txt'
+        # print "PATH where I am writing", path
 
         try:
-            md5_src = md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
-            md5_dest = calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
+            dest_fd = irodsOpen(conn, dest_file_path, 'w')
+            t1 = time.time()
+            md5_src = md5_and_copy(conn, src_file_path, dest_fd)          # CALCULATE MD5 and COPY FILE
+            t2 = time.time()
+            print "Copying took this time: ", t2-t1
+            dest_fd.close()
+
+            print "md5 sum for the source file is: ", md5_src
+
+
+            dest_fd = irodsOpen(conn, dest_file_path, 'r')
+            t1 = time.time()
+            md5_dest = calculate_md5(dest_fd)
+            t2 = time.time()
+            #md5_dest = dest_fd.getChecksum()
+            dest_fd.close()
+
+            print "MD5 on IRODS took this time: ", t2-t1
+
+            print "DEST SUM: ", md5_dest
         except IOError:
             result[FILE_ERROR_LOG] = []
             result[FILE_ERROR_LOG].append(IO_ERROR)    # IO ERROR COPYING FILE
@@ -109,12 +142,14 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
             
         else:
+            print "MD5 different!!! SRC: ",md5_src, "   DEST: ", md5_dest
             if nth_try < MAX_RETRIES:
-                copy_file(src_file_path, dest_file_path, nth_try+1)
+                copy_file(src_file_path, dest_file_path, nth_try+1, submission_id, file_id)
             else:
                 result[FILE_ERROR_LOG] = []
                 result[FILE_ERROR_LOG].append(UNEQUAL_MD5)
                 result[response_status] = FAILURE_STATUS
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
                 
     copy_file(src_file_path, dest_file_path, 0, submission_id, file_id)
 

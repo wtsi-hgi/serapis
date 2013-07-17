@@ -76,6 +76,7 @@ submitted_file_schema = Schema({
     'missing_entities_error_dict' : dict,    # = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     'not_unique_entity_error_dict' : dict,         # = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     'last_updates_source' : dict,             # = DictField()                # keeps name of the field - source that last modified this field           
+    'irods_jobs_dict' : dict,
     
     # BAM FILE SPECIFIC FIELDS:
     'bam_type' : str,

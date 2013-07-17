@@ -4,7 +4,7 @@ import errno
 import logging
 import datetime
 from bson.objectid import ObjectId
-from serapis import tasks
+from serapis import tasks, serapis2irods
 from serapis import exceptions
 from serapis import models
 from serapis import constants, serializers
@@ -13,6 +13,7 @@ from celery import chain
 #from serapis.entities import SubmittedFile
 from serapis import db_model_operations
 from serapis2irods import convert2irods_mdata
+from compiler.ast import Const
 
 
 
@@ -22,6 +23,8 @@ from serapis2irods import convert2irods_mdata
 upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
+add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
+
 #query_seqscape = tasks.QuerySeqScapeTask()
 #query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
     
@@ -102,11 +105,27 @@ def launch_update_file_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
     task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
     file_submitted.reload()
+    
+    # Save to the DB the job id:
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
     print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
     
+    #testing:
+    file_submitted.reload()
+    print "DICT OF UPDATES: ==========-=-=-=-=============-=-=-=-=-=-", file_submitted.file_update_jobs_dict
+
+
+def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):    
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+    upd_str = 'set__irods_jobs_dict__'+str(task_id)
+    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+
+    
+
 #def launch_upload_job(user_id, file_submitted):
 #    # SUBMIT UPLOAD TASK TO QUEUE:
 #    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
@@ -199,7 +218,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
 def submit_jobs_for_submission(user_id, submission):
     io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_id in submission.files_list:
-        file_submitted = models.SubmittedFile.objects(_id=file_id).get()
+        #file_submitted = models.SubmittedFile.objects(_id=file_id).get()
+        file_submitted = db_model_operations.retrieve_submitted_file(file_id)
         file_io_errors = submit_jobs_for_file(user_id, file_submitted)
         if file_io_errors != None and len(file_io_errors) > 0:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
@@ -382,21 +402,10 @@ def get_submission(submission_id):
     Throws:
         InvalidId -- if the id is invalid
         DoesNotExist -- if there is no submission with this id in the DB.'''
-    return models.Submission.objects(_id=ObjectId(submission_id)).get()
+    #return models.Submission.objects(_id=ObjectId(submission_id)).get()
+    return db_model_operations.retrieve_submission(submission_id)
 
-
-def get_submitted_file(file_id):
-    ''' Retrieves the submitted file from the DB and returns it.
-    Params: 
-        file_id -- a string with the id of the submitted file
-    Returns:
-        a SubmittedFile object instance
-    Throws:
-        InvalidId -- if the id is invalid
-        DoesNotExist -- if there is no resource with this id in the DB.'''
-    return db_model_operations.retrieve_submitted_file(file_id)
-    #return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-    
+   
 
 # Apparently it is just returned an empty list if user_id doesn't exist
 def get_all_submissions(sanger_user_id):
@@ -410,34 +419,22 @@ def get_all_submissions(sanger_user_id):
         InvalidId -- if the id is invalid
         DoesNotExist -- if there is no resource with this id in the DB.
     '''
-    submission_list = models.Submission.objects.filter(sanger_user_id=sanger_user_id)
-    return submission_list
+    return db_model_operations.retrieve_all_user_submissions(sanger_user_id)
 
 
 def get_submission_status(submission_id):
-    submission = get_submission(submission_id)
-    if submission != None:
-        subm_status = submission.get_all_statuses()
-        
-    # TODO: UNFINISHED....
-    
-    return subm_status
+    #submission = get_submission(submission_id)
+    #if submission != None:
+    submission_status = db_model_operations.check_and_update_submission_status(submission_id)
+    return {'submission_status' : submission_status}    
 
 
+
+# USELESS - see explanation in view_classes
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
-def update_submission(submission_id, data): 
-    ''' Updates the info of this submission.
-    Params:
-        submission_id -- a string with the id of the submission
-        data          -- json dictionary with the fields to be updated.
-    Throws:
-        InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
-        JSONError -- if the json is not well formed - structurally or logically incorrect - my custom exception     
-        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
-        KeyError -- if an unexpected key was found
-    '''
-    submission = models.Submission.objects(_id=ObjectId(submission_id)).get()
-    submission.update_from_json(data)
+#def update_submission(submission_id, data): 
+#    ''' Updates the info of this submission.
+# ........
     
     
 def delete_submission(submission_id):
@@ -448,8 +445,7 @@ def delete_submission(submission_id):
         InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error) 
     '''
-    submission = models.Submission.objects(_id=ObjectId(submission_id)).get()
-    submission.delete()
+    return db_model_operations.delete_submission(submission_id)
     
     
 #------------ FILE RELATED REQUESTS: ------------------
@@ -479,6 +475,29 @@ def get_request_source(data):
 #    return submitted_file
 
 
+def get_submitted_file(file_id):
+    ''' Retrieves the submitted file from the DB and returns it.
+    Params: 
+        file_id -- a string with the id of the submitted file
+    Returns:
+        a SubmittedFile object instance
+    Throws:
+        InvalidId -- if the id is invalid
+        DoesNotExist -- if there is no resource with this id in the DB.'''
+    return db_model_operations.retrieve_submitted_file(file_id)
+    #return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+
+
+def get_submitted_file_status(file_id):
+    ''' Retrieves and returns the statuses of this file. 
+    '''
+    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    return {'file_upload_status' : subm_file.file_upload_job_status,
+            'file_metadata_status' : subm_file.file_mdata_status,
+            'file_submission_status' : subm_file.file_submission_status 
+            }
+    
+
 def get_all_submitted_files(submission_id):
     ''' Queries the DB for the list of files contained by the submission given by
         submission_id. 
@@ -489,9 +508,11 @@ def get_all_submitted_files(submission_id):
         list of files for this submission
     '''
     #models.Submission.objects(_id=ObjectId(submission_id)).get()    # This makes sure that the submission exists, otherwise throws an exception
-    files = models.SubmittedFile.objects(submission_id=submission_id).all()
-    return files
+#    files = models.SubmittedFile.objects(submission_id=submission_id).all()
+#    return files
+    return db_model_operations.retrieve_all_files_from_submission(submission_id)
     
+
 
 def update_file_submitted(submission_id, file_id, data):
     ''' Updates a file from a submission.
@@ -602,8 +623,12 @@ def update_file_submitted(submission_id, file_id, data):
         file_to_update.reload()
         db_model_operations.check_and_update_all_statuses(file_id)
         
+    def update_from_IRODS_SOURCE(data, file_to_update):
+        upd = db_model_operations.update_submitted_file(file_id, data, sender)
+        file_to_update.reload()
         
-    # (CODE OF THE OUTER FUNCTION)          
+        
+    # (CODE OF THE OUTER FUNCTION)
     sender = get_request_source(data)
     file_to_update = db_model_operations.retrieve_submitted_file(file_id)    
     if sender == constants.PARSE_HEADER_MSG_SOURCE:
@@ -614,6 +639,8 @@ def update_file_submitted(submission_id, file_id, data):
         update_from_UPLOAD_TASK_SRC(data, file_to_update)
     elif sender == constants.EXTERNAL_SOURCE:
         update_from_EXTERNAL_SRC(data, file_to_update)
+    elif sender == constants.IRODS_JOB_MSG_SOURCE:
+        update_from_IRODS_SOURCE(data, file_to_update)
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
     file_to_update.reload()
@@ -698,15 +725,17 @@ def delete_submitted_file(submission_id, file_id):
     '''
     # Check on the submission that this file was part of
     # if submission empty => delete submission
+    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
+        return False
     submission = db_model_operations.retrieve_submission(submission_id) 
     file_obj_id = ObjectId(file_id)
     if file_obj_id in submission.files_list:
-        submission.files_list.remove(ObjectId(file_id))
+        submission.files_list.remove(file_obj_id)
         submission.save()
         if len(submission.files_list) == 0:
             submission.delete()
-    file_to_delete = models.SubmittedFile.objects(_id=file_obj_id).get()
-    file_to_delete.delete()
+    return db_model_operations.delete_submitted_file(None, subm_file)
     
     
     
@@ -991,6 +1020,24 @@ def delete_study(submission_id, file_id, study_id):
 
 
 
+# ------------------------------ IRODS ---------------------------
+
+    
+def submit_all_to_irods(submission_id):
+    pass
+
+
+def submit_file_to_irods(file_id, submission_id):
+#    upd_status = {"file_submission_status" : constants.SUBMISSION_IN_PROGRESS_STATUS}
+#    updated = models.SubmittedFile.objects(id=file_id, file_submission_status=constants.READY_FOR_IRODS_SUBMISSION_STATUS).update(**upd_status)
+    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+        db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
+        mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
+        launch_add_mdata2IRODS_job(file_id, submission_id, mdata_dict)
+        # for testing:
+        return True
+    return False
 # ---------------------------------- NOT USED ------------------
 
 # works only for the database backend, according to

@@ -240,21 +240,52 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
         if check_and_update_if_file_has_min_mdata(submitted_file) == True:
             upd_dict = {}
             if check_if_all_update_jobs_finished(None, submitted_file):
-                upd_dict['set__file_submission_status'] = constants.READY_FOR_SUBMISSION_STATUS
-            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_STATUS
+                upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
         else:
             upd_dict = {}
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_id, version__0=get_file_version(file_id, submitted_file)).update_one(**upd_dict)
+            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
     return 0
     
 
+def decide_submission_status(nr_files, status_dict):
+    if status_dict["nr_success"] == nr_files:
+        return constants.SUCCESS_STATUS
+    elif status_dict["nr_fail"] == nr_files:
+        return constants.FAILURE_STATUS
+    elif status_dict["nr_fail"] > 0:
+        return constants.INCOMPLETE_SUBMISSION_TO_IRODS_STATUS
+    elif status_dict["nr_ready"] == nr_files:
+        return constants.READY_FOR_IRODS_SUBMISSION_STATUS
+    elif status_dict["nr_progress"] > 0:
+        return constants.IN_PROGRESS_STATUS
+    elif status_dict["nr_pending"] > 0:
+        return constants.SUBMISSION_IN_PREPARATION_STATUS
+    
 
-#def update_entity(entity_json, crt_ent, sender):
+def check_and_update_submission_status(submission_id, submission=None):
+    if submission == None:
+        submission = retrieve_submission(submission_id)
+    status_dict = dict.fromkeys(["nr_success", "nr_fail", "nr_pending", "nr_progress", "nr_ready"], 0)
+    for file_id in submission.files_list:
+        subm_file = retrieve_submitted_file(file_id)
+        if subm_file.file_submission_status == constants.SUCCESS_STATUS:
+            status_dict["nr_success"]+=1
+        elif subm_file.file_submission_status == constants.FAILURE_STATUS:
+            status_dict["nr_fail"] += 1
+        elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
+            status_dict["nr_pending"] += 1
+        elif subm_file.file_submission_status == constants.IN_PROGRESS_STATUS:
+            status_dict["nr_progress"] += 1
+        elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+            status_dict["nr_ready"] += 1
+    return decide_submission_status(len(submission.files_list), status_dict)
+
     
 def merge_entities(ent1, ent2, result_entity):
     ''' Merge 2 samples, considering that the senders have eqaual priority. '''    
@@ -309,6 +340,12 @@ def remove_duplicates(entity_list):
         
     
 #---------------------- RETRIEVE ------------------------------------
+
+def retrieve_all_submissions():
+    submission_list = models.Submission.objects()
+
+def retrieve_all_user_submissions(user_id):
+    return models.Submission.objects.filter(sanger_user_id=user_id)
 
 def retrieve_submission(subm_id):
     return models.Submission.objects(_id=ObjectId(subm_id)).get()
@@ -889,7 +926,25 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                     old_update_job_dict[task_id] = task_status
                     update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
                     update_db_dict['inc__version__0'] = 1
-                    print "UPDATE JOB DICT-------------------- NEW ONE:---------------", str(old_update_job_dict)
+        elif field_name == 'irods_jobs_dict':
+            if update_source == constants.IRODS_JOB_MSG_SOURCE:
+                old_irods_jobs_dict = submitted_file.irods_jobs_dict
+                print "IRODS JOB DICT---------------- OLD ONE: --------------", str(old_irods_jobs_dict)
+                if len(field_val) > 1:
+                    print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - IRODS JOB DICT HAS MORE THAN ONE!!!"
+                else:
+                    task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
+                    if not task_id in old_irods_jobs_dict:
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
+                        # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
+                    print "In UPDATE submitted file, got this dict for updating: ", task_status
+                    old_irods_jobs_dict[task_id] = task_status
+                    update_db_dict['set__irods_jobs_dict'] = old_irods_jobs_dict
+                    update_db_dict['inc__version__0'] = 1
+                    if task_status == constants.SUCCESS_STATUS:
+                        update_db_dict['set__file_submission_status'] = constants.SUCCESS_STATUS
+            
         elif field_name != None and field_name != "null":
             import logging
             logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
@@ -905,6 +960,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
 
 
 def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
+    print "IN DB UPDATE SUBMITTED FILE>...."
     upd = 0
     i = 0
     while i < nr_retries: 
@@ -922,6 +978,7 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
             break
         i+=1
     return upd
+
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
@@ -1032,4 +1089,45 @@ def delete_study(file_id, study_id):
         return models.SubmittedFile.objects(id=file_id, version__3=get_study_version(submitted_file.id, submitted_file)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
     else:
         raise exceptions.ResourceNotFoundError(study_id)
+
+def delete_submitted_file(file_id, submitted_file=None):
+    if submitted_file == None:
+        submitted_file = models.SubmittedFile.objects(id=file_id)
+    submitted_file.delete()
+    return True
+
+# !!! This is not ATOMIC!!!!
+def delete_submission(submission_id):
+    submission = retrieve_submission(submission_id)
+    # 1. Check that all the files can be deleted:
+    for file_id in submission.files_list:
+        subm_file = retrieve_submitted_file(file_id)
+        #### if subm_file != None:
+        check_and_update_all_statuses(None, subm_file)
+        if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
+            return False
+        
+    # 2. Delete the files and the submission 
+    models.Submission.objects(id=submission_id).delete()
+    for file_id in submission.files_list:
+        delete_submitted_file(file_id)
+    return True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
