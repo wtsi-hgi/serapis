@@ -447,6 +447,7 @@ class UploadFileTask(Task):
         file_id = kwargs['file_id']
         submission_id = str(kwargs['submission_id'])
 
+        print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
     # Working version - for upload on the worker        
@@ -513,6 +514,7 @@ class UploadFileTask(Task):
 #        from serapis.tasks import upload_script
         
         #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
+
         upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         # upld_cmd = upld_cmd + src_file_path + "\",\"" + dest_file_path + "\", \"" + response_status + "\", \""+ str(submission_id) + "\", \""+ str(file_id)+ "\")" 
 
@@ -784,6 +786,97 @@ class ParseBAMHeaderTask(Task):
         print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
         #self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
         send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.id, PARSE_HEADER_MSG_SOURCE)
+        
+        
+    def parse_header(self, header_processed, file_mdata):
+        # TODO: to decomment in the real app
+        #file_mdata.header_associations = header_json
+        
+        # Updating fields of my file_submitted object
+        file_mdata.seq_centers = header_processed['CN']
+        header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
+        header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
+        
+        
+        # NEW FIELDS:
+        if 'PL' in header_processed:
+            file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
+        if 'DT' in header_processed:
+            file_mdata.date_list = list(set(header_processed['DT']))
+        ### TODO: here I assumed the PU field looks like in the SC_GMFUL5306338.bam, which is the following format:
+        #     'PU': '120815_HS16_08276_A_C0NKKACXX_4#1',
+        # TO CHANGE - sometimes it can be:
+        #    'PU': '7947_1#53',
+        if 'PU' in header_processed:
+            # PU can have different forms - try to match each of them:
+            # First possible PU HEADER:
+            for pu_entry in header_processed['PU']:
+                pattern = re.compile(REGEX_PU_1)
+                if pattern.match(pu_entry) != None:
+                    file_mdata.run_list.append(pu_entry)
+                else:
+                    for pu_entry in header_processed['PU']:
+                        run = self.extract_run_from_PUHeader(pu_entry)
+                        lane = self.extract_lane_from_PUHeader(pu_entry)
+                        tag = self.extract_tag_from_PUHeader(pu_entry)
+                        run_id = str(run) + '_' + str(lane) + '#' + str(tag)
+                        file_mdata.run_list.append(run_id)
+                        
+        #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+        #   file_mdata.run_list = list(set(runs))
+    
+        #    lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+        #   file_mdata.lane_list = list(set(lanes))
+            
+        #    tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
+        #   file_mdata.tag_list = list(set(tags))
+         
+        file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
+        if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
+            # TODO: to add the entities in the header to the file_mdata
+            file_mdata.header_has_mdata = True
+        else:
+            file_mdata.file_error_log.append(constants.FILE_HEADER_EMPTY)
+            #file_mdata.file_mdata_status = IN_PROGRESS_STATUS
+        
+        # Sending an update back
+        self.send_parse_header_update(file_mdata)
+    
+        ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
+        #new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
+        #new_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
+        
+        new_libs_list = self.select_new_incomplete_entities(header_library_name_list, LIBRARY_TYPE, file_mdata)  # List of incomplete libs
+        new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, SAMPLE_TYPE, file_mdata)
+        
+        print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
+        
+        processSeqsc = ProcessSeqScapeData()
+        #processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
+        processSeqsc.fetch_and_process_lib_unknown_mdata(new_libs_list, file_mdata)
+        processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
+        
+        # Just for Ulcerative Col:
+        #processSeqsc.fetch_and_process_study_mdata([''])
+        
+        print "LIBRARY UPDATED LIST: ", file_mdata.library_list
+        print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
+        print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
+    
+        # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
+        #file_mdata.update_file_mdata_status()           # update the status after the last findings
+        file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
+        
+        # Exception or not - either way - send file_mdata to the server:  
+        serial = file_mdata.to_json()
+        #print "FILE serialized - JSON: ", serial
+        deserial = simplejson.loads(serial)
+        print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
+        #res = file_mdata.to_dict()
+        resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
+        print "RESPONSE FROM SERVER: ", resp
+        
+
 
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
@@ -812,100 +905,16 @@ class ParseBAMHeaderTask(Task):
             
             #header_seq_centers = header_processed['CN']
         except ValueError:      # This comes from BAM header parsing
-            file_mdata.file_header_parsing_job_status = FAILURE_STATUS
-            file_mdata.file_error_log.append(constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED)         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
-            file_mdata.header_has_mdata = False
+            result = dict()
+            result['file_header_parsing_job_status'] = FAILURE_STATUS
+            result['file_error_log'] = [constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            result['header_has_mdata'] = False
+            resp = send_http_PUT_req(result, file_mdata.submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
+            print "RESPONSE FROM SERVER: ", resp
             raise
         else:
-            # TODO: to decomment in the real app
-            #file_mdata.header_associations = header_json
-            
-            # Updating fields of my file_submitted object
-            file_mdata.seq_centers = header_processed['CN']
-            header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
-            header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
-            
-            
-            # NEW FIELDS:
-            if 'PL' in header_processed:
-                file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
-            if 'DT' in header_processed:
-                file_mdata.date_list = list(set(header_processed['DT']))
-            ### TODO: here I assumed the PU field looks like in the SC_GMFUL5306338.bam, which is the following format:
-            #     'PU': '120815_HS16_08276_A_C0NKKACXX_4#1',
-            # TO CHANGE - sometimes it can be:
-            #    'PU': '7947_1#53',
-            if 'PU' in header_processed:
-                # PU can have different forms - try to match each of them:
-                # First possible PU HEADER:
-                for pu_entry in header_processed['PU']:
-                    pattern = re.compile(REGEX_PU_1)
-                    print "PU HEADER: ", pu_entry
-                    if pattern.match(pu_entry) != None:
-                        file_mdata.run_list.append(pu_entry)
-                        print "PAttern MATCHED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-                    else:
-                        for pu_entry in header_processed['PU']:
-                            run = self.extract_run_from_PUHeader(pu_entry)
-                            lane = self.extract_lane_from_PUHeader(pu_entry)
-                            tag = self.extract_tag_from_PUHeader(pu_entry)
-                            run_id = str(run) + '_' + str(lane) + '#' + str(tag)
-                            file_mdata.run_list.append(run_id)
-                            
-                    
-            #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            #   file_mdata.run_list = list(set(runs))
-    
-            #    lanes = [self.extract_lane_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            #   file_mdata.lane_list = list(set(lanes))
-                
-            #    tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
-            #   file_mdata.tag_list = list(set(tags))
-             
-     
-            
-            file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
-            if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
-                # TODO: to add the entities in the header to the file_mdata
-                file_mdata.header_has_mdata = True
-            else:
-                file_mdata.file_error_log.append(constants.FILE_HEADER_EMPTY)
-                #file_mdata.file_mdata_status = IN_PROGRESS_STATUS
-            
-            # Sending an update back
-            self.send_parse_header_update(file_mdata)
-    
-            ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
-            #new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
-            #new_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
-            
-            new_libs_list = self.select_new_incomplete_entities(header_library_name_list, LIBRARY_TYPE, file_mdata)  # List of incomplete libs
-            new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, SAMPLE_TYPE, file_mdata)
-            
-            print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
-            
-            processSeqsc = ProcessSeqScapeData()
-            #processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
-            processSeqsc.fetch_and_process_lib_unknown_mdata(new_libs_list, file_mdata)
-            processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
-            
-            print "LIBRARY UPDATED LIST: ", file_mdata.library_list
-            #print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
-            print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
-        
-        # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
-        #file_mdata.update_file_mdata_status()           # update the status after the last findings
-        file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
-        
-        # Exception or not - either way - send file_mdata to the server:  
-        serial = file_mdata.to_json()
-        #print "FILE serialized - JSON: ", serial
-        deserial = simplejson.loads(serial)
-        print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
-        #res = file_mdata.to_dict()
-        resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
-        print "RESPONSE FROM SERVER: ", resp
-        
+            self.parse_header(header_processed, file_mdata)
+
 
 class UpdateFileMdataTask(Task):
     

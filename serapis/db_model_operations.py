@@ -196,6 +196,8 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     # TO DECOMMENT - it is commented only for testing purposes
 #    if len(submitted_file.library_list) == 0 or len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
 #        return False
+    if len(submitted_file.library_list) == 0 and len(submitted_file.sample_list) == 0 and len(submitted_file.study_list) == 0:
+        return False
     for study in submitted_file.study_list:
         if check_if_study_has_minimal_mdata(study) == False:
             return False
@@ -971,6 +973,7 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
             field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file) # atomic_update=True
             update_db_dict.update(field_update_dict)
         if len(update_db_dict) > 0:
+            print "FILE ID ----- HERE's A PB----------------", file_id, " and TYPE: ", type(file_id), "UPD DB DICT: ", update_db_dict
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
             print "ATOMIC UPDATE RESULT: =================================================================", upd
         print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict

@@ -3,6 +3,7 @@ import logging
 import requests
 import simplejson
 
+import os
 import sys
 sys.path.append('/software/python-2.7.3/lib/python2.7/site-packages')
 from irods import *
@@ -40,6 +41,17 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 filtered_dict[key] = val
         return filtered_dict
 
+
+    def progress_messages(progress, total_size):
+        progress_ratio = progress/total_size * 100.0
+        if progress_ratio > 25 and progress_ratio < 26:
+            print "25% done!"
+        elif progress_ratio > 50 and progress_ratio < 51:
+            print "50% done!"
+        elif progress_ratio > 75 and progress_ratio < 76:
+            print "75% done!"
+
+ 
     def send_http_PUT_req(msg, submission_id, file_id, sender):
         logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
         logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
@@ -108,6 +120,7 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
         try:
             dest_fd = irodsOpen(conn, dest_file_path, 'w')
+
             t1 = time.time()
             md5_src = md5_and_copy(conn, src_file_path, dest_fd)          # CALCULATE MD5 and COPY FILE
             t2 = time.time()

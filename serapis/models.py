@@ -159,7 +159,7 @@ class SubmittedFile(DynamicDocument):
     file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
     #file_error_log = DictField()                        # dict containing: key = sender, value = List of errors
-    file_error_log = ListField(StringField)
+    file_error_log = ListField()
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {                                            # Mongoengine specific field for metadata.
