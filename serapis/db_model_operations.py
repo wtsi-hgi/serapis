@@ -200,12 +200,15 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
         return False
     for study in submitted_file.study_list:
         if check_if_study_has_minimal_mdata(study) == False:
+            print "NOT ENOUGH STUDY MDATA............................."
             return False
     for sample in submitted_file.sample_list:
         if check_if_sample_has_minimal_mdata(sample) == False:
+            print "NOT ENOUGH SAMPLE MDATA............................."
             return False
     for lib in submitted_file.library_list:
         if check_if_library_has_minimal_mdata(lib) == False:
+            print "NOT ENOUGH LIB MDATA................................."
             return False
     # UPDATE IN DB:
     upd_dict = {}
@@ -243,6 +246,7 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
             upd_dict = {}
             if check_if_all_update_jobs_finished(None, submitted_file):
                 upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+                submitted_file.reload()
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
             return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
