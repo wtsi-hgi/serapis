@@ -5,10 +5,9 @@ UPLOAD_QUEUE_GENERAL = 'GeneralUploadQueue'
 MDATA_QUEUE = 'MdataQueue'
 
 
-## For a run from hgi-serapis-dev:
+# For a run from hgi-serapis-dev:
 SEQSC_HOST = "mcs7.internal.sanger.ac.uk"
 SEQSC_PORT = 3379
-#SEQSC_PORT = 20002
 SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
 

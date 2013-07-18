@@ -117,8 +117,14 @@ def launch_update_file_job(file_submitted):
     print "DICT OF UPDATES: ==========-=-=-=-=============-=-=-=-=-=-", file_submitted.file_update_jobs_dict
 
 
-def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):    
-    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):
+    file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
+    irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit)
+       
+    #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+    
+    # TODO: replace the client_path with the irods path:
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata_dict' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     upd_str = 'set__irods_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -558,7 +564,7 @@ def update_file_submitted(submission_id, file_id, data):
     def update_from_PARSE_HEADER_TASK_SRC(data, file_to_update):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         file_to_update.reload()
-        db_model_operations.check_and_update_all_statuses(file_id)
+        print "HAS IT ACTUALLY UPDATED THE STATUSssssssssssss?", db_model_operations.check_and_update_all_statuses(file_id)
         
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
         file_to_update.reload()
