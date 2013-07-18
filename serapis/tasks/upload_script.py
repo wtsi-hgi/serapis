@@ -23,7 +23,8 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
     #BLOCK_SIZE = 65536
     #BLOCK_SIZE = 524288
-    BLOCK_SIZE = 2097152
+    BLOCK_SIZE = 1048576
+    #BLOCK_SIZE = 2097152
     
     def serialize(data):
         return simplejson.dumps(data)
@@ -96,7 +97,9 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         md5_sum = hashlib.md5()
         while True:
             #data = file_obj.read(128)
-            data = file_obj.read(BLOCK_SIZE)
+            data = file_obj.read(BLOCK_SIZE/4)
+            #data = file_obj.read(128)
+
             #data = file_obj.read(8192)
             if not data:
                 break

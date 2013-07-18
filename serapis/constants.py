@@ -1,3 +1,5 @@
+SOFTWARE_PYTHON_PACKAGES = '/software/python-2.7.3/lib/python2.7/site-packages'
+
 MDATA_ROUTING_KEY = 'mdata'
 UPLOAD_EXCHANGE = 'UploadExchange'
 MDATA_EXCHANGE = 'MdataExchange'

@@ -125,7 +125,7 @@ def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     
     # TODO: replace the client_path with the irods path:
-    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata_dict' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     upd_str = 'set__irods_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
