@@ -120,6 +120,7 @@ def launch_update_file_job(file_submitted):
 def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
     irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit)
+    irods_mdata_dict = serializers.serialize(irods_mdata_dict)
        
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     
