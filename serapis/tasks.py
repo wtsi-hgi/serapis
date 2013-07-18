@@ -533,7 +533,8 @@ class UploadFileTask(Task):
         #       "--file_id", "\'"+str(file_id)+"\'"])
 
         #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'"])
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>8000] rusage[mem=8000]\"", "-M8000000", upld_cmd])
+        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>8000] rusage[mem=8000]\"", "-M8000000", upld_cmd])
+        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster4.txt", "-G", "hgi", upld_cmd])
 
 
         # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
@@ -1004,7 +1005,22 @@ class AddMdataToIRODSFileTask(Task):
         file_id = kwargs['file_id']
         submission_id = kwargs['submission_id']
         print "ADD MDATA TO IRODS JOB...works!"
-       
+        
+        file_mdata = deserialize(file_mdata)
+        src_file_path = file_mdata['file_path_client']
+        (_, src_file_name) = os.path.split(src_file_path)  
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        
+        # Add metadata to the file:
+        status, myEnv = getRodsEnv()
+        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
+                                 myEnv.rodsUserName, myEnv.rodsZone)
+        
+        addFileUserMetadata(conn, dest_file_path, "units", "12", "cm")
+        addFileUserMetadata(conn, dest_file_path, "author", "rods")
+        
+        print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
+        
         # Run the pyrods or smth
         result = dict()
         file_update_jobs_dict = dict()
@@ -1012,6 +1028,8 @@ class AddMdataToIRODSFileTask(Task):
         file_update_jobs_dict[task_id] = SUCCESS_STATUS
         result['irods_jobs_dict'] = file_update_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
+        
+
         
 
 # --------------------------- NOT USED ------------------------
