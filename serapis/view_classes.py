@@ -132,7 +132,8 @@ class SubmissionsMainPageRequestHandler(APIView):
 #        except ValueError:
 #            return Response("Not JSON format", status=400)
         else:
-            result_dict = controller.create_submission(user_id, data)
+            #result_dict = controller.create_submission(user_id, data)
+            result_dict = controller.add_submission(user_id, data)
             submission_id = result_dict['submission_id']
             if submission_id == None:
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically incorrect)?

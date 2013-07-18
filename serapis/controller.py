@@ -366,7 +366,9 @@ def init_submission(user_id, files_list):
 
 
 
-# PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file, if I do have it, then I save files that don't exist...
+
+# PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file,
+# if I do have it, then I save files that don't exist...
 def create_submission(user_id, data):
     ''' Creates a submission - given a list of files: initializes 
         a submission object and submits jobs for all the files in the list.
@@ -396,6 +398,29 @@ def create_submission(user_id, data):
     result['errors'] = errors_dict
     return result
 
+
+def add_mdata_to_submission(submission_id, data):
+    submission = db_model_operations.retrieve_submission(submission_id)
+    if data['study_name']:
+        for file_id in submission.files_list:
+            inserted = db_model_operations.insert_study_in_db({'name' : data['study_name']}, constants.EXTERNAL_SOURCE, file_id)
+            if inserted == True:
+                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+                submitted_file.reload()
+                launch_update_file_job(submitted_file)
+            else:
+                #TODO: report error - mdata couldn't be added
+                #raise exceptions.EditConflictError("Study couldn't be added.")
+                return False
+    return True
+
+def add_submission(user_id, data):
+    subm_created = create_submission(user_id, data)
+    mdata_added = add_mdata_to_submission(subm_created['submission_id'], data)
+    # TODO: add error message to the corresponding files if no mdata was added to them...
+    return subm_created
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
