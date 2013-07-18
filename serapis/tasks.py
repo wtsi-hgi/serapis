@@ -441,7 +441,7 @@ class UploadFileTask(Task):
            
 
 
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -495,7 +495,7 @@ class UploadFileTask(Task):
 
 
     # Modified upload version for uploading fines on the cluster
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -511,11 +511,23 @@ class UploadFileTask(Task):
         (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
         dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
         from subprocess import call
-        upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
-        upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
-        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", 
-              "-R\"select[mem>8000] rusage[mem=8000]\"", "-M8000000", upld_cmd])
+        
+        # upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
+        # upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
+        
+        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
+            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
+#        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>4000] rusage[mem=4000]\"", "-M4000000", upld_cmd])
+
+
+
+
+        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", 
+        #       "-R\"select[mem>8000] rusage[mem=8000]\"", "-M8000000", upld_cmd])
+        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'"])
+        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster4.txt", "-G", "hgi", upld_cmd])
+        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
 
 
 
@@ -979,32 +991,53 @@ class UpdateFileMdataTask(Task):
 class AddMdataToIRODSFileTask(Task):
 
     def run(self, **kwargs):
-        file_mdata = kwargs['irods_mdata_dict']
-        file_id = kwargs['file_id']
-        submission_id = kwargs['submission_id']
+        file_irods_mdata = kwargs['irods_mdata']
+        file_id = str(kwargs['file_id'])
+        submission_id = str(kwargs['submission_id'])
+        src_file_path = str(kwargs['file_path_client'])
+
         print "ADD MDATA TO IRODS JOB...works!"
-        
+
         # {'file_path_client' : file_to_submit['file_path_client'], 'file_mdata' : irods_mdata_dict, 
         # 'file_id' : file_id, 'submission_id' : submission_id})
-        file_mdata = deserialize(file_mdata)
-        
-        src_file_path = kwargs['file_path_client']
+        file_irods_mdata = deserialize(file_irods_mdata)
+
         (_, src_file_name) = os.path.split(src_file_path)  
         dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+
+        print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
         
-        print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_mdata
-        # Add metadata to the file:
         
-#        import irods
-#        status, myEnv = getRodsEnv()
-#        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
-#                                 myEnv.rodsUserName, myEnv.rodsZone)
-#        
-#        addFileUserMetadata(conn, dest_file_path, "units", "12", "cm")
-#        addFileUserMetadata(conn, dest_file_path, "author", "rods")
-#        
-#        print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
-#        
+        import sys
+        sys.path.append(SOFTWARE_PYTHON_PACKAGES)
+        from irods import *
+        
+        status, myEnv = getRodsEnv()
+        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
+                                myEnv.rodsUserName, myEnv.rodsZone)
+        status = clientLogin(conn)
+
+        
+        # f = irodsOpen(conn, dest_file_path, 'w')
+        # f.addUserMetadata("units", "12", "cm")
+        # f.addUserMetadata("author", "rods")
+        # print "GET USER MDATA: ", f.getUserMetadata()
+        # f.close()
+
+        # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
+        for attr_val in file_irods_mdata:
+            attr = str(attr_val[0])
+            val = str(attr_val[1])
+
+            addFileUserMetadata(conn, dest_file_path, attr, val)
+            
+
+        # addFileUserMetadata(conn, dest_file_path, "bunnies", "13", "cm")
+        # addFileUserMetadata(conn, dest_file_path, "author", "rods")
+
+        print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
+
+
         # Run the pyrods or smth
         result = dict()
         file_update_jobs_dict = dict()
@@ -1012,6 +1045,8 @@ class AddMdataToIRODSFileTask(Task):
         file_update_jobs_dict[task_id] = SUCCESS_STATUS
         result['irods_jobs_dict'] = file_update_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
+        
+
         
 
 # --------------------------- NOT USED ------------------------
