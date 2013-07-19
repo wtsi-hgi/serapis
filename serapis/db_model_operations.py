@@ -1,12 +1,59 @@
 from serapis import models, constants, exceptions
 
 from bson.objectid import ObjectId
-from compiler.ast import Getattr
 
 
 #------------------- CONSTANTS - USEFUL ONLY IN THIS SCRIPT -----------------
 
 NR_RETRIES = 5
+
+
+#---------------------- REFERENCE GENOMES COLLECTION -------------------------
+
+import hashlib
+BLOCK_SIZE = 1048576
+
+def calculate_md5(file_path):
+    fd = open(file_path, 'r')
+    file_obj = fd
+    md5_sum = hashlib.md5()
+    while True:
+        data = file_obj.read(BLOCK_SIZE/4)
+        if not data:
+            break
+        md5_sum.update(data)
+    print "MD5 DIGEST - before returning: ", md5_sum.hexdigest()
+    return md5_sum.hexdigest()
+
+
+def insert_reference(ref_name, path_list, md5=None):
+    ref_genome = models.ReferenceGenome()
+    ref_genome.canonical_name = ref_name
+    ref_genome.paths = path_list
+    
+    for path in path_list:
+        if md5 == None:
+            md5 = calculate_md5(path)
+        else:
+            md5_check = calculate_md5(path)
+            if md5 != md5_check:
+                print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
+                return
+    ref_genome.md5 = md5
+    ref_genome.save()
+    
+
+def get_reference_by_path(path):
+    return models.ReferenceGenome.objects(paths__in=[path]).get()
+
+def get_reference_by_md5(md5):
+    return models.ReferenceGenome.objects(md5=md5).get()
+
+def get_reference_by_name(canonical_name):
+    return models.ReferenceGenome.objects(canonical_name=canonical_name).get()
+
+
+
 
 
 #---------------------- AUXILIARY (HELPER) FUNCTIONS -------------------------

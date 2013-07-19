@@ -101,6 +101,11 @@ class Sample(Entity):          # one sample can be member of many studies
     common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
   
+class ReferenceGenome(Document):
+    md5 = StringField(primary_key=True)
+    paths = ListField()
+    canonical_name = StringField(unique=True)
+     
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
@@ -115,6 +120,10 @@ class SubmittedFile(DynamicDocument):
     index_file_path = StringField()
     index_file_md5 = StringField()
     
+    #DATA-RELATED FIELDS:
+    data_type = StringField()
+    
+    # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
     library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))

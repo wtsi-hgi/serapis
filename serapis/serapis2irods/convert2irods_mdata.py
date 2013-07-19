@@ -87,6 +87,8 @@ def convert_study_mdata(study):
             field_val = getattr(study, field_name)
             #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
+            if field_name == 'ena_project_id' and field_val == '0':
+                continue
             irods_lib_mdata.append((field_name, field_val))
     return irods_lib_mdata
 
