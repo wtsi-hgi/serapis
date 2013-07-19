@@ -97,7 +97,7 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         md5_sum = hashlib.md5()
         while True:
             #data = file_obj.read(128)
-            data = file_obj.read(BLOCK_SIZE/4)
+            data = file_obj.read(65536)
             #data = file_obj.read(128)
 
             #data = file_obj.read(8192)
