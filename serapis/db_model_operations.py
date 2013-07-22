@@ -45,13 +45,23 @@ def insert_reference(ref_name, path_list, md5=None):
     
 
 def get_reference_by_path(path):
-    return models.ReferenceGenome.objects(paths__in=[path]).get()
+    try:
+        return models.ReferenceGenome.objects(paths__in=[path]).get()
+    except DoesNotExist:
+        return None
+    
 
 def get_reference_by_md5(md5):
-    return models.ReferenceGenome.objects(md5=md5).get()
+    try:
+        return models.ReferenceGenome.objects(md5=md5).get()
+    except DoesNotExist:
+        return None
 
 def get_reference_by_name(canonical_name):
-    return models.ReferenceGenome.objects(canonical_name=canonical_name).get()
+    try:
+        return models.ReferenceGenome.objects(canonical_name=canonical_name).get()
+    except DoesNotExist:
+        return None
 
 
 
