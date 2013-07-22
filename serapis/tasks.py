@@ -441,7 +441,7 @@ class UploadFileTask(Task):
            
 
 
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -495,7 +495,7 @@ class UploadFileTask(Task):
 
 
     # Modified upload version for uploading fines on the cluster
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']

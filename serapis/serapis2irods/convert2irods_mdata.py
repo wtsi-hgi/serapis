@@ -17,7 +17,7 @@
 #library_type = StringField()
 #public_name = StringField() 
 
-from serapis import models, constants
+from serapis import models, constants, db_model_operations
 import unicodedata
 #unicodedata.normalize('NFKD', title).encode('ascii','ignore')
 
@@ -26,15 +26,33 @@ def unicode2string(ucode):
         return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
     return ucode
 
+
+def convert_reference_genome_mdata(ref_genome):
+    REF_GENOME_FIELDS = ['md5', 'canonical_name']
+    irods_ref_mdata = []
+    for field_name in REF_GENOME_FIELDS:
+        if hasattr(ref_genome, field_name):
+            field_val = getattr(ref_genome, field_name)
+            field_val = unicode2string(field_val)
+            irods_ref_mdata.append(('reference_'+field_name, field_val))
+    return irods_ref_mdata
+    
+    
+    
+#    md5 = StringField(primary_key=True)
+#    paths = ListField()
+#    canonical_name = StringField(unique=True)
+
 def convert_sample_mdata(sample):
     ''' Method which takes a models.Sample object and makes a list
         of (key, value) from all the object's fields, and adds the
         tuples to a list. Adjusts the naming of the fields where it's
         necessary and returns the list of tuples.'''
     SAMPLE_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'public_name', 'common_name']
-    SAMPLE_NONPREFIXED_FIELDS_LIST = ['sanger_sample_id', 'sample_tissue_type', 'reference_genome', 'taxon_id', 
+    SAMPLE_NONPREFIXED_FIELDS_LIST = ['sanger_sample_id', 'sample_tissue_type',  'taxon_id', 
                                       'gender', 'cohort', 'ethnicity', 'country_of_origin', 'geographical_region',
                                       'organism']
+    # 'reference_genome', => TODO - add the logic for this one...still unclear if it's the same for all files or should be per sample
     irods_sampl_mdata = []              # This will hold a list of tuples: [(K, V), (K,V), ...]
     for field_name in SAMPLE_PREFIXED_FIELDS_LIST:
         if hasattr(sample, field_name) and getattr(sample, field_name) != None:
@@ -146,8 +164,8 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    library_list = ListField(EmbeddedDocumentField(Library))
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
-def convert_file_mdata(subm_file):
-    FILE_FIELDS_LIST = ['file_type', 'md5', 'study_list', 'library_list', 'sample_list', 'index_file_md5']
+def convert_file_mdata(subm_file, ref_genome=None):
+    FILE_FIELDS_LIST = ['file_type', 'md5', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'file_reference_genome_id']
     irods_file_mdata = []
     for field_name in FILE_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) != None:
@@ -169,9 +187,14 @@ def convert_file_mdata(subm_file):
                 file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
                 irods_file_mdata.extend(file_specific_mdata)
                 irods_file_mdata.append((field_name, field_val))
+            elif field_name == 'file_reference_genome_id':
+                field_val = unicode2string(field_val)
+                ref = db_model_operations.get_reference_by_md5(field_val)
             else:
                 field_val = unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))
+    if ref_genome != None:
+        irods_file_mdata.extend(convert_reference_genome_mdata(ref_genome))
 #    return irods_file_mdata
     return list(set(irods_file_mdata))
 

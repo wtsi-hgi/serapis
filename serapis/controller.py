@@ -117,9 +117,13 @@ def launch_update_file_job(file_submitted):
     print "DICT OF UPDATES: ==========-=-=-=-=============-=-=-=-=-=-", file_submitted.file_update_jobs_dict
 
 
-def launch_add_mdata2IRODS_job(file_id, submission_id, file_mdata_dict):
+def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-    irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit)
+    if file_to_submit.file_reference_genome_id != None:
+        ref_genome = db_model_operations.get_reference_by_md5(file_to_submit.file_reference_genome_id)
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit, ref_genome)
+    else:
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
        
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
@@ -414,6 +418,24 @@ def add_mdata_to_submission(submission_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
+    if data['reference_genome']:      # must be a dict - with fields just like ReferenceGenome type
+        ref_dict = data['reference_genome']
+        if 'name' in ref_dict:
+            existing_ref_gen = db_model_operations.get_reference_by_name(ref_dict['name'])
+            # TODO: if non existing => insert it!!!
+        elif 'path' in ref_dict:
+            existing_ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+        elif 'md5' in ref_dict:
+            existing_ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
+        
+        if not existing_ref_gen:
+            #TODO: add the insert new ref genome logic!!!!!!!!!
+            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!"
+        else:
+            print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", existing_ref_gen.canonical_name
+        for file_id in submission.files_list:
+            return db_model_operations.update_file_ref_genome(file_id, existing_ref_gen.id)
+        # TODO: treat exceptional circumstances....
     return True
 
 def add_submission(user_id, data):

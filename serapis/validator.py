@@ -101,6 +101,7 @@ submission_schema = Schema({
     'sanger_user_id' : str,
     'submission_status' : str,
     'files_list' : list,
-    'study_name' : str  
+    'study_name' : str,
+    'reference_genome' : dict
 })
 

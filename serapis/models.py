@@ -83,6 +83,13 @@ class Library(Entity):
     public_name = StringField() 
 
 
+
+class ReferenceGenome(Document):
+    md5 = StringField(primary_key=True)
+    paths = ListField()
+    canonical_name = StringField(unique=True)
+     
+
 class Sample(Entity):          # one sample can be member of many studies
     accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()
@@ -101,11 +108,6 @@ class Sample(Entity):          # one sample can be member of many studies
     common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
   
-class ReferenceGenome(Document):
-    md5 = StringField(primary_key=True)
-    paths = ListField()
-    canonical_name = StringField(unique=True)
-     
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
@@ -121,7 +123,9 @@ class SubmittedFile(DynamicDocument):
     index_file_md5 = StringField()
     
     #DATA-RELATED FIELDS:
-    data_type = StringField()
+    data_type = StringField(choices=DATA_TYPES)
+    file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
+    #file_reference_genome = ReferenceField('ReferenceGenome')
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
