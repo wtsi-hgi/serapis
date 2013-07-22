@@ -418,23 +418,26 @@ def add_mdata_to_submission(submission_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
+            
     if data['reference_genome']:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
-        if 'name' in ref_dict:
-            existing_ref_gen = db_model_operations.get_reference_by_name(ref_dict['name'])
+        if 'canonical_name' in ref_dict:
+            ref_gen = db_model_operations.get_reference_by_name(ref_dict['name'])
             # TODO: if non existing => insert it!!!
         elif 'path' in ref_dict:
-            existing_ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+            ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
         elif 'md5' in ref_dict:
-            existing_ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
+            ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
         
-        if not existing_ref_gen:
+        if not ref_gen:
             #TODO: add the insert new ref genome logic!!!!!!!!!
             print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!"
+            ref_genome_id = db_model_operations.insert_reference(ref_dict['canonical_name'], [ref_dict['path']], ref_dict['md5'])
         else:
-            print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", existing_ref_gen.canonical_name
+            print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
+            ref_genome_id = ref_gen.id
         for file_id in submission.files_list:
-            return db_model_operations.update_file_ref_genome(file_id, existing_ref_gen.id)
+            return db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
         # TODO: treat exceptional circumstances....
     return True
 
