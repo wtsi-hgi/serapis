@@ -55,7 +55,6 @@ def get_reference_by_name(canonical_name):
 
 
 
-
 #---------------------- AUXILIARY (HELPER) FUNCTIONS -------------------------
 
 
@@ -1033,6 +1032,9 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
         i+=1
     return upd
 
+
+def update_file_ref_genome(file_id, ref_genome_key):    # the ref genome key is the md5
+    return models.SubmittedFile.objects(id=file_id).update_one(set__file_reference_genome_id=ref_genome_key)
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
