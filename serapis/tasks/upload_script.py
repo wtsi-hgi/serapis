@@ -95,16 +95,20 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         #file_obj = file(file_path)
         file_obj = fd
         md5_sum = hashlib.md5()
+        i=0
         while True:
             #data = file_obj.read(128)
-            data = file_obj.read(65536)
+            #data = file_obj.read(65536)
             #data = file_obj.read(128)
-
+            data = file_obj.read(BLOCK_SIZE/4)
             #data = file_obj.read(8192)
             if not data:
                 break
             md5_sum.update(data)
             del data
+            i += 1
+            if i%100 == 0:
+                print md5_sum.hexdigest()
         print "MD5 DIGEST - before returning: ", md5_sum.hexdigest()
         return md5_sum.hexdigest()
 
@@ -134,9 +138,14 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
 
             dest_fd = irodsOpen(conn, dest_file_path, 'r')
+            print "irods open? ", dest_fd != None
             t1 = time.time()
+
+            print "calculating md5 for irods file...."
             md5_dest = calculate_md5(dest_fd)
             t2 = time.time()
+
+            print "finished md5 on dest..."
             #md5_dest = dest_fd.getChecksum()
             dest_fd.close()
 

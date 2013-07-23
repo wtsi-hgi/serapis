@@ -88,6 +88,7 @@ submitted_file_schema = Schema({
     'date_list' : list,
     'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
     'library_well_list' : list,
+    'file_reference_genome_id' : str,
     
     'file_update_jobs_dict' : dict,
     

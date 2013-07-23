@@ -441,7 +441,7 @@ class UploadFileTask(Task):
            
 
 
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -495,7 +495,7 @@ class UploadFileTask(Task):
 
 
     # Modified upload version for uploading fines on the cluster
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
@@ -511,12 +511,23 @@ class UploadFileTask(Task):
         (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
         dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
         from subprocess import call
+       
+        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
+            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+
         
+        # WORKING VERSION for local execution:
+#        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
+#            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+
+
+
+
         # upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         # upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
         
-        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
-            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+        # upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
+        #     "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
 #        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>4000] rusage[mem=4000]\"", "-M4000000", upld_cmd])
 

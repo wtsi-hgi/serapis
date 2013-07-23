@@ -2,7 +2,7 @@ import hashlib
 import logging
 import requests
 import simplejson
- from subprocess import call
+from subprocess import call
 
 import sys
 sys.path.append('/software/python-2.7.3/lib/python2.7/site-packages')
@@ -65,10 +65,16 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
     import time
     def copy_file(src_file_path, dest_file_path, nth_try, submission_id, file_id):
-        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
-            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+        upld_cmd = call(["iput", "-K", src_file_path])
 
         print "OUT PUT of iPUT: ", upld_cmd
+
+
+        result = dict()
+        status, myEnv = getRodsEnv()
+        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
+                                 myEnv.rodsUserName, myEnv.rodsZone)
+        status = clientLogin(conn)
 
         dest_fd = irodsOpen(conn, dest_file_path, 'r')
         result[MD5] = dest_fd.getChecksum()
@@ -119,3 +125,5 @@ print(args.src_file_path)
 
 cluster_fct(args.src_file_path, args.dest_file_path, args.response_status, args.submission_id, args.file_id)
 #def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, file_id):
+
+3cee8eadb962796d6fa6f8a429a36243
