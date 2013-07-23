@@ -418,21 +418,31 @@ def add_mdata_to_submission(submission_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
-            
+           
+    if data['data_type']:
+        for file_id in submission.files_list:
+            db_model_operations.update_data_type(file_id, data['data_type'])
     if data['reference_genome']:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
+        path, md5, c_name = None, None, None
         if 'canonical_name' in ref_dict:
-            ref_gen = db_model_operations.get_reference_by_name(ref_dict['name'])
+            ref_gen = db_model_operations.get_reference_by_name(ref_dict['canonical_name'])
+            c_name = ref_dict['canonical_name']
             # TODO: if non existing => insert it!!!
         elif 'path' in ref_dict:
             ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+            path = ref_dict['path']
         elif 'md5' in ref_dict:
             ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
+            md5 = ref_dict['md5']
         
         if not ref_gen:
             #TODO: add the insert new ref genome logic!!!!!!!!!
-            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!"
-            ref_genome_id = db_model_operations.insert_reference(ref_dict['canonical_name'], [ref_dict['path']], ref_dict['md5'])
+            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!",  path
+            if c_name != None and path != None:
+                ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+            else:
+                print "NOT ENOUGH DATA FOR THE NEW REF GENOME TO BE ADDEDDDDDDDDDDDDDDDDDD!!!"
         else:
             print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
             ref_genome_id = ref_gen.id
@@ -443,7 +453,8 @@ def add_mdata_to_submission(submission_id, data):
 
 def add_submission(user_id, data):
     subm_created = create_submission(user_id, data)
-    mdata_added = add_mdata_to_submission(subm_created['submission_id'], data)
+    if subm_created['submission_id'] != None:
+        mdata_added = add_mdata_to_submission(subm_created['submission_id'], data)
     # TODO: add error message to the corresponding files if no mdata was added to them...
     return subm_created
 
@@ -1092,7 +1103,7 @@ def submit_file_to_irods(file_id, submission_id):
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
         db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
         mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
-        launch_add_mdata2IRODS_job(file_id, submission_id, mdata_dict)
+        launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         # for testing:
         return True
     return False

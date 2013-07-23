@@ -165,8 +165,14 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, ref_genome=None):
-    FILE_FIELDS_LIST = ['file_type', 'md5', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'file_reference_genome_id']
+    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'file_reference_genome_id', 'data_type']
+    FILE_PREFIXED_FIELDS_LIST = ['md5']
     irods_file_mdata = []
+    for field_name in FILE_PREFIXED_FIELDS_LIST:
+        if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
+            field_val = getattr(subm_file, field_name)
+            field_val = unicode2string(field_val)
+            irods_file_mdata.append(('file_'+field_name, field_val))
     for field_name in FILE_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) != None:
             field_val = getattr(subm_file, field_name)
