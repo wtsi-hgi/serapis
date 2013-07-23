@@ -1,6 +1,7 @@
 from serapis import models, constants, exceptions
 
 from bson.objectid import ObjectId
+from mongoengine.queryset import DoesNotExist
 
 
 #------------------- CONSTANTS - USEFUL ONLY IN THIS SCRIPT -----------------
@@ -984,7 +985,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 else:
                     task_id, task_status = field_val.items()[0]
                     if not task_id in old_update_job_dict:
-                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source, " task status: ", task_status
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
                     old_update_job_dict[task_id] = task_status
                     update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
@@ -998,7 +999,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 else:
                     task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
                     if not task_id in old_irods_jobs_dict:
-                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
                         # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
                     print "In UPDATE submitted file, got this dict for updating: ", task_status
