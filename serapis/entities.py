@@ -59,12 +59,13 @@ class Entity(object):
     
 
 class Study(Entity):
-    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, faculty_sponsor=None, ena_project_id=None, reference_genome=None):
+    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, faculty_sponsor=None, ena_project_id=None, reference_genome=None, study_visibility=None):
         self.accession_number = accession_number
         self.study_type = study_type
         self.study_title = study_title
         self.faculty_sponsor = faculty_sponsor  
         self.ena_project_id = ena_project_id
+        self.study_visibility = study_visibility
 #        self.reference_genome = reference_genome
         super(Study, self).__init__()
     

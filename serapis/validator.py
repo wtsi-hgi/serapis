@@ -20,6 +20,7 @@ study_schema = Schema({
         'faculty_sponsor' : str,
         'ena_project_id' : str,
         'reference_genome' : str,
+        'study_visibility' : str,
         
         'is_complete' : bool,
         'has_minimal' : bool, 
@@ -104,6 +105,7 @@ submission_schema = Schema({
     'files_list' : list,
     'study_name' : str,
     'reference_genome' : dict,
-    'data_type' : str
+    'data_type' : str,
+    'pi' : list
 })
 

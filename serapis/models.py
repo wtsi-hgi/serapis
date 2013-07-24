@@ -75,6 +75,7 @@ class Study(Entity):
     study_title = StringField()
     faculty_sponsor = StringField()
     ena_project_id = StringField()
+    study_visibility = StringField(CHOICES=STUDY_VISIBILITY)
 #    reference_genome = StringField()
     
 
