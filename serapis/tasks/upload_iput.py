@@ -77,9 +77,10 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         status = clientLogin(conn)
 
         dest_fd = irodsOpen(conn, dest_file_path, 'r')
-        print "CHECKSUM: ", result[MD5]
+        
         if upld_cmd == 0:
             result[MD5] = dest_fd.getChecksum()        
+            print "CHECKSUM: ", result[MD5]
             result[response_status] = SUCCESS_STATUS
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         elif upld_cmd == 3:     # FILE ALREADY EXISTS!!!
