@@ -110,7 +110,7 @@ def launch_update_file_job(file_submitted):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+    print "UPDATED JOB LAUNCHED _________________________STATUS UPDATED?????", upd
     
     #testing:
     file_submitted.reload()
@@ -133,7 +133,7 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     upd_str = 'set__irods_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+    print "UPDATED JOB LAUNCHED __________________________STATUS UPDATED?????", upd
 
     
 
@@ -405,40 +405,54 @@ def create_submission(user_id, data):
 
 def add_mdata_to_submission(submission_id, data):
     submission = db_model_operations.retrieve_submission(submission_id)
-    if data['study_name']:
-        for file_id in submission.files_list:
-            inserted = db_model_operations.insert_study_in_db({'name' : data['study_name']}, constants.EXTERNAL_SOURCE, file_id)
-            if inserted == True:
-                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                submitted_file.reload()
-                launch_update_file_job(submitted_file)
-            else:
-                #TODO: report error - mdata couldn't be added
-                #raise exceptions.EditConflictError("Study couldn't be added.")
-                return False
+    if 'study' in data:
+        if 'visibility' in data:
+            visib = data['visibility']
+        if 'pi' in data and isinstance(data['pi'], list) == True:
+            pi = data['pi'] #list
+        else:
+            pass
+            #TODO: report a problem
+        if 'name' in data:
+            name = data['name']
+            for file_id in submission.files_list:
+                inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
+                if inserted == True:
+                    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+                    db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+                    db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+                    submitted_file.reload()
+                    launch_update_file_job(submitted_file)
+                else:
+                    #TODO: report error - mdata couldn't be added
+                    #raise exceptions.EditConflictError("Study couldn't be added.")
+                    return False
+        else:
+            pass #TODO: report a problem! You can't pass a struct empty: 'study' : {}
            
-    if data['data_type']:
+    if 'data_type' in data:
         for file_id in submission.files_list:
             db_model_operations.update_data_type(file_id, data['data_type'])
-    if data['reference_genome']:      # must be a dict - with fields just like ReferenceGenome type
+    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
-        path, md5, c_name = None, None, None
+        ref_gen, path, md5, c_name = None, None, None, None
         if 'canonical_name' in ref_dict:
             ref_gen = db_model_operations.get_reference_by_name(ref_dict['canonical_name'])
             c_name = ref_dict['canonical_name']
             # TODO: if non existing => insert it!!!
-        elif 'path' in ref_dict:
-            ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+
+        if 'path' in ref_dict:
             path = ref_dict['path']
-        elif 'md5' in ref_dict:
-            ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
+            if ref_gen == None:
+                ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+        if 'md5' in ref_dict:
             md5 = ref_dict['md5']
+            if ref_gen == None:
+                ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
         
         if not ref_gen:
             #TODO: add the insert new ref genome logic!!!!!!!!!
-            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!",  path
+            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!", path
             if c_name != None and path != None:
                 ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
             else:

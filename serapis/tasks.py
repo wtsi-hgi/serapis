@@ -144,7 +144,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id, name, library_type, public_name from current_library_tubes where "
+            query = "select internal_id, name, library_type, public_name from current_library_tubes, sample_internal_id where "
             for (key, val) in library_fields_dict.iteritems():
                 if val != None:
                     if type(val) == str:
@@ -164,7 +164,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
+            query = "select internal_id, sample_internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
         except mysqlError as e:
@@ -183,7 +183,7 @@ class QuerySeqScape():
     def get_study_data(connection, study_field_dict):
         try:
             cursor = connection.cursor()
-            query = "select internal_id, accession_number, name, study_type, study_title, faculty_sponsor, ena_project_id from current_studies where "
+            query = "select internal_id, accession_number, name, study_type, study_title,description, study_visibility,faculty_sponsor, ena_project_id from current_studies where "
             for (key, val) in study_field_dict.iteritems():
                 if val != None:
                     if type(val) == str:
@@ -238,7 +238,7 @@ class ProcessSeqScapeData():
                 lib_mdata = QuerySeqScape.get_library_data(self.connection, {'internal_id' : lib_dict['internal_id']})
             if lib_mdata == None and 'name' in lib_dict and lib_dict['name'] != None:
                 lib_mdata = QuerySeqScape.get_library_data(self.connection, {'name' : lib_dict['name']})
-            if len(lib_mdata) == 1:                 # Ideal case
+            if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
                 new_lib = Library.build_from_seqscape(lib_mdata)
                 new_lib.check_if_has_minimal_mdata()
@@ -249,11 +249,12 @@ class ProcessSeqScapeData():
                 new_lib = Library()
                 for field_name in lib_dict:
                     setattr(new_lib, field_name, lib_dict[field_name])
-                if len(lib_mdata) > 1:
-                    file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
-                elif len(lib_mdata) == 0:
+                if lib_mdata == None or len(lib_mdata) == 0:
                     file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
                 #    file_submitted.add_or_update_lib(new_lib)
+                elif len(lib_mdata) > 1:
+                    file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
+                
         print "LIBRARY LIST: ", file_submitted.library_list
         
         
@@ -283,13 +284,13 @@ class ProcessSeqScapeData():
         for lib_dict in incomplete_libs_list:
             # TRY to search for lib in default table:
             lib_mdata = QuerySeqScape.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            if len(lib_mdata) == 0 and 'internal_id' in lib_dict:
+            if lib_mdata != None and len(lib_mdata) == 0 and 'internal_id' in lib_dict:
                 is_well = self.try_search_in_wells(lib_dict['internal_id'])
                 if is_well == True:
                     file_submitted.library_well_list.append(lib_dict['internal_id'])
                     #return
             else:
-                if len(lib_mdata) == 1:                 # Ideal case
+                if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
                     lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
                     new_lib = Library.build_from_seqscape(lib_mdata)
                     new_lib.check_if_has_minimal_mdata()
@@ -300,11 +301,12 @@ class ProcessSeqScapeData():
                     new_lib = Library()
                     for field_name in lib_dict:
                         setattr(new_lib, field_name, lib_dict[field_name])
-                    if len(lib_mdata) > 1:
-                        file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
-                    elif len(lib_mdata) == 0:
+                    if lib_mdata == None or len(lib_mdata) == 0:
                         file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
                     #    file_submitted.add_or_update_lib(new_lib)
+                    elif len(lib_mdata) > 1:
+                        file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
+                    
         print "LIBRARY LIST: ", file_submitted.library_list
    
                 
@@ -320,7 +322,7 @@ class ProcessSeqScapeData():
         if sampl_mdata == None:
             sampl_mdata = QuerySeqScape.get_sample_data(self.connection, sample_dict)   
         #print "SAMPLE DATA FROM SEQSCAPE:------- ",sampl_mdata
-        if len(sampl_mdata) == 1:           # Ideal case
+        if sampl_mdata != None and len(sampl_mdata) == 1:           # Ideal case
             sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
             new_sample = Sample.build_from_seqscape(sampl_mdata)
             file_submitted.add_or_update_sample(new_sample)
@@ -328,11 +330,11 @@ class ProcessSeqScapeData():
             new_sample = Sample()
             for field_name in sample_dict:
                 setattr(new_sample, field_name, sample_dict[field_name])
-            if len(sampl_mdata) > 1:
-                file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
-            elif len(sampl_mdata) == 0:
+            if sampl_mdata == None or len(sampl_mdata) == 0:
                 file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
                 #file_submitted.add_or_update_sample(new_sample)
+            elif len(sampl_mdata) > 1:
+                file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
                     
                     
     
@@ -343,22 +345,23 @@ class ProcessSeqScapeData():
 #            search_field_name = 'name'
 #        search_field_dict = {search_field_name : sample_dict[UNKNOWN_FIELD]}
         sampl_mdata = QuerySeqScape.get_sample_data(self.connection, sample_dict)   
-        if len(sampl_mdata) == 1:           # Ideal case
+        if sampl_mdata != None and len(sampl_mdata) == 1:           # Ideal case
             sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
             new_sample = Sample.build_from_seqscape(sampl_mdata)
             file_submitted.add_or_update_sample(new_sample)
         else:                           # Problematic - error cases:
             #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
             new_sample = Sample()
-            if len(sampl_mdata) > 1:
+            if sampl_mdata == None or len(sampl_mdata) == 0:
+                search_field = UNKNOWN_FIELD   # Change back to UNKNOWN_FIELD
+                setattr(new_sample, search_field, sample_dict[UNKNOWN_FIELD])
+                #file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+            elif len(sampl_mdata) > 1:
                 #setattr(new_sample, search_field_name, sample_dict[UNKNOWN_FIELD])
                 for k,v in sample_dict.iteritems:
                     setattr(new_sample, k, v)
                 file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
-            elif len(sampl_mdata) == 0:
-                search_field = UNKNOWN_FIELD   # Change back to UNKNOWN_FIELD
-                setattr(new_sample, search_field, sample_dict[UNKNOWN_FIELD])
-                #file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+            
     #        print "SAMPLE_LIST: ", file_submitted.sample_list
      
     
@@ -377,7 +380,7 @@ class ProcessSeqScapeData():
     def fetch_and_process_study_mdata(self, incomplete_study_list, file_submitted):
         for study_dict in incomplete_study_list:
             study_mdata = QuerySeqScape.get_study_data(self.connection, study_dict)
-            if len(study_mdata) == 1:                 # Ideal case
+            if study_mdata != None and len(study_mdata) == 1:                 # Ideal case
                 study_mdata = study_mdata[0]            # get_study_data returns a tuple in which each element is a row in seqscDB
                 new_study = Study.build_from_seqscape(study_mdata)
                 new_study.check_if_has_minimal_mdata()
@@ -389,12 +392,13 @@ class ProcessSeqScapeData():
                 for field_name in study_dict:
                     setattr(new_study, field_name, study_dict[field_name])
                 #print "study IS COMPLETE OR NOT: ------------------------", new_study.is_complete
-                if len(study_mdata) > 1:
-                    file_submitted.append_to_not_unique_entity_list(new_study, STUDY_TYPE)
-                    print "STUDY IS ITERABLE....LENGTH: ", len(study_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
-                elif len(study_mdata) == 0:
+                if study_mdata == None or len(study_mdata) == 0:
                     file_submitted.append_to_missing_entities_list(new_study, STUDY_TYPE)
                     print "NO ENTITY found in SEQSCAPE. List of Missing entities: ", file_submitted.missing_entities_error_dict
+                elif len(study_mdata) > 1:
+                    file_submitted.append_to_not_unique_entity_list(new_study, STUDY_TYPE)
+                    print "STUDY IS ITERABLE....LENGTH: ", len(study_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
+                
                 #    file_submitted.add_or_update_study(new_study)
         print "STUDY LIST: ", file_submitted.study_list
         
@@ -514,18 +518,19 @@ class UploadFileTask(Task):
        
         upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
             "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+
         
         # WORKING VERSION for local execution:
 #        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
 #            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
-
-
-
         # upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
         # upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
         
         # WORKING version for the cluster:
+        # upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
+        #     "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+
 #        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>4000] rusage[mem=4000]\"", "-M4000000", upld_cmd])
 
 

@@ -59,13 +59,17 @@ class Entity(object):
     
 
 class Study(Entity):
-    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, faculty_sponsor=None, ena_project_id=None, reference_genome=None, study_visibility=None):
+    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, 
+                 faculty_sponsor=None, ena_project_id=None, reference_genome=None, study_visibility=None, 
+                 study_description=None, pi=None):
         self.accession_number = accession_number
         self.study_type = study_type
         self.study_title = study_title
         self.faculty_sponsor = faculty_sponsor  
         self.ena_project_id = ena_project_id
         self.study_visibility = study_visibility
+        self.description = study_description
+#        self.pi = pi
 #        self.reference_genome = reference_genome
         super(Study, self).__init__()
     
@@ -81,7 +85,7 @@ class Study(Entity):
      
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
-        if self.accession_number != None and self.study_title != None:
+        if self.accession_number != None and self.name != None:
             return True
         return False
     
@@ -231,6 +235,7 @@ class SubmittedFile():
         self.file_path_client = None
         self.file_path_irods = None
         self.md5 = None
+        self.data_type = None
         
         # Initializing entity lists:
         self.study_list = []                            #ListField(EmbeddedDocumentField(Study))
@@ -467,9 +472,9 @@ class SubmittedFile():
     
     def update_file_mdata_status(self):
         if self.check_if_complete_mdata() == True:
-            self.file_mdata_status = constants.COMPLETE_STATUS
+            self.file_mdata_status = constants.COMPLETE_MDATA_STATUS
         elif self.check_if_has_minimal_mdata() == True:
-            self.file_mdata_status = constants.HAS_MINIMAL_STATUS
+            self.file_mdata_status = constants.HAS_MINIMAL_MDATA_STATUS
         else:
             self.file_mdata_status = constants.NOT_ENOUGH_METADATA_STATUS
     

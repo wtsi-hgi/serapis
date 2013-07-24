@@ -3,6 +3,7 @@ from serapis import models, constants, exceptions
 from bson.objectid import ObjectId
 from mongoengine.queryset import DoesNotExist
 
+
 #------------------- CONSTANTS - USEFUL ONLY IN THIS SCRIPT -----------------
 
 NR_RETRIES = 5
@@ -998,7 +999,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 else:
                     task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
                     if not task_id in old_irods_jobs_dict:
-                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!"
+                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
                         # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
                     print "In UPDATE submitted file, got this dict for updating: ", task_status
@@ -1043,12 +1044,14 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
         i+=1
     return upd
 
+    
 
 def update_file_ref_genome(file_id, ref_genome_key):    # the ref genome key is the md5
     return models.SubmittedFile.objects(id=file_id).update_one(set__file_reference_genome_id=ref_genome_key)
 
 def update_data_type(file_id, data_type):
     return models.SubmittedFile.objects(id=file_id).update_one(set__data_type=data_type)
+
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
