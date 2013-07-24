@@ -103,6 +103,7 @@ submission_schema = Schema({
     'submission_status' : str,
     'files_list' : list,
     'study_name' : str,
-    'reference_genome' : dict
+    'reference_genome' : dict,
+    'data_type' : str
 })
 

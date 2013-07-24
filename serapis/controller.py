@@ -110,7 +110,7 @@ def launch_update_file_job(file_submitted):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+    print "UPDATED JOB LAUNCHED _________________________STATUS UPDATED?????", upd
     
     #testing:
     file_submitted.reload()
@@ -133,7 +133,7 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     upd_str = 'set__irods_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED ___-----------STATUS UPDATED?????", upd
+    print "UPDATED JOB LAUNCHED __________________________STATUS UPDATED?????", upd
 
     
 
@@ -405,7 +405,7 @@ def create_submission(user_id, data):
 
 def add_mdata_to_submission(submission_id, data):
     submission = db_model_operations.retrieve_submission(submission_id)
-    if data['study_name']:
+    if 'study_name' in data:
         for file_id in submission.files_list:
             inserted = db_model_operations.insert_study_in_db({'name' : data['study_name']}, constants.EXTERNAL_SOURCE, file_id)
             if inserted == True:
@@ -418,14 +418,19 @@ def add_mdata_to_submission(submission_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
-            
-    if data['reference_genome']:      # must be a dict - with fields just like ReferenceGenome type
+           
+    
+    if 'data_type' in data:
+        for file_id in submission.files_list:
+            db_model_operations.update_data_type(file_id, data['data_type'])
+    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         path, md5, c_name = None, None, None
         if 'canonical_name' in ref_dict:
             ref_gen = db_model_operations.get_reference_by_name(ref_dict['canonical_name'])
             c_name = ref_dict['canonical_name']
             # TODO: if non existing => insert it!!!
+
         if 'path' in ref_dict:
             path = ref_dict['path']
             if ref_gen == None:
