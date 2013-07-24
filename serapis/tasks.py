@@ -183,7 +183,7 @@ class QuerySeqScape():
     def get_study_data(connection, study_field_dict):
         try:
             cursor = connection.cursor()
-            query = "select internal_id, accession_number, name, study_type, study_title,description, study_visibility,faculty_sponsor, ena_project_id from current_studies where "
+            query = "select internal_id, accession_number, name, study_type, study_title, description, study_visibility,faculty_sponsor, ena_project_id from current_studies where "
             for (key, val) in study_field_dict.iteritems():
                 if val != None:
                     if type(val) == str:
@@ -938,8 +938,15 @@ class UpdateFileMdataTask(Task):
         for entity in entity_list:
             #if entity != None and not entity.check_if_has_minimal_mdata():     #if not entity.check_if_has_minimal_mdata():
             if entity != None and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
-                entity_dict = self.__filter_fields__(vars(entity))
-                incomplete_entities.append(entity_dict)
+                has_id_field = False
+                for id_field in ENTITY_IDENTITYING_FIELDS:
+                    if hasattr(entity, id_field) and getattr(entity, id_field) != None:
+                        incomplete_entities.append({id_field : getattr(entity, id_field)})
+                        has_id_field = True
+                        break
+                if not has_id_field:
+                    entity_dict = self.__filter_fields__(vars(entity))
+                    incomplete_entities.append(entity_dict)
         return incomplete_entities
         
         

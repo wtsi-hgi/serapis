@@ -91,24 +91,29 @@ def convert_library_mdata(lib):
  
 
 def convert_study_mdata(study):
-    STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number']
-    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi', 'study_visibility', 'study_description']
-    irods_lib_mdata = []
+    STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'description']
+    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi', 'study_visibility']
+    irods_study_mdata = []
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
             #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
-            irods_lib_mdata.append(('study_'+field_name, field_val))
+            irods_study_mdata.append(('study_'+field_name, field_val))
     for field_name in STUDY_NONPREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
             #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
-            field_val = unicode2string(field_val)
-            if field_name == 'ena_project_id' and field_val == '0':
-                continue
-            irods_lib_mdata.append((field_name, field_val))
-    return irods_lib_mdata
+            if isinstance(field_val, list):
+                for elem in field_val:
+                    elem = unicode2string(elem)
+                    irods_study_mdata.append((field_name, elem))
+            else:
+                field_val = unicode2string(field_val)
+                if field_name == 'ena_project_id' and field_val == '0':
+                    continue
+                irods_study_mdata.append((field_name, field_val))
+    return irods_study_mdata
 
 
 #    bam_type = StringField()

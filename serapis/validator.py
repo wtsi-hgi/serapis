@@ -22,7 +22,7 @@ study_schema = Schema({
         'ena_project_id' : str,
         'reference_genome' : str,
         'study_visibility' : str,
-        'study_description' : str,
+        'description' : str,
         'pi' : list,
         
         'is_complete' : bool,

@@ -406,17 +406,21 @@ def create_submission(user_id, data):
 def add_mdata_to_submission(submission_id, data):
     submission = db_model_operations.retrieve_submission(submission_id)
     if 'study' in data:
-        if 'visibility' in data:
-            visib = data['visibility']
-        if 'pi' in data and isinstance(data['pi'], list) == True:
-            pi = data['pi'] #list
+        study_data = data['study']
+        name, visib, pi = None, None, None
+        if 'visibility' in study_data:
+            visib = study_data['visibility']
+        if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
+            pi = study_data['pi'] #list
         else:
             pass
             #TODO: report a problem
-        if 'name' in data:
-            name = data['name']
+        
+        if 'name' in study_data:
+            name = study_data['name']
             for file_id in submission.files_list:
                 inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
+                print "Has the study been inserted? - from controller....", inserted
                 if inserted == True:
                     submitted_file = db_model_operations.retrieve_submitted_file(file_id)
                     db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
