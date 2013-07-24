@@ -284,10 +284,11 @@ class ProcessSeqScapeData():
         for lib_dict in incomplete_libs_list:
             # TRY to search for lib in default table:
             lib_mdata = QuerySeqScape.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            if lib_mdata != None and len(lib_mdata) == 0 and 'internal_id' in lib_dict:
-                is_well = self.try_search_in_wells(lib_dict['internal_id'])
-                if is_well == True:
+            if (lib_mdata == None or len(lib_mdata) == 0) and 'internal_id' in lib_dict:
+                lib_well = self.try_search_in_wells(lib_dict['internal_id'])
+                if lib_well == True:
                     file_submitted.library_well_list.append(lib_dict['internal_id'])
+                    #file_submitted.library_well_list.append(lib_well)
                     #return
             else:
                 if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case

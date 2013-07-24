@@ -930,7 +930,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             submitted_file.header_associations.append(field_val)
             update_db_dict['set__header_associations'] = submitted_file.header_associations
         elif field_name == 'library_well_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list,field_val)
+            updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
             update_db_dict['set__library_well_list'] = updated_list
         # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
         elif field_name == 'file_error_log':
