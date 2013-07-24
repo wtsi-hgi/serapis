@@ -6,6 +6,7 @@ library_schema = Schema({
         'name': str,
         'library_type': str,
         'public_name' : str,
+        'sample_internal_id' : int,
         
         'is_complete' : bool,
         'has_minimal' : bool, 
@@ -20,6 +21,9 @@ study_schema = Schema({
         'faculty_sponsor' : str,
         'ena_project_id' : str,
         'reference_genome' : str,
+        'study_visibility' : str,
+        'study_description' : str,
+        'pi' : list,
         
         'is_complete' : bool,
         'has_minimal' : bool, 
@@ -65,6 +69,8 @@ submitted_file_schema = Schema({
     'sample_list' : list,              # = ListField(EmbeddedDocumentField(Sample))
     'seq_centers' : list,              # = ListField(StringField())          # List of sequencing centers where the data has been sequenced
 
+    'data_type' : str,
+
     'sender' : str,
     'has_minimal' : bool,
     'file_upload_job_status' : str,           # = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
@@ -103,8 +109,12 @@ submission_schema = Schema({
     'sanger_user_id' : str,
     'submission_status' : str,
     'files_list' : list,
-    'study_name' : str,
+    #'study_name' : str,
+    #'pi' : list
+    #visibility
+    'study' : dict,
     'reference_genome' : dict,
-    'data_type' : str
+    'data_type' : str,
+    #
 })
 

@@ -75,12 +75,16 @@ class Study(Entity):
     study_title = StringField()
     faculty_sponsor = StringField()
     ena_project_id = StringField()
+    study_visibility = StringField(choices=STUDY_VISIBILITY)
+    study_description = StringField()
+    pi = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 #    reference_genome = StringField()
     
 
 class Library(Entity):
     library_type = StringField()
-    public_name = StringField() 
+    public_name = StringField()
+    sample_internal_id = IntField()
 
 
 
@@ -125,6 +129,7 @@ class SubmittedFile(DynamicDocument):
     #DATA-RELATED FIELDS:
     data_type = StringField(choices=DATA_TYPES)
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
+    
     #file_reference_genome = ReferenceField('ReferenceGenome')
     
     # ENTITIES:

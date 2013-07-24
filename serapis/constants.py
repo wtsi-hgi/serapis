@@ -219,3 +219,9 @@ STUDY_TYPE = {"Whole Genome Sequencing",
     "Exome Sequencing",
     "Pooled Clone Sequencing"
     }
+
+STUDY_VISIBILITY = {"Hold",
+                    "Add",
+                    "Modify",
+                    "Release"
+                    }

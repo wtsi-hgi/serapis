@@ -92,7 +92,7 @@ def convert_library_mdata(lib):
 
 def convert_study_mdata(study):
     STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number']
-    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id']
+    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi', 'study_visibility', 'study_description']
     irods_lib_mdata = []
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
