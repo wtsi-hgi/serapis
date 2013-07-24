@@ -619,6 +619,7 @@ def insert_sample_in_db(sample_json, sender, file_id):
 def insert_study_in_db(study_json, sender, file_id):
     submitted_file = retrieve_submitted_file(file_id)
     inserted = insert_study_in_SFObj(study_json, sender, submitted_file)
+    print "HAS THE STUDY BEEN INSERTED????==============", inserted
     if inserted == True:
         study_version = get_study_version(submitted_file.id, submitted_file)
         return models.SubmittedFile.objects(id=file_id, version__3=study_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)

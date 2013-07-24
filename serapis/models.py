@@ -76,7 +76,7 @@ class Study(Entity):
     faculty_sponsor = StringField()
     ena_project_id = StringField()
     study_visibility = StringField(choices=STUDY_VISIBILITY)
-    study_description = StringField()
+    description = StringField()
     pi = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 #    reference_genome = StringField()
     
