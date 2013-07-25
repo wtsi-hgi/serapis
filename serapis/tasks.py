@@ -164,7 +164,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id, sample_internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
+            query = "select internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
         except mysqlError as e:

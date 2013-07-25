@@ -20,6 +20,7 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
     IO_ERROR = "IO_ERROR"
     UNEQUAL_MD5 = "UNEQUAL_MD5"
     FAILURE_STATUS = "FAILURE"
+    FILE_ALREADY_EXISTS = "FILE_ALREADY_EXISTS"
 
     #BLOCK_SIZE = 65536
     #BLOCK_SIZE = 524288
@@ -65,9 +66,12 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
     import time
     def copy_file(src_file_path, dest_file_path, nth_try, submission_id, file_id):
-        upld_cmd = call(["iput", "-K", src_file_path])
 
+        t1 = time.time()
+        upld_cmd = call(["iput", "-K", src_file_path])
+        t2 = time.time()
         print "OUT PUT of iPUT: ", upld_cmd
+        print "TIME TAKEN: ", t2-t1
 
 
         result = dict()
