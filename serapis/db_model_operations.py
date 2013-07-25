@@ -563,12 +563,19 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
 
 # ------------------------ INSERTS & UPDATES -----------------------------
 
+# Hackish way of putting the attributes of the abstract lib, in each lib inserted:
+def __update_lib_from_abstract_lib__(library, abstract_lib):
+    for field in models.AbstractLibrary._fields:
+        setattr(library, field, getattr(abstract_lib, field))
+    return library
+    
 
 def insert_library_in_SFObj(library_json, sender, submitted_file):
     if submitted_file == None:
         return False
     if search_JSONLibrary(library_json, submitted_file.id, submitted_file) == None:
         library = json2library(library_json, sender)
+        library = __update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
         submitted_file.library_list.append(library)
         return True
     return False
@@ -724,6 +731,7 @@ def insert_or_update_library_in_SFObj(library_json, sender, submitted_file):
 #        if check_if_entities_are_equal(old_library, library_json) == True:                      #if new_entity.is_equal(old_entity):
 #            #print "INSERT OR UPDATE -------------------- WAS FOUND = TRUE: library json", library_json, "  and Old library: ", old_library
     lib_exists = search_JSONEntity_in_list(library_json, submitted_file.library_list)
+    print "DOES LIB EXIST?????????????????????????????????????????????????????????", lib_exists
     if lib_exists == None:
         return insert_library_in_SFObj(library_json, sender, submitted_file)
     else:
@@ -1009,7 +1017,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                     update_db_dict['inc__version__0'] = 1
                     if task_status == constants.SUCCESS_STATUS:
                         update_db_dict['set__file_submission_status'] = constants.SUCCESS_STATUS
-            
+        elif field_name == 'data_type':
+            if update_source == constants.EXTERNAL_SOURCE:
+                update_db_dict['set__data_type'] = field_val
+                update_db_dict['inc__version__0'] = 1
         elif field_name != None and field_name != "null":
             import logging
             logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
@@ -1053,6 +1064,8 @@ def update_file_ref_genome(file_id, ref_genome_key):    # the ref genome key is 
 def update_data_type(file_id, data_type):
     return models.SubmittedFile.objects(id=file_id).update_one(set__data_type=data_type)
 
+def update_file_abstract_library(file_id, abstract_lib):
+    return models.SubmittedFile.objects(id=file_id, abstract_library=None).update_one(set__abstract_library=abstract_lib)
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}

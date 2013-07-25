@@ -170,6 +170,7 @@ SUBMISSION_TYPE = 'submission'
 #----------------------- ERROR CODES: ----------------------
 IO_ERROR = "IO_ERROR"
 UNEQUAL_MD5 = "UNEQUAL_MD5"
+FILE_ALREADY_EXISTS = "FILE_ALREADY_EXISTS"
 FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED = "FILE HEADER INVALID OR COULD NOT BE PARSED"
 FILE_HEADER_EMPTY = "FILE_HEADER_EMPTY" 
 RESOURCE_NOT_UNIQUELY_IDENTIFIABLE_SEQSCAPE = "RESOURCE_NOT_UNIQUELY_IDENTIFYABLE_IN_SEQSCAPE"
@@ -178,9 +179,12 @@ NOT_SUPPORTED_FILE_TYPE = "NOT_SUPPORTED_FILE_TYPE"
 NON_EXISTING_FILES = "NON_EXISTING_FILES"
 INDEX_OLDER_THAN_FILE = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES = "UNMATCHED_INDEX_FILES"
+SEQSCAPE_DB_CONNECTION_ERROR = "SEQSCAPE_DB_CONNECTION_ERROR"
 
-PREDEFINED_ERRORS = {IO_ERROR, 
+PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
+                     IO_ERROR, 
                      UNEQUAL_MD5, 
+                     FILE_ALREADY_EXISTS,
                      FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED, 
                      FILE_HEADER_EMPTY, 
                      RESOURCE_NOT_UNIQUELY_IDENTIFIABLE_SEQSCAPE, 
@@ -201,7 +205,8 @@ PREDEFINED_ERRORS = {IO_ERROR,
 
 #----------------------------- SEQSCAPE TABLES: ----------------------
 CURRENT_WELLS_SEQSC_TABLE = "current_wells"
-
+CURRENT_LIBRARY_TUBES = "current_library_tubes"
+CURRENT_SAMPLES = "current_samples"
 
 #----------------------------------- ENTITIES SPECIFICS ----------------
 
@@ -224,4 +229,62 @@ STUDY_VISIBILITY = {"Hold",
                     "Add",
                     "Modify",
                     "Release"
+                    }
+
+
+#----- LIBRARY -------
+
+LIBRARY_SOURCES = { "GENOMIC" : "(Genomic DNA (includes PCR products from genomic DNA))",
+                    "TRANSCRIPTOMIC" : "(Transcription products or non genomic DNA (EST, cDNA, RT-PCR, screened libraries))",
+                    "METAGENOMIC" : "(Mixed material from metagenome)",
+                    "METATRANSCRIPTOMIC" : "(Transcription products from community targets)",
+                    "SYNTHETIC" : "(Synthetic DNA)",
+                    "VIRAL RNA" : "(Viral RNA)",
+                    "OTHER" : "(Other, unspecified, or unknown library source material)"
+                   }
+
+LIBRARY_STRATEGY = {
+                    
+                "WGS" : "(Random sequencing of the whole genome)",
+                "WGA" : "(whole genome amplification to replace some instances of RANDOM)",
+                "WXS" : "(Random sequencing of exonic regions selected from the genome)",
+                "RNA-Seq" : "(Random sequencing of whole transcriptome)",
+                "miRNA-Seq" : "(for micro RNA and other small non-coding RNA sequencing)",
+                "ncRNA-Seq" : "(Non-coding RNA)",
+                "WCS" : "(Random sequencing of a whole chromosome or other replicon isolated from a genome)",
+                "CLONE" : "(Genomic clone based (hierarchical) sequencing)",
+                "POOLCLONE" : "(Shotgun of pooled clones (usually BACs and Fosmids))",
+                "AMPLICON" : "(Sequencing of overlapping or distinct PCR or RT-PCR products)",
+                "CLONEEND" : "(Clone end (5', 3', or both) sequencing)",
+                "FINISHING" : "(Sequencing intended to finish (close) gaps in existing coverage)",
+                "ChIP-Seq" : "(Direct sequencing of chromatin immunoprecipitates)",
+                "MNase-Seq" : "(Direct sequencing following MNase digestion)",
+                "DNase-Hypersensitivity" : "(Sequencing of hypersensitive sites, or segments of open chromatin that are more readily cleaved by DNaseI)",
+                "Bisulfite-Seq" : "(Sequencing following treatment of DNA with bisulfite to convert cytosine residues to uracil depending on methylation status)",
+                "EST" : "(Single pass sequencing of cDNA templates)",
+                "FL-cDNA" : "(Full-length sequencing of cDNA templates)",
+                "CTS" : "(Concatenated Tag Sequencing)",
+                "MRE-Seq" : "(Methylation-Sensitive Restriction Enzyme Sequencing strategy)",
+                "MeDIP-Seq" : "(Methylated DNA Immunoprecipitation Sequencing strategy)",
+                "MBD-Seq" : "(Direct sequencing of methylated fractions sequencing strategy)",
+                "Tn-Seq" : "(for gene fitness determination through transposon seeding)",
+                "VALIDATION" : "VALIDATION",
+                "FAIRE-seq" : "(Formaldehyde-Assisted Isolation of Regulatory Elements) ",
+                "SELEX" : "(Systematic Evolution of Ligands by EXponential enrichment (SELEX) is an in vitro strategy to analyze RNA sequences that perform an activity of interest, most commonly high affinity binding to a ligand)",
+                "RIP-Seq" : "(Direct sequencing of RNA immunoprecipitates (includes CLIP-Seq, HITS-CLIP and PAR-CLI))",
+                "ChiA-PET" : "(Direct sequencing of proximity-ligated chromatin immunoprecipitates)",
+                "OTHER" : "(Library strategy not listed)"
+                }
+
+
+INSTRUMENT_MODEL = {
+            "Illumina Genome Analyzer",
+            "Illumina Genome Analyzer II",
+            "Illumina Genome Analyzer IIx",
+            "Illumina HiSeq 2500",
+            "Illumina HiSeq 2000",
+            "Illumina HiSeq 1000",
+            "Illumina MiSeq",
+            "Illumina HiScanSQ",
+            "unspecified"                    
                     }

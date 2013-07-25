@@ -16,7 +16,7 @@ from subprocess import call
 
 from MySQLdb import connect, cursors
 from MySQLdb import Error as mysqlError
-from MySQLdb import OperationalError
+#from MySQLdb import OperationalError
 
 #import serializers
 from serapis.constants import *
@@ -108,9 +108,12 @@ class QuerySeqScape():
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
             raise
-        except OperationalError as e:
-            print "OPERATIONAL ERROR: ", e.message
-            raise
+#        except OperationalError as e:
+#            print "OPERATIONAL ERROR: ", e.message
+#            # time.sleep(3)
+#            print "Reconnect:====================================================== ", conn.reconnect()
+#            #QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)
+#            raise
         return conn
 
     
@@ -144,7 +147,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id, name, library_type, public_name from current_library_tubes, sample_internal_id where "
+            query = "select internal_id, name, library_type, public_name, sample_internal_id from "+ CURRENT_LIBRARY_TUBES+" where "
             for (key, val) in library_fields_dict.iteritems():
                 if val != None:
                     if type(val) == str:
@@ -164,7 +167,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id, sample_internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
+            query = "select internal_id from " + constants.CURRENT_WELLS_SEQSC_TABLE + " where internal_id="+internal_id+" and is_current=1;"
             cursor.execute(query)
             data = cursor.fetchall()
         except mysqlError as e:
@@ -290,6 +293,10 @@ class ProcessSeqScapeData():
                     file_submitted.library_well_list.append(lib_dict['internal_id'])
                     #file_submitted.library_well_list.append(lib_well)
                     #return
+                else:
+                    new_lib = Library.build_from_json(lib_dict)
+                    file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
+                    file_submitted.add_or_update_lib(new_lib)
             else:
                 if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
                     lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
@@ -298,13 +305,14 @@ class ProcessSeqScapeData():
                     new_lib.check_if_complete_mdata()
                     file_submitted.add_or_update_lib(new_lib)
                 else:               # Faulty cases:
-                    #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-                    new_lib = Library()
-                    for field_name in lib_dict:
-                        setattr(new_lib, field_name, lib_dict[field_name])
+                    ####file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
+#                    new_lib = Library()
+#                    for field_name in lib_dict:
+#                        setattr(new_lib, field_name, lib_dict[field_name])
+                    new_lib = Library.build_from_json(lib_dict)
                     if lib_mdata == None or len(lib_mdata) == 0:
                         file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
-                    #    file_submitted.add_or_update_lib(new_lib)
+                        file_submitted.add_or_update_lib(new_lib)
                     elif len(lib_mdata) > 1:
                         file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
                     
@@ -356,11 +364,12 @@ class ProcessSeqScapeData():
             if sampl_mdata == None or len(sampl_mdata) == 0:
                 search_field = UNKNOWN_FIELD   # Change back to UNKNOWN_FIELD
                 setattr(new_sample, search_field, sample_dict[UNKNOWN_FIELD])
-                #file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+                file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
             elif len(sampl_mdata) > 1:
                 #setattr(new_sample, search_field_name, sample_dict[UNKNOWN_FIELD])
-                for k,v in sample_dict.iteritems:
-                    setattr(new_sample, k, v)
+#                for k,v in sample_dict.iteritems:
+#                    setattr(new_sample, k, v)
+                new_sample = Sample.build_from_json(sample_dict)
                 file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
             
     #        print "SAMPLE_LIST: ", file_submitted.sample_list
@@ -384,18 +393,20 @@ class ProcessSeqScapeData():
             if study_mdata != None and len(study_mdata) == 1:                 # Ideal case
                 study_mdata = study_mdata[0]            # get_study_data returns a tuple in which each element is a row in seqscDB
                 new_study = Study.build_from_seqscape(study_mdata)
-                new_study.check_if_has_minimal_mdata()
-                new_study.check_if_complete_mdata()
+                #new_study.check_if_has_minimal_mdata()
+                #new_study.check_if_complete_mdata()
                 file_submitted.add_or_update_study(new_study)
             else:               # Faulty cases:
-                #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-                new_study = Study()
-                for field_name in study_dict:
-                    setattr(new_study, field_name, study_dict[field_name])
+                ###file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
+#                new_study = Study()
+#                for field_name in study_dict:
+#                    setattr(new_study, field_name, study_dict[field_name])
                 #print "study IS COMPLETE OR NOT: ------------------------", new_study.is_complete
+                new_study = Study.build_from_json(study_dict)
                 if study_mdata == None or len(study_mdata) == 0:
                     file_submitted.append_to_missing_entities_list(new_study, STUDY_TYPE)
                     print "NO ENTITY found in SEQSCAPE. List of Missing entities: ", file_submitted.missing_entities_error_dict
+                    file_submitted.add_or_update_study(new_study)
                 elif len(study_mdata) > 1:
                     file_submitted.append_to_not_unique_entity_list(new_study, STUDY_TYPE)
                     print "STUDY IS ITERABLE....LENGTH: ", len(study_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
@@ -855,32 +866,38 @@ class ParseBAMHeaderTask(Task):
         new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, SAMPLE_TYPE, file_mdata)
         
         print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
+        try:
+            processSeqsc = ProcessSeqScapeData()
+        except mysqlError:
+            result = {}
+            result['file_header_parsing_job_status'] = FAILURE_STATUS
+            result['file_error_log'] = [constants.SEQSCAPE_DB_CONNECTION_ERROR]
+            send_http_PUT_req(result, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
+        else: 
+            #processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
+            processSeqsc.fetch_and_process_lib_unknown_mdata(new_libs_list, file_mdata)
+            processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
+            
+            # Just for Ulcerative Col:
+            #processSeqsc.fetch_and_process_study_mdata([''])
+            
+            print "LIBRARY UPDATED LIST: ", file_mdata.library_list
+            print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
+            print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
         
-        processSeqsc = ProcessSeqScapeData()
-        #processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
-        processSeqsc.fetch_and_process_lib_unknown_mdata(new_libs_list, file_mdata)
-        processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
-        
-        # Just for Ulcerative Col:
-        #processSeqsc.fetch_and_process_study_mdata([''])
-        
-        print "LIBRARY UPDATED LIST: ", file_mdata.library_list
-        print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
-        print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
-    
-        # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
-        #file_mdata.update_file_mdata_status()           # update the status after the last findings
-        file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
-        
-        # Exception or not - either way - send file_mdata to the server:  
-        serial = file_mdata.to_json()
-        #print "FILE serialized - JSON: ", serial
-        deserial = simplejson.loads(serial)
-        print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
-        #res = file_mdata.to_dict()
-        resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
-        print "RESPONSE FROM SERVER: ", resp
-        
+            # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
+            #file_mdata.update_file_mdata_status()           # update the status after the last findings
+            file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
+            
+            # Exception or not - either way - send file_mdata to the server:  
+            serial = file_mdata.to_json()
+            #print "FILE serialized - JSON: ", serial
+            deserial = simplejson.loads(serial)
+            print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
+            #res = file_mdata.to_dict()
+            resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
+            print "RESPONSE FROM SERVER: ", resp
+            
 
 
     ###############################################################
@@ -938,7 +955,8 @@ class UpdateFileMdataTask(Task):
         incomplete_entities = []
         for entity in entity_list:
             #if entity != None and not entity.check_if_has_minimal_mdata():     #if not entity.check_if_has_minimal_mdata():
-            if entity != None and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
+            if entity != None:# and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
+                print "IS IT COMPLETE??? IT ENTERED IF NOT COMPLETE => INCOMPLETE"
                 has_id_field = False
                 for id_field in ENTITY_IDENTITYING_FIELDS:
                     if hasattr(entity, id_field) and getattr(entity, id_field) != None:
@@ -975,34 +993,47 @@ class UpdateFileMdataTask(Task):
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
         
         print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
+        print "STUDIES INCOMPLETE: -------------", incomplete_studies_list
         
-        processSeqsc = ProcessSeqScapeData()
-        #processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
-        processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
-        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+        
+        try:
+            processSeqsc = ProcessSeqScapeData()
+        except mysqlError:
+            result = dict()
+            file_update_jobs_dict = dict()
+            task_id = current_task.request.id
+            file_update_jobs_dict[task_id] = FAILURE_STATUS
+            result['file_update_jobs_dict'] = file_update_jobs_dict
+            result['file_error_log'] = [constants.SEQSCAPE_DB_CONNECTION_ERROR]
+            send_http_PUT_req(result, file_mdata['submission_id'], file_id, constants.UPDATE_MDATA_MSG_SOURCE)
+        else: 
+
+            #processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
+            processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
+            processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
+            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+                 
+    #        if len(incomplete_libs_list) > 0:
+    #            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
+    #        if len(incomplete_samples_list) > 0:
+    #            processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
+    #        if len(incomplete_studies_list) > 0:
+    #            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+            
              
-#        if len(incomplete_libs_list) > 0:
-#            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
-#        if len(incomplete_samples_list) > 0:
-#            processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-#        if len(incomplete_studies_list) > 0:
-#            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
-        
-         
-        #file_submitted.update_file_mdata_status()           # update the status after the last findings
-        #file_submitted.file_update_mdata_job_status = SUCCESS_STATUS
-        print "IS UPDATE JOB STATUS EMPTY????????????????????", str(file_submitted.file_update_jobs_dict)
-        file_submitted.file_update_jobs_dict = dict()
-        task_id = current_task.request.id
-        file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
-        
-        serial = file_submitted.to_json()
-        deserial = simplejson.loads(serial)
-        print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
-        response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)
-        print "RESPONSE FROM SERVER: ", response
-        
+            #file_submitted.update_file_mdata_status()           # update the status after the last findings
+            #file_submitted.file_update_mdata_job_status = SUCCESS_STATUS
+            print "IS UPDATE JOB STATUS EMPTY????????????????????", str(file_submitted.file_update_jobs_dict)
+            file_submitted.file_update_jobs_dict = dict()
+            task_id = current_task.request.id
+            file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
+            
+            serial = file_submitted.to_json()
+            deserial = simplejson.loads(serial)
+            print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
+            response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)
+            print "RESPONSE FROM SERVER: ", response
+            
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
 # then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
 # these will appear in MongoDB as Library objects that only have name initialized => NEED code that iterates over all

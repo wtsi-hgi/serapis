@@ -70,6 +70,7 @@ submitted_file_schema = Schema({
     'seq_centers' : list,              # = ListField(StringField())          # List of sequencing centers where the data has been sequenced
 
     'data_type' : str,
+    'abstract_library' : dict,
 
     'sender' : str,
     'has_minimal' : bool,
@@ -114,6 +115,7 @@ submission_schema = Schema({
     'study' : dict,
     'reference_genome' : dict,
     'data_type' : str,
+    'library_info' : dict
     #
 })
 

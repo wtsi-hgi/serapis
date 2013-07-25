@@ -80,12 +80,18 @@ class Study(Entity):
     pi = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 #    reference_genome = StringField()
     
+class AbstractLibrary(Entity):
+    # Fields to be taken from the user:
+    library_source = StringField(choices=LIBRARY_SOURCES.keys())
+    library_selection = StringField(default="unspecified")
+    library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
+    instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
+    
 
-class Library(Entity):
+class Library(AbstractLibrary):
     library_type = StringField()
     public_name = StringField()
     sample_internal_id = IntField()
-
 
 
 class ReferenceGenome(Document):
@@ -131,6 +137,9 @@ class SubmittedFile(DynamicDocument):
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     
     #file_reference_genome = ReferenceField('ReferenceGenome')
+    
+    # ABSTRACT ENTITIES:
+    abstract_library = EmbeddedDocumentField(AbstractLibrary)
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
