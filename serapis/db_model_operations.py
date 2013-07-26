@@ -1,4 +1,5 @@
 from serapis import models, constants, exceptions
+import time
 
 from bson.objectid import ObjectId
 from mongoengine.queryset import DoesNotExist
@@ -566,7 +567,8 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
 # Hackish way of putting the attributes of the abstract lib, in each lib inserted:
 def __update_lib_from_abstract_lib__(library, abstract_lib):
     for field in models.AbstractLibrary._fields:
-        setattr(library, field, getattr(abstract_lib, field))
+        if hasattr(abstract_lib, field):
+            setattr(library, field, getattr(abstract_lib, field))
     return library
     
 
@@ -991,8 +993,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 print "UPDATE JOB DICT---------------- OLD ONE: --------------", str(old_update_job_dict)
                 if len(field_val) > 1:
                     print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - UPDATE DICT HAS MORE THAN ONE!!!"
+                    return None
                 else:
                     task_id, task_status = field_val.items()[0]
+                    print "LET s SEE WHAT's in UPDATE DICT BEFORE UPDATING::::::::::::::::::::::::::::::", str(submitted_file.file_update_jobs_dict)
                     if not task_id in old_update_job_dict:
                         print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
@@ -1005,6 +1009,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 print "IRODS JOB DICT---------------- OLD ONE: --------------", str(old_irods_jobs_dict)
                 if len(field_val) > 1:
                     print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - IRODS JOB DICT HAS MORE THAN ONE!!!", task_id, " source:", update_source
+                    return None
                 else:
                     task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
                     if not task_id in old_irods_jobs_dict:
@@ -1059,13 +1064,13 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
     
 
 def update_file_ref_genome(file_id, ref_genome_key):    # the ref genome key is the md5
-    return models.SubmittedFile.objects(id=file_id).update_one(set__file_reference_genome_id=ref_genome_key)
+    return models.SubmittedFile.objects(id=file_id).update_one(set__file_reference_genome_id=ref_genome_key, inc__version__0=1)
 
-def update_data_type(file_id, data_type):
-    return models.SubmittedFile.objects(id=file_id).update_one(set__data_type=data_type)
+def update_file_data_type(file_id, data_type):
+    return models.SubmittedFile.objects(id=file_id).update_one(set__data_type=data_type, inc__version__0=1)
 
 def update_file_abstract_library(file_id, abstract_lib):
-    return models.SubmittedFile.objects(id=file_id, abstract_library=None).update_one(set__abstract_library=abstract_lib)
+    return models.SubmittedFile.objects(id=file_id, abstract_library=None).update_one(set__abstract_library=abstract_lib, inc__version__0=1)
 
 def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
@@ -1084,10 +1089,49 @@ def update_file_parse_header_job_status(file_id, status):
     upd_dict = {'set__file_header_parsing_job_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
     
-def update_file_error_log(submitted_file):
-    upd_dict = {'set__file_error_log' : submitted_file.file_error_log, 'inc__version__0' : 1}
+def update_file_error_log(submitted_file, error_log):
+    new_error_log = submitted_file.file_error_log
+    new_error_log.extend(error_log)
+    upd_dict = {'set__file_error_log' : new_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
+def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=1):
+    upd_str = 'set__file_update_jobs_dict__'+str(task_id)
+    upd_dict = {upd_str : status}
+    upd_dict['inc__version__0'] = 1
+#    upd_dict['safe'] = True
+    upd = 0
+    while nr_retries > 0 and upd == 0:
+        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        print "UPDATED JOB LAUNCHED _________________________STATUS UPDATED?????", upd
+        #docs_upd = getLastError()
+        nr_retries -=1
+        time.sleep(1)
+    return upd
+
+def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=1):
+    upd_str = 'set__irods_jobs_dict__'+str(task_id)
+    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+    upd_dict['inc__version__0'] = 1
+    upd = 0
+    while nr_retries > 0 and upd == 0:
+        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        print "IRODS JOB LAUNCHED - changing the status __________________________STATUS UPDATED?????", upd
+        nr_retries -= 1
+    return upd
+
+def update_index_file_path(file_id, index_file_path, nr_retries=1):
+    upd_dict = {'set__index_file_path' : index_file_path, 'inc__version__0' : 1}
+    upd = 0
+    while nr_retries > 0 and upd == 0:
+        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        print "UPDATING INDEX FILE PATH --------- UPDATED?????", upd
+        nr_retries -= 1
+    return upd
+    #submitted_file.index_file_path = index_file_path
+    #submitted_file.save()
+    
+
 
 #def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
 #    submitted_file = retrieve_submitted_file(file_id)
