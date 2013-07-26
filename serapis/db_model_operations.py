@@ -154,7 +154,7 @@ def update_entity(entity_json, crt_ent, sender):
         old_val = getattr(crt_ent, key)
         if key in models.ENTITY_APP_MDATA_FIELDS or key == None:
             continue
-        elif old_val == None:
+        elif old_val == None or old_val == 'unspecified':
             setattr(crt_ent, key, entity_json[key])
             crt_ent.last_updates_source[key] = sender
             has_changed = True
@@ -578,6 +578,7 @@ def insert_library_in_SFObj(library_json, sender, submitted_file):
     if search_JSONLibrary(library_json, submitted_file.id, submitted_file) == None:
         library = json2library(library_json, sender)
         library = __update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
+        print "IN INSERT LIB: ------ AFTER UPDATING FROM ABSTRACT----------------------------------------", vars(library)
         submitted_file.library_list.append(library)
         return True
     return False
@@ -918,26 +919,32 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             update_db_dict['inc__version__3'] = 1
             print "UPDATING study LIST..................................", was_updated
         elif field_name == 'seq_centers':
-            updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
-            update_db_dict['set__seq_centers'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
+                update_db_dict['set__seq_centers'] = updated_list
         elif field_name == 'run_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
-            update_db_dict['set__run_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
+                update_db_dict['set__run_list'] = updated_list
         elif field_name == 'platform_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
-            update_db_dict['set__platform_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
+                update_db_dict['set__platform_list'] = updated_list
         elif field_name == 'date_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.date_list, field_val)
-            update_db_dict['set__date_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.date_list, field_val)
+                update_db_dict['set__date_list'] = updated_list
         elif field_name == 'lane_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.lane_list, field_val)
-            update_db_dict['set__lane_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.lane_list, field_val)
+                update_db_dict['set__lane_list'] = updated_list
         elif field_name == 'tag_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.tag_list, field_val)
-            update_db_dict['set__tag_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.tag_list, field_val)
+                update_db_dict['set__tag_list'] = updated_list
         # TODO: check for duplicated in header_associations -- this requires equality between maps...
-        elif field_name == 'header_associations' and update_source == constants.PARSE_HEADER_MSG_SOURCE:
-            submitted_file.header_associations.append(field_val)
+#        elif field_name == 'header_associations' and update_source == constants.PARSE_HEADER_MSG_SOURCE:
+#            submitted_file.header_associations.append(field_val)
             update_db_dict['set__header_associations'] = submitted_file.header_associations
         elif field_name == 'library_well_list':
             updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
@@ -998,8 +1005,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                     task_id, task_status = field_val.items()[0]
                     print "LET s SEE WHAT's in UPDATE DICT BEFORE UPDATING::::::::::::::::::::::::::::::", str(submitted_file.file_update_jobs_dict)
                     if not task_id in old_update_job_dict:
-                        print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
+                        print "NOT UPDATED!!!!ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
+                        return None
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
+                    print "LET's SEE WHAT THE NEW STATUS IS: ", task_status
                     old_update_job_dict[task_id] = task_status
                     update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
                     update_db_dict['inc__version__0'] = 1
@@ -1054,8 +1063,9 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
         if len(update_db_dict) > 0:
             print "FILE ID ----- HERE's A PB----------------", file_id, " and TYPE: ", type(file_id), "UPD DB DICT: ", update_db_dict
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-            print "ATOMIC UPDATE RESULT: =================================================================", upd
-        print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
+            print "ATOMIC UPDATE RESULT from :", update_source," =================================================================", upd
+        print "AFTER UPDATE -- IN UPD from json -- THE UPDATE DICT WAS: ", update_db_dict
+        print "zzzzzzzzzzzzzzz THis IS WHAT WAS ACTUALLY UPDATED:::::::::::::", vars(submitted_file.reload())
         if upd == 1:
             break
         i+=1
