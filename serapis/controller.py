@@ -407,17 +407,18 @@ def add_mdata_to_submission(submission_id, data):
     submission = db_model_operations.retrieve_submission(submission_id)
     if 'study' in data:
         study_data = data['study']
-        name, visib, pi = None, None, None
-        if 'visibility' in study_data:
-            visib = study_data['visibility']
-        if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
-            pi = study_data['pi'] #list
-        else:
-            pass
-            #TODO: report a problem
+        
         
         if 'name' in study_data:
             name = study_data['name']
+            visib, pi = None, None
+            if 'visibility' in study_data:
+                visib = study_data['visibility']
+            if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
+                pi = study_data['pi'] #list
+            else:
+                pass
+                #TODO: report a problem
             for file_id in submission.files_list:
                 inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
                 print "Has the study been inserted? - from controller....", inserted
@@ -437,6 +438,12 @@ def add_mdata_to_submission(submission_id, data):
     if 'data_type' in data:
         for file_id in submission.files_list:
             db_model_operations.update_data_type(file_id, data['data_type'])
+            
+    if 'library_info' in data:
+        for file_id in submission.files_list:
+            db_model_operations.update_file_abstract_library(file_id, data['library_info'])
+        
+        
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         ref_gen, path, md5, c_name = None, None, None, None
@@ -650,9 +657,9 @@ def update_file_submitted(submission_id, file_id, data):
         file_to_update.reload()
         irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
 
-        # print "IRODS MDATA DICT:"
-        # for mdata in irods_mdata_dict:
-        #     print mdata
+#        print "IRODS MDATA DICT:"
+#        for mdata in irods_mdata_dict:
+#            print mdata
 
 
         #from subprocess import call

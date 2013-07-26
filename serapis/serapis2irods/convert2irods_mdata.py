@@ -72,23 +72,20 @@ def convert_sample_mdata(sample):
 def convert_library_mdata(lib):
     ''' '''
     LIBRARY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'public_name']
-    LIBRARY_NONPREFIXED_FIELDS_LIST = ['library_type']
+    LIBRARY_NONPREFIXED_FIELDS_LIST = ['library_type', 'library_source', 'library_selection', 'library_strategy']
     irods_lib_mdata = []
     for field_name in LIBRARY_PREFIXED_FIELDS_LIST:
         if hasattr(lib, field_name) and getattr(lib, field_name) != None:
             field_val = getattr(lib, field_name)
-            #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
             irods_lib_mdata.append(('library_' + field_name, field_val))
     for field_name in LIBRARY_NONPREFIXED_FIELDS_LIST:
         if hasattr(lib, field_name) and getattr(lib, field_name) != None:
             field_val = getattr(lib, field_name)
-            #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
             irods_lib_mdata.append((field_name, field_val))
     return irods_lib_mdata
         
- 
 
 def convert_study_mdata(study):
     STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'description']
@@ -97,13 +94,11 @@ def convert_study_mdata(study):
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
-            #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             field_val = unicode2string(field_val)
             irods_study_mdata.append(('study_'+field_name, field_val))
     for field_name in STUDY_NONPREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
-            #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
             if isinstance(field_val, list):
                 for elem in field_val:
                     elem = unicode2string(elem)
