@@ -417,10 +417,19 @@ def create_submission(user_id, data):
 
 def add_mdata_to_submission(submission_id, data):
     submission = db_model_operations.retrieve_submission(submission_id)
+              
+    if 'data_type' in data:
+        for file_id in submission.files_list:
+            upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
+            print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
+            
+    if 'library_info' in data:
+        for file_id in submission.files_list:
+            upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
+            print "UPDATED ABSTRACT LIB..............................", upd
+       
     if 'study' in data:
         study_data = data['study']
-        
-        
         if 'name' in study_data:
             name = study_data['name']
             visib, pi = None, None
@@ -446,16 +455,7 @@ def add_mdata_to_submission(submission_id, data):
                     return False
         else:
             pass #TODO: report a problem! You can't pass a struct empty: 'study' : {}
-           
-    if 'data_type' in data:
-        for file_id in submission.files_list:
-            db_model_operations.update_file_data_type(file_id, data['data_type'])
-            
-    if 'library_info' in data:
-        for file_id in submission.files_list:
-            db_model_operations.update_file_abstract_library(file_id, data['library_info'])
-        
-        
+  
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         ref_gen, path, md5, c_name = None, None, None, None
@@ -484,8 +484,15 @@ def add_mdata_to_submission(submission_id, data):
             print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
             ref_genome_id = ref_gen.id
         for file_id in submission.files_list:
-            return db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd 
         # TODO: treat exceptional circumstances....
+    #for testing:
+    for f_id in submission.files_list:
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(db_model_operations.retrieve_submitted_file(f_id), None)
+        print "FINALLLLLLLLLLLLL IRODS MDATA DICT:"
+        for mdata in irods_mdata_dict:
+            print mdata
     return True
 
 def add_submission(user_id, data):
