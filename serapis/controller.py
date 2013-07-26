@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import errno
 import logging
 import datetime
@@ -10,10 +11,9 @@ from serapis import models
 from serapis import constants, serializers
 
 from celery import chain
-#from serapis.entities import SubmittedFile
 from serapis import db_model_operations
 from serapis2irods import convert2irods_mdata
-from compiler.ast import Const
+
 
 
 
@@ -70,10 +70,10 @@ def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
 #    file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
 #    This shouldn't be here...
     models.SubmittedFile.objects(id=file_submitted.id, version=db_model_operations.get_file_version(None, file_submitted)).update_one(set__file_header_parsing_job_status=constants.PENDING_ON_WORKER_STATUS)   
-    print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
+    #print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
     #file_serialized = serializers.serialize(file_submitted)
     file_serialized = serializers.serialize_excluding_meta(file_submitted)
-    print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER AFTER SERIAL -----------------------", vars(file_submitted)
+    #print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER AFTER SERIAL -----------------------", vars(file_submitted)
     
     
     # WORKING PART  
@@ -88,16 +88,17 @@ def launch_upload_job(user_id, file_submitted, file_path, response_status, queue
     
     print "I AM UPLOADING...putting the task in the queue!"
     if queue == None:
-        print "I Am putting the task in the default queue"
+#        print "I Am putting the task in the default queue"
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue="celery")
-        print "AFTER SUBMITTING TASK: "
+        db_model_operations.update_file_upload_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
         # from celery.task.control import inspect
         # i = inspect()
         # print i.scheduled()
     else:
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue=queue)
-        setattr(file_submitted, response_status, constants.PENDING_ON_USER_STATUS)
-        file_submitted.save()
+        db_model_operations.update_file_upload_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
+        #setattr(file_submitted, response_status, constants.PENDING_ON_USER_STATUS)
+        #file_submitted.save()
 
 
     
@@ -107,10 +108,18 @@ def launch_update_file_job(file_submitted):
     file_submitted.reload()
     
     # Save to the DB the job id:
-    upd_str = 'set__file_update_jobs_dict__'+str(task_id)
-    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
-    upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED _________________________STATUS UPDATED?????", upd
+    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
+    print "LAUNCH UPDATE FILE JOB ---------------------------------------------UPDATED??????????", upd
+#    upd_str = 'set__file_update_jobs_dict__'+str(task_id)
+#    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+#    nr_retries = 3
+#    while nr_retries > 0:
+#        upd = models.SubmittedFile.objects(id=file_submitted.id, version__0=db_model_operations.get_file_version(None, file_submitted)).update_one(**upd_dict)
+#        print "UPDATED JOB LAUNCHED _________________________STATUS UPDATED?????", upd
+#        if upd == 0:
+#            break
+#        nr_retries -=1
+#        time.sleep(1)
     
     #testing:
     file_submitted.reload()
@@ -130,10 +139,11 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     
     # TODO: replace the client_path with the irods path:
     task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
-    upd_str = 'set__irods_jobs_dict__'+str(task_id)
-    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
-    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-    print "UPDATED JOB LAUNCHED __________________________STATUS UPDATED?????", upd
+    db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
+#    upd_str = 'set__irods_jobs_dict__'+str(task_id)
+#    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
+#    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+#    print "UPDATED JOB LAUNCHED __________________________STATUS UPDATED?????", upd
 
     
 
@@ -209,7 +219,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
                 launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status')
         except IOError as e:
             io_errors_list.append(e)
-            file_submitted.file_error_log.append(e.strerror)
+            db_model_operations.update_file_error_log(file_submitted, e.strerror)
+            #file_submitted.file_error_log.append(e.strerror)    -> shouldn't be doing it non atomic!!!
 #        else:
 #            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
 #            # don't have permission => it must wait for the upload job and then parse the header of the UPLOADED file!!!
@@ -234,7 +245,7 @@ def submit_jobs_for_submission(user_id, submission):
         file_io_errors = submit_jobs_for_file(user_id, file_submitted)
         if file_io_errors != None and len(file_io_errors) > 0:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
-    submission.save()       # some files have modified some statuses, so this has to be saved
+    #submission.save()       # some files have modified some statuses, so this has to be saved
     return io_errors_dict
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
@@ -299,8 +310,9 @@ def associate_files_with_index_files(index_files_list, submitted_files_list, err
             sub_file_ext = sub_file_ext[1:]          # from '.bam' to 'bam'
             if index_file_name == sub_file_name and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
                 if cmp_timestamp_files(submitted_file.file_path_client, index_file_path) == -1:         # compare file and index timestamp  
-                    submitted_file.index_file_path = index_file_path
-                    submitted_file.save()
+                    db_model_operations.update_index_file_path(submitted_file.id, index_file_path, nr_retries=3)
+#                    submitted_file.index_file_path = index_file_path
+#                    submitted_file.save()
                     index_files_matched.append(index_file_path)
                 else:
                     append_to_errors_dict(index_file_path, constants.INDEX_OLDER_THAN_FILE, errors_dict)
@@ -437,7 +449,7 @@ def add_mdata_to_submission(submission_id, data):
            
     if 'data_type' in data:
         for file_id in submission.files_list:
-            db_model_operations.update_data_type(file_id, data['data_type'])
+            db_model_operations.update_file_data_type(file_id, data['data_type'])
             
     if 'library_info' in data:
         for file_id in submission.files_list:
