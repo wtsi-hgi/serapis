@@ -206,7 +206,7 @@ class BAMFile(SubmittedFile):
     run_list = ListField()              # list of strings
     platform_list = ListField()         # list of strings
     date_list = ListField()             # list of strings
-    header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    #header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
     
 #    bai_file_path = StringField()
 #    bai_md5 = StringField()

@@ -236,8 +236,8 @@ def check_if_study_has_minimal_mdata(study):
 
 def check_if_library_has_minimal_mdata(library):
     ''' Checks if the library has the minimal mdata. Returns boolean.'''
+    print "CHECK IF LIB HAS MINxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx : ", library.has_minimal
     if library.has_minimal == False:
-        #if library.name != None and library.library_type != None:
         if library.name != None or library.internal_id != None:  # TODO: and lib_source and lib_selection
             library.has_minimal = True
     return library.has_minimal
@@ -253,10 +253,7 @@ def check_if_sample_has_minimal_mdata(sample):
 def check_and_update_if_file_has_min_mdata(submitted_file):
     if submitted_file.has_minimal == True:
         return submitted_file.has_minimal
-    # TO DECOMMENT - it is commented only for testing purposes
-#    if len(submitted_file.library_list) == 0 or len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
-#        return False
-    if len(submitted_file.library_list) == 0 and len(submitted_file.sample_list) == 0 and len(submitted_file.study_list) == 0:
+    if len(submitted_file.library_list) == 0 or len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
         return False
     for study in submitted_file.study_list:
         if check_if_study_has_minimal_mdata(study) == False:
@@ -573,12 +570,7 @@ def unicode2string(ucode):
 # Hackish way of putting the attributes of the abstract lib, in each lib inserted:
 def __update_lib_from_abstract_lib__(library, abstract_lib):
     for field in models.AbstractLibrary._fields:
-    #    if hasattr(abstract_lib, field) and getattr(abstract_lib, field) != None:
-    # for attr in vars(abstract_lib):
-    #     print vars(abstract_lib)
-        print "FIELD::::::::::", field, "TYPE OF FIELD::::::::::::::::::::::::::::::::::::", type(field)
-    #for field in ['library_source', 'library_selection', 'library_strategy', 'instrument_model']:
-        if getattr(abstract_lib, field) not in [None, "unspecified"]:
+        if hasattr(abstract_lib, field) and getattr(abstract_lib, field) not in [None, "unspecified"]:
             setattr(library, field, getattr(abstract_lib, field))
     return library
     
@@ -956,7 +948,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
         # TODO: check for duplicated in header_associations -- this requires equality between maps...
 #        elif field_name == 'header_associations' and update_source == constants.PARSE_HEADER_MSG_SOURCE:
 #            submitted_file.header_associations.append(field_val)
-            update_db_dict['set__header_associations'] = submitted_file.header_associations
+#            update_db_dict['set__header_associations'] = submitted_file.header_associations
         elif field_name == 'library_well_list':
             updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
             update_db_dict['set__library_well_list'] = updated_list
