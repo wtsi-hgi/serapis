@@ -841,7 +841,11 @@ def update_file_submitted(submission_id, file_id, data):
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
     file_to_update.reload()
-    irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
+    if hasattr(file_to_update, 'file_reference_genome_id') and getattr(file_to_update, 'file_reference_genome_id') != None:
+        ref_genome = db_model_operations.get_reference_by_md5(file_to_update.file_reference_genome_id)
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update, ref_genome)
+    else:
+        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
     print "IRODS MDATA DICT:"
     for mdata in irods_mdata_dict:
         print mdata
