@@ -164,7 +164,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, ref_genome=None):
-    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'file_reference_genome_id', 'data_type']
+    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type']
     FILE_PREFIXED_FIELDS_LIST = ['md5']
     irods_file_mdata = []
     for field_name in FILE_PREFIXED_FIELDS_LIST:
@@ -192,9 +192,9 @@ def convert_file_mdata(subm_file, ref_genome=None):
                 file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
                 irods_file_mdata.extend(file_specific_mdata)
                 irods_file_mdata.append((field_name, field_val))
-            elif field_name == 'file_reference_genome_id':
-                field_val = unicode2string(field_val)
-                ref = db_model_operations.get_reference_by_md5(field_val)
+            # elif field_name == 'file_reference_genome_id':
+            #     field_val = unicode2string(field_val)
+            #     ref = db_model_operations.get_reference_by_md5(field_val)
             else:
                 field_val = unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))
