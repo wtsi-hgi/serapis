@@ -70,7 +70,7 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
         t1 = time.time()
         upld_cmd = call(["iput", "-K", src_file_path])
         t2 = time.time()
-        print "OUT PUT of iPUT: ", upld_cmd
+        print "OUTPUT of iPUT: ", upld_cmd, " TYPE OF OUTPUT: ", type(upld_cmd)
         print "TIME TAKEN: ", t2-t1
 
 
@@ -88,6 +88,7 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
             result[response_status] = SUCCESS_STATUS
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         elif upld_cmd == 3:     # FILE ALREADY EXISTS!!!
+            print "ENTERED ON THE 3 BRANCH------"
             result[response_status] = FAILURE_STATUS
             result[FILE_ERROR_LOG] = []
             result[FILE_ERROR_LOG].append(FILE_ALREADY_EXISTS)

@@ -68,7 +68,6 @@ def convert_sample_mdata(sample):
     return irods_sampl_mdata
 
 
-
 def convert_library_mdata(lib):
     ''' '''
     LIBRARY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'public_name']
@@ -201,6 +200,9 @@ def convert_file_mdata(subm_file, ref_genome=None):
                 irods_file_mdata.append((field_name, field_val))
     if ref_genome != None:
         irods_file_mdata.extend(convert_reference_genome_mdata(ref_genome))
+    if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
+        irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
+        irods_file_mdata.extend(irods_lib_mdata)
 #    return irods_file_mdata
     return list(set(irods_file_mdata))
 

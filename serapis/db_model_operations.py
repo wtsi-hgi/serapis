@@ -266,7 +266,10 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     for lib in submitted_file.library_list:
         if check_if_library_has_minimal_mdata(lib) == False:
             print "NOT ENOUGH LIB MDATA................................."
+            if len(lib.library_well_list) > 0:
+                return True
             return False
+        
     # UPDATE IN DB:
     upd_dict = {}
     upd_dict['set__has_minimal'] = True
@@ -562,10 +565,6 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
 
 # ------------------------ INSERTS & UPDATES -----------------------------
 
-def unicode2string(ucode):
-    if type(ucode) == unicode:
-        return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
-    return ucode
 
 # Hackish way of putting the attributes of the abstract lib, in each lib inserted:
 def __update_lib_from_abstract_lib__(library, abstract_lib):
