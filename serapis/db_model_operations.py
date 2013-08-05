@@ -1,5 +1,6 @@
 from serapis import models, constants, exceptions
 import time
+import logging
 
 from bson.objectid import ObjectId
 from mongoengine.queryset import DoesNotExist
@@ -30,6 +31,9 @@ def calculate_md5(file_path):
 
 def insert_reference(ref_name, path_list, md5=None):
     ref_genome = models.ReferenceGenome()
+    if ref_name==None or len(path_list) == 0:
+        error_text = 'You need to provide both reference name and at least one path in order to insert a new reference genome.'
+        raise exceptions.NotEnoughInformationProvided(error_text)
     ref_genome.canonical_name = ref_name
     ref_genome.paths = path_list
     
@@ -39,33 +43,63 @@ def insert_reference(ref_name, path_list, md5=None):
         else:
             md5_check = calculate_md5(path)
             if md5 != md5_check:
-                print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
+                #print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
+                raise exceptions.InformationConflict('The md5 of the file found at '+path+' does not match the md5 provided along.')
                 return
     ref_genome.md5 = md5
     ref_genome.save()
     return ref_genome.id
     
 
-def get_reference_by_path(path):
+def retrieve_reference_by_path(path):
     try:
         return models.ReferenceGenome.objects(paths__in=[path]).get()
     except DoesNotExist:
         return None
     
 
-def get_reference_by_md5(md5):
+def retrieve_reference_by_md5(md5):
     try:
         return models.ReferenceGenome.objects(md5=md5).get()
     except DoesNotExist:
         return None
 
-def get_reference_by_name(canonical_name):
+def retrieve_reference_by_name(canonical_name):
     try:
         return models.ReferenceGenome.objects(canonical_name=canonical_name).get()
     except DoesNotExist:
         return None
 
 
+def retrieve_reference_genome(md5=None, name=None, path=None):
+    if md5 == None and name == None and path == None:
+        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided")
+        return None
+    if md5 != None:
+        ref = retrieve_reference_by_md5(md5)
+        if name != None and ref.canonical_name != name:
+            error_msg = "The reference name doesn't match the existing entry's md5. Out current entry is: name="+ref.canonical_name
+            error_msg += " and md5="+ref.md5
+            logging.info(error_msg)
+            raise exceptions.InformationConflict(msg=error_msg)
+        if path != None and path not in ref.paths:
+            msg = "The path given doesn't match the existing ref with md5: "+md5
+            msg += ". In order to add a new path to this reference, please make a PUT req to..."
+            logging.info(msg)
+            raise exceptions.InformationConflict(msg=msg)
+    elif name != None:
+        ref_n = retrieve_reference_by_name(name)
+        if path != None:
+            ref_p = retrieve_reference_by_path(path)
+            if ref_n.md5 == ref_p.md5:
+                return ref_n
+            else:
+                # TODO:
+                error_text = 'There is no reference genome with the name '+name+' and path: '+path+'.'
+                error_text += ' If this path should be associated with '+name+' reference, please make a PUT request to....'
+                raise exceptions.InformationConflict(msg=error_text)
+    elif path != None:    # This branch is executed only if md5=None and name=None
+        return retrieve_reference_by_path(path)
 
 
 #---------------------- AUXILIARY (HELPER) FUNCTIONS -------------------------
@@ -253,7 +287,7 @@ def check_if_sample_has_minimal_mdata(sample):
 def check_and_update_if_file_has_min_mdata(submitted_file):
     if submitted_file.has_minimal == True:
         return submitted_file.has_minimal
-    if len(submitted_file.library_list) == 0 or len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
+    if len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
         return False
     for study in submitted_file.study_list:
         if check_if_study_has_minimal_mdata(study) == False:
@@ -266,9 +300,9 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     for lib in submitted_file.library_list:
         if check_if_library_has_minimal_mdata(lib) == False:
             print "NOT ENOUGH LIB MDATA................................."
-            if len(lib.library_well_list) > 0:
-                return True
             return False
+    if len(submitted_file.library_list) == 0 and len(submitted_file.library_well_list) > 0:
+        return True
         
     # UPDATE IN DB:
     upd_dict = {}
@@ -282,6 +316,7 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     upd_dict['inc__version__3'] = 1
     models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     return True
+
 
 
 def check_if_all_update_jobs_finished(file_id, submitted_file=None):
@@ -475,7 +510,9 @@ def retrieve_study_by_id(study_id, file_id, submitted_file=None):
         study_list = retrieve_study_list(file_id)
     return get_entity_by_field('internal_id', study_id, study_list)
 
-
+def retrieve_sanger_user_id(file_id):
+    subm_id = models.SubmittedFile.objects(id=ObjectId(file_id)).only('submission_id').get().submission_id
+    return models.Submission.objects(id=ObjectId(subm_id)).only('sanger_user_id').get().sanger_user_id
  
 def get_file_version(file_id, submitted_file=None):
     if submitted_file == None:
@@ -1103,10 +1140,17 @@ def update_file_parse_header_job_status(file_id, status):
     upd_dict = {'set__file_header_parsing_job_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
     
-def update_file_error_log(submitted_file, error_log):
-    new_error_log = submitted_file.file_error_log
-    new_error_log.extend(error_log)
-    upd_dict = {'set__file_error_log' : new_error_log, 'inc__version__0' : 1}
+def update_file_error_log(error_log, file_id=None, submitted_file=None):
+    if file_id == None and submitted_file == None:
+        return None
+    if submitted_file == None:
+        submitted_file = retrieve_submitted_file(file_id)
+    old_error_log = submitted_file.file_error_log
+    if type(error_log) == list:
+        old_error_log.extend(error_log)
+    elif type(error_log) == str:
+        old_error_log.append(error_log)
+    upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
 def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=1):

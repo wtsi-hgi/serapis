@@ -116,7 +116,8 @@ submission_schema = Schema({
     'study' : dict,
     'reference_genome' : dict,
     'data_type' : str,
-    'library_info' : dict
+    'library_info' : dict,
+    'coverage' : str
     #
 })
 

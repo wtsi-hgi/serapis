@@ -86,6 +86,7 @@ class AbstractLibrary(Entity):
     library_selection = StringField(default="unspecified")
     library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
     instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
+    coverage = StringField()
     
 
 class Library(AbstractLibrary):

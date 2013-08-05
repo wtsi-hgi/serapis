@@ -139,7 +139,7 @@ class SubmissionsMainPageRequestHandler(APIView):
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically incorrect)?
                 msg = "Submission not created."
                 result_dict['message'] = msg
-                return Response(result_dict, status=400)
+                return Response(result_dict, status=424)    # Method failure
             else:
                 msg = "Submission created"  
                 result_dict['message'] = msg
