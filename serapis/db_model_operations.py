@@ -1,4 +1,4 @@
-from serapis import models, constants, exceptions
+from serapis import models, constants, exceptions, utils
 import time
 import logging
 
@@ -31,9 +31,9 @@ def calculate_md5(file_path):
 
 def insert_reference(ref_name, path_list, md5=None):
     ref_genome = models.ReferenceGenome()
-    if ref_name==None or len(path_list) == 0:
+    if ref_name == None or path_list == None or len(path_list) == 0:
         error_text = 'You need to provide both reference name and at least one path in order to insert a new reference genome.'
-        raise exceptions.NotEnoughInformationProvided(error_text)
+        raise exceptions.NotEnoughInformationProvided(msg=error_text)
     ref_genome.canonical_name = ref_name
     ref_genome.paths = path_list
     
@@ -43,8 +43,9 @@ def insert_reference(ref_name, path_list, md5=None):
         else:
             md5_check = calculate_md5(path)
             if md5 != md5_check:
-                #print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
-                raise exceptions.InformationConflict('The md5 of the file found at '+path+' does not match the md5 provided along.')
+                print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
+                error_text = 'The md5 of the file found at '+path+' does not match the md5 provided along.'
+                raise exceptions.InformationConflict(msg=error_text)
                 return
     ref_genome.md5 = md5
     ref_genome.save()
@@ -89,15 +90,23 @@ def retrieve_reference_genome(md5=None, name=None, path=None):
             raise exceptions.InformationConflict(msg=msg)
     elif name != None:
         ref_n = retrieve_reference_by_name(name)
-        if path != None:
+        if ref_n != None:
+            if path != None:
+                ref_p = retrieve_reference_by_path(path)
+                if ref_n.md5 == ref_p.md5:
+                    return ref_n
+                else:
+                    # TODO:
+                    error_text = 'There is no reference genome with the name '+name+' and path: '+path+'.'
+                    error_text += ' If this path should be associated with '+name+' reference, please make a PUT request to....'
+                    raise exceptions.InformationConflict(msg=error_text)
+        elif path!= None:
             ref_p = retrieve_reference_by_path(path)
-            if ref_n.md5 == ref_p.md5:
-                return ref_n
+            if ref_p != None:
+                error_msg = "The reference path provided does not match the reference name provided. In the db are: name="+ref_p.name+" path=", ref_p.paths
+                raise exceptions.InformationConflict(msg=error_msg)
             else:
-                # TODO:
-                error_text = 'There is no reference genome with the name '+name+' and path: '+path+'.'
-                error_text += ' If this path should be associated with '+name+' reference, please make a PUT request to....'
-                raise exceptions.InformationConflict(msg=error_text)
+                return None
     elif path != None:    # This branch is executed only if md5=None and name=None
         return retrieve_reference_by_path(path)
 
@@ -261,61 +270,226 @@ def compare_sender_priority(source1, source2):
     elif diff >= 0:
         return 1
  
+   
+def __add_missing_field_to_dict__(field, categ, missing_fields_dict):
+    print "CATEGORY TO BE ADDED: ====================************************************************", type(categ), " and field: ", type(field)
+    categ = utils.unicode2string(categ)
+    field = utils.unicode2string(field)
+    if categ not in missing_fields_dict.keys():
+        missing_fields_dict[categ] = [field]
+#        print "WHAT@S IN NEWWWWWWW MISSING DICT??????????????????????============"
+#        for pair in missing_fields_dict.items():
+#            print pair, " type:", type(pair[0])       
+    else:
+        existing_list = missing_fields_dict[categ]
+#        print "WHAT@S IN MISSING DICT??????????????????????============"
+#        for pair in missing_fields_dict.items():
+#            print pair, " type:", type(pair[0])   
+        if field not in existing_list:
+            existing_list.append(field)
+            missing_fields_dict[categ] = existing_list 
+#            print "AFTER ADDING................."
+#            for pair in missing_fields_dict.items():
+#                print pair, " type:", type(pair[0])   
+        else:
+            print "THE FIELD EXISTS ALREADY!!!"
     
-def check_if_study_has_minimal_mdata(study):
+def __find_and_delete_missing_field_from_dict__(field, categ, missing_fields_dict):
+    print "FIELDS TO BE DELETED FROM MISSING FIELD LIST:::::::::::::::::::::::::::::::::::::::::::::--------", field, " categ: ", categ
+    if categ in missing_fields_dict.keys():
+        if field in missing_fields_dict[categ]:
+            missing_fields_dict[categ].remove(field)
+            print "FIELD DELETED!"
+            if len(missing_fields_dict[categ]) == 0:
+                missing_fields_dict.pop(categ)
+                print "CATEG DELETED!"
+            return True
+    return False
+    
+    
+def check_if_study_has_minimal_mdata(study, file_to_submit):
     if study.has_minimal == False:
-        if study.name != None and study.study_type != None:
+        #if study.name != None and study.study_type != None and study.title!=None and study.faculty_sponsor!=None and study.study_visibility!=None and len(study.pi) > 0:
+        has_min_mdata = True
+        for field in constants.STUDY_MANDATORY_FIELDS:
+            print "FIELD BEFORE ADDING IT: ", field, " and study: ", constants.STUDY_TYPE 
+            if not hasattr(study, field):
+                __add_missing_field_to_dict__(field, constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            elif getattr(study, field) == None:
+                __add_missing_field_to_dict__(field, constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            elif type(getattr(study, field)) == list and len(getattr(study, field)) == 0:
+                __add_missing_field_to_dict__(field, constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            else:
+                __find_and_delete_missing_field_from_dict__(field, constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+        if has_min_mdata == True:
             study.has_minimal = True
     return study.has_minimal
 
-def check_if_library_has_minimal_mdata(library):
+def check_if_library_has_minimal_mdata(library, file_to_submit):
     ''' Checks if the library has the minimal mdata. Returns boolean.'''
     print "CHECK IF LIB HAS MINxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx : ", library.has_minimal
     if library.has_minimal == False:
         if library.name != None or library.internal_id != None:  # TODO: and lib_source and lib_selection
-            library.has_minimal = True
+        #    if library.library_source != None and library.library_selection != None and library.coverage != None:
+            has_min_mdata = True
+            for field in constants.LIBRARY_MANDATORY_FIELDS:
+                if not hasattr(library, field):
+                    __add_missing_field_to_dict__(field, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                    has_min_mdata = False
+                elif getattr(library, field) == None or getattr(library, field) == 'unspecified':
+                    __add_missing_field_to_dict__(field, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                    has_min_mdata = False
+                else:
+                    __find_and_delete_missing_field_from_dict__(field, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+            if has_min_mdata == True:    
+                library.has_minimal = True
     return library.has_minimal
 
-def check_if_sample_has_minimal_mdata(sample):
+def check_if_sample_has_minimal_mdata(sample, file_to_submit):
     ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
     if sample.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-        if sample.name != None and sample.taxon_id != None:
-            sample.has_minimal = True
-    return sample.has_minimal
+        #if sample.name != None and sample.taxon_id != None and sample.gender!=None and sample.cohort!=None and sample.ethnicity!=None and sample.country_of_origin!=None:
+        if sample.name != None or sample.internal_id != None:
+            has_min_mdata = True
+            for field in constants.SAMPLE_MANDATORY_FIELDS:
+                if not hasattr(sample, field):
+                    __add_missing_field_to_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                    has_min_mdata = False
+                elif getattr(sample, field) == None:
+                    __add_missing_field_to_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                    has_min_mdata = False
+                else:
+                    __find_and_delete_missing_field_from_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+            sample.has_minimal = has_min_mdata
+    return has_min_mdata
 
 
-def check_and_update_if_file_has_min_mdata(submitted_file):
-    if submitted_file.has_minimal == True:
-        return submitted_file.has_minimal
-    if len(submitted_file.sample_list) == 0 or len(submitted_file.study_list) == 0:
-        return False
-    for study in submitted_file.study_list:
-        if check_if_study_has_minimal_mdata(study) == False:
-            print "NOT ENOUGH STUDY MDATA............................."
-            return False
-    for sample in submitted_file.sample_list:
-        if check_if_sample_has_minimal_mdata(sample) == False:
-            print "NOT ENOUGH SAMPLE MDATA............................."
-            return False
-    for lib in submitted_file.library_list:
-        if check_if_library_has_minimal_mdata(lib) == False:
-            print "NOT ENOUGH LIB MDATA................................."
-            return False
-    if len(submitted_file.library_list) == 0 and len(submitted_file.library_well_list) > 0:
-        return True
+def check_bam_file_mdata(file_to_submit):
+    if file_to_submit.file_type != constants.BAM_FILE:
+        pass    # TODO: raise an exception if this fct has been called for a diff type of file!!!!
+#    if len(file_to_submit.seq_centers) == 0:
+##        errs = set(file_to_submit.file_error_log)
+##        errs.append(constants.MISSING_MANDATORY_FIELDS)
+##        file_to_submit.file_error_log = list(errs)
+##        file_to_submit.missing_mandatory_field_list.append('seq_centers')
+#        return False
+#    if len(file_to_submit.run_list) == 0 or len(file_to_submit.platform_list) == 0:
+#        return False
+    has_min_mdata = True
+    for field in constants.BAM_FILE_MANDATORY_FIELDS:
+        if not hasattr(file_to_submit, field):
+            __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+            has_min_mdata = False
+        else:
+            attr = getattr(file_to_submit, field)
+            if attr == None:
+                __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            elif type(attr) == list and len(attr) == 0:
+                __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            else:
+                __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+    return has_min_mdata
         
-    # UPDATE IN DB:
-    upd_dict = {}
-    upd_dict['set__has_minimal'] = True
-    upd_dict['set__library_list'] = submitted_file.library_list
-    upd_dict['set__sample_list'] = submitted_file.sample_list
-    upd_dict['set__study_list'] = submitted_file.study_list
-    upd_dict['inc__version__0'] = 1
-    upd_dict['inc__version__1'] = 1
-    upd_dict['inc__version__2'] = 1
-    upd_dict['inc__version__3'] = 1
-    models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
-    return True
+# TODO: check if the file's attribute for reference points to the same thing as the info in sample.reference_genome
+#def __check_sample_have_same_reference__(samples_list):
+#    ref = None
+#    for sample in samples_list:
+#        if hasattr(sample, 'reference_genome') and sample.reference_genome not in [" ", "", None]:
+#            if ref == None:
+#                ref = sample.reference_genome
+#            else:
+#                pass
+     
+def check_file_mdata(file_to_submit):
+#    if file_to_submit.data_type == None:
+#        return False
+#    if file_to_submit.file_reference_genome_id == None:
+#        return False
+    has_min_mdata = True
+    for field in constants.FILE_MANDATORY_FIELDS:
+        if not hasattr(file_to_submit, field):
+            __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+            has_min_mdata = False
+        elif  getattr(file_to_submit, field) == None:
+            __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+            has_min_mdata = False
+        else:
+            __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+    if file_to_submit.file_type == constants.BAM_FILE:
+        return check_bam_file_mdata(file_to_submit) and has_min_mdata
+    return False
+    
+
+def check_and_update_if_file_has_min_mdata(file_to_submit):
+    if file_to_submit.has_minimal == True:
+        return file_to_submit.has_minimal
+    has_min_mdata = True
+    if check_file_mdata(file_to_submit) == False:
+        has_min_mdata = False
+    if len(file_to_submit.sample_list) == 0:
+        __add_missing_field_to_dict__('no sample', constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+        has_min_mdata = False
+    else:
+        __find_and_delete_missing_field_from_dict__('no sample', constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+    if len(file_to_submit.study_list) == 0:
+        __add_missing_field_to_dict__('no study', constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+        has_min_mdata = False
+    else:
+        __find_and_delete_missing_field_from_dict__('no study', constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+
+    if len(file_to_submit.library_list) == 0:
+        if len(file_to_submit.library_well_list) == 0:
+            __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+            has_min_mdata = False
+    else:
+        for lib in file_to_submit.library_list:
+            if check_if_library_has_minimal_mdata(lib, file_to_submit) == False:
+                has_min_mdata = False
+                print "NOT ENOUGH LIB MDATA................................."
+        __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+            
+#    if len(file_to_submit.library_list) == 0 and len(file_to_submit.library_well_list) == 0:
+#        __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+#        has_min_mdata = False
+#    else:
+#        __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+
+        
+    for study in file_to_submit.study_list:
+        if check_if_study_has_minimal_mdata(study, file_to_submit) == False:
+            print "NOT ENOUGH STUDY MDATA............................."
+            has_min_mdata = False
+    for sample in file_to_submit.sample_list:
+        if check_if_sample_has_minimal_mdata(sample, file_to_submit) == False:
+            print "NOT ENOUGH SAMPLE MDATA............................."
+            has_min_mdata = False
+
+    
+    if has_min_mdata == True:
+        # UPDATE IN DB:
+        upd_dict = {}
+        upd_dict['set__has_minimal'] = True
+        upd_dict['set__library_list'] = file_to_submit.library_list
+        upd_dict['set__sample_list'] = file_to_submit.sample_list
+        upd_dict['set__study_list'] = file_to_submit.study_list
+        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+        upd_dict['inc__version__0'] = 1
+        upd_dict['inc__version__1'] = 1
+        upd_dict['inc__version__2'] = 1
+        upd_dict['inc__version__3'] = 1
+        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
+        return has_min_mdata
+    else:
+        upd_dict = {}
+        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+        upd_dict['inc__version__0'] = 1
+        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
+    return False
 
 
 
@@ -338,6 +512,8 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
         pass
     if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS:
         if check_and_update_if_file_has_min_mdata(submitted_file) == True:
+            submitted_file.reload()
+            print "FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!"
             upd_dict = {}
             if check_if_all_update_jobs_finished(None, submitted_file):
                 upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
@@ -346,6 +522,8 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
             upd_dict['inc__version__0'] = 1
             return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
         else:
+            submitted_file.reload()
+            print "FILE DOESNT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
             upd_dict = {}
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
@@ -1148,8 +1326,9 @@ def update_file_error_log(error_log, file_id=None, submitted_file=None):
     old_error_log = submitted_file.file_error_log
     if type(error_log) == list:
         old_error_log.extend(error_log)
-    elif type(error_log) == str:
+    elif type(error_log) == str or type(error_log) == unicode:
         old_error_log.append(error_log)
+    print "IN UPDATE ERROR LOG LIST ------------------------------ PRINT ERROR LOG LIST::::::::::::", str(old_error_log), "TYpe of error log: ", type(error_log)
     upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     

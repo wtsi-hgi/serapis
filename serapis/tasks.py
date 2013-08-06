@@ -60,9 +60,10 @@ def build_result(submission_id, file_id):
 
 def filter_none_fields(data_dict):
     filtered_dict = dict()
-    for (key, val) in data_dict.iteritems():
-        if val != None and val != 'null':
-            filtered_dict[key] = val
+    print "TYPE OF DATA DICT::::::::::::::::::::::", type(data_dict), " and dict; ", data_dict
+    for key in data_dict:
+        if data_dict[key] != None and data_dict[key] != 'null':
+            filtered_dict[key] = data_dict[key]
     return filtered_dict
 
 
@@ -77,16 +78,20 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     #print  "IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)), " and msg: ", str(msg)
     #submission_id = msg['submission_id']
     #file_id = msg['file_id']
-    msg = filter_none_fields(msg)
+    
     if 'submission_id' in msg:
         msg.pop('submission_id')
     if 'file_id' in msg:
         msg.pop('file_id')
     msg['sender'] = sender
+    if type(msg) == dict:
+        msg = filter_none_fields(msg)
+        #msg = serialize(msg)
+        msg = SubmittedFile.to_json(msg)
     print "REQUEST DATA TO SEND================================", msg  
     url_str = build_url(submission_id, file_id)
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
-    response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
+    response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
     print "REQUEST DATA TO SEND================================", msg
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
@@ -784,13 +789,17 @@ class ParseBAMHeaderTask(Task):
             #file_mdata.update_file_mdata_status()           # update the status after the last findings
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             
-            # Exception or not - either way - send file_mdata to the server:  
-            serial = file_mdata.to_json()
+            # Exception or not - either way - send file_mdata to the server:
+            
+            filtered_dict = filter_none_fields(vars(file_mdata))  
+            #serial = filtered_dict.to_json()
             #print "FILE serialized - JSON: ", serial
-            deserial = simplejson.loads(serial)
-            print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
+            
+            #deserial = simplejson.loads(serial)
+            
+            #print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
             #res = file_mdata.to_dict()
-            resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
+            resp = send_http_PUT_req(filtered_dict, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", resp
             
 
@@ -944,7 +953,7 @@ class UpdateFileMdataTask(Task):
             task_id = current_task.request.id
             file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
             
-            serial = file_submitted.to_json()
+            serial = SubmittedFile.to_json(file_submitted)
             deserial = simplejson.loads(serial)
             print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
             response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)

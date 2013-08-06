@@ -283,7 +283,10 @@ def add_mdata_to_file(file_id, data):
             ref_gen = db_model_operations.retrieve_reference_genome(md5, c_name, path)
             if ref_gen == None:
                 print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
-                ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+                if path != None:
+                    ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+                else:
+                    raise exceptions.NotEnoughInformationProvided(msg="A reference MUST be given the path, in order to be added to the db.")
             else:
                 ref_genome_id = ref_gen.id
                 print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
@@ -291,11 +294,15 @@ def add_mdata_to_file(file_id, data):
             upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
             print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
         except exceptions.NotEnoughInformationProvided as e:
-            logging.debug('Not enough information provided for the new ref genome to be added!')
-            db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
         except exceptions.InformationConflict as e:
-            logging.debug('Information conflict when trying to add a new ref genome!')
-            db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
     return True
 
 

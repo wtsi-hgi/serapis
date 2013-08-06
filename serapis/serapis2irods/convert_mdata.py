@@ -17,14 +17,14 @@
 #library_type = StringField()
 #public_name = StringField() 
 
-from serapis import models, constants, db_model_operations
-import unicodedata
+from serapis import constants, utils
+#import unicodedata
 #unicodedata.normalize('NFKD', title).encode('ascii','ignore')
-
-def unicode2string(ucode):
-    if type(ucode) == unicode:
-        return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
-    return ucode
+#
+#def unicode2string(ucode):
+#    if type(ucode) == unicode:
+#        return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
+#    return ucode
 
 
 def convert_reference_genome_mdata(ref_genome):
@@ -33,7 +33,7 @@ def convert_reference_genome_mdata(ref_genome):
     for field_name in REF_GENOME_FIELDS:
         if hasattr(ref_genome, field_name):
             field_val = getattr(ref_genome, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_ref_mdata.append(('reference_'+field_name, field_val))
     return irods_ref_mdata
     
@@ -58,12 +58,12 @@ def convert_sample_mdata(sample):
         if hasattr(sample, field_name) and getattr(sample, field_name) != None:
             field_val = getattr(sample, field_name)
             #field_val = unicodedata.normalize('NFKD', field_val).encode('ascii','ignore')
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_sampl_mdata.append(('sample_' + field_name, field_val))
     for field_name in SAMPLE_NONPREFIXED_FIELDS_LIST:
         if hasattr(sample, field_name) and getattr(sample, field_name) != None:
             field_val = getattr(sample, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_sampl_mdata.append((field_name, field_val))
     return irods_sampl_mdata
 
@@ -76,12 +76,12 @@ def convert_library_mdata(lib):
     for field_name in LIBRARY_PREFIXED_FIELDS_LIST:
         if hasattr(lib, field_name) and getattr(lib, field_name) != None:
             field_val = getattr(lib, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_lib_mdata.append(('library_' + field_name, field_val))
     for field_name in LIBRARY_NONPREFIXED_FIELDS_LIST:
         if hasattr(lib, field_name) and getattr(lib, field_name) != None:
             field_val = getattr(lib, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_lib_mdata.append((field_name, field_val))
     return irods_lib_mdata
         
@@ -93,17 +93,17 @@ def convert_study_mdata(study):
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_study_mdata.append(('study_'+field_name, field_val))
     for field_name in STUDY_NONPREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
             if isinstance(field_val, list):
                 for elem in field_val:
-                    elem = unicode2string(elem)
+                    elem = utils.unicode2string(elem)
                     irods_study_mdata.append((field_name, elem))
             else:
-                field_val = unicode2string(field_val)
+                field_val = utils.unicode2string(field_val)
                 if field_name == 'ena_project_id' and field_val == '0':
                     continue
                 irods_study_mdata.append((field_name, field_val))
@@ -135,11 +135,11 @@ def convert_BAMFile(bamfile):
             if isinstance(field_val, list):
                 for elem in field_val:
                     #elem = unicodedata.normalize('NFKD', elem).encode('ascii','ignore')
-                    elem = unicode2string(elem)
+                    elem = utils.unicode2string(elem)
                     irods_field_name = BAMFILE_FIELDS_MAPPING[field_name]
                     irods_file_mdata.append((irods_field_name, elem))
             else:
-                field_val = unicode2string(field_val)
+                field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((irods_field_name, field_val))
     # print "BAM FIELDS: ", vars(irods_file_mdata)
     return irods_file_mdata
@@ -170,7 +170,7 @@ def convert_file_mdata(subm_file, ref_genome=None, sanger_user_id='external'):
     for field_name in FILE_PREFIXED_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
             field_val = getattr(subm_file, field_name)
-            field_val = unicode2string(field_val)
+            field_val = utils.unicode2string(field_val)
             irods_file_mdata.append(('file_'+field_name, field_val))
     for field_name in FILE_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) != None:
@@ -188,7 +188,7 @@ def convert_file_mdata(subm_file, ref_genome=None, sanger_user_id='external'):
                     irods_sampl_mdata = convert_sample_mdata(sample)
                     irods_file_mdata.extend(irods_sampl_mdata)
             elif field_name == 'file_type':
-                field_val = unicode2string(field_val)
+                field_val = utils.unicode2string(field_val)
                 file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
                 irods_file_mdata.extend(file_specific_mdata)
                 irods_file_mdata.append((field_name, field_val))
@@ -196,14 +196,14 @@ def convert_file_mdata(subm_file, ref_genome=None, sanger_user_id='external'):
             #     field_val = unicode2string(field_val)
             #     ref = db_model_operations.get_reference_by_md5(field_val)
             else:
-                field_val = unicode2string(field_val)
+                field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))
     if ref_genome != None:
         irods_file_mdata.extend(convert_reference_genome_mdata(ref_genome))
     if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
-    irods_file_mdata.append(('user_id', unicode2string(sanger_user_id)))
+    irods_file_mdata.append(('user_id', utils.unicode2string(sanger_user_id)))
 #    return irods_file_mdata
     return list(set(irods_file_mdata))
 

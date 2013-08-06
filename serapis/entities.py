@@ -402,37 +402,40 @@ class SubmittedFile():
         return False
     
     
-    def __remove_null_props_dict__(self, obj_to_modify):       # Deletes properties that are null from an object
+    @staticmethod
+    def __remove_null_props_dict__(obj_to_modify):       # Deletes properties that are null from an object
         result_dict = dict()
         for k, v in vars(obj_to_modify).items():
             if v != None:
                 result_dict[k] = v
         return result_dict
     
-    def __remove_fields__dict(self, obj_to_modify):
+    @staticmethod
+    def __remove_fields__dict(obj_to_modify):
         result_dict = dict()
         for k, v in vars(obj_to_modify).items():
             if k not in FILE_META_FIELDS:
                 result_dict[k] = v
         return result_dict
     
-        
-    def __encode_model__(self, obj):
+    @staticmethod    
+    def __encode_model__(obj):
         if isinstance(obj, (Entity, SubmittedFile)):
             out = dict()
-            obj_vars = self.__remove_null_props_dict__(obj)
+            obj_vars = SubmittedFile.__remove_null_props_dict__(obj)
             out.update(obj_vars)
         elif isinstance(obj, list):
             out = obj
         elif isinstance(obj, dict):
-            out = self.__remove_nulls_dict__(obj)
-            out = self.__remove_fields__dict(out)
+            out = SubmittedFile.__remove_nulls_dict__(obj)
+            out = SubmittedFile.__remove_fields__dict(out)
         else:
             raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
         return out         
-   
-    def to_json(self):
-        result = simplejson.dumps(self, default=self.__encode_model__)    #, indent=4
+    
+    @staticmethod
+    def to_json(obj):
+        result = simplejson.dumps(obj, default=SubmittedFile.__encode_model__)    #, indent=4
         print "RESULT FROM TO_JSON......................", result
         return result
     

@@ -8,6 +8,7 @@ from serapis import models
 from serapis import exceptions
 from serapis import serializers
 from serapis import validator
+from serapis import utils
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
@@ -86,16 +87,16 @@ def replace_null_id_json(file_submitted):
 #        new_data[key] = val
 #    return new_data
 #            
-
-def from_unicode_to_string(input):
-    if isinstance(input, dict):
-        return dict((from_unicode_to_string(key), from_unicode_to_string(value)) for key, value in input.iteritems())
-    elif isinstance(input, list):
-        return [from_unicode_to_string(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return input
+#
+#def from_unicode_to_string(input):
+#    if isinstance(input, dict):
+#        return dict((from_unicode_to_string(key), from_unicode_to_string(value)) for key, value in input.iteritems())
+#    elif isinstance(input, list):
+#        return [from_unicode_to_string(element) for element in input]
+#    elif isinstance(input, unicode):
+#        return input.encode('utf-8')
+#    else:
+#        return input
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
@@ -124,7 +125,7 @@ class SubmissionsMainPageRequestHandler(APIView):
 #            data = request.POST['_content']
             result = dict()
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.submission_schema(data)
         except MultipleInvalid as e:
             result['error'] = "Message contents invalid: "+e.msg
@@ -346,7 +347,7 @@ class SubmittedFileRequestHandler(APIView):
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         try:
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             result = dict()
             validator.submitted_file_schema(data)
             error_list = controller.resubmit_jobs(submission_id, file_id, data)
@@ -379,7 +380,8 @@ class SubmittedFileRequestHandler(APIView):
         logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
             result = dict()
-            data = from_unicode_to_string(data)
+            print "What type is the data coming in????", type(data)
+            data = utils.unicode2string(data)
             print "After converting to string: -------", str(data)
             validator.submitted_file_schema(data)
             controller.update_file_submitted(submission_id, file_id, data)
@@ -487,7 +489,7 @@ class LibrariesMainPageRequestHandler(APIView):
         try:
 #           data = request.POST['_content']
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.library_schema(data)
             result = dict()
             controller.add_library_to_file_mdata(submission_id, file_id, data)
@@ -559,7 +561,7 @@ class LibraryRequestHandler(APIView):
 #                val = ''.join(chr(ord(c)) for c in data[elem])
 #                new_data[key] = val
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.library_schema(data)
             result = dict()
             was_updated = controller.update_library(submission_id, file_id, library_id, data)
@@ -667,7 +669,7 @@ class SamplesMainPageRequestHandler(APIView):
         try:
             result = dict()
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.sample_schema(data)
             controller.add_sample_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:
@@ -736,7 +738,7 @@ class SampleRequestHandler(APIView):
         #logging.info("FROM PUT request - req looks like:-------------"+str(request))
         try:
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.sample_schema(data)
             result = dict()
 #            new_data = dict()   # Convert from u'str' to str
@@ -846,7 +848,7 @@ class StudyMainPageRequestHandler(APIView):
 #            data = request.POST['_content']
             result = dict()
             data = request.DATA
-            data = from_unicode_to_string(data)
+            data = utils.unicode2string(data)
             validator.study_schema(data)
             controller.add_study_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:

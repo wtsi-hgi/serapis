@@ -8,19 +8,19 @@ MDATA_QUEUE = 'MdataQueue'
 
 
 # For a run from hgi-serapis-dev:
-SEQSC_HOST = "mcs7.internal.sanger.ac.uk"
-SEQSC_PORT = 3379
-SEQSC_USER = "warehouse_ro"
-SEQSC_DB_NAME = "sequencescape_warehouse"
+#SEQSC_HOST = "mcs7.internal.sanger.ac.uk"
+#SEQSC_PORT = 3379
+#SEQSC_USER = "warehouse_ro"
+#SEQSC_DB_NAME = "sequencescape_warehouse"
 
 #    ssh -L 3307:mcs7.internal.sanger.ac.uk:3379 ic4@hgi-team
 
 # For a run from my machine:
-# SEQSC_HOST = "127.0.0.1"
-# SEQSC_PORT = 3307
-# #SEQSC_PORT = 20002
-# SEQSC_USER = "warehouse_ro"
-# SEQSC_DB_NAME = "sequencescape_warehouse"
+SEQSC_HOST = "127.0.0.1"
+SEQSC_PORT = 3307
+#SEQSC_PORT = 20002
+SEQSC_USER = "warehouse_ro"
+SEQSC_DB_NAME = "sequencescape_warehouse"
 
 
 #------------------- MSG SOURCE -------------------------
@@ -52,6 +52,15 @@ LIBRARY_UPDATE = 'LIBRARY_UPDATE'
 SAMPLE_UPDATE = 'SAMPLE_UPDATE'
 STUDY_UPDATE = 'STUDY_UPDATE'
 FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
+
+
+#--------------- MODEL MANDATORY FIELDS -----------------
+
+STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi'}
+LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
+SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity', 'country_of_origin'}
+FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id'}
+BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 
 # ----------------- DATA TYPES --------------------------
@@ -180,7 +189,7 @@ NON_EXISTING_FILES = "NON_EXISTING_FILES"
 INDEX_OLDER_THAN_FILE = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES = "UNMATCHED_INDEX_FILES"
 SEQSCAPE_DB_CONNECTION_ERROR = "SEQSCAPE_DB_CONNECTION_ERROR"
-
+MISSING_MANDATORY_FIELDS = "MISSING_MANDATORY_FIELDS"
 
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      IO_ERROR, 
@@ -193,7 +202,8 @@ PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      NOT_SUPPORTED_FILE_TYPE,
                      NON_EXISTING_FILES,
                      INDEX_OLDER_THAN_FILE,
-                     UNMATCHED_INDEX_FILES
+                     UNMATCHED_INDEX_FILES,
+                     MISSING_MANDATORY_FIELDS
                      }
 
 #PREDEFINED_ERRORS = {1 : 'IO ERROR COPYING FILE',
@@ -211,7 +221,7 @@ CURRENT_SAMPLES = "current_samples"
 
 #----------------------------------- ENTITIES SPECIFICS ----------------
 
-STUDY_TYPE = {"Whole Genome Sequencing",
+STUDY_TYPES = {"Whole Genome Sequencing",
     "Metagenomics",
     "Transcriptome Analysis",
     "Resequencing",
