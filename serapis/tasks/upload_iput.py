@@ -93,8 +93,12 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 result[response_status] = FAILURE_STATUS
                 result[FILE_ERROR_LOG] = []
                 result[FILE_ERROR_LOG].append(FILE_ALREADY_EXISTS)
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         except:
             print "EXCEPTIOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOoON in IPUT!!!!!"
+            # result[response_status] = FAILURE_STATUS
+            # result[FILE_ERROR_LOG] = []
+            # result[FILE_ERROR_LOG].append(FILE_ALREADY_EXISTS)
 
     # Checking MD5 sum:
     #try:

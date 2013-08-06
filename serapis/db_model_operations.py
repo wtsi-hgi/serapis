@@ -266,7 +266,7 @@ def check_and_update_if_file_has_min_mdata(submitted_file):
     for lib in submitted_file.library_list:
         if check_if_library_has_minimal_mdata(lib) == False:
             print "NOT ENOUGH LIB MDATA................................."
-            if len(lib.library_well_list) > 0:
+            if len(lib.library_well_list) > 0 and submitted_file.abstract_library != None:
                 return True
             return False
         
