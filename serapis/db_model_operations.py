@@ -34,7 +34,7 @@ def insert_reference(ref_name, path_list, md5=None):
     if ref_name == None or path_list == None or len(path_list) == 0:
         error_text = 'You need to provide both reference name and at least one path in order to insert a new reference genome.'
         raise exceptions.NotEnoughInformationProvided(msg=error_text)
-    ref_genome.canonical_name = ref_name
+    ref_genome.name = ref_name
     ref_genome.paths = path_list
     
     for path in path_list:
@@ -67,7 +67,7 @@ def retrieve_reference_by_md5(md5):
 
 def retrieve_reference_by_name(canonical_name):
     try:
-        return models.ReferenceGenome.objects(canonical_name=canonical_name).get()
+        return models.ReferenceGenome.objects(name=canonical_name).get()
     except DoesNotExist:
         return None
 
@@ -78,8 +78,8 @@ def retrieve_reference_genome(md5=None, name=None, path=None):
         return None
     if md5 != None:
         ref = retrieve_reference_by_md5(md5)
-        if name != None and ref.canonical_name != name:
-            error_msg = "The reference name doesn't match the existing entry's md5. Out current entry is: name="+ref.canonical_name
+        if name != None and ref.name != name:
+            error_msg = "The reference name doesn't match the existing entry's md5. Out current entry is: name="+ref.name
             error_msg += " and md5="+ref.md5
             logging.info(error_msg)
             raise exceptions.InformationConflict(msg=error_msg)
@@ -103,6 +103,7 @@ def retrieve_reference_genome(md5=None, name=None, path=None):
         elif path!= None:
             ref_p = retrieve_reference_by_path(path)
             if ref_p != None:
+                print "REFERENCEEEEEEEEEE: ", vars(ref_p)
                 error_msg = "The reference path provided does not match the reference name provided. In the db are: name="+ref_p.name+" path=", ref_p.paths
                 raise exceptions.InformationConflict(msg=error_msg)
             else:
@@ -272,7 +273,7 @@ def compare_sender_priority(source1, source2):
  
    
 def __add_missing_field_to_dict__(field, categ, missing_fields_dict):
-    print "CATEGORY TO BE ADDED: ====================************************************************", type(categ), " and field: ", type(field)
+    #print "CATEGORY TO BE ADDED: ====================************************************************", type(categ), " and field: ", type(field)
     categ = utils.unicode2string(categ)
     field = utils.unicode2string(field)
     if categ not in missing_fields_dict.keys():
@@ -295,14 +296,14 @@ def __add_missing_field_to_dict__(field, categ, missing_fields_dict):
             print "THE FIELD EXISTS ALREADY!!!"
     
 def __find_and_delete_missing_field_from_dict__(field, categ, missing_fields_dict):
-    print "FIELDS TO BE DELETED FROM MISSING FIELD LIST:::::::::::::::::::::::::::::::::::::::::::::--------", field, " categ: ", categ
+    #print "FIELDS TO BE DELETED FROM MISSING FIELD LIST:::::::::::::::::::::::::::::::::::::::::::::--------", field, " categ: ", categ
     if categ in missing_fields_dict.keys():
         if field in missing_fields_dict[categ]:
             missing_fields_dict[categ].remove(field)
-            print "FIELD DELETED!"
+            #print "FIELD DELETED!"
             if len(missing_fields_dict[categ]) == 0:
                 missing_fields_dict.pop(categ)
-                print "CATEG DELETED!"
+                #print "CATEG DELETED!"
             return True
     return False
     
@@ -312,7 +313,7 @@ def check_if_study_has_minimal_mdata(study, file_to_submit):
         #if study.name != None and study.study_type != None and study.title!=None and study.faculty_sponsor!=None and study.study_visibility!=None and len(study.pi) > 0:
         has_min_mdata = True
         for field in constants.STUDY_MANDATORY_FIELDS:
-            print "FIELD BEFORE ADDING IT: ", field, " and study: ", constants.STUDY_TYPE 
+            #print "FIELD BEFORE ADDING IT: ", field, " and study: ", constants.STUDY_TYPE 
             if not hasattr(study, field):
                 __add_missing_field_to_dict__(field, constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
                 has_min_mdata = False
@@ -330,7 +331,7 @@ def check_if_study_has_minimal_mdata(study, file_to_submit):
 
 def check_if_library_has_minimal_mdata(library, file_to_submit):
     ''' Checks if the library has the minimal mdata. Returns boolean.'''
-    print "CHECK IF LIB HAS MINxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx : ", library.has_minimal
+    #print "CHECK IF LIB HAS MINxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx : ", library.has_minimal
     if library.has_minimal == False:
         if library.name != None or library.internal_id != None:  # TODO: and lib_source and lib_selection
         #    if library.library_source != None and library.library_selection != None and library.coverage != None:
@@ -450,7 +451,7 @@ def check_and_update_if_file_has_min_mdata(file_to_submit):
         for lib in file_to_submit.library_list:
             if check_if_library_has_minimal_mdata(lib, file_to_submit) == False:
                 has_min_mdata = False
-                print "NOT ENOUGH LIB MDATA................................."
+                #print "NOT ENOUGH LIB MDATA................................."
         __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
             
 #    if len(file_to_submit.library_list) == 0 and len(file_to_submit.library_well_list) == 0:
@@ -462,11 +463,11 @@ def check_and_update_if_file_has_min_mdata(file_to_submit):
         
     for study in file_to_submit.study_list:
         if check_if_study_has_minimal_mdata(study, file_to_submit) == False:
-            print "NOT ENOUGH STUDY MDATA............................."
+            #print "NOT ENOUGH STUDY MDATA............................."
             has_min_mdata = False
     for sample in file_to_submit.sample_list:
         if check_if_sample_has_minimal_mdata(sample, file_to_submit) == False:
-            print "NOT ENOUGH SAMPLE MDATA............................."
+            #print "NOT ENOUGH SAMPLE MDATA............................."
             has_min_mdata = False
 
     
@@ -688,9 +689,19 @@ def retrieve_study_by_id(study_id, file_id, submitted_file=None):
         study_list = retrieve_study_list(file_id)
     return get_entity_by_field('internal_id', study_id, study_list)
 
+def retrieve_submission_id(file_id):
+    return models.SubmittedFile.objects(id=ObjectId(file_id)).only('submission_id').get().submission_id
+
 def retrieve_sanger_user_id(file_id):
-    subm_id = models.SubmittedFile.objects(id=ObjectId(file_id)).only('submission_id').get().submission_id
+    #subm_id = models.SubmittedFile.objects(id=ObjectId(file_id)).only('submission_id').get().submission_id
+    subm_id = retrieve_submission_id(file_id)
     return models.Submission.objects(id=ObjectId(subm_id)).only('sanger_user_id').get().sanger_user_id
+ 
+ 
+def retrieve_submission_date(file_id, submission_id=None):
+    if submission_id == None:
+        submission_id = retrieve_submission_id(file_id)
+    return models.Submission.objects(id=ObjectId(submission_id)).only('submission_date').get().submission_date
  
 def get_file_version(file_id, submitted_file=None):
     if submitted_file == None:
@@ -1147,10 +1158,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                 updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
                 update_db_dict['set__platform_list'] = updated_list
-        elif field_name == 'date_list':
+        elif field_name == 'seq_date_list':
             if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.date_list, field_val)
-                update_db_dict['set__date_list'] = updated_list
+                updated_list = __upd_list_of_primary_types__(submitted_file.seq_date_list, field_val)
+                update_db_dict['set__seq_date_list'] = updated_list
         elif field_name == 'lane_list':
             if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                 updated_list = __upd_list_of_primary_types__(submitted_file.lane_list, field_val)
@@ -1409,9 +1420,14 @@ def update_index_file_path(file_id, index_file_path, nr_retries=1):
 #        #TODO: implement a all or nothing strategy for this case...
 #    check_and_update_all_statuses(file_id)
 
+
 def update_submission(id):
     pass
 
+def insert_submission_date(submission_id, date):
+    date = utils.get_today_date()
+    return models.Submission.objects(id=submission_id).update_one(submission_date=date)
+    
 #----------------------- DELETE----------------------------------
 
 def delete_library(file_id, library_id):

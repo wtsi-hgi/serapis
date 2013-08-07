@@ -98,7 +98,7 @@ class Library(AbstractLibrary):
 class ReferenceGenome(Document):
     md5 = StringField(primary_key=True)
     paths = ListField()
-    canonical_name = StringField(unique=True)
+    name = StringField(unique=True)
      
 
 class Sample(Entity):          # one sample can be member of many studies
@@ -207,7 +207,7 @@ class BAMFile(SubmittedFile):
     tag_list = ListField()              # list of strings
     run_list = ListField()              # list of strings
     platform_list = ListField()         # list of strings
-    date_list = ListField()             # list of strings
+    seq_date_list = ListField()             # list of strings
     #header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
     
 #    bai_file_path = StringField()
@@ -228,6 +228,7 @@ class VCFFile(SubmittedFile):
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
+    submission_date = StringField()
     #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
     #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids

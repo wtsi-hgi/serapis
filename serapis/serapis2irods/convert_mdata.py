@@ -28,13 +28,13 @@ from serapis import constants, utils
 
 
 def convert_reference_genome_mdata(ref_genome):
-    REF_GENOME_FIELDS = ['md5', 'canonical_name']
+    REF_PREFIXED_FIELDS = ['md5', 'name']
     irods_ref_mdata = []
-    for field_name in REF_GENOME_FIELDS:
+    for field_name in REF_PREFIXED_FIELDS:
         if hasattr(ref_genome, field_name):
             field_val = getattr(ref_genome, field_name)
             field_val = utils.unicode2string(field_val)
-            irods_ref_mdata.append(('reference_'+field_name, field_val))
+            irods_ref_mdata.append(('ref_'+field_name, field_val))
     return irods_ref_mdata
     
     
@@ -125,7 +125,7 @@ def convert_BAMFile(bamfile):
                               'tag_list' : 'tag',
                               'run_list' : 'run_id',
                               'platform_list' : 'platform',
-                              'date_list' : 'date',
+                              'seq_date_list' : 'seq_date',
                               'library_well_list' : 'library_well_id'
                               }
     irods_file_mdata = []
@@ -163,7 +163,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    library_list = ListField(EmbeddedDocumentField(Library))
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
-def convert_file_mdata(subm_file, ref_genome=None, sanger_user_id='external'):
+def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
     FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type']
     FILE_PREFIXED_FIELDS_LIST = ['md5']
     irods_file_mdata = []
@@ -204,7 +204,7 @@ def convert_file_mdata(subm_file, ref_genome=None, sanger_user_id='external'):
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
     irods_file_mdata.append(('user_id', utils.unicode2string(sanger_user_id)))
-#    return irods_file_mdata
+    irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     return list(set(irods_file_mdata))
 
 
