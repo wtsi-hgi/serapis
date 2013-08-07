@@ -12,3 +12,4 @@ def gather_mdata(file_to_submit):
     print "IRODS MDATA DICT --- AFTER UPDATE:"
     for mdata in irods_mdata_dict:
         print mdata
+    return irods_mdata_dict

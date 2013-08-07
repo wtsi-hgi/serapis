@@ -128,18 +128,14 @@ def launch_update_file_job(file_submitted):
 
 def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-    if file_to_submit.file_reference_genome_id != None:
-        ref_genome = db_model_operations.retrieve_reference_by_md5(file_to_submit.file_reference_genome_id)
-        irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit, ref_genome)
-    else:
-        irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
+    irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
        
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     
     # TODO: replace the client_path with the irods path:
     task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
-    db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
+    return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
 #    upd_str = 'set__irods_jobs_dict__'+str(task_id)
 #    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
 #    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -1213,22 +1209,32 @@ def delete_study(submission_id, file_id, study_id):
 
 # ------------------------------ IRODS ---------------------------
 
-    
-def submit_all_to_irods(submission_id):
-    pass
-
 
 def submit_file_to_irods(file_id, submission_id):
 #    upd_status = {"file_submission_status" : constants.SUBMISSION_IN_PROGRESS_STATUS}
 #    updated = models.SubmittedFile.objects(id=file_id, file_submission_status=constants.READY_FOR_IRODS_SUBMISSION_STATUS).update(**upd_status)
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-        db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
-        mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
-        launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
-        # for testing:
-        return True
+        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file)
+        was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
+        if was_launched == 1:
+            db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
+            return True
     return False
+
+
+def submit_all_to_irods(submission_id):
+    submission = db_model_operations.retrieve_submission(submission_id)
+    submission_status = db_model_operations.check_and_update_submission_status(None, submission)
+    if submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+        all_submitted = True
+        for file_id in submission.files_list:
+            #file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
+            was_submitted = submit_file_to_irods(file_id, submission_id)
+            all_submitted = all_submitted and was_submitted
+    return all_submitted
+
+
 # ---------------------------------- NOT USED ------------------
 
 # works only for the database backend, according to
