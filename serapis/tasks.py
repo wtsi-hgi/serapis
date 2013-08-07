@@ -718,7 +718,7 @@ class ParseBAMHeaderTask(Task):
         if 'PL' in header_processed:
             file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
         if 'DT' in header_processed:
-            file_mdata.date_list = list(set(header_processed['DT']))
+            file_mdata.seq_date_list = list(set(header_processed['DT']))
         ### TODO: here I assumed the PU field looks like in the SC_GMFUL5306338.bam, which is the following format:
         #     'PU': '120815_HS16_08276_A_C0NKKACXX_4#1',
         # TO CHANGE - sometimes it can be:

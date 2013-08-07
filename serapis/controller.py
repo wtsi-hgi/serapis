@@ -8,7 +8,7 @@ from bson.objectid import ObjectId
 from serapis import tasks, serapis2irods
 from serapis import exceptions
 from serapis import models
-from serapis import constants, serializers
+from serapis import constants, serializers, utils
 
 from celery import chain
 from serapis import db_model_operations
@@ -236,6 +236,7 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
 
 
 def add_mdata_to_file(file_id, data):
+    
     if 'data_type' in data:
         upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
         print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
@@ -268,24 +269,24 @@ def add_mdata_to_file(file_id, data):
                 return False
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
-        ref_gen, path, md5, c_name = None, None, None, None
-        if 'canonical_name' in ref_dict:
-            c_name = ref_dict['canonical_name']
+        ref_gen, path, md5, name = None, None, None, None
+        if 'name' in ref_dict:
+            name = ref_dict['name']
         if 'path' in ref_dict:
             path = ref_dict['path']
         if 'md5' in ref_dict:
             md5 = ref_dict['md5']
         try:
-            ref_gen = db_model_operations.retrieve_reference_genome(md5, c_name, path)
+            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
             if ref_gen == None:
                 print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
                 if path != None:
-                    ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+                    ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
                 else:
                     raise exceptions.NotEnoughInformationProvided(msg="A reference MUST be given the path, in order to be added to the db.")
             else:
                 ref_genome_id = ref_gen.id
-                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
+                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
                 #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
             upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
             print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
@@ -439,6 +440,7 @@ def init_submission(user_id, files_list):
     if len(submitted_files_list) > 0:
         submission.sanger_user_id = user_id
         submission.files_list = [f.id for f in submitted_files_list]
+        submission.submission_date = utils.get_today_date()
         submission.save(cascade=True)
         result['submission'] = submission
     else:
@@ -463,7 +465,6 @@ def create_submission(user_id, data):
              { submission_id : 123 , errors: {..dictionary of errors..}
         '''
     files_list = data['files_list']
-    
     result_init_submission = init_submission(user_id, set(files_list))
     result = dict()
     errors_dict = result_init_submission['errors']
@@ -481,86 +482,7 @@ def create_submission(user_id, data):
     result['errors'] = errors_dict
     return result
 
-#
-#def add_mdata_to_submission(submission_id, data):
-#    submission = db_model_operations.retrieve_submission(submission_id)
-#              
-#    if 'data_type' in data:
-#        for file_id in submission.files_list:
-#            upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
-#            print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
-#            
-#    if 'library_info' in data:
-#        for file_id in submission.files_list:
-#            upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
-#            print "UPDATED ABSTRACT LIB..............................", upd
-#       
-#    if 'study' in data:
-#        study_data = data['study']
-#        if 'name' in study_data:
-#            name = study_data['name']
-#            visib, pi = None, None
-#            if 'visibility' in study_data:
-#                visib = study_data['visibility']
-#            if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
-#                pi = study_data['pi'] #list
-#            else:
-#                pass
-#                #TODO: report a problem
-#            for file_id in submission.files_list:
-#                inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
-#                print "Has the study been inserted? - from controller....", inserted
-#                if inserted == True:
-#                    submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-#                    db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-#                    db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-#                    submitted_file.reload()
-#                    launch_update_file_job(submitted_file)
-#                else:
-#                    #TODO: report error - mdata couldn't be added
-#                    #raise exceptions.EditConflictError("Study couldn't be added.")
-#                    return False
-#        else:
-#            pass #TODO: report a problem! You can't pass a struct empty: 'study' : {}
-#  
-#    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
-#        ref_dict = data['reference_genome']
-#        ref_gen, path, md5, c_name = None, None, None, None
-#        if 'canonical_name' in ref_dict:
-#            ref_gen = db_model_operations.retrieve_reference_by_name(ref_dict['canonical_name'])
-#            c_name = ref_dict['canonical_name']
-#            # TODO: if non existing => insert it!!!
-#
-#        if 'path' in ref_dict:
-#            path = ref_dict['path']
-#            if ref_gen == None:
-#                ref_gen = db_model_operations.retrieve_reference_by_path(ref_dict['path'])
-#        if 'md5' in ref_dict:
-#            md5 = ref_dict['md5']
-#            if ref_gen == None:
-#                ref_gen = db_model_operations.retrieve_reference_by_md5(ref_dict['md5'])
-#        
-#        if not ref_gen:
-#            #TODO: add the insert new ref genome logic!!!!!!!!!
-#            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!", path
-#            if c_name != None and path != None:
-#                ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
-#            else:
-#                print "NOT ENOUGH DATA FOR THE NEW REF GENOME TO BE ADDEDDDDDDDDDDDDDDDDDD!!!"
-#        else:
-#            print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
-#            ref_genome_id = ref_gen.id
-#        for file_id in submission.files_list:
-#            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
-#            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd 
-#        # TODO: treat exceptional circumstances....
-#    #for testing:
-#    for f_id in submission.files_list:
-#        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(db_model_operations.retrieve_submitted_file(f_id), None)
-#        print "FINALLLLLLLLLLLLL IRODS MDATA DICT:"
-#        for mdata in irods_mdata_dict:
-#            print mdata
-#    return True
+
 
 def add_submission(user_id, data):
     subm_created = create_submission(user_id, data)

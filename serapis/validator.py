@@ -92,7 +92,7 @@ submitted_file_schema = Schema({
     'tag_list' : list,
     'run_list' : list,
     'platform_list' : list,
-    'date_list' : list,
+    'seq_date_list' : list,
     'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
     'library_well_list' : list,
     'file_reference_genome_id' : str,
@@ -111,6 +111,7 @@ submission_schema = Schema({
     'sanger_user_id' : str,
     'submission_status' : str,
     'files_list' : list,
+    'submission_date' : str,
     #'study_name' : str,
     #'pi' : list
     #visibility

@@ -501,8 +501,7 @@ class BAMFile(SubmittedFile):
     tag_list = []
     run_list = []
     platform_list = []
-    date_list = []
-    #header_associations = []   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    seq_date_list = []
 
     # Optional - alternative - special cases when lib is multiplexed
     library_well_list = []
@@ -523,17 +522,4 @@ class Submission():
         return submission
 
 
-
-#class File:
-#    def __init__(self, idd, path):
-#        self.id = idd
-#        self.path = path
-#
-#def as_file(json):
-#    if 'file_id' in json and 'file_path' in json:
-#        return File(json['file_id'], json['file_path'])
-#    return json
-#
-#json_string = '{"file_id": 1, "file_path": "/home/ic4/data-test/bams/99_2.bam"}'
-#f = json.loads(json_string, object_hook=as_file)
 

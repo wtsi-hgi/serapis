@@ -1,5 +1,5 @@
 import unicodedata
-
+import datetime
 
 def __ucode2str__(ucode):
     if type(ucode) == unicode:
@@ -33,3 +33,19 @@ def unicode2string(ucode):
     elif type(ucode) == unicode:
         return __ucode2str__(ucode)
     return ucode
+
+
+def get_today_date():
+    today = datetime.date.today()
+    print "Year: %d" % today.year
+    print "Month: %d" % today.month
+    print "Day: %d" % today.day
+    
+    year = str(today.year)
+    month = str(today.month)
+    day = str(today.day)
+    if len(month) == 1:
+        month = "0" + month
+    if len(day) == 1:
+        day = "0" + day
+    return str(year) + str(month) + str(day)
