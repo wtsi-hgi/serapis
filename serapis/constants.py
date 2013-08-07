@@ -54,6 +54,15 @@ STUDY_UPDATE = 'STUDY_UPDATE'
 FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 
 
+#--------------- MODEL MANDATORY FIELDS -----------------
+
+STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi'}
+LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
+SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity', 'country_of_origin'}
+FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id'}
+BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
+
+
 # ----------------- DATA TYPES --------------------------
 
 DATA_TYPES = ('single sample merged improved')
@@ -180,7 +189,7 @@ NON_EXISTING_FILES = "NON_EXISTING_FILES"
 INDEX_OLDER_THAN_FILE = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES = "UNMATCHED_INDEX_FILES"
 SEQSCAPE_DB_CONNECTION_ERROR = "SEQSCAPE_DB_CONNECTION_ERROR"
-
+MISSING_MANDATORY_FIELDS = "MISSING_MANDATORY_FIELDS"
 
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      IO_ERROR, 
@@ -193,7 +202,8 @@ PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      NOT_SUPPORTED_FILE_TYPE,
                      NON_EXISTING_FILES,
                      INDEX_OLDER_THAN_FILE,
-                     UNMATCHED_INDEX_FILES
+                     UNMATCHED_INDEX_FILES,
+                     MISSING_MANDATORY_FIELDS
                      }
 
 #PREDEFINED_ERRORS = {1 : 'IO ERROR COPYING FILE',
@@ -211,7 +221,7 @@ CURRENT_SAMPLES = "current_samples"
 
 #----------------------------------- ENTITIES SPECIFICS ----------------
 
-STUDY_TYPE = {"Whole Genome Sequencing",
+STUDY_TYPES = {"Whole Genome Sequencing",
     "Metagenomics",
     "Transcriptome Analysis",
     "Resequencing",

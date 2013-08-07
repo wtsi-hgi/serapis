@@ -120,5 +120,42 @@ class EditConflictError(Exception):
         return text
     
 
+class InformationConflict(Exception):
+    ''' This exception if thrown when the user has provided conflicting information
+        which may lead to discrepancies if the information is further processed.'''
+    
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Information conflict '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+    
+class NotEnoughInformationProvided(Exception):
+    ''' This exception is raised when you attempt to insert an object in the
+        db, but you haven't provided enough information to define the object.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Information conflict '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+    
+    
+    
     
     

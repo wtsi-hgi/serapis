@@ -60,9 +60,10 @@ def build_result(submission_id, file_id):
 
 def filter_none_fields(data_dict):
     filtered_dict = dict()
-    for (key, val) in data_dict.iteritems():
-        if val != None and val != 'null':
-            filtered_dict[key] = val
+    print "TYPE OF DATA DICT::::::::::::::::::::::", type(data_dict), " and dict; ", data_dict
+    for key in data_dict:
+        if data_dict[key] != None and data_dict[key] != 'null':
+            filtered_dict[key] = data_dict[key]
     return filtered_dict
 
 
@@ -77,16 +78,20 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     #print  "IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)), " and msg: ", str(msg)
     #submission_id = msg['submission_id']
     #file_id = msg['file_id']
-    msg = filter_none_fields(msg)
+    
     if 'submission_id' in msg:
         msg.pop('submission_id')
     if 'file_id' in msg:
         msg.pop('file_id')
     msg['sender'] = sender
+    if type(msg) == dict:
+        msg = filter_none_fields(msg)
+        #msg = serialize(msg)
+        msg = SubmittedFile.to_json(msg)
     print "REQUEST DATA TO SEND================================", msg  
     url_str = build_url(submission_id, file_id)
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
-    response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
+    response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
     print "REQUEST DATA TO SEND================================", msg
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
@@ -556,111 +561,6 @@ class UploadFileTask(Task):
 
 
 
-#'--src_file_path', dest='src_file_path', help='path of the source file', required=True)
-#parser.add_argument('--dest_file_path', dest='dest_file_path', required=True)
-#parser.add_argument('--response_status', dest='response_status', required=True)
-#parser.add_argument('--submission_id', dest='submission_id', required=True)
-#parser.add_argument('--file_id', dest='file_id', required=True)
-
-
-#        
-
-#        def cluster_fct(src_file_path, dest_file_path, response_status):
-#            from irods import *
-#            def md5_and_copy(self, source_file, dest_file_path):
-#                src_fd = open(source_file, 'rb')
-#                
-#                #dest_fd = open(dest_file, 'wb')
-#                dest_fd = irodsOpen(conn, dest_file_path, 'w')
-#                m = hashlib.md5()
-#                while True:
-#                    data = src_fd.read(128)
-#                    if not data:
-#                        break
-#                    dest_fd.write(data)
-#                    m.update(data)
-#                src_fd.close()
-#                dest_fd.close()
-#                return m.hexdigest()
-#        
-#            def calculate_md5(self, file_path):
-#                file_obj = file(file_path)
-#                md5 = hashlib.md5()
-#                while True:
-#                    data = file_obj.read(128)
-#                    if not data:
-#                        break
-#                    md5.update(data)
-#                return md5.hexdigest()
-#
-#            def send_http_PUT_req(msg, submission_id, file_id, sender):
-#                logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-#                logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-#                #print  "IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)), " and msg: ", str(msg)
-#                #submission_id = msg['submission_id']
-#                #file_id = msg['file_id']
-#                msg = filter_none_fields(msg)
-#                if 'submission_id' in msg:
-#                    msg.pop('submission_id')
-#                if 'file_id' in msg:
-#                    msg.pop('file_id')
-#                msg['sender'] = sender
-#                url_str = build_url(submission_id, file_id)
-#                response = requests.put(url_str, data=serialize(msg), headers={'Content-Type' : 'application/json'})
-#                print "REQUEST DATA TO SEND================================", msg
-#                print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
-#                return response
-#
-#            
-#            def copy_file(src_file_path, dest_file_path, nth_try):
-#                result = dict()
-#                status, myEnv = getRodsEnv()
-#                conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
-#                                         myEnv.rodsUserName, myEnv.rodsZone)
-#                status = clientLogin(conn)
-#                
-#                print "IRODS home path: ", myEnv.rodsHome
-#                path = myEnv.rodsHome + '/testsimpleio.txt'
-#                print "PATH where I am writing", path
-#    
-#                try:
-#                    md5_src = md5_and_copy(src_file_path, dest_file_path)          # CALCULATE MD5 and COPY FILE
-#                    md5_dest = calculate_md5(dest_file_path)                       # CALCULATE MD5 FOR DEST FILE, after copying
-#                except IOError:
-#                    result[FILE_ERROR_LOG] = []
-#                    result[FILE_ERROR_LOG].append(constants.IO_ERROR)    # IO ERROR COPYING FILE
-#                    result[response_status] = FAILURE_STATUS
-#                    raise
-#            
-#            # Checking MD5 sum:
-#            #try:
-#                if md5_src == md5_dest:
-#                    print "MD5s are EQUAL!!!!!!!!!!!!!!!!"
-#                    result[MD5] = md5_src
-#                    result[response_status] = SUCCESS_STATUS
-#                    send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-#                    
-#                else:
-#                    if nth_try < constants.MAX_RETRIES:
-#                        copy_file(src_file_path, dest_file_path, nth_try+1)
-#                    else:
-#                        result[FILE_ERROR_LOG] = []
-#                        result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
-#                        result[response_status] = FAILURE_STATUS
-#            copy_file(src_file_path, dest_file_path, 0)
-
-
-#                    raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
-#            except MaxRetriesExceededError:
-#                result[FILE_ERROR_LOG] = []
-#                result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
-#                result[response_status] = FAILURE_STATUS
-#                raise
-            # else:
-#                result[response_status] = SUCCESS_STATUS
-#            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-            #return result
-
 
 
 class ParseBAMHeaderTask(Task):
@@ -889,13 +789,17 @@ class ParseBAMHeaderTask(Task):
             #file_mdata.update_file_mdata_status()           # update the status after the last findings
             file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             
-            # Exception or not - either way - send file_mdata to the server:  
-            serial = file_mdata.to_json()
+            # Exception or not - either way - send file_mdata to the server:
+            
+            filtered_dict = filter_none_fields(vars(file_mdata))  
+            #serial = filtered_dict.to_json()
             #print "FILE serialized - JSON: ", serial
-            deserial = simplejson.loads(serial)
-            print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
+            
+            #deserial = simplejson.loads(serial)
+            
+            #print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
             #res = file_mdata.to_dict()
-            resp = send_http_PUT_req(deserial, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
+            resp = send_http_PUT_req(filtered_dict, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", resp
             
 
@@ -909,7 +813,7 @@ class ParseBAMHeaderTask(Task):
         file_mdata['id'] = str(file_id)
         #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
 #        file_mdata.pop('null')
-        print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
+        #print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
         #submitted_file = SubmittedFile()
@@ -936,6 +840,27 @@ class ParseBAMHeaderTask(Task):
             raise
         else:
             self.parse_header(header_processed, file_mdata)
+            
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the BAM HEADER PARSIiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiing!!!!!!!"
+        file_serialized = kwargs['file_mdata']
+        file_mdata = deserialize(file_serialized)
+        file_id = kwargs['file_id']
+        submission_id = file_mdata['submission_id']
+        
+        print "EXCEPTION HAS the following fields: ", vars(exc)
+        print "Exception looks like:", exc, " and type: ", type(exc)
+        
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        result = dict()
+        result['file_header_parsing_job_status'] = FAILURE_STATUS
+        result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+        result['header_has_mdata'] = False
+        resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
+        print "RESPONSE FROM SERVER: ", resp
+
+
 
 
 class UpdateFileMdataTask(Task):
@@ -1028,11 +953,27 @@ class UpdateFileMdataTask(Task):
             task_id = current_task.request.id
             file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
             
-            serial = file_submitted.to_json()
+            serial = SubmittedFile.to_json(file_submitted)
             deserial = simplejson.loads(serial)
             print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
             response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", response
+            
+            
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the UPDATE TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        file_serialized = kwargs['file_mdata']
+        file_mdata = deserialize(file_serialized)
+        file_id = kwargs['file_id']
+        submission_id = file_mdata['submission_id']
+        
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        result = dict()
+        result['file_update_jobs_dict'] =  [str_exc]
+        result['file_error_log'] =  [str_exc]
+        resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
+        print "RESPONSE FROM SERVER: ", resp
             
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
 # then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
@@ -1065,16 +1006,8 @@ class AddMdataToIRODSFileTask(Task):
         from irods import *
         
         status, myEnv = getRodsEnv()
-        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
-                                myEnv.rodsUserName, myEnv.rodsZone)
+        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, myEnv.rodsUserName, myEnv.rodsZone)
         status = clientLogin(conn)
-
-        
-        # f = irodsOpen(conn, dest_file_path, 'w')
-        # f.addUserMetadata("units", "12", "cm")
-        # f.addUserMetadata("author", "rods")
-        # print "GET USER MDATA: ", f.getUserMetadata()
-        # f.close()
 
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
         for attr_val in file_irods_mdata:
@@ -1082,13 +1015,7 @@ class AddMdataToIRODSFileTask(Task):
             val = str(attr_val[1])
 
             addFileUserMetadata(conn, dest_file_path, attr, val)
-            
-
-        # addFileUserMetadata(conn, dest_file_path, "bunnies", "13", "cm")
-        # addFileUserMetadata(conn, dest_file_path, "author", "rods")
-
         print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
-
 
         # Run the pyrods or smth
         result = dict()
@@ -1097,7 +1024,23 @@ class AddMdataToIRODSFileTask(Task):
         file_irods_jobs_dict[task_id] = SUCCESS_STATUS
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
+    
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        file_id = str(kwargs['file_id'])
+        submission_id = str(kwargs['submission_id'])
         
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+
+        result = dict()
+        file_irods_jobs_dict = dict()
+        task_id = current_task.request.id
+        file_irods_jobs_dict[task_id] = SUCCESS_STATUS
+        result['irods_jobs_dict'] = file_irods_jobs_dict
+        result['file_error_log'] =  [str_exc]
+        resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
+        print "RESPONSE FROM SERVER: ", resp
 
         
 

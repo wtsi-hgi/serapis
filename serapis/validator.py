@@ -99,6 +99,7 @@ submitted_file_schema = Schema({
     'data_type' : str,
     
     'file_update_jobs_dict' : dict,
+    'missing_mandatory_fields_dict' : dict,
     
     'index_file_path' : str,
     'index_file_md5' : str,
@@ -116,7 +117,8 @@ submission_schema = Schema({
     'study' : dict,
     'reference_genome' : dict,
     'data_type' : str,
-    'library_info' : dict
+    'library_info' : dict,
+    'coverage' : str
     #
 })
 

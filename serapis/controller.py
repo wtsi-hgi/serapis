@@ -12,7 +12,7 @@ from serapis import constants, serializers
 
 from celery import chain
 from serapis import db_model_operations
-from serapis2irods import convert2irods_mdata
+from serapis2irods import serapis2irods_logic
 
 
 
@@ -128,11 +128,7 @@ def launch_update_file_job(file_submitted):
 
 def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-    if file_to_submit.file_reference_genome_id != None:
-        ref_genome = db_model_operations.get_reference_by_md5(file_to_submit.file_reference_genome_id)
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit, ref_genome)
-    else:
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_submit)
+    irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
        
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
@@ -219,7 +215,7 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
                 launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status')
         except IOError as e:
             io_errors_list.append(e)
-            db_model_operations.update_file_error_log(file_submitted, e.strerror)
+            db_model_operations.update_file_error_log(e.strerror, submitted_file=file_submitted)
             #file_submitted.file_error_log.append(e.strerror)    -> shouldn't be doing it non atomic!!!
 #        else:
 #            # TODO: here it must differentiate between the case when we have permission, and when not, because if we
@@ -240,31 +236,24 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
 
 
 def add_mdata_to_file(file_id, data):
-    #submission = db_model_operations.retrieve_submission(submission_id)
-              
     if 'data_type' in data:
-        #for file_id in submission.files_list:
         upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
         print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
-        
     if 'library_info' in data:
-        #for file_id in submission.files_list:
         upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
         print "UPDATED ABSTRACT LIB..............................", upd
-   
     if 'study' in data:
         study_data = data['study']
+        name, visib, pi = None, None, None
         if 'name' in study_data:
             name = study_data['name']
-            visib, pi = None, None
-            if 'visibility' in study_data:
-                visib = study_data['visibility']
-            if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
-                pi = study_data['pi'] #list
-            else:
-                pass
-                #TODO: report a problem
-            #for file_id in submission.files_list:
+        if 'visibility' in study_data:
+            visib = study_data['visibility']
+        if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
+            pi = study_data['pi'] #list
+        if name == None or visib == None or pi == None:
+            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
+        else:
             inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
             print "Has the study been inserted? - from controller....", inserted
             if inserted == True:
@@ -277,46 +266,39 @@ def add_mdata_to_file(file_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
-        else:
-            pass #TODO: report a problem! You can't pass a struct empty: 'study' : {}
-  
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         ref_gen, path, md5, c_name = None, None, None, None
         if 'canonical_name' in ref_dict:
-            ref_gen = db_model_operations.get_reference_by_name(ref_dict['canonical_name'])
             c_name = ref_dict['canonical_name']
-            # TODO: if non existing => insert it!!!
-
         if 'path' in ref_dict:
             path = ref_dict['path']
-            if ref_gen == None:
-                ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
         if 'md5' in ref_dict:
             md5 = ref_dict['md5']
+        try:
+            ref_gen = db_model_operations.retrieve_reference_genome(md5, c_name, path)
             if ref_gen == None:
-                ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
-        
-        if not ref_gen:
-            #TODO: add the insert new ref genome logic!!!!!!!!!
-            print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!!", path
-            if c_name != None and path != None:
-                ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
+                if path != None:
+                    ref_genome_id = db_model_operations.insert_reference(c_name, [path], md5)
+                else:
+                    raise exceptions.NotEnoughInformationProvided(msg="A reference MUST be given the path, in order to be added to the db.")
             else:
-                print "NOT ENOUGH DATA FOR THE NEW REF GENOME TO BE ADDEDDDDDDDDDDDDDDDDDD!!!"
-        else:
-            print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
-            ref_genome_id = ref_gen.id
-        #for file_id in submission.files_list:
-        upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
-        print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd 
-    # TODO: treat exceptional circumstances....
-    #for testing:
-    #for f_id in submission.files_list:
-    irods_mdata_dict = convert2irods_mdata.convert_file_mdata(db_model_operations.retrieve_submitted_file(file_id), None)
-    print "FINALLLLLLLLLLLLL IRODS MDATA DICT:"
-    for mdata in irods_mdata_dict:
-        print mdata
+                ref_genome_id = ref_gen.id
+                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.canonical_name
+                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
+            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
+        except exceptions.NotEnoughInformationProvided as e:
+            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
+        except exceptions.InformationConflict as e:
+            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
     return True
 
 
@@ -455,6 +437,7 @@ def init_submission(user_id, files_list):
 
     result = dict()
     if len(submitted_files_list) > 0:
+        submission.sanger_user_id = user_id
         submission.files_list = [f.id for f in submitted_files_list]
         submission.save(cascade=True)
         result['submission'] = submission
@@ -544,18 +527,18 @@ def create_submission(user_id, data):
 #        ref_dict = data['reference_genome']
 #        ref_gen, path, md5, c_name = None, None, None, None
 #        if 'canonical_name' in ref_dict:
-#            ref_gen = db_model_operations.get_reference_by_name(ref_dict['canonical_name'])
+#            ref_gen = db_model_operations.retrieve_reference_by_name(ref_dict['canonical_name'])
 #            c_name = ref_dict['canonical_name']
 #            # TODO: if non existing => insert it!!!
 #
 #        if 'path' in ref_dict:
 #            path = ref_dict['path']
 #            if ref_gen == None:
-#                ref_gen = db_model_operations.get_reference_by_path(ref_dict['path'])
+#                ref_gen = db_model_operations.retrieve_reference_by_path(ref_dict['path'])
 #        if 'md5' in ref_dict:
 #            md5 = ref_dict['md5']
 #            if ref_gen == None:
-#                ref_gen = db_model_operations.get_reference_by_md5(ref_dict['md5'])
+#                ref_gen = db_model_operations.retrieve_reference_by_md5(ref_dict['md5'])
 #        
 #        if not ref_gen:
 #            #TODO: add the insert new ref genome logic!!!!!!!!!
@@ -758,7 +741,7 @@ def update_file_submitted(submission_id, file_id, data):
         
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
         file_to_update.reload()
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
+#        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
 
 #        print "IRODS MDATA DICT:"
 #        for mdata in irods_mdata_dict:
@@ -841,14 +824,17 @@ def update_file_submitted(submission_id, file_id, data):
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
     file_to_update.reload()
-    if hasattr(file_to_update, 'file_reference_genome_id') and getattr(file_to_update, 'file_reference_genome_id') != None:
-        ref_genome = db_model_operations.get_reference_by_md5(file_to_update.file_reference_genome_id)
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update, ref_genome)
-    else:
-        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update)
-    print "IRODS MDATA DICT:"
-    for mdata in irods_mdata_dict:
-        print mdata
+    serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+    
+#    user_id = db_model_operations.retrieve_sanger_user_id(file_id)
+#    if hasattr(file_to_update, 'file_reference_genome_id') and getattr(file_to_update, 'file_reference_genome_id') != None:
+#        ref_genome = db_model_operations.retrieve_reference_by_md5(file_to_update.file_reference_genome_id)
+#        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update, ref_genome, user_id)
+#    else:
+#        irods_mdata_dict = convert2irods_mdata.convert_file_mdata(file_to_update, sanger_user_id=user_id)
+#    print "IRODS MDATA DICT --- AFTER UPDATE:"
+#    for mdata in irods_mdata_dict:
+#        print mdata
     
         
         
@@ -905,8 +891,8 @@ def resubmit_jobs(submission_id, file_id, data):
             permission_denied = True
     if permission_denied == False:     
         error_list = submit_jobs_for_file(user_id, file_to_resubmit)
-        file_to_resubmit.file_error_log.extend(error_list)
-        db_model_operations.update_file_error_log(file_to_resubmit)
+        #file_to_resubmit.file_error_log.extend(error_list)
+        db_model_operations.update_file_error_log(error_list, submitted_file=file_to_resubmit)
     else:
         error_list = submit_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
     file_to_resubmit.save(validate=False)
@@ -1234,7 +1220,8 @@ def submit_file_to_irods(file_id, submission_id):
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
         db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
-        mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
+        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file)
+        #mdata_dict = serapis2irods.convert2irods_mdata.convert_file_mdata(subm_file)
         launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         # for testing:
         return True

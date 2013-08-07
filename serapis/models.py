@@ -86,6 +86,7 @@ class AbstractLibrary(Entity):
     library_selection = StringField(default="unspecified")
     library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
     instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
+    coverage = StringField()
     
 
 class Library(AbstractLibrary):
@@ -187,6 +188,7 @@ class SubmittedFile(DynamicDocument):
     
     #file_error_log = DictField()                        # dict containing: key = sender, value = List of errors
     file_error_log = ListField()
+    missing_mandatory_fields_dict = DictField()
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {                                            # Mongoengine specific field for metadata.
@@ -199,7 +201,7 @@ class SubmittedFile(DynamicDocument):
     
 
 class BAMFile(SubmittedFile):
-    bam_type = StringField()
+    bam_type = StringField()    # ??? Do we still need this one, since we have data_type field now?
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
     lane_list = ListField()             # list of strings
     tag_list = ListField()              # list of strings
