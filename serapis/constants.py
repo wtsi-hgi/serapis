@@ -58,7 +58,7 @@ FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 
 STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi'}
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
-SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity', 'country_of_origin'}
+SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity'} # 'country_of_origin'
 FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
