@@ -98,7 +98,7 @@ class Library(AbstractLibrary):
 class ReferenceGenome(Document):
     md5 = StringField(primary_key=True)
     paths = ListField()
-    name = StringField(unique=True)
+    name = StringField(unique_with='md5')
      
 
 class Sample(Entity):          # one sample can be member of many studies
@@ -124,6 +124,7 @@ class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
     submission_id = StringField()
     id = ObjectId()
+    hgi_project = StringField()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
     file_path_irods = StringField()    
@@ -215,7 +216,7 @@ class BAMFile(SubmittedFile):
     
     # optional:
     library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
-    
+    multiplex_lib_list = ListField()    # List of multiplexed library ids
     
     
 class VCFFile(SubmittedFile):
@@ -232,6 +233,7 @@ class Submission(DynamicDocument):
     #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
     #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
+    hgi_project = StringField()
     meta = {
         'indexes': ['sanger_user_id', '_id'],
             }

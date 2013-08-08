@@ -49,7 +49,7 @@ def insert_reference(ref_name, path_list, md5=None):
                 return
     ref_genome.md5 = md5
     ref_genome.save()
-    return ref_genome.id
+    return md5
     
 
 def retrieve_reference_by_path(path):
@@ -61,7 +61,8 @@ def retrieve_reference_by_path(path):
 
 def retrieve_reference_by_md5(md5):
     try:
-        return models.ReferenceGenome.objects(md5=md5).get()
+        found = models.ReferenceGenome.objects.get(pk=md5)
+        return found
     except DoesNotExist:
         return None
 
@@ -88,6 +89,7 @@ def retrieve_reference_genome(md5=None, name=None, path=None):
             msg += ". In order to add a new path to this reference, please make a PUT req to..."
             logging.info(msg)
             raise exceptions.InformationConflict(msg=msg)
+        return ref
     elif name != None:
         ref_n = retrieve_reference_by_name(name)
         if ref_n != None:
@@ -103,7 +105,7 @@ def retrieve_reference_genome(md5=None, name=None, path=None):
         elif path!= None:
             ref_p = retrieve_reference_by_path(path)
             if ref_p != None:
-                print "REFERENCEEEEEEEEEE: ", vars(ref_p)
+                #print "REFERENCEEEEEEEEEE: ", vars(ref_p)
                 error_msg = "The reference path provided does not match the reference name provided. In the db are: name="+ref_p.name+" path=", ref_p.paths
                 raise exceptions.InformationConflict(msg=error_msg)
             else:
@@ -445,8 +447,14 @@ def check_and_update_if_file_has_min_mdata(file_to_submit):
 
     if len(file_to_submit.library_list) == 0:
         if len(file_to_submit.library_well_list) == 0:
-            __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-            has_min_mdata = False
+            if len(file_to_submit.multiplex_lib_list) == 0:
+                __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            
+            else:
+                __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+        else:
+            __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
     else:
         for lib in file_to_submit.library_list:
             if check_if_library_has_minimal_mdata(lib, file_to_submit) == False:
@@ -524,7 +532,7 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
             return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
         else:
             submitted_file.reload()
-            print "FILE DOESNT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
+            print "FILE DOES NOT NOT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
             upd_dict = {}
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
@@ -1100,7 +1108,7 @@ def update_and_save_study_list(study_list, sender, file_id):
 
 def __upd_list_of_primary_types__(crt_list, update_list_json):
     #upd_dict = {}
-    if  len(update_list_json) <= 0:
+    if  len(update_list_json) == 0:
         return 
     crt_set = set(crt_list)
     new_set = set(update_list_json)
@@ -1125,23 +1133,23 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                      'file_mdata_status',
                      'file_submission_status']:
             pass
-        elif field_name == 'library_list':
-            if  len(field_val) <= 0:
-                return update_db_dict
+        elif field_name == 'library_list' and len(field_val) > 0:
+            #if  len(field_val) > 0:
+                #return update_db_dict
             was_updated = update_library_list(field_val, update_source, submitted_file)
             update_db_dict['set__library_list'] = submitted_file.library_list
             update_db_dict['inc__version__2'] = 1
             print "UPDATING LIBRARY LIST.................................", was_updated
-        elif field_name == 'sample_list':
-            if  len(field_val) <= 0:
-                return update_db_dict
+        elif field_name == 'sample_list' and len(field_val) > 0:
+            #if  len(field_val) > 0:
+                #return update_db_dict
             was_updated = update_sample_list(field_val, update_source, submitted_file)
             update_db_dict['set__sample_list'] = submitted_file.sample_list
             update_db_dict['inc__version__1'] = 1
             print "UPDATING SAMPLE LIST..................................", was_updated
-        elif field_name == 'study_list':
-            if  len(field_val) <= 0:
-                return update_db_dict
+        elif field_name == 'study_list' and len(field_val) > 0:
+            #if  len(field_val) == 0:
+            #    return update_db_dict
             was_updated = update_study_list(field_val, update_source, submitted_file)
             update_db_dict['set__study_list'] = submitted_file.study_list
             update_db_dict['inc__version__3'] = 1
@@ -1175,8 +1183,13 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
 #            submitted_file.header_associations.append(field_val)
 #            update_db_dict['set__header_associations'] = submitted_file.header_associations
         elif field_name == 'library_well_list':
-            updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
-            update_db_dict['set__library_well_list'] = updated_list
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
+                update_db_dict['set__library_well_list'] = updated_list
+        elif field_name == 'multiplex_lib_list':
+            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                updated_list = __upd_list_of_primary_types__(submitted_file.multiplex_lib_list, field_val)
+                update_db_dict['set__multiplex_lib_list'] = updated_list
         # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
         elif field_name == 'file_error_log':
             # TODO: make file_error a map, instead of a list
@@ -1219,9 +1232,10 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                 update_db_dict['set__file_header_parsing_job_status'] = field_val
                 update_db_dict['inc__version__0'] = 1
-    #                        print "UPDATING FILE HEADER PARSING JOB STATUS.................................", upd
-        # TODO: !!! IF more update jobs run at the same time for this file, there will be a HUGE pb!!!
-#        elif field_name == 'file_update_mdata_job_status':
+        elif field_name == 'hgi_project':
+            if update_source == constants.EXTERNAL_SOURCE:
+                update_db_dict['set__hgi_project'] = field_val
+                update_db_dict['inc__version__0'] = 1
         elif field_name == 'file_update_jobs_dict':
             if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
                 old_update_job_dict = submitted_file.file_update_jobs_dict
@@ -1379,6 +1393,11 @@ def update_index_file_path(file_id, index_file_path, nr_retries=1):
     #submitted_file.index_file_path = index_file_path
     #submitted_file.save()
     
+
+def insert_hgi_project(file_id, project):
+    if utils.is_hgi_project(project):
+        upd_dict = {'set__hgi_project' : project, 'inc__version__0' : 1}
+        return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
 
 
 #def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
