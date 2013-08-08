@@ -72,6 +72,8 @@ BAM_FILE = "bam"
 BAI_FILE = "bai"
 VCF_FILE = "vcf"
 
+FILE_EXTENSIONS = ['bam', 'bai', 'vcf']
+
 VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
 
 FILE_TO_INDEX_DICT = {BAM_FILE : BAI_FILE}
