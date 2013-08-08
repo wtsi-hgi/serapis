@@ -1,6 +1,9 @@
 import unicodedata
 import datetime
 import re
+import os
+from serapis import constants
+from compiler.ast import Const
 
 def __ucode2str__(ucode):
     if type(ucode) == unicode:
@@ -38,10 +41,6 @@ def unicode2string(ucode):
 
 def get_today_date():
     today = datetime.date.today()
-    print "Year: %d" % today.year
-    print "Month: %d" % today.month
-    print "Day: %d" % today.day
-    
     year = str(today.year)
     month = str(today.month)
     day = str(today.day)
@@ -56,13 +55,40 @@ def infer_hgi_project_from_path(path):
     match = re.search(regex, path)
     if match:
         return match.group(1)
-
+    return None
 
 def is_hgi_project(project):
     regex = "[a-zA-Z0-9_-]{3,17}"
     if re.search(regex, project):
         return True
     return False
+
+
+def extract_fname_and_ext(path):
+    _, tail = os.path.split(path)
+    fname, ext = os.path.splitext(tail)
+    ext = ext[1:]
+    return (fname, ext)
+
+def extract_index_fname(path):
+    fname, ext = extract_fname_and_ext(path)
+    real_ext = ext
+    while ext in constants.FILE_EXTENSIONS:
+        fname, ext = extract_fname_and_ext(fname)
+    return (fname, real_ext)
+    
+def cmp_timestamp_files(file_path1, file_path2):
+    tstamp1 = os.path.getmtime(file_path1)
+    tstamp2 = os.path.getmtime(file_path2)
+    tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
+    tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
+    return cmp(tstamp1, tstamp2)
+
+
+
+
+
+
 
 
 

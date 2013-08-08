@@ -354,39 +354,41 @@ def check_file_permissions_and_status(file_path, errors_dict):
         status = constants.PENDING_ON_WORKER_STATUS
     return status
 
-
-def cmp_timestamp_files(file_path1, file_path2):
-    tstamp1 = os.path.getmtime(file_path1)
-    tstamp2 = os.path.getmtime(file_path2)
-    tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
-    tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
-    return cmp(tstamp1, tstamp2)
     
 
 def associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict):
     index_files_matched = []
+    index_files_unmatched = []
     for index_file_path in index_files_list:
-        _, tail = os.path.split(index_file_path) 
-        index_file_name, index_ext = os.path.splitext(tail)
-        index_ext = index_ext[1:]           # from '.bam' to 'bam' (eliminate first character
+        index_fname, index_ext = utils.extract_index_fname(index_file_path)
+#        _, tail = os.path.split(index_file_path) 
+#        index_file_name, index_ext = os.path.splitext(tail)
+#        index_ext = index_ext[1:]           # from '.bam' to 'bam' (eliminate first character
+        index_matched = False
         for submitted_file in submitted_files_list:
-            _, tail = os.path.split(submitted_file.file_path_client)
-            sub_file_name, sub_file_ext = os.path.splitext(tail)
-            sub_file_ext = sub_file_ext[1:]          # from '.bam' to 'bam'
-            if index_file_name == sub_file_name and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
-                if cmp_timestamp_files(submitted_file.file_path_client, index_file_path) == -1:         # compare file and index timestamp  
+#            _, tail = os.path.split(submitted_file.file_path_client)
+#            sub_file_name, sub_file_ext = os.path.splitext(tail)
+#            sub_file_ext = sub_file_ext[1:]          # from '.bam' to 'bam'
+            sub_fname, sub_file_ext = utils.extract_fname_and_ext(submitted_file.file_path_client)
+            if index_fname == sub_fname and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
+                if utils.cmp_timestamp_files(submitted_file.file_path_client, index_file_path) <= 0:         # compare file and index timestamp
+                    index_matched = True  
                     db_model_operations.update_index_file_path(submitted_file.id, index_file_path, nr_retries=3)
-#                    submitted_file.index_file_path = index_file_path
-#                    submitted_file.save()
                     index_files_matched.append(index_file_path)
+                    break
                 else:
                     append_to_errors_dict(index_file_path, constants.INDEX_OLDER_THAN_FILE, errors_dict)
-    
+        if not index_matched:
+            index_files_unmatched.append(index_file_path)
     # Check if there are any index files unmatched with submitted files => add them to the error dict
-    if len(index_files_matched) < len(index_files_list):
-        diff_set = set(index_files_list).difference(index_files_matched)
-        for unmatched_index in diff_set:
-            append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
+    #if len(index_files_unmatched) > 0:
+    for unmatched_index in index_files_unmatched:
+        append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
+        
+#    if len(index_files_matched) < len(index_files_list):
+#        diff_set = set(index_files_list).difference(index_files_matched)
+#        for unmatched_index in diff_set:
+#            append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
         
 
 def init_submission(user_id, files_list):
