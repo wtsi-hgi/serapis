@@ -126,7 +126,8 @@ def convert_BAMFile(bamfile):
                               'run_list' : 'run_id',
                               'platform_list' : 'platform',
                               'seq_date_list' : 'seq_date',
-                              'library_well_list' : 'library_well_id'
+                              'library_well_list' : 'library_well_id',
+                              'multiplex_lib_list' : 'multiplex_lib_id'
                               }
     irods_file_mdata = []
     for field_name in BAMFILE_FIELDS_MAPPING.keys():
@@ -164,7 +165,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type']
+    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5']
     irods_file_mdata = []
     for field_name in FILE_PREFIXED_FIELDS_LIST:

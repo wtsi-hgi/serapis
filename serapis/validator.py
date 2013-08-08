@@ -64,6 +64,8 @@ submitted_file_schema = Schema({
     'file_path_client' : str,
     'file_path_irods' : str,    
     'md5' : str,
+    'hgi_project' : str,
+    
     'study_list' : list,               # = ListField(EmbeddedDocumentField(Study))
     'library_list' : list,             # = ListField(EmbeddedDocumentField(Library))
     'sample_list' : list,              # = ListField(EmbeddedDocumentField(Sample))
@@ -97,6 +99,7 @@ submitted_file_schema = Schema({
     'library_well_list' : list,
     'file_reference_genome_id' : str,
     'data_type' : str,
+    'multiplex_lib_list' : list,
     
     'file_update_jobs_dict' : dict,
     'missing_mandatory_fields_dict' : dict,
@@ -112,6 +115,7 @@ submission_schema = Schema({
     'submission_status' : str,
     'files_list' : list,
     'submission_date' : str,
+    'hgi_project' : str,
     #'study_name' : str,
     #'pi' : list
     #visibility

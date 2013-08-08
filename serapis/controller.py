@@ -236,7 +236,8 @@ def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_ta
 
 
 def add_mdata_to_file(file_id, data):
-    
+    if 'hgi_project' in data:
+        upd = db_model_operations.insert_hgi_project(file_id, data['hgi_project'])
     if 'data_type' in data:
         upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
         print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
@@ -280,12 +281,9 @@ def add_mdata_to_file(file_id, data):
             ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
             if ref_gen == None:
                 print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
-                if path != None:
-                    ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
-                else:
-                    raise exceptions.NotEnoughInformationProvided(msg="A reference MUST be given the path, in order to be added to the db.")
+                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
             else:
-                ref_genome_id = ref_gen.id
+                ref_genome_id = ref_gen.md5
                 print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
                 #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
             upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
@@ -430,6 +428,7 @@ def init_submission(user_id, files_list):
             file_submitted.file_upload_job_status = status
             file_submitted.file_submission_status = status
             file_submitted.file_type = file_type
+            file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
             file_submitted.save()
             submitted_files_list.append(file_submitted)
 

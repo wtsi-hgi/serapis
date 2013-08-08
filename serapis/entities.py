@@ -505,6 +505,7 @@ class BAMFile(SubmittedFile):
 
     # Optional - alternative - special cases when lib is multiplexed
     library_well_list = []
+    multiplex_lib_list = []
 
 
 class Submission():

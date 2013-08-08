@@ -1,5 +1,6 @@
 import unicodedata
 import datetime
+import re
 
 def __ucode2str__(ucode):
     if type(ucode) == unicode:
@@ -49,3 +50,19 @@ def get_today_date():
     if len(day) == 1:
         day = "0" + day
     return str(year) + str(month) + str(day)
+
+def infer_hgi_project_from_path(path):
+    regex = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/"
+    match = re.search(regex, path)
+    if match:
+        return match.group(1)
+
+
+def is_hgi_project(project):
+    regex = "[a-zA-Z0-9_-]{3,17}"
+    if re.search(regex, project):
+        return True
+    return False
+
+
+
