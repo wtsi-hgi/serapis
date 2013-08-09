@@ -711,7 +711,15 @@ def retrieve_sanger_user_id(file_id):
     subm_id = retrieve_submission_id(file_id)
     return models.Submission.objects(id=ObjectId(subm_id)).only('sanger_user_id').get().sanger_user_id
  
+def retrieve_client_file_path(file_id):
+    return models.SubmittedFile.objects(id=file_id).only('file_path_client').get().file_path_client
  
+def retrieve_file_md5(file_id):
+    return models.SubmittedFile.objects(id=file_id).only('md5').get().md5
+
+def retrieve_index_md5(file_id):
+    return models.SubmittedFile.objects(id=file_id).only('index_file_md5').get().index_file_md5
+
 def retrieve_submission_date(file_id, submission_id=None):
     if submission_id == None:
         submission_id = retrieve_submission_id(file_id)

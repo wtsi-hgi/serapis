@@ -2,8 +2,10 @@ import unicodedata
 import datetime
 import re
 import os
+from os import listdir
+from os.path import isfile, join, exists
 from serapis import constants
-from compiler.ast import Const
+
 
 def __ucode2str__(ucode):
     if type(ucode) == unicode:
@@ -73,9 +75,10 @@ def extract_fname_and_ext(path):
 def extract_index_fname(path):
     fname, ext = extract_fname_and_ext(path)
     real_ext = ext
-    while ext in constants.FILE_EXTENSIONS:
+    while ext in constants.SFILE_EXTENSIONS:
         fname, ext = extract_fname_and_ext(fname)
     return (fname, real_ext)
+
     
 def cmp_timestamp_files(file_path1, file_path2):
     tstamp1 = os.path.getmtime(file_path1)
@@ -84,8 +87,40 @@ def cmp_timestamp_files(file_path1, file_path2):
     tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
     return cmp(tstamp1, tstamp2)
 
+def get_files_from_dir(dir_path):
+    files_list = []
+    for f_name in listdir(dir_path)[:20]:
+        f_path = join(dir_path, f_name)
+        if isfile(f_path):
+            _, f_extension = os.path.splitext(f_path)
+            if f_extension[1:] in constants.SFILE_EXTENSIONS:
+                files_list.append(f_path)
+    print files_list
+    return files_list
 
+def extract_dirname(file_path):
+    if os.path.exists(file_path):
+        return os.path.dirname(file_path)
+    else:
+        raise IOError
 
+def extract_basename(file_path):
+    fname, ext = extract_fname_and_ext(file_path)
+#    while ext in constants.ALL_FILE_EXTENSIONS:
+#        fname, ext = extract_fname_and_ext(fname)
+    return fname
+
+def extract_extension(file_path):
+    _, ext = extract_fname_and_ext(file_path)
+    return ext
+
+def search_md5_file(directory, fname):
+    for f in listdir(directory):
+        f_path = join(dir, f)
+        if extract_basename(f_path) == fname and extract_extension(f_path) == 'md5':
+            return f_path
+    return None
+    
 
 
 

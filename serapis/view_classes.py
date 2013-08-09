@@ -126,14 +126,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             result = dict()
             data = request.DATA
             data = utils.unicode2string(data)
-            validator.submission_schema(data)
-        except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
-            return Response(result, status=400)
-#        except ValueError:
-#            return Response("Not JSON format", status=400)
-        else:
-            #result_dict = controller.create_submission(user_id, data)
+            validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
             result_dict = controller.add_submission(user_id, data)
             submission_id = result_dict['submission_id']
             if submission_id == None:
@@ -150,7 +143,23 @@ class SubmissionsMainPageRequestHandler(APIView):
                 result_dict['testing'] = files
                 # END TESTING
                 return Response(result_dict, status=201)
+            
+        except MultipleInvalid as e:
+            result['error'] = "Message contents invalid: "+e.msg
+            return Response(result, status=400)
+        except exceptions.NotEnoughInformationProvided as e:
+            result['error'] = e.msg
+            return Response(result, status=424)
+#        except ValueError:
+#            return Response("Not JSON format", status=400)
+        #else:
+            #result_dict = controller.create_submission(user_id, data)
                 
+    
+    
+    
+    
+    
     
 #            perm_denied_list = []
 #            other_io_errs = []
