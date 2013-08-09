@@ -234,8 +234,7 @@ class SubmissionRequestHandler(APIView):
 # /submissions/submission_id/status/
 class SubmissionStatusRequestHandler(APIView):
     def get(self, request, submission_id, format=None):
-        ''' Retrieves the status of the submission together
-            with the statuses of the files (upload and mdata). '''
+        ''' Retrieves the status of the submission. '''
         try:
             result = dict()
             subm_statuses = controller.get_submission_status(submission_id)
@@ -250,7 +249,23 @@ class SubmissionStatusRequestHandler(APIView):
             return Response(result, status=200)
 
 
-               
+class AllSubmittedFilesStatusesHandler(APIView):
+    def get(self, request, submission_id, format=None):
+        ''' Retrieves the status of all files in this submission. '''
+        try:
+            result = dict()
+            subm_statuses = controller.get_all_submitted_files_status(submission_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submission not found"
+            return Response(result, status=404)
+        else:
+            result['result'] = subm_statuses
+            return Response(result, status=200)
+    
+          
 
 #---------------- HANDLE 1 SUBMITTED FILE ------------------------
 

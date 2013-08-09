@@ -556,7 +556,7 @@ def decide_submission_status(nr_files, status_dict):
         return constants.SUBMISSION_IN_PREPARATION_STATUS
     
 
-def check_and_update_submission_status(submission_id, submission=None):
+def compute_file_status_statistics(submission_id, submission=None):
     if submission == None:
         submission = retrieve_submission(submission_id)
     status_dict = dict.fromkeys(["nr_success", "nr_fail", "nr_pending", "nr_progress", "nr_ready"], 0)
@@ -572,6 +572,12 @@ def check_and_update_submission_status(submission_id, submission=None):
             status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1
+    return status_dict
+
+def check_and_update_submission_status(submission_id, submission=None):
+    status_dict = compute_file_status_statistics(submission_id, submission)
+    if submission == None:
+        submission = retrieve_submission(submission_id)
     return decide_submission_status(len(submission.files_list), status_dict)
 
     
