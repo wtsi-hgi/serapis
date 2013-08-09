@@ -467,9 +467,8 @@ def create_submission(user_id, data):
         '''
     if 'files_list' in data:
         files_list = data['files_list']
-    elif 'dir_name' in data:
-        dir_name = data['dir_name']
-        files_list = utils.get_files_from_dir(dir_name)
+    elif 'dir_path' in data:
+        files_list = utils.get_files_from_dir(data['dir_path'])
     else:
         raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
     result_init_submission = init_submission(user_id, set(files_list))

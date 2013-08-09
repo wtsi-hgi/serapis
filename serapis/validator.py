@@ -116,7 +116,7 @@ submission_schema = Schema({
     'files_list' : list,
     'submission_date' : str,
     'hgi_project' : str,
-    'dir_name' : str,
+    'dir_path' : str,
     #'study_name' : str,
     #'pi' : list
     #visibility

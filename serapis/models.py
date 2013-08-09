@@ -233,7 +233,7 @@ class Submission(DynamicDocument):
     #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
     #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
-    dir_name = StringField()
+    dir_path = StringField()
     hgi_project = StringField()
     meta = {
         'indexes': ['sanger_user_id', '_id'],
