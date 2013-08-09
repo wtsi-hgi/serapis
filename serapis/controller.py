@@ -531,7 +531,6 @@ def get_submission_status(submission_id):
     return {'submission_status' : submission_status}    
 
 
-
 # USELESS - see explanation in view_classes
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 #def update_submission(submission_id, data): 
@@ -599,6 +598,13 @@ def get_submitted_file_status(file_id):
             'file_submission_status' : subm_file.file_submission_status 
             }
     
+
+def get_all_submitted_files_status(submission_id):
+    submission = db_model_operations.retrieve_submission(submission_id)
+    result = {str(file_id) : get_submitted_file_status(file_id) for file_id in submission.files_list}
+    print "TYPE OF RESULT : ", type(result), " and values: ", result
+    return result
+
 
 def get_all_submitted_files(submission_id):
     ''' Queries the DB for the list of files contained by the submission given by
@@ -1155,7 +1161,10 @@ def submit_all_to_irods(submission_id):
             #file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
             was_submitted = submit_file_to_irods(file_id, submission_id)
             all_submitted = all_submitted and was_submitted
-    return all_submitted
+            
+        return all_submitted
+    db_model_operations.compute_file_status_statistics(None, submission)
+    return {"error" : "not all the files are ready for irods submission, status="+submission_status}
 
 
 # ---------------------------------- NOT USED ------------------

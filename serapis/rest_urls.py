@@ -22,6 +22,8 @@ urlpatterns = patterns('',
     
     url(r'^submissions/(?P<submission_id>\w+)/status/$', view_classes.SubmissionStatusRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/$', view_classes.SubmittedFilesMainPageRequestHandler.as_view()),
+    url(r'^submissions/(?P<submission_id>\w+)/files/status/$', view_classes.AllSubmittedFilesStatusesHandler.as_view()),
+    
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$', view_classes.SubmittedFileRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/status/$', view_classes.SubmittedFileStatusRequestHandler.as_view()),
     
