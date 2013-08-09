@@ -465,7 +465,13 @@ def create_submission(user_id, data):
              a dictionary containing: 
              { submission_id : 123 , errors: {..dictionary of errors..}
         '''
-    files_list = data['files_list']
+    if 'files_list' in data:
+        files_list = data['files_list']
+    elif 'dir_name' in data:
+        dir_name = data['dir_name']
+        files_list = utils.get_files_from_dir(dir_name)
+    else:
+        raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
     result_init_submission = init_submission(user_id, set(files_list))
     result = dict()
     errors_dict = result_init_submission['errors']
@@ -1139,17 +1145,32 @@ def delete_study(submission_id, file_id, study_id):
 # ------------------------------ IRODS ---------------------------
 
 
+def check_file_md5_eq(md5_file_path, calculated_md5):
+    direct = utils.extract_dirname(md5_file_path)
+    f_name = utils.extract_basename(md5_file_path)
+    md5_file = utils.search_md5_file(direct, f_name)
+    if md5_file != None:
+        official_md5 = open(md5_file).readline()
+        return (official_md5 == calculated_md5)
+    
+
 def submit_file_to_irods(file_id, submission_id):
-#    upd_status = {"file_submission_status" : constants.SUBMISSION_IN_PROGRESS_STATUS}
-#    updated = models.SubmittedFile.objects(id=file_id, file_submission_status=constants.READY_FOR_IRODS_SUBMISSION_STATUS).update(**upd_status)
+    error_list = []
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
-    if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+    f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
+    index_md5_correct = check_file_md5_eq(subm_file.index_file_path, subm_file.index_file_md5)
+    if not f_md5_correct:
+        error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
+    if not  index_md5_correct:
+        error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path+".md5")
+    if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS and len(error_list) == 0:
         mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file)
         was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         if was_launched == 1:
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
-            return True
-    return False
+            return {"message" : "success"}
+    error_list.append("not all files have a READY_FOR_IRODS_SUBMISSION_STATUS")
+    return {"message" : "failure", "errors" : error_list}
 
 
 def submit_all_to_irods(submission_id):
