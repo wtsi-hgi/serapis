@@ -1144,12 +1144,16 @@ def delete_study(submission_id, file_id, study_id):
 # ------------------------------ IRODS ---------------------------
 
 
-def check_file_md5_eq(md5_file_path, calculated_md5):
-    direct = utils.extract_dirname(md5_file_path)
-    f_name = utils.extract_basename(md5_file_path)
-    md5_file = utils.search_md5_file(direct, f_name)
-    if md5_file != None:
-        official_md5 = open(md5_file).readline()
+def check_file_md5_eq(file_path, calculated_md5):
+#    direct = utils.extract_dirname(file_path)
+#    f_name = utils.extract_basename(file_path)
+#    #md5_file = utils.search_md5_file(direct, f_name)
+#    f_name = f_name+'.md5'
+    md5_file_path = file_path + '.md5'
+    #md5_file_path = os.path.join(direct, f_name)
+    if os.path.exists(md5_file_path):
+    #if md5_file != None:
+        official_md5 = open(md5_file_path).readline().split(' ')[0]     # the line looks like: '1682c0da2192ca32b8bdb5e5dda148fe  UC729852.bam\n'
         return (official_md5 == calculated_md5)
     
 
