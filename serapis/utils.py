@@ -106,8 +106,6 @@ def extract_dirname(file_path):
 
 def extract_basename(file_path):
     fname, ext = extract_fname_and_ext(file_path)
-#    while ext in constants.ALL_FILE_EXTENSIONS:
-#        fname, ext = extract_fname_and_ext(fname)
     return fname
 
 def extract_extension(file_path):
