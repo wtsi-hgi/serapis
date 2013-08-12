@@ -1053,17 +1053,22 @@ class AddMdataToIRODSFileTask(Task):
         sys.path.append(SOFTWARE_PYTHON_PACKAGES)
         from irods import *
         
-        status, myEnv = getRodsEnv()
-        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, myEnv.rodsUserName, myEnv.rodsZone)
-        status = clientLogin(conn)
+        # Working copy - using API:
+#        status, myEnv = getRodsEnv()
+#        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, myEnv.rodsUserName, myEnv.rodsZone)
+#        status = clientLogin(conn)
 
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
         for attr_val in file_irods_mdata:
             attr = str(attr_val[0])
             val = str(attr_val[1])
 
-            addFileUserMetadata(conn, dest_file_path, attr, val)
-        print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
+            # Working copy - using the python API:
+            #addFileUserMetadata(conn, dest_file_path, attr, val)
+            imeta_cmd = call(["imeta", "add","-d", dest_file_path, attr, val])
+            print "OUTPUT OF IMETA CMD: --------------------", imeta_cmd
+        # Working, with API:
+        #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
 
         # Run the pyrods or smth
         result = dict()

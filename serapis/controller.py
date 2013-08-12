@@ -1154,10 +1154,12 @@ def check_file_md5_eq(file_path, calculated_md5):
     if os.path.exists(md5_file_path):
     #if md5_file != None:
         official_md5 = open(md5_file_path).readline().split(' ')[0]     # the line looks like: '1682c0da2192ca32b8bdb5e5dda148fe  UC729852.bam\n'
+        print "COMPARING md5!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
         return (official_md5 == calculated_md5)
+    return True
     
 
-def submit_file_to_irods(file_id, submission_id):
+def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=None):
     error_list = []
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
     f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
@@ -1167,7 +1169,7 @@ def submit_file_to_irods(file_id, submission_id):
     if not  index_md5_correct:
         error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path+".md5")
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS and len(error_list) == 0:
-        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file)
+        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file, user_id, submission_date)
         was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         if was_launched == 1:
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
@@ -1183,7 +1185,7 @@ def submit_all_to_irods(submission_id):
         all_submitted = True
         for file_id in submission.files_list:
             #file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-            was_submitted = submit_file_to_irods(file_id, submission_id)
+            was_submitted = submit_file_to_irods(file_id, submission_id, submission.user_id, submission.submission_date)
             all_submitted = all_submitted and was_submitted
             
         return all_submitted
