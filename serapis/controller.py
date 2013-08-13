@@ -1185,7 +1185,10 @@ def submit_all_to_irods(submission_id):
         all_submitted = True
         for file_id in submission.files_list:
             #file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-            was_submitted = submit_file_to_irods(file_id, submission_id, submission.user_id, submission.submission_date)
+            print "FROM CONTROLLER --- SUBMISSION DATE IS:::::::::::::", submission.submission_date
+            print "FROM CONTROLLER SUBMISSION HAS THE FOLLOWING DATAAAAAAAAAAAAAAAAAAAAAA: ", vars(submission)
+            
+            was_submitted = submit_file_to_irods(file_id, submission_id, submission.sanger_user_id, submission.submission_date)
             all_submitted = all_submitted and was_submitted
             
         return all_submitted
