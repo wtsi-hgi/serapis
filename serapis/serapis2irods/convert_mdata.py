@@ -28,13 +28,14 @@ from serapis import constants, utils
 
 
 def convert_reference_genome_mdata(ref_genome):
-    REF_PREFIXED_FIELDS = ['md5', 'name']
+    #REF_PREFIXED_FIELDS = ['md5', 'name']    => Josh required to take the name out
+    REF_PREFIXED_FIELDS = ['md5']
     irods_ref_mdata = []
     for field_name in REF_PREFIXED_FIELDS:
         if hasattr(ref_genome, field_name):
             field_val = getattr(ref_genome, field_name)
             field_val = utils.unicode2string(field_val)
-            irods_ref_mdata.append(('ref_'+field_name, field_val))
+            irods_ref_mdata.append(('ref_file_'+field_name, field_val))
     return irods_ref_mdata
     
     
@@ -88,7 +89,8 @@ def convert_library_mdata(lib):
 
 def convert_study_mdata(study):
     STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'description']
-    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi', 'study_visibility']
+    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi_list', 'study_visibility']
+    STUDY_FIELDS_MAPPING = {'pi_list' : 'pi_user_id'}
     irods_study_mdata = []
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
@@ -99,6 +101,8 @@ def convert_study_mdata(study):
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
             if isinstance(field_val, list):
+                if field_name in STUDY_FIELDS_MAPPING:
+                    field_name = STUDY_FIELDS_MAPPING[field_name]
                 for elem in field_val:
                     elem = utils.unicode2string(elem)
                     irods_study_mdata.append((field_name, elem))
@@ -165,7 +169,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'hgi_project']
+    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'data_subtype_tags','hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5']
     irods_file_mdata = []
     for field_name in FILE_PREFIXED_FIELDS_LIST:
@@ -193,9 +197,13 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
                 irods_file_mdata.extend(file_specific_mdata)
                 irods_file_mdata.append((field_name, field_val))
-            # elif field_name == 'file_reference_genome_id':
-            #     field_val = unicode2string(field_val)
-            #     ref = db_model_operations.get_reference_by_md5(field_val)
+            elif field_name == 'data_subtype_tags':
+                field_val = utils.unicode2string(field_val)
+                #file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
+                #irods_file_mdata.extend(file_specific_mdata)
+                for tag_val in field_val.values():
+                    irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
+                    #irods_file_mdata.append((field_name, field_val))
             else:
                 field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))
@@ -204,7 +212,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
-    irods_file_mdata.append(('user_id', utils.unicode2string(sanger_user_id)))
+    irods_file_mdata.append(('submitter_user_id', utils.unicode2string(sanger_user_id)))
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     return list(set(irods_file_mdata))
 

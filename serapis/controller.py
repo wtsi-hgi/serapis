@@ -246,19 +246,19 @@ def add_mdata_to_file(file_id, data):
         print "UPDATED ABSTRACT LIB..............................", upd
     if 'study' in data:
         study_data = data['study']
-        name, visib, pi = None, None, None
+        name, visib, pi_list = None, None, None
         if 'name' in study_data:
             name = study_data['name']
         if 'visibility' in study_data:
             visib = study_data['visibility']
-        if 'pi' in study_data and isinstance(study_data['pi'], list) == True:
-            pi = study_data['pi'] #list
-        if name == None or visib == None or pi == None:
+        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
+            pi_list = study_data['pi_list'] #list
+        if not name or not visib or not pi_list:
             db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
         else:
-            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi' : pi}, constants.EXTERNAL_SOURCE, file_id)
+            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
             print "Has the study been inserted? - from controller....", inserted
-            if inserted == True:
+            if inserted:
                 submitted_file = db_model_operations.retrieve_submitted_file(file_id)
                 db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
                 db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
@@ -268,6 +268,10 @@ def add_mdata_to_file(file_id, data):
                 #TODO: report error - mdata couldn't be added
                 #raise exceptions.EditConflictError("Study couldn't be added.")
                 return False
+    if 'data_subtype_tags' in data:
+        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
+        print "Has DATA SUBTYPES been updated????"
+        
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         ref_gen, path, md5, name = None, None, None, None
@@ -1185,7 +1189,7 @@ def submit_all_to_irods(submission_id):
         all_submitted = True
         for file_id in submission.files_list:
             #file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-            was_submitted = submit_file_to_irods(file_id, submission_id, submission.user_id, submission.submission_date)
+            was_submitted = submit_file_to_irods(file_id, submission_id, submission.sanger_user_id, submission.submission_date)
             all_submitted = all_submitted and was_submitted
             
         return all_submitted

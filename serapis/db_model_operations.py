@@ -1329,6 +1329,8 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
     return upd
 
     
+def update_data_subtype_tags(file_id, subtype_tags_dict):
+    return models.SubmittedFile.objects(id=file_id).update_one(set__data_subtype_tags=subtype_tags_dict, inc__version__0=1)
 
 def update_file_ref_genome(file_id, ref_genome_key):    # the ref genome key is the md5
     return models.SubmittedFile.objects(id=file_id).update_one(set__file_reference_genome_id=ref_genome_key, inc__version__0=1)

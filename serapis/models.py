@@ -77,7 +77,7 @@ class Study(Entity):
     ena_project_id = StringField()
     study_visibility = StringField(choices=STUDY_VISIBILITY)
     description = StringField()
-    pi = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
+    pi_list = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 #    reference_genome = StringField()
     
 class AbstractLibrary(Entity):
@@ -136,6 +136,7 @@ class SubmittedFile(DynamicDocument):
     
     #DATA-RELATED FIELDS:
     data_type = StringField(choices=DATA_TYPES)
+    data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     
     #file_reference_genome = ReferenceField('ReferenceGenome')
