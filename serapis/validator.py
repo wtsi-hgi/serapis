@@ -49,7 +49,7 @@ sample_schema = Schema({
         'common_name' : str,
         
         'is_complete' : bool,
-        'has_minimal' : bool, 
+        'has_minimal' : bool,
         'last_updates_source' : dict
 })
 
@@ -72,6 +72,7 @@ submitted_file_schema = Schema({
     'seq_centers' : list,              # = ListField(StringField())          # List of sequencing centers where the data has been sequenced
 
     'data_type' : str,
+    'data_subtype_tags' : dict,
     'abstract_library' : dict,
 
     'sender' : str,
@@ -124,7 +125,7 @@ submission_schema = Schema({
     'reference_genome' : dict,
     'data_type' : str,
     'library_info' : dict,
-    'coverage' : str
-    #
+    'coverage' : str,
+    'data_subtype_tags' : dict
 })
 

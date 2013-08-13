@@ -56,10 +56,10 @@ FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 
 #--------------- MODEL MANDATORY FIELDS -----------------
 
-STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi'}
+STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
 SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity'} # 'country_of_origin'
-FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project'}
+FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 

@@ -1070,6 +1070,19 @@ class AddMdataToIRODSFileTask(Task):
         # Working, with API:
         #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
 
+        # Hack for adding mdata to the index file:
+        if 'index_file_path' in file_irods_mdata:
+            (_, index_file_name) = os.path.split(file_irods_mdata) 
+            index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
+            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', file_irods_mdata['index_file_md5']])
+            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_irods_mdata['md5']])
+            
+        
+#        index_file_path = StringField()
+#        index_file_md5 = StringField()
+#        
+
+
         # Run the pyrods or smth
         result = dict()
         file_irods_jobs_dict = dict()
@@ -1122,7 +1135,7 @@ def query_seqscape2():
     conn = httplib.HTTPConnection(host='localhost', port=20002)
     conn.connect()
     conn.putrequest('GET', 'http://wapiti.com/0_0/requests')
-    headers = {}
+    headers = {}    
     headers['Content-Type'] = 'application/json'
     headers['Accept'] = 'application/json'
     headers['Cookie'] = 'WTSISignOn=UmFuZG9tSVbAPOvZGIyv5Y2AcLw%2FKOLddyjrEOW8%2BeE%2BcKuElNGe6Q%3D%3D'
