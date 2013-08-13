@@ -89,7 +89,12 @@ def launch_upload_job(user_id, file_submitted, file_path, response_status, queue
     print "I AM UPLOADING...putting the task in the queue!"
     if queue == None:
 #        print "I Am putting the task in the default queue"
-        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 'file_path' : file_path, 'response_status' : response_status, 'submission_id' : file_submitted.submission_id}, queue="celery")
+        upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 
+                                        'file_path' : file_path, 
+                                        'response_status' : response_status, 
+                                        'submission_id' : file_submitted.submission_id
+                                        }, 
+                                queue="celery")
         db_model_operations.update_file_upload_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
         # from celery.task.control import inspect
         # i = inspect()
@@ -104,7 +109,9 @@ def launch_upload_job(user_id, file_submitted, file_path, response_status, queue
     
 def launch_update_file_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
-    task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id})
+    task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
+                                                   'file_id' : file_submitted.id
+                                                   })
     file_submitted.reload()
     
     # Save to the DB the job id:
@@ -130,11 +137,23 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
-       
+    
+    index_file_path = file_to_submit.index_file_path if 'index_file_path' else None
+    
+#    if 'index_file_path' in file_to_submit:
+#        index_file_path = file_to_submit.index_file_path
+#    else:
+#        index_file_path = None 
+
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     
     # TODO: replace the client_path with the irods path:
-    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 'irods_mdata' : irods_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 
+                                                     'irods_mdata' : irods_mdata_dict, 
+                                                     'file_id' : file_id, 
+                                                     'submission_id' : submission_id,
+                                                     'index_file_path' : index_file_path
+                                                     })
     return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
 #    upd_str = 'set__irods_jobs_dict__'+str(task_id)
 #    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
@@ -1178,7 +1197,8 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
         if was_launched == 1:
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
             return {"message" : "success"}
-    error_list.append("not all files have a READY_FOR_IRODS_SUBMISSION_STATUS")
+    error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
+    error_list.append(error_msg)
     return {"message" : "failure", "errors" : error_list}
 
 

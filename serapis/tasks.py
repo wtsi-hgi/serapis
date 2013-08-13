@@ -1036,7 +1036,8 @@ class AddMdataToIRODSFileTask(Task):
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         src_file_path = str(kwargs['file_path_client'])
-
+        index_file_path = str(kwargs['index_file_path'])
+        
         print "ADD MDATA TO IRODS JOB...works!"
 
         # {'file_path_client' : file_to_submit['file_path_client'], 'file_mdata' : irods_mdata_dict, 
@@ -1067,15 +1068,21 @@ class AddMdataToIRODSFileTask(Task):
             #addFileUserMetadata(conn, dest_file_path, attr, val)
             imeta_cmd = call(["imeta", "add","-d", dest_file_path, attr, val])
             print "OUTPUT OF IMETA CMD: --------------------", imeta_cmd
+            imeta_cmd += int(imeta_cmd)
+            
         # Working, with API:
         #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
 
         # Hack for adding mdata to the index file:
-        if 'index_file_path' in file_irods_mdata:
+        if index_file_path:
+            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
             (_, index_file_name) = os.path.split(file_irods_mdata) 
             index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
             imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', file_irods_mdata['index_file_md5']])
+            imeta_cmd += int(imeta_cmd)
+            
             imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_irods_mdata['md5']])
+            imeta_cmd += int(imeta_cmd)
             
         
 #        index_file_path = StringField()
@@ -1087,7 +1094,11 @@ class AddMdataToIRODSFileTask(Task):
         result = dict()
         file_irods_jobs_dict = dict()
         task_id = current_task.request.id
-        file_irods_jobs_dict[task_id] = SUCCESS_STATUS
+        if imeta_cmd == 0:
+            file_irods_jobs_dict[task_id] = SUCCESS_SUBMISSION_TO_IRODS_STATUS
+        else:
+            print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! ", imeta_cmd
+            file_irods_jobs_dict[task_id] = FAILURE_SUBMISSION_TO_IRODS_STATUS
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
     
@@ -1102,7 +1113,7 @@ class AddMdataToIRODSFileTask(Task):
         result = dict()
         file_irods_jobs_dict = dict()
         task_id = current_task.request.id
-        file_irods_jobs_dict[task_id] = SUCCESS_STATUS
+        file_irods_jobs_dict[task_id] = FAILURE_SUBMISSION_TO_IRODS_STATUS
         result['irods_jobs_dict'] = file_irods_jobs_dict
         result['file_error_log'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
