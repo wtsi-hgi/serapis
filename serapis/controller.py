@@ -154,7 +154,8 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
                                                      'file_id' : file_id, 
                                                      'submission_id' : submission_id,
                                                      'index_file_path' : index_file_path,
-                                                     'index_file_md5' : index_file_md5
+                                                     'index_file_md5' : index_file_md5,
+                                                     'file_md5' : file_to_submit.md5
                                                      })
     return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
 #    upd_str = 'set__irods_jobs_dict__'+str(task_id)

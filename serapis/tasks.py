@@ -9,7 +9,8 @@ import errno
 import logging
 import time
 import hashlib
-from subprocess import call
+import subprocess
+#from subprocess import call, check_output
 #import MySQLdb
 
 
@@ -573,16 +574,63 @@ class UploadFileTask(Task):
         submission_id = str(kwargs['submission_id'])
         src_file_path = file_path
         
+        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        
         #RESULT TO BE RETURNED:
         result = dict()
         result[response_status] = constants.IN_PROGRESS_STATUS
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+ 
+        result = dict()
+        errors_list = []
+        t1 = time.time()
+        try:
+            retcode = subprocess.check_output(["iput", "-K", "-P", src_file_path], stderr=subprocess.STDOUT)
+            print "IPUT retcode = ", retcode
+        except subprocess.CalledProcessError as e:
+            error_msg = "IRODS iput error - return code="+e.retcode+" message: "+e.output
+            errors_list.append(error_msg)
+            print error_msg
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         
-        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-       
-        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
-            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+        t2 = time.time()
+        print "TIME TAKEN: ", t2-t1
+
+        ret = subprocess.Popen(["ichksum"], stdout=subprocess.PIPE)
+        out, err = ret.communicate()
+        
+        # out looks like:
+#        c4@hgi-serapis-dev:~$ ichksum users.txt
+#        users.txt                         4b9f970d118a446b89217982daee62ce
+#        Total checksum performed = 1, Failed checksum = 0
+
+        # p = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
+
+        print "OUT: ", out, " ERR: ", err        
+        if err:
+            error_msg = "IRODS ichksum error - ", err
+            errors_list.append(error_msg)
+            print error_msg
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        else:
+            result[MD5] = out.split()[1]
+            print "CHECKSUM: ", result[MD5]
+            result[response_status] = SUCCESS_STATUS
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+            
+            
+#        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+#        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+
+#        Working version using subprocess.call:
+#        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
+#            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
         
         # WORKING VERSION for local execution:
@@ -1036,8 +1084,15 @@ class AddMdataToIRODSFileTask(Task):
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         src_file_path = str(kwargs['file_path_client'])
+        
+        # TEMP:
         index_file_path = str(kwargs['index_file_path'])
         index_file_md5 = str(kwargs['index_file_md5'])
+        file_md5 = str(kwargs['file_md5'])
+        
+        task_id = current_task.request.id
+        
+        errors_list = []
         
         print "ADD MDATA TO IRODS JOB...works!"
 
@@ -1067,9 +1122,20 @@ class AddMdataToIRODSFileTask(Task):
 
             # Working copy - using the python API:
             #addFileUserMetadata(conn, dest_file_path, attr, val)
-            imeta_cmd = call(["imeta", "add","-d", dest_file_path, attr, val])
-            print "OUTPUT OF IMETA CMD: --------------------", imeta_cmd
-            imeta_cmd += int(imeta_cmd)
+            
+            try:
+                subprocess.check_output(["imeta", "add","-d", dest_file_path, attr, val], stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
+                errors_list.append(error_msg)
+                print error_msg
+
+            # working version - using subprocess.call
+            #retcode = call(["imeta", "add","-d", dest_file_path, attr, val], stdout=out, stderr=err)
+#            print "OUTPUT OF IMETA CMD: --------------------", retcode
+#            if int(retcode) != 0:
+#                errors_returned = True
+#                
             
         # Working, with API:
         #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
@@ -1080,27 +1146,24 @@ class AddMdataToIRODSFileTask(Task):
             (_, index_file_name) = os.path.split(index_file_path) 
             index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
             print "Index file in irods is: ", index_path_irods, " and its type is: ", type(index_path_irods)
-            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', index_file_md5])
-            imeta_cmd += int(imeta_cmd)
-            
-            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_irods_mdata['md5']])
-            imeta_cmd += int(imeta_cmd)
-            
-        
-#        index_file_path = StringField()
-#        index_file_md5 = StringField()
-#        
-
+            try:
+                ret1 = subprocess.check_output(["imeta", "add","-d", index_path_irods, 'file_md5', index_file_md5], stderr=subprocess.STDOUT)
+                ret2 = subprocess.check_output(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_md5])
+                print "Return code for add index mdata: ", ret1, " and ", ret2 
+            except subprocess.CalledProcessError as e:
+                error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
+                errors_list.append(error_msg)
+                print error_msg
 
         # Run the pyrods or smth
         result = dict()
         file_irods_jobs_dict = dict()
-        task_id = current_task.request.id
-        if imeta_cmd == 0:
+        if not errors_list:
             file_irods_jobs_dict[task_id] = SUCCESS_SUBMISSION_TO_IRODS_STATUS
         else:
-            print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! ", imeta_cmd
+            print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! "
             file_irods_jobs_dict[task_id] = FAILURE_SUBMISSION_TO_IRODS_STATUS
+            result['file_error_log'] = errors_list
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
     
