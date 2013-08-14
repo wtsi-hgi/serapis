@@ -138,7 +138,8 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
-    index_file_path = file_to_submit.index_file_path if 'index_file_path' else None
+    index_file_path = file_to_submit.index_file_path if 'index_file_path' in file_to_submit else None
+    index_file_md5 = file_to_submit.index_file_md5 if 'index_file_md5' in file_to_submit else None
     
 #    if 'index_file_path' in file_to_submit:
 #        index_file_path = file_to_submit.index_file_path
@@ -152,7 +153,8 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
                                                      'irods_mdata' : irods_mdata_dict, 
                                                      'file_id' : file_id, 
                                                      'submission_id' : submission_id,
-                                                     'index_file_path' : index_file_path
+                                                     'index_file_path' : index_file_path,
+                                                     'index_file_md5' : index_file_md5
                                                      })
     return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
 #    upd_str = 'set__irods_jobs_dict__'+str(task_id)
@@ -1186,20 +1188,26 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
     error_list = []
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
     f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
-    index_md5_correct = check_file_md5_eq(subm_file.index_file_path, subm_file.index_file_md5)
     if not f_md5_correct:
         error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
-    if not  index_md5_correct:
-        error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path+".md5")
+
+    if subm_file.index_file_path:
+        index_md5_correct = check_file_md5_eq(subm_file.index_file_path, subm_file.index_file_md5)
+        if not  index_md5_correct:
+            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path+".md5")
+    
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS and len(error_list) == 0:
         mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file, user_id, submission_date)
         was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         if was_launched == 1:
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
             return {"message" : "success"}
-    error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
-    error_list.append(error_msg)
-    return {"message" : "failure", "errors" : error_list}
+        
+            
+    else:
+        error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
+        error_list.append(error_msg)
+        return {"message" : "failure", "errors" : error_list}
 
 
 def submit_all_to_irods(submission_id):
