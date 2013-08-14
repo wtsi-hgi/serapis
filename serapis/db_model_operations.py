@@ -423,6 +423,10 @@ def check_file_mdata(file_to_submit):
             has_min_mdata = False
         else:
             __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+    
+    if file_to_submit.index_file_path and not file_to_submit.index_file_md5:
+        return False
+        
     if file_to_submit.file_type == constants.BAM_FILE:
         return check_bam_file_mdata(file_to_submit) and has_min_mdata
     return False
@@ -536,14 +540,14 @@ def check_and_update_all_statuses(file_id, submitted_file=None):
                 if not update_job_status in constants.FINISHED_STATUS:
                     updates_finished = False
                     break
-                if updates_finished:
-                    submitted_file.reload()
-                    print "FILE DOES NOT NOT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
-                    upd_dict = {}
-                    upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
-                    upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
-                    upd_dict['inc__version__0'] = 1
-                    return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
+            if updates_finished and len(submitted_file.irods_jobs_dict) == 0:
+                submitted_file.reload()
+                print "FILE DOES NOT NOT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
+                upd_dict = {}
+                upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
+                upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
+                upd_dict['inc__version__0'] = 1
+                return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
     return 0
     
 

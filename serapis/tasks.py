@@ -1037,6 +1037,8 @@ class AddMdataToIRODSFileTask(Task):
         submission_id = str(kwargs['submission_id'])
         src_file_path = str(kwargs['file_path_client'])
         index_file_path = str(kwargs['index_file_path'])
+        index_file_md5 = str(kwargs['index_file_md5'])
+        file_md5 = str(kwargs['file_md5'])
         
         print "ADD MDATA TO IRODS JOB...works!"
 
@@ -1082,11 +1084,12 @@ class AddMdataToIRODSFileTask(Task):
             index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
 
             print "Index file in irods is: ", index_path_irods, " and its type is: ", type(index_path_irods)
-            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', file_irods_mdata['index_file_md5']])
+            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', index_file_md5])
+
             imeta_cmd += int(imeta_cmd)
 
             print "Second imeta was done...."            
-            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_irods_mdata['md5']])
+            imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_md5])
             imeta_cmd += int(imeta_cmd)
             
         
