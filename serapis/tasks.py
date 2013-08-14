@@ -1075,12 +1075,17 @@ class AddMdataToIRODSFileTask(Task):
 
         # Hack for adding mdata to the index file:
         if index_file_path:
-            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            (_, index_file_name) = os.path.split(file_irods_mdata) 
+            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path, " and type: ", type(index_file_path)
+            (_, index_file_name) = os.path.split(index_file_path) 
+            
+            print "After split path"
             index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
+
+            print "Index file in irods is: ", index_path_irods, " and its type is: ", type(index_path_irods)
             imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'file_md5', file_irods_mdata['index_file_md5']])
             imeta_cmd += int(imeta_cmd)
-            
+
+            print "Second imeta was done...."            
             imeta_cmd = call(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_irods_mdata['md5']])
             imeta_cmd += int(imeta_cmd)
             
@@ -1116,7 +1121,7 @@ class AddMdataToIRODSFileTask(Task):
         file_irods_jobs_dict[task_id] = FAILURE_SUBMISSION_TO_IRODS_STATUS
         result['irods_jobs_dict'] = file_irods_jobs_dict
         result['file_error_log'] =  [str_exc]
-        resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
+        resp = send_http_PUT_req(result, submission_id, file_id, constants.IRODS_JOB_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
 
         

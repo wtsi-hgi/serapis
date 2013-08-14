@@ -138,7 +138,7 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
-    index_file_path = file_to_submit.index_file_path if 'index_file_path' else None
+    index_file_path = file_to_submit.index_file_path if 'index_file_path' in file_to_submit else None
     
 #    if 'index_file_path' in file_to_submit:
 #        index_file_path = file_to_submit.index_file_path
