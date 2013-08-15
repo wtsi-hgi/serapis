@@ -89,6 +89,7 @@ def cmp_timestamp_files(file_path1, file_path2):
 
 def get_files_from_dir(dir_path):
     files_list = []
+    # This is for testing - the 20
     for f_name in listdir(dir_path)[:20]:
         f_path = join(dir_path, f_name)
         if isfile(f_path):

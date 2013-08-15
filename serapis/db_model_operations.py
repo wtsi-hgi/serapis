@@ -1469,6 +1469,8 @@ def insert_hgi_project(file_id, project):
 def update_submission(id):
     pass
 
+
+
 def insert_submission_date(submission_id, date):
     date = utils.get_today_date()
     return models.Submission.objects(id=submission_id).update_one(submission_date=date)
