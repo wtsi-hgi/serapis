@@ -67,6 +67,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_DISABLE_RATE_LIMITS = True
 ####
 
+# Determines how many messages does each worker prefetch from the queue. For long tasks - recommended to be 1
+CELERYD_PREFETCH_MULTIPLIER = 1     
 
 #### WORKS with mongo: ####
 #CELERY_MONGODB_BACKEND_SETTINGS = {
