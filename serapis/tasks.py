@@ -93,7 +93,6 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     url_str = build_url(submission_id, file_id)
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
     response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
-    print "REQUEST DATA TO SEND================================", msg
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
 
@@ -232,12 +231,6 @@ class ProcessSeqScapeData():
         # TODO: try: catch: OperationalError (2003) - can't connect to MySQL, to deal with this error!!!
         self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
-        
-#    def is_accession_nr(self, sample_field):
-#        ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
-#        if sample_field.startswith('ER') or sample_field.startswith('SR') or sample_field.startswith('DR') or sample_field.startswith('EGA'):
-#            return True
-#        return False
 
     # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
     # Query SeqScape for all the library names found in BAM header
@@ -323,56 +316,7 @@ class ProcessSeqScapeData():
             
         print "LIBRARY LIST: ", file_submitted.library_list
    
-#                
-#        
-#    # Query SeqScape for all the library names found in BAM header
-#    def fetch_and_process_lib_unknown_mdata1(self, incomplete_libs_list, file_submitted):
-#        ''' Queries SeqScape for each library in the list, described by a dictionary of properties.
-#            If the library exists and is unique in SeqScape, then it is being added
-#            to the normal list of libraries. If the library doesn't exist, then it is
-#            added to the missing_entities_list, if there are more than one rows returned
-#            when querying SeqScape with the properties given, then the lib is added to
-#            not_unique_entities_list.
-#        Params:
-#            incomplete_libs_list -- list of libs given by a dict of properties, to be searched in SeqScape
-#            file_submitted -- the actual submittedFile object, that should have the list of libs as mdata. 
-#        '''
-#        for lib_dict in incomplete_libs_list:
-#            # TRY to search for lib in default table:
-#            lib_mdata = QuerySeqScape.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-#            print "Libraries not found -- print answer--------------------------:", lib_mdata
-#            if (lib_mdata == None or len(lib_mdata) == 0) and 'internal_id' in lib_dict:
-#                lib_well = self.try_search_in_wells(lib_dict['internal_id'])
-#                if lib_well == True:
-#                    file_submitted.library_well_list.append(lib_dict['internal_id'])
-#                    #file_submitted.library_well_list.append(lib_well)
-#                    #return
-#                else:
-#                    new_lib = Library.build_from_json(lib_dict)
-#                    file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
-#                    file_submitted.add_or_update_lib(new_lib)
-#            else:
-#                if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
-#                    lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
-#                    new_lib = Library.build_from_seqscape(lib_mdata)
-#                    new_lib.check_if_has_minimal_mdata()
-#                    new_lib.check_if_complete_mdata()
-#                    file_submitted.add_or_update_lib(new_lib)
-#                else:               # Faulty cases:
-#                    ####file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-##                    new_lib = Library()
-##                    for field_name in lib_dict:
-##                        setattr(new_lib, field_name, lib_dict[field_name])
-#                    new_lib = Library.build_from_json(lib_dict)
-#                    if lib_mdata == None or len(lib_mdata) == 0:
-#                        file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
-#                        file_submitted.add_or_update_lib(new_lib)
-#                    elif len(lib_mdata) > 1:
-#                        file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
-#                    
-#        print "LIBRARY LIST: ", file_submitted.library_list
-#   
-#                
+
                 
     def fetch_and_process_sample_known_mdata_fields(self, sample_dict, file_submitted):
         sampl_mdata = None
@@ -399,45 +343,13 @@ class ProcessSeqScapeData():
             elif len(sampl_mdata) > 1:
                 file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
                     
-                    
-#    
-#    def fetch_and_process_sample_unknown_mdata_fields(self, sample_dict, file_submitted):
-##        if self.is_accession_nr(sample_dict[UNKNOWN_FIELD]):
-##            search_field_name = 'accession_number'
-##        else:
-##            search_field_name = 'name'
-##        search_field_dict = {search_field_name : sample_dict[UNKNOWN_FIELD]}
-#        sampl_mdata = QuerySeqScape.get_sample_data(self.connection, sample_dict)   
-#        if sampl_mdata != None and len(sampl_mdata) == 1:           # Ideal case
-#            sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
-#            new_sample = Sample.build_from_seqscape(sampl_mdata)
-#            file_submitted.add_or_update_sample(new_sample)
-#        else:                           # Problematic - error cases:
-#            #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-#            new_sample = Sample()
-#            if sampl_mdata == None or len(sampl_mdata) == 0:
-#                search_field = UNKNOWN_FIELD   # Change back to UNKNOWN_FIELD
-#                setattr(new_sample, search_field, sample_dict[UNKNOWN_FIELD])
-#                file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
-#            elif len(sampl_mdata) > 1:
-#                #setattr(new_sample, search_field_name, sample_dict[UNKNOWN_FIELD])
-##                for k,v in sample_dict.iteritems:
-##                    setattr(new_sample, k, v)
-#                new_sample = Sample.build_from_json(sample_dict)
-#                file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
-#            
-#    #        print "SAMPLE_LIST: ", file_submitted.sample_list
-#     
+ 
     
     ########## SAMPLE LOOKUP ############
     # Look up in SeqScape all the sample names in header that didn't have a complete mdata in my DB. 
     def fetch_and_process_sample_mdata(self, incomplete_sampl_list, file_submitted):
         for sample_dict in incomplete_sampl_list:
-#            if UNKNOWN_FIELD in sample_dict:
-#                self.fetch_and_process_sample_unknown_mdata_fields(sample_dict, file_submitted)
-#            else:
             self.fetch_and_process_sample_known_mdata_fields(sample_dict, file_submitted)
-            #print "SAMPLE_LIST: ", file_submitted.sample_list
       
       
      
@@ -447,15 +359,8 @@ class ProcessSeqScapeData():
             if study_mdata != None and len(study_mdata) == 1:                 # Ideal case
                 study_mdata = study_mdata[0]            # get_study_data returns a tuple in which each element is a row in seqscDB
                 new_study = Study.build_from_seqscape(study_mdata)
-                #new_study.check_if_has_minimal_mdata()
-                #new_study.check_if_complete_mdata()
                 file_submitted.add_or_update_study(new_study)
             else:               # Faulty cases:
-                ###file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-#                new_study = Study()
-#                for field_name in study_dict:
-#                    setattr(new_study, field_name, study_dict[field_name])
-                #print "study IS COMPLETE OR NOT: ------------------------", new_study.is_complete
                 new_study = Study.build_from_json(study_dict)
                 if study_mdata == None or len(study_mdata) == 0:
                     file_submitted.append_to_missing_entities_list(new_study, STUDY_TYPE)
@@ -704,7 +609,6 @@ class ParseBAMHeaderTask(Task):
                 dictionary[k].add(v)
         back_to_list = {}
         for k,v in dictionary.items():
-            #back_to_list = {k:list(v) for k,v in dictionary.items()}
             back_to_list[k] = list(v)
         return back_to_list
     

@@ -127,7 +127,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             data = request.DATA
             data = utils.unicode2string(data)
             validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
-            result_dict = controller.add_submission(user_id, data)
+            result_dict = controller.create_submission(user_id, data)
             submission_id = result_dict['submission_id']
             if submission_id == None:
                 # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically incorrect)?

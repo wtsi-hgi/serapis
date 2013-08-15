@@ -354,12 +354,24 @@ def detect_file_type(file_path):
         
         
 def append_to_errors_dict(error_source, error_type, submission_error_dict):
-    if error_type in submission_error_dict:
+    #if error_type in submission_error_dict:
+    try:
         error_list = submission_error_dict[error_type]
-    else:
+    except KeyError:
         error_list = []
     error_list.append(error_source)
     submission_error_dict[error_type] = error_list
+    
+    
+def extend_errors_dict(error_list, error_type, submission_error_dict):
+    #if error_type in submission_error_dict:
+    try:
+        error_list = submission_error_dict[error_type]
+    except KeyError:
+        error_list = []
+    error_list.extend(error_list)
+    submission_error_dict[error_type] = error_list
+
     
 
 def check_file_permissions_and_status(file_path, errors_dict):
@@ -383,33 +395,29 @@ def check_file_permissions_and_status(file_path, errors_dict):
     
 
 def associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict):
-    index_files_matched = []
+    #index_files_matched = []
     index_files_unmatched = []
     for index_file_path in index_files_list:
         index_fname, index_ext = utils.extract_index_fname(index_file_path)
-#        _, tail = os.path.split(index_file_path) 
-#        index_file_name, index_ext = os.path.splitext(tail)
-#        index_ext = index_ext[1:]           # from '.bam' to 'bam' (eliminate first character
         index_matched = False
         for submitted_file in submitted_files_list:
-#            _, tail = os.path.split(submitted_file.file_path_client)
-#            sub_file_name, sub_file_ext = os.path.splitext(tail)
-#            sub_file_ext = sub_file_ext[1:]          # from '.bam' to 'bam'
             sub_fname, sub_file_ext = utils.extract_fname_and_ext(submitted_file.file_path_client)
             if index_fname == sub_fname and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
                 if utils.cmp_timestamp_files(submitted_file.file_path_client, index_file_path) <= 0:         # compare file and index timestamp
                     index_matched = True  
                     db_model_operations.update_index_file_path(submitted_file.id, index_file_path, nr_retries=3)
-                    index_files_matched.append(index_file_path)
+                    #index_files_matched.append(index_file_path)
                     break
                 else:
                     append_to_errors_dict(index_file_path, constants.INDEX_OLDER_THAN_FILE, errors_dict)
         if not index_matched:
             index_files_unmatched.append(index_file_path)
     # Check if there are any index files unmatched with submitted files => add them to the error dict
-    #if len(index_files_unmatched) > 0:
-    for unmatched_index in index_files_unmatched:
-        append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
+#    for unmatched_index in index_files_unmatched:
+#        append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
+    if index_files_unmatched:
+        extend_errors_dict(index_files_unmatched,  constants.UNMATCHED_INDEX_FILES, errors_dict)
+   
         
 #    if len(index_files_matched) < len(index_files_list):
 #        diff_set = set(index_files_list).difference(index_files_matched)
@@ -503,9 +511,6 @@ def create_submission(user_id, data):
     if result_init_submission['submission'] != None:
         submission = result_init_submission['submission']
         io_errors_dict = submit_jobs_for_submission(user_id, submission, data)
-#        errors = dict()
-#        errors['Non existing files'] = non_existing_files
-        #errors_dict.update(io_errors_dict)
         if len(io_errors_dict) > 0:
             errors_dict[constants.IO_ERROR] = io_errors_dict
         result['submission_id'] = str(submission.id)
@@ -516,12 +521,6 @@ def create_submission(user_id, data):
 
 
 
-def add_submission(user_id, data):
-    subm_created = create_submission(user_id, data)
-#    if subm_created['submission_id'] != None:
-#        mdata_added = add_mdata_to_submission(subm_created['submission_id'], data)
-    # TODO: add error message to the corresponding files if no mdata was added to them...
-    return subm_created
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
