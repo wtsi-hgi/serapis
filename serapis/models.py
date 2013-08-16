@@ -119,12 +119,20 @@ class Sample(Entity):          # one sample can be member of many studies
     common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
   
+class GeneralFileMdata(DynamicDocument):
+    hgi_project = StringField()
+    #DATA-RELATED FIELDS:
+    data_type = StringField(choices=DATA_TYPES)
+    data_subtype_tags = DictField()
+    file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
+    abstract_library = EmbeddedDocumentField(Library)
+    study = EmbeddedDocumentField(Study)
+    
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
     submission_id = StringField()
     id = ObjectId()
-    hgi_project = StringField()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
     file_path_irods = StringField()    
@@ -133,13 +141,6 @@ class SubmittedFile(DynamicDocument):
     #OPTIONAL:
     index_file_path = StringField()
     index_file_md5 = StringField()
-    
-    #DATA-RELATED FIELDS:
-    data_type = StringField(choices=DATA_TYPES)
-    data_subtype_tags = DictField()
-    file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
-    
-    #file_reference_genome = ReferenceField('ReferenceGenome')
     
     # ABSTRACT ENTITIES:
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
@@ -240,6 +241,9 @@ class Submission(DynamicDocument):
         'indexes': ['sanger_user_id', '_id'],
             }
     
+    data_type = StringField(choices=DATA_TYPES)
+    data_subtype_tags = DictField()
+    file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     
 #    meta = {
 #        'allow_inheritance': True,

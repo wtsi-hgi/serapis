@@ -163,7 +163,7 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
 # UPLOAD TASK
 #DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
 #DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
-DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/"
+DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/staging_area/projects"
 
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'

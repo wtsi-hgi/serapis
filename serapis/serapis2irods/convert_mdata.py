@@ -170,13 +170,18 @@ def convert_specific_file_mdata(file_type, file_mdata):
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
     FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'data_subtype_tags','hgi_project']
-    FILE_PREFIXED_FIELDS_LIST = ['md5']
+    FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     for field_name in FILE_PREFIXED_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
+            if field_name == 'id':
+                field_name = 'file_dbid'
+            else:
+                field_name = 'file_'+field_name
             field_val = getattr(subm_file, field_name)
             field_val = utils.unicode2string(field_val)
-            irods_file_mdata.append(('file_'+field_name, field_val))
+            irods_file_mdata.append((field_name, field_val))
+            
     for field_name in FILE_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) != None:
             field_val = getattr(subm_file, field_name)

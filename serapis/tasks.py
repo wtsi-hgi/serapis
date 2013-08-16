@@ -477,10 +477,11 @@ class UploadFileTask(Task):
         file_path = kwargs['file_path']
         response_status = kwargs['response_status']
         submission_id = str(kwargs['submission_id'])
+        dest_file_path = str(kwargs['dest_irods_path'])
         src_file_path = file_path
         
-        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        #(_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        #dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
         
         #RESULT TO BE RETURNED:
         result = dict()
