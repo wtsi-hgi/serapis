@@ -82,7 +82,7 @@ def launch_parse_BAM_header_job(file_submitted, read_on_client=True):
     parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 'file_id' : file_submitted.id, 'read_on_client' : read_on_client })
     
     
-def launch_upload_job(user_id, file_submitted, file_path, response_status, queue=None):
+def launch_upload_job(user_id, file_submitted, file_path, response_status, dest_irods_path, queue=None):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     
@@ -92,7 +92,8 @@ def launch_upload_job(user_id, file_submitted, file_path, response_status, queue
         upload_task.apply_async(kwargs={ 'file_id' : file_submitted.id, 
                                         'file_path' : file_path, 
                                         'response_status' : response_status, 
-                                        'submission_id' : file_submitted.submission_id
+                                        'submission_id' : file_submitted.submission_id,
+                                        'dest_irods_path' : dest_irods_path
                                         }, 
                                 queue="celery")
         db_model_operations.update_file_upload_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
@@ -227,14 +228,17 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
 
     
 
-def submit_jobs_for_file(user_id, file_submitted, read_on_client=True, upload_task_queue=None):
+def submit_jobs_for_file(user_id, file_submitted, submission_date, read_on_client=True, upload_task_queue=None, dest_file_path=None):
+    if dest_file_path == None:
+        dest_file_path = os.path.join(constants.DEST_DIR_IRODS, file_submitted.hgi_project, submission_date)
+        
     if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
         io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
         try:
             if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-                launch_upload_job(user_id, file_submitted, file_submitted.file_path_client, 'file_upload_job_status')
+                launch_upload_job(user_id, file_submitted, file_submitted.file_path_client, 'file_upload_job_status', dest_file_path)
             if file_submitted.index_file_path != None and file_submitted.index_file_path != '':
-                launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status')
+                launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status', dest_file_path)
         except IOError as e:
             io_errors_list.append(e)
             db_model_operations.update_file_error_log(e.strerror, submitted_file=file_submitted)
@@ -333,7 +337,7 @@ def submit_jobs_for_submission(user_id, submission, data):
         #file_submitted = models.SubmittedFile.objects(_id=file_id).get()
         add_mdata_to_file(file_id, data)
         file_submitted = db_model_operations.retrieve_submitted_file(file_id)
-        file_io_errors = submit_jobs_for_file(user_id, file_submitted)
+        file_io_errors = submit_jobs_for_file(user_id, file_submitted, submission.submission_date)
         if file_io_errors != None and len(file_io_errors) > 0:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
     #submission.save()       # some files have modified some statuses, so this has to be saved
@@ -520,7 +524,85 @@ def create_submission(user_id, data):
     return result
 
 
+def add_submission(user_id, data):
+    if 'files_list' in data:
+        files_list = data['files_list']
+    elif 'dir_path' in data:
+        files_list = utils.get_files_from_dir(data['dir_path'])
+    else:
+        raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
+    
+    submission = models.Submission(sanger_user_id=user_id)
+    
+    if 'hgi_project' in data:
+        submission.hgi_project = data['hgi_project']
+    if 'data_type' in data:
+        upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
+        print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
+    if 'library_info' in data:
+        upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
+        print "UPDATED ABSTRACT LIB..............................", upd
+    if 'study' in data:
+        study_data = data['study']
+        name, visib, pi_list = None, None, None
+        if 'name' in study_data:
+            name = study_data['name']
+        if 'visibility' in study_data:
+            visib = study_data['visibility']
+        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
+            pi_list = study_data['pi_list'] #list
+        if not name or not visib or not pi_list:
+            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
+        else:
+            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
+            print "Has the study been inserted? - from controller....", inserted
+            if inserted:
+                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+                submitted_file.reload()
+                launch_update_file_job(submitted_file)
+            else:
+                #TODO: report error - mdata couldn't be added
+                #raise exceptions.EditConflictError("Study couldn't be added.")
+                return False
+    if 'data_subtype_tags' in data:
+        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
+        print "Has DATA SUBTYPES been updated????"
+        
+    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
+        ref_dict = data['reference_genome']
+        ref_gen, path, md5, name = None, None, None, None
+        if 'name' in ref_dict:
+            name = ref_dict['name']
+        if 'path' in ref_dict:
+            path = ref_dict['path']
+        if 'md5' in ref_dict:
+            md5 = ref_dict['md5']
+        try:
+            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
+            if ref_gen == None:
+                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
+                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
+            else:
+                ref_genome_id = ref_gen.md5
+                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
+                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
+            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
+        except exceptions.NotEnoughInformationProvided as e:
+            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
+        except exceptions.InformationConflict as e:
+            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
+            logging.debug(error_text)
+            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
+    submission.save()
 
+    return True
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
@@ -831,6 +913,7 @@ def resubmit_jobs(submission_id, file_id, data):
         '''
     user_id = 'ic4'
     file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
+    subm_date = db_model_operations.retrieve_submission_date(file_id, submission_id)
     
     # TODO: success and fail -statuses...
     # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
@@ -849,11 +932,11 @@ def resubmit_jobs(submission_id, file_id, data):
         if e.errno == errno.EACCES:
             permission_denied = True
     if permission_denied == False:     
-        error_list = submit_jobs_for_file(user_id, file_to_resubmit)
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit, subm_date)
         #file_to_resubmit.file_error_log.extend(error_list)
         db_model_operations.update_file_error_log(error_list, submitted_file=file_to_resubmit)
     else:
-        error_list = submit_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit, subm_date, read_on_client=False, upload_task_queue="user."+user_id)
     file_to_resubmit.save(validate=False)
     return error_list
 
