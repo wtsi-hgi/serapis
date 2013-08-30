@@ -139,7 +139,8 @@ class SubmittedFile(DynamicDocument):
     md5 = StringField()
     
     #OPTIONAL:
-    index_file_path = StringField()
+    index_file_path_irods = StringField()
+    index_file_path_client = StringField()
     index_file_md5 = StringField()
     
     # ABSTRACT ENTITIES:

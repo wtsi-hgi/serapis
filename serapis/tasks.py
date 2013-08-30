@@ -492,10 +492,10 @@ class UploadFileTask(Task):
         errors_list = []
         t1 = time.time()
         try:
-            retcode = subprocess.check_output(["iput", "-K", "-P", src_file_path], stderr=subprocess.STDOUT)
+            retcode = subprocess.check_output(["iput", "-K", src_file_path], stderr=subprocess.STDOUT)
             print "IPUT retcode = ", retcode
         except subprocess.CalledProcessError as e:
-            error_msg = "IRODS iput error - return code="+e.retcode+" message: "+e.output
+            error_msg = "IRODS iput error - return code="+e.returncode+" message: "+e.output
             errors_list.append(error_msg)
             print error_msg
             result[response_status] = FAILURE_STATUS
@@ -988,10 +988,11 @@ class AddMdataToIRODSFileTask(Task):
         file_irods_mdata = kwargs['irods_mdata']
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
-        src_file_path = str(kwargs['file_path_client'])
+        #src_file_path = str(kwargs['file_path_client'])
+        dest_file_path_irods = str(kwargs['dest_file_path_irods'])
         
         # TEMP:
-        index_file_path = str(kwargs['index_file_path'])
+        index_file_path_irods = str(kwargs['index_file_path_irods'])
         index_file_md5 = str(kwargs['index_file_md5'])
         file_md5 = str(kwargs['file_md5'])
         
@@ -1005,8 +1006,8 @@ class AddMdataToIRODSFileTask(Task):
         # 'file_id' : file_id, 'submission_id' : submission_id})
         file_irods_mdata = deserialize(file_irods_mdata)
 
-        (_, src_file_name) = os.path.split(src_file_path)  
-        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+#        (_, src_file_name) = os.path.split(src_file_path)  
+#        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
 
         print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
         
@@ -1029,7 +1030,7 @@ class AddMdataToIRODSFileTask(Task):
             #addFileUserMetadata(conn, dest_file_path, attr, val)
             
             try:
-                subprocess.check_output(["imeta", "add","-d", dest_file_path, attr, val], stderr=subprocess.STDOUT)
+                subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
                 errors_list.append(error_msg)
@@ -1046,14 +1047,13 @@ class AddMdataToIRODSFileTask(Task):
         #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
 
         # Hack for adding mdata to the index file:
-        if index_file_path:
-            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path, " and type: ", type(index_file_path)
-            (_, index_file_name) = os.path.split(index_file_path) 
-            index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
-            print "Index file in irods is: ", index_path_irods, " and its type is: ", type(index_path_irods)
+        if index_file_path_irods:
+            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
+#            (_, index_file_name) = os.path.split(index_file_path) 
+#            index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
             try:
-                ret1 = subprocess.check_output(["imeta", "add","-d", index_path_irods, 'file_md5', index_file_md5], stderr=subprocess.STDOUT)
-                ret2 = subprocess.check_output(["imeta", "add","-d", index_path_irods, 'indexed_file_md5', file_md5])
+                ret1 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'file_md5', index_file_md5], stderr=subprocess.STDOUT)
+                ret2 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'indexed_file_md5', file_md5])
                 print "Return code for add index mdata: ", ret1, " and ", ret2 
             except subprocess.CalledProcessError as e:
                 error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
@@ -1089,6 +1089,12 @@ class AddMdataToIRODSFileTask(Task):
         resp = send_http_PUT_req(result, submission_id, file_id, constants.IRODS_JOB_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
 
+        
+        
+class CopyStaging2IRODSDestTask(Task):
+    
+    def run(self, **kwargs):
+        print "Hello from copy from staging 2 irods task!"
         
 
 # --------------------------- NOT USED ------------------------

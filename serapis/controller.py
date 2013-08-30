@@ -24,6 +24,7 @@ upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
 add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
+cp_staging2dest_irods = tasks.CopyStaging2IRODSDestTask()
 
 #query_seqscape = tasks.QuerySeqScapeTask()
 #query_study_seqscape = tasks.QuerySeqscapeForStudyTask()
@@ -107,6 +108,13 @@ def launch_upload_job(user_id, file_submitted, file_path, response_status, dest_
         #file_submitted.save()
 
 
+def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_irods):
+    print "I am COPYING the submission : ", src_path_irods, " to IRODS humgen collection...", dest_path_irods
+    
+    cp_staging2dest_irods.apply_async(kwargs={'src_path_irods' : src_path_irods,
+                                              'dest_path_irods' : dest_path_irods
+                                              })
+    
     
 def launch_update_file_job(file_submitted):
     file_serialized = serializers.serialize(file_submitted)
@@ -139,8 +147,14 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
-    index_file_path = file_to_submit.index_file_path if 'index_file_path' in file_to_submit else None
-    index_file_md5 = file_to_submit.index_file_md5 if 'index_file_md5' in file_to_submit else None
+    if 'index_file_path_client' in file_to_submit:
+        index_file_path_irods = file_to_submit['index_file_path_irods']
+        index_file_md5 = file_to_submit.index_file_md5 if 'index_file_md5' in file_to_submit else None
+        #index_file_path = file_to_submit.index_file_path if 'index_file_path' in file_to_submit else None
+    else:
+        index_file_path_irods = None
+        index_file_md5 = None
+        print "No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!"
     
 #    if 'index_file_path' in file_to_submit:
 #        index_file_path = file_to_submit.index_file_path
@@ -149,12 +163,13 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
 
     #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
     
+    
     # TODO: replace the client_path with the irods path:
-    task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_path_client' : file_to_submit['file_path_client'], 
+    task_id = add_mdata_to_IRODS.apply_async(kwargs={'dest_file_path_irods' : file_to_submit['file_path_irods'], 
                                                      'irods_mdata' : irods_mdata_dict, 
                                                      'file_id' : file_id, 
                                                      'submission_id' : submission_id,
-                                                     'index_file_path' : index_file_path,
+                                                     'index_file_path_irods' : index_file_path_irods,
                                                      'index_file_md5' : index_file_md5,
                                                      'file_md5' : file_to_submit.md5
                                                      })
@@ -228,19 +243,27 @@ def launch_add_mdata2irods_job(file_id, submission_id, file_mdata_dict):
 
     
 
-def submit_jobs_for_file(user_id, file_submitted, submission_date, read_on_client=True, upload_task_queue=None, dest_file_path=None):
-    if dest_file_path == None:
-        dest_file_path = os.path.join(constants.DEST_DIR_IRODS, file_submitted.hgi_project, submission_date)
-        
+def submit_jobs_for_file(user_id, file_submitted, 
+                         submission_date=None, 
+                         hgi_project=None, 
+                         hgi_subprj=None, 
+                         read_on_client=True, 
+                         upload_task_queue=None):
+    
+    # Submits directly to the humgen/prj zone
+    dest_file_path = utils.build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj)
+    
+    # WORKING version for uploading to the staging area:
+    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
     if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
-        io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+        #io_errors_list = []         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
         try:
             if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
                 launch_upload_job(user_id, file_submitted, file_submitted.file_path_client, 'file_upload_job_status', dest_file_path)
-            if file_submitted.index_file_path != None and file_submitted.index_file_path != '':
-                launch_upload_job(user_id, file_submitted, file_submitted.index_file_path, 'index_file_upload_job_status', dest_file_path)
+            if file_submitted.index_file_path_client != None and file_submitted.index_file_path_client != '':
+                launch_upload_job(user_id, file_submitted, file_submitted.index_file_path_client, 'index_file_upload_job_status', dest_file_path)
         except IOError as e:
-            io_errors_list.append(e)
+            io_errors_list = [e]
             db_model_operations.update_file_error_log(e.strerror, submitted_file=file_submitted)
             #file_submitted.file_error_log.append(e.strerror)    -> shouldn't be doing it non atomic!!!
 #        else:
@@ -254,9 +277,8 @@ def submit_jobs_for_file(user_id, file_submitted, submission_date, read_on_clien
 #                elif file_submitted.file_type == constants.VCF_FILE:
 #                    pass
 #            # TODO: here it depends on the type of IOError we have encountered at the first try...TO EXTEND this part!
-        return io_errors_list
-    else:
-        return None
+            return io_errors_list
+    return None
     
 
 
@@ -297,7 +319,7 @@ def add_mdata_to_file(file_id, data):
     if 'data_subtype_tags' in data:
         upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
         print "Has DATA SUBTYPES been updated????"
-        
+    
     if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
         ref_dict = data['reference_genome']
         ref_gen, path, md5, name = None, None, None, None
@@ -334,13 +356,23 @@ def add_mdata_to_file(file_id, data):
 def submit_jobs_for_submission(user_id, submission, data):
     io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_id in submission.files_list:
-        #file_submitted = models.SubmittedFile.objects(_id=file_id).get()
         add_mdata_to_file(file_id, data)
         file_submitted = db_model_operations.retrieve_submitted_file(file_id)
-        file_io_errors = submit_jobs_for_file(user_id, file_submitted, submission.submission_date)
-        if file_io_errors != None and len(file_io_errors) > 0:
+        
+        # HACK - to be moved!!!
+        irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
+        file_path_irods = utils.build_file_path_irods(file_submitted.file_path_client, irods_coll)
+        
+        if hasattr(file_submitted, 'index_file_path_client'):
+            index_path_irods = utils.build_file_path_irods(file_submitted.index_file_path_client, irods_coll)
+            db_model_operations.update_file_path_irods(file_id, file_path_irods, index_path_irods)
+        else:
+            db_model_operations.update_file_path_irods(file_id, file_path_irods)
+        #### END of HACK
+        
+        file_io_errors = submit_jobs_for_file(user_id, file_submitted)
+        if file_io_errors:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
-    #submission.save()       # some files have modified some statuses, so this has to be saved
     return io_errors_dict
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
@@ -403,13 +435,17 @@ def associate_files_with_index_files(index_files_list, submitted_files_list, err
     index_files_unmatched = []
     for index_file_path in index_files_list:
         index_fname, index_ext = utils.extract_index_fname(index_file_path)
+        print "FROM ASSOCIATEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", index_fname, " ext: ", index_ext, " and subm files list:", submitted_files_list
         index_matched = False
         for submitted_file in submitted_files_list:
-            sub_fname, sub_file_ext = utils.extract_fname_and_ext(submitted_file.file_path_client)
-            if index_fname == sub_fname and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
+            subfile_name, sub_file_ext = utils.extract_fname_and_ext(submitted_file.file_path_client)
+            print "index file name: ==============================", index_fname, " and subm file name: ", subfile_name 
+            if index_fname == subfile_name and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
                 if utils.cmp_timestamp_files(submitted_file.file_path_client, index_file_path) <= 0:         # compare file and index timestamp
                     index_matched = True  
-                    db_model_operations.update_index_file_path(submitted_file.id, index_file_path, nr_retries=3)
+                    index_file_path_irods = utils.build_file_path_irods(index_file_path, constants.DEST_DIR_IRODS)
+                    print "Index file path client: ", index_file_path, " and irods: ", index_file_path_irods
+                    db_model_operations.update_index_file_path_client(submitted_file.id, index_file_path, nr_retries=3)
                     #index_files_matched.append(index_file_path)
                     break
                 else:
@@ -438,6 +474,7 @@ def init_submission(user_id, files_list):
     submitted_files_list = []
     index_files_list = []
     errors_dict = dict()
+    print "FILES LISTTTTTTTTTTTTTTT (SEEEET)::::::", len(files_list)
     for file_path in files_list:        
         # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
         # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
@@ -445,16 +482,20 @@ def init_submission(user_id, files_list):
         # Checking the file's permissions and status
         status = check_file_permissions_and_status(file_path, errors_dict)
         if status == None:
+            "STATUS ===== NONE => PROBLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEM!!!!"
             continue
         
         # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
         # Checking the file type:
         try:
+            print "FILE PATH: ", file_path
             file_type = detect_file_type(file_path)
         except exceptions.NotSupportedFileType as e:
             append_to_errors_dict(e.faulty_expression, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
+            print "NOT SUPPORTED TYPE!!!!!", file_type
             continue
         else:
+            print "FILE TYPPPPPPPPPPPPPPPPPPPPPPPPPPE: ", file_type
             if file_type == constants.BAM_FILE:
                 file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)   # bam_type="LANEPLEX"
             elif file_type == constants.BAI_FILE:
@@ -473,6 +514,7 @@ def init_submission(user_id, files_list):
             submitted_files_list.append(file_submitted)
 
     # ASSOCIATE ALL THE INDEX FILES IN THE LIST WITH THE FILES IN THE SUBMITTED_FILES_LIST:
+    print "INDEX FILESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS: ", str(index_files_list)
     associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict)
 
     result = dict()
@@ -509,13 +551,16 @@ def create_submission(user_id, data):
         files_list = utils.get_files_from_dir(data['dir_path'])
     else:
         raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
+    print "FILES LISTTTTTTTTTTTTTTTTTTTTt: ", files_list
+    print "SET FILES LISTTTTTTTTTTTTTTT", set(files_list)
     result_init_submission = init_submission(user_id, set(files_list))
+    
     result = dict()
     errors_dict = result_init_submission['errors']
     if result_init_submission['submission'] != None:
         submission = result_init_submission['submission']
         io_errors_dict = submit_jobs_for_submission(user_id, submission, data)
-        if len(io_errors_dict) > 0:
+        if io_errors_dict:
             errors_dict[constants.IO_ERROR] = io_errors_dict
         result['submission_id'] = str(submission.id)
     else:
@@ -913,7 +958,6 @@ def resubmit_jobs(submission_id, file_id, data):
         '''
     user_id = 'ic4'
     file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
-    subm_date = db_model_operations.retrieve_submission_date(file_id, submission_id)
     
     # TODO: success and fail -statuses...
     # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
@@ -932,11 +976,11 @@ def resubmit_jobs(submission_id, file_id, data):
         if e.errno == errno.EACCES:
             permission_denied = True
     if permission_denied == False:     
-        error_list = submit_jobs_for_file(user_id, file_to_resubmit, subm_date)
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit)
         #file_to_resubmit.file_error_log.extend(error_list)
         db_model_operations.update_file_error_log(error_list, submitted_file=file_to_resubmit)
     else:
-        error_list = submit_jobs_for_file(user_id, file_to_resubmit, subm_date, read_on_client=False, upload_task_queue="user."+user_id)
+        error_list = submit_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
     file_to_resubmit.save(validate=False)
     return error_list
 
@@ -1274,10 +1318,10 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
     if not f_md5_correct:
         error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
 
-    if subm_file.index_file_path:
-        index_md5_correct = check_file_md5_eq(subm_file.index_file_path, subm_file.index_file_md5)
+    if subm_file.index_file_path_client:
+        index_md5_correct = check_file_md5_eq(subm_file.index_file_path_client, subm_file.index_file_md5)
         if not  index_md5_correct:
-            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path+".md5")
+            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path_client+".md5")
     
     if subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS and len(error_list) == 0:
         mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file, user_id, submission_date)
@@ -1286,7 +1330,6 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
             return {"message" : "success"}
         
-            
     else:
         error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
         error_list.append(error_msg)
