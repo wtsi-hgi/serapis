@@ -497,7 +497,7 @@ class UploadFileTask(Task):
             retcode = subprocess.check_output(["iput", "-K", src_file_path], stderr=subprocess.STDOUT)
             print "IPUT retcode = ", retcode
         except subprocess.CalledProcessError as e:
-            error_msg = "IRODS iput error - return code="+e.retcode+" message: "+e.output
+            error_msg = "IRODS iput error - return code="+e.returncode+" message: "+e.output
             errors_list.append(error_msg)
             print error_msg
             result[response_status] = FAILURE_STATUS
