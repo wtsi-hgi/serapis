@@ -154,6 +154,18 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
                      READY_FOR_IRODS_SUBMISSION_STATUS)  
 
 
+
+UPDATE_JOBS = 'UPDATE_JOBS'
+IRODS_JOBS = 'IRODS_JOBS'       # This corresponds with the AddMdata task. The name might be misleading, as it excludes the upload task
+
+
+# This set contains only the jobs(tasks) that can be launched more
+# at the same time, hence have a job status dict associated in the
+# metadata of a file.
+JOB_TYPES = (UPDATE_JOBS,
+             IRODS_JOBS) 
+
+            
 # -------------- UPDATING STRATEGIES: ----------------
 #KEEP_NEW = "KEEP_NEW"
 #IDEMPOTENT_RAISE_CONFLICT = "IDEMPOTENT"
@@ -194,6 +206,7 @@ INDEX_OLDER_THAN_FILE = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES = "UNMATCHED_INDEX_FILES"
 SEQSCAPE_DB_CONNECTION_ERROR = "SEQSCAPE_DB_CONNECTION_ERROR"
 MISSING_MANDATORY_FIELDS = "MISSING_MANDATORY_FIELDS"
+COLLECTION_DOES_NOT_EXIST = "COLLECTION_DOES_NOT_EXIST"
 
 
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,

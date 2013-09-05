@@ -2,7 +2,7 @@ from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 import pysam
-import os
+import os, sys
 import re
 import requests
 import errno
@@ -432,10 +432,9 @@ class UploadFileTask(Task):
     def run2(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
-        file_path = kwargs['file_path']
+        src_file_path = kwargs['file_path']
         response_status = kwargs['response_status']
         submission_id = str(kwargs['submission_id'])
-        src_file_path = file_path
         
         #RESULT TO BE RETURNED:
         result = dict()
@@ -458,7 +457,7 @@ class UploadFileTask(Task):
             if md5_src == md5_dest:
                 result[MD5] = md5_src
             else:
-                raise UploadFileTask.retry(self, args=[file_id, file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
+                raise UploadFileTask.retry(self, args=[file_id, src_file_path, submission_id], countdown=1, max_retries=2 ) # this line throws an exception when max_retries is exceeded
         except MaxRetriesExceededError:
             result[FILE_ERROR_LOG] = []
             result[FILE_ERROR_LOG].append(constants.UNEQUAL_MD5)
@@ -469,7 +468,151 @@ class UploadFileTask(Task):
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         #return result
 
+    def split_path(self, path):
+        ''' Given a path, splits it in a list of components,
+            where each component is a directory on the path.'''
+        allparts = []
+        while 1:
+            parts = os.path.split(path)
+            if parts[0] == path:  # sentinel for absolute paths
+                allparts.insert(0, parts[0])
+                break
+            elif parts[1] == path: # sentinel for relative paths
+                allparts.insert(0, parts[1])
+                break
+            else:
+                path = parts[0]
+                allparts.insert(0, parts[1])
+        return allparts
 
+    # TO finish - only check if exists
+#    def find_or_create_collection(self, path):
+    def exists_collection(self, path):
+        ''' Unfinished - I couldn't make up my mind how to implement this
+            in a non dirty way (to create a collection I need to check at each step that it exists or not
+            and doing this with the icommands is not very handy. '''
+        #path_parts = self.split_path(path)
+        ret = subprocess.Popen(["icd", path], stdout=subprocess.PIPE)
+        out, err = ret.communicate()
+        if err:
+            return False
+        return True
+        
+
+    def run_on_serapis(self, **kwargs):
+        file_id = kwargs['file_id']
+        src_file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        submission_id = str(kwargs['submission_id'])
+        dest_coll_path = str(kwargs['dest_irods_path'])
+ 
+        print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
+
+        # TO BE CHANGED -- if the coll doesn't exist at the moment it returns, ideally it should create it
+        if self.exists_collection(dest_coll_path):
+            result = dict()
+            result[response_status] = constants.IN_PROGRESS_STATUS
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        else:
+            result = dict()
+            result[response_status] = constants.FAILURE
+            result[FILE_ERROR_LOG] = [constants.COLLECTION_DOES_NOT_EXIST]
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            return
+     
+        result = dict()
+        errors_list = []
+        t1 = time.time()
+
+        retcode = subprocess.call(["iput", "-K", src_file_path, dest_coll_path])
+        print "IPUT retcode = ", retcode
+        
+        t2 = time.time()
+        print "TIME TAKEN: ", t2-t1
+        if retcode != 0:
+            error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
+            errors_list.append(error_msg)
+            print error_msg
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        else:
+            # All goes well:
+            # t2 = time.time()
+            # print "TIME TAKEN: ", t2-t1
+            # ret = subprocess.call(["ichksum", dest_file_path])
+            # print "OUTPUT OF ICHECKSUM command: ", ret
+            # result[MD5] = ret.split()[1]
+            # print "CHECKSUM: ", result[MD5]
+            # result[response_status] = SUCCESS_STATUS
+            # send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+
+            _, fname = os.path.split(src_file_path)
+            dest_file_path = os.path.join(dest_coll_path, fname)
+            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
+            out, err = ret.communicate()
+            if err:
+                error_msg = "IRODS ichksum error - ", err
+                errors_list.append(error_msg)
+                print error_msg
+                result[response_status] = FAILURE_STATUS
+                result[FILE_ERROR_LOG] = errors_list
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            else:
+                result[MD5] = out.split()[1]
+                print "CHECKSUM: ", result[MD5]
+                result[response_status] = SUCCESS_STATUS
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+        print "ENDED UPLOAD TASK--------------------------------"
+    
+    # Version not run - 4 sept 2013
+    def run_call1(self, **kwargs):
+        file_id = kwargs['file_id']
+        src_file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        submission_id = str(kwargs['submission_id'])
+        dest_file_path = str(kwargs['dest_irods_path'])
+ 
+        result = dict()
+        result[response_status] = constants.IN_PROGRESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+ 
+        result = dict()
+        errors_list = []
+        t1 = time.time()
+
+        retcode = subprocess.call(["iput", "-K", src_file_path])
+        print "IPUT retcode = ", retcode
+        if retcode != 0:
+            error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
+            errors_list.append(error_msg)
+            print error_msg
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        else:
+            t2 = time.time()
+            print "TIME TAKEN: ", t2-t1
+            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
+            out, err = ret.communicate()
+            print "OUTPUT OF ICHECKSUM command: ", ret
+            if err:
+                error_msg = "IRODS ichksum error - ", err
+                errors_list.append(error_msg)
+                print error_msg
+                result[response_status] = FAILURE_STATUS
+                result[FILE_ERROR_LOG] = errors_list
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            else:
+                result[MD5] = out.split()[1]
+                print "CHECKSUM: ", result[MD5]
+                result[response_status] = SUCCESS_STATUS
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+
+        
     # Modified upload version for uploading fines on the cluster
     def run1(self, **kwargs):
         #time.sleep(2)
@@ -1064,10 +1207,10 @@ class AddMdataToIRODSFileTask(Task):
         result = dict()
         file_irods_jobs_dict = dict()
         if not errors_list:
-            file_irods_jobs_dict[task_id] = SUCCESS_SUBMISSION_TO_IRODS_STATUS
+            file_irods_jobs_dict[task_id] = SUCCESS_STATUS
         else:
             print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! "
-            file_irods_jobs_dict[task_id] = FAILURE_SUBMISSION_TO_IRODS_STATUS
+            file_irods_jobs_dict[task_id] = FAILURE_STATUS
             result['file_error_log'] = errors_list
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
