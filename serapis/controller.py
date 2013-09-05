@@ -483,12 +483,11 @@ def associate_files_with_index_files(index_files_list, submitted_files_list, err
 #            append_to_errors_dict(unmatched_index, constants.UNMATCHED_INDEX_FILES, errors_dict)
         
 
-def init_submission(user_id, files_list):
+# Used to be called init submission
+def init_submission(user_id, files_list, submission):
     ''' Initialises a new submission, given a list of files. 
         Returns a dictionary containing: submission created and list of errors 
         for each existing file, plus list of files that don't exist.'''
-    submission = models.Submission(sanger_user_id=user_id)
-    submission.save()
     submitted_files_list = []
     index_files_list = []
     errors_dict = dict()
@@ -537,8 +536,12 @@ def init_submission(user_id, files_list):
 
     result = dict()
     if len(submitted_files_list) > 0:
+        # TO DO: I am not checking for duplicates!!!!!!
+        submitted_files_ids_list = [f.id for f in submitted_files_list]
+        if submission.files_list == None:
+            submission.files_list = []
+        submission.files_list.extend(submitted_files_ids_list)
         submission.sanger_user_id = user_id
-        submission.files_list = [f.id for f in submitted_files_list]
         submission.submission_date = utils.get_today_date()
         submission.save(cascade=True)
         result['submission'] = submission
@@ -569,9 +572,10 @@ def create_submission(user_id, data):
         files_list = utils.get_files_from_dir(data['dir_path'])
     else:
         raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
-    print "FILES LISTTTTTTTTTTTTTTTTTTTTt: ", files_list
-    print "SET FILES LISTTTTTTTTTTTTTTT", set(files_list)
-    result_init_submission = init_submission(user_id, set(files_list))
+    
+    submission = models.Submission(sanger_user_id=user_id)
+    submission.save()
+    result_init_submission = init_submission(user_id, set(files_list), submission)
     
     result = dict()
     errors_dict = result_init_submission['errors']
@@ -587,7 +591,10 @@ def create_submission(user_id, data):
     return result
 
 
-def add_submission(user_id, data):
+# Not used for now, it's for POST req on submission/submission_id
+def add_files_to_submission(submission_id, user_id, data):
+    ''' Adds some files to an existing submission.
+    '''
     if 'files_list' in data:
         files_list = data['files_list']
     elif 'dir_path' in data:
@@ -595,77 +602,102 @@ def add_submission(user_id, data):
     else:
         raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
     
-    submission = models.Submission(sanger_user_id=user_id)
+    submission = db_model_operations.retrieve_submission(submission_id)
+    result_init_submission = init_submission(user_id, set(files_list), submission)
     
-    if 'hgi_project' in data:
-        submission.hgi_project = data['hgi_project']
-    if 'data_type' in data:
-        upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
-        print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
-    if 'library_info' in data:
-        upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
-        print "UPDATED ABSTRACT LIB..............................", upd
-    if 'study' in data:
-        study_data = data['study']
-        name, visib, pi_list = None, None, None
-        if 'name' in study_data:
-            name = study_data['name']
-        if 'visibility' in study_data:
-            visib = study_data['visibility']
-        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
-            pi_list = study_data['pi_list'] #list
-        if not name or not visib or not pi_list:
-            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
-        else:
-            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
-            print "Has the study been inserted? - from controller....", inserted
-            if inserted:
-                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                submitted_file.reload()
-                launch_update_file_job(submitted_file)
-            else:
-                #TODO: report error - mdata couldn't be added
-                #raise exceptions.EditConflictError("Study couldn't be added.")
-                return False
-    if 'data_subtype_tags' in data:
-        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
-        print "Has DATA SUBTYPES been updated????"
-        
-    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
-        ref_dict = data['reference_genome']
-        ref_gen, path, md5, name = None, None, None, None
-        if 'name' in ref_dict:
-            name = ref_dict['name']
-        if 'path' in ref_dict:
-            path = ref_dict['path']
-        if 'md5' in ref_dict:
-            md5 = ref_dict['md5']
-        try:
-            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
-            if ref_gen == None:
-                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
-                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
-            else:
-                ref_genome_id = ref_gen.md5
-                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
-                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
-            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
-            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
-        except exceptions.NotEnoughInformationProvided as e:
-            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
-            logging.debug(error_text)
-            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
-            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
-        except exceptions.InformationConflict as e:
-            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
-            logging.debug(error_text)
-            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
-            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
-    submission.save()
+    result = dict()
+    errors_dict = result_init_submission['errors']
+    if result_init_submission['submission'] != None:
+        submission = result_init_submission['submission']
+        io_errors_dict = submit_jobs_for_submission(user_id, submission, data)
+        if io_errors_dict:
+            errors_dict[constants.IO_ERROR] = io_errors_dict
+        result['submission_id'] = str(submission.id)
+    else:
+        result['submission_id'] = None
+    result['errors'] = errors_dict
+    return result
 
-    return True
+
+#def aadd_submission(user_id, data):
+#    if 'files_list' in data:
+#        files_list = data['files_list']
+#    elif 'dir_path' in data:
+#        files_list = utils.get_files_from_dir(data['dir_path'])
+#    else:
+#        raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
+#    
+#    submission = models.Submission(sanger_user_id=user_id)
+#    
+#    if 'hgi_project' in data:
+#        submission.hgi_project = data['hgi_project']
+#    if 'data_type' in data:
+#        upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
+#        print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
+#    if 'library_info' in data:
+#        upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
+#        print "UPDATED ABSTRACT LIB..............................", upd
+#    if 'study' in data:
+#        study_data = data['study']
+#        name, visib, pi_list = None, None, None
+#        if 'name' in study_data:
+#            name = study_data['name']
+#        if 'visibility' in study_data:
+#            visib = study_data['visibility']
+#        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
+#            pi_list = study_data['pi_list'] #list
+#        if not name or not visib or not pi_list:
+#            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
+#        else:
+#            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
+#            print "Has the study been inserted? - from controller....", inserted
+#            if inserted:
+#                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+#                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+#                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+#                submitted_file.reload()
+#                launch_update_file_job(submitted_file)
+#            else:
+#                #TODO: report error - mdata couldn't be added
+#                #raise exceptions.EditConflictError("Study couldn't be added.")
+#                return False
+#    if 'data_subtype_tags' in data:
+#        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
+#        print "Has DATA SUBTYPES been updated????"
+#        
+#    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
+#        ref_dict = data['reference_genome']
+#        ref_gen, path, md5, name = None, None, None, None
+#        if 'name' in ref_dict:
+#            name = ref_dict['name']
+#        if 'path' in ref_dict:
+#            path = ref_dict['path']
+#        if 'md5' in ref_dict:
+#            md5 = ref_dict['md5']
+#        try:
+#            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
+#            if ref_gen == None:
+#                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
+#                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
+#            else:
+#                ref_genome_id = ref_gen.md5
+#                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
+#                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
+#            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+#            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
+#        except exceptions.NotEnoughInformationProvided as e:
+#            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
+#            logging.debug(error_text)
+#            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+#            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
+#        except exceptions.InformationConflict as e:
+#            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
+#            logging.debug(error_text)
+#            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+#            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
+#    submission.save()
+#
+#    return True
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
 
@@ -857,7 +889,7 @@ def update_file_submitted(submission_id, file_id, data):
         #imeta ls -d /seq/9971/9971_1#0.bam
         
         
-     
+    # TO DO: rewrite this part - very crappy!!!
     def update_from_UPLOAD_TASK_SRC(data, file_to_update):
         #Check if upload was successful:
         def check_if_upload_successful(file_updated):
@@ -869,6 +901,7 @@ def update_file_submitted(submission_id, file_id, data):
                     return True
             return False
         
+        # VERY HACKISH!!!!
         has_index = False
         if 'file_upload_job_status' in data:
             status = 'file_upload_job_status'
