@@ -105,7 +105,8 @@ submitted_file_schema = Schema({
     'file_update_jobs_dict' : dict,
     'missing_mandatory_fields_dict' : dict,
     
-    'index_file_path' : str,
+    'index_file_path_irods' : str,
+    'index_file_path_client' : str,
     'index_file_md5' : str,
     'index_file_upload_job_status' : str
     

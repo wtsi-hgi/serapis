@@ -85,6 +85,7 @@ def cmp_timestamp_files(file_path1, file_path2):
     tstamp2 = os.path.getmtime(file_path2)
     tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
     tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
+    print "Timestamp of file 1: ", tstamp1, " and file2: ", tstamp2
     return cmp(tstamp1, tstamp2)
 
 def get_files_from_dir(dir_path):
@@ -120,8 +121,23 @@ def search_md5_file(directory, fname):
             return f_path
     return None
     
+def get_irods_staging_path(submission_id):
+    return os.path.join(constants.STAGING_IRODS, submission_id)
 
+def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
+    print "ARGUMENTS FOR BUILDING COLLECTION: ", constants.DEST_DIR_IRODS, hgi_project
+    if not hgi_subprj:
+        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date)
+    else:
+        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
 
+def build_irods_staging_path(submission_id):
+    return os.path.join(constants.STAGING_IRODS, submission_id)
+
+def build_file_path_irods(client_file_path, irods_coll_path):
+    print "From BUIL pATH irods: ------------- client file path:::::::::::::", client_file_path
+    (_, src_file_name) = os.path.split(client_file_path)  
+    return os.path.join(irods_coll_path, src_file_name)
 
 
 

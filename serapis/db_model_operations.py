@@ -424,7 +424,7 @@ def check_file_mdata(file_to_submit):
         else:
             __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
     
-    if file_to_submit.index_file_path and not file_to_submit.index_file_md5:
+    if file_to_submit.index_file_path_client and not file_to_submit.index_file_md5:
         return False
         
     if file_to_submit.file_type == constants.BAM_FILE:
@@ -1338,6 +1338,10 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
         i+=1
     return upd
 
+def update_file_path_irods(file_id, file_path_irods, index_path_irods=None):
+    if not index_path_irods:
+        return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, inc__version__0=1)
+    return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, set__index_file_path_irods=index_path_irods,inc__version__0=1)
     
 def update_data_subtype_tags(file_id, subtype_tags_dict):
     return models.SubmittedFile.objects(id=file_id).update_one(set__data_subtype_tags=subtype_tags_dict, inc__version__0=1)
@@ -1408,8 +1412,8 @@ def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=1):
         nr_retries -= 1
     return upd
 
-def update_index_file_path(file_id, index_file_path, nr_retries=1):
-    upd_dict = {'set__index_file_path' : index_file_path, 'inc__version__0' : 1}
+def update_index_file_path_client(file_id, index_file_path, nr_retries=1):
+    upd_dict = {'set__index_file_path_client' : index_file_path, 'inc__version__0' : 1}
     upd = 0
     while nr_retries > 0 and upd == 0:
         upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -1420,10 +1424,14 @@ def update_index_file_path(file_id, index_file_path, nr_retries=1):
     #submitted_file.save()
     
 
-def insert_hgi_project(file_id, project):
+# PB: I am not keeping track of submission's version...
+# PB: I am not returning an error code/ Exception if the hgi-project name is incorrect!!!
+def insert_hgi_project(subm_id, project):
     if utils.is_hgi_project(project):
-        upd_dict = {'set__hgi_project' : project, 'inc__version__0' : 1}
-        return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        print "DB MODELS ----- INSERT HGI PRJ - ", project
+        upd_dict = {'set__hgi_project' : project}
+        return models.Submission.objects(id=subm_id).update_one(**upd_dict)
+
 
 
 #def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):

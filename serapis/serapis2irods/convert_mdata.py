@@ -177,7 +177,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
             field_val = getattr(subm_file, field_name)
             field_val = utils.unicode2string(field_val)
             if field_name == 'id':
-                field_name = 'file_dbid'
+                field_name = 'file_id'
+                field_val = str(field_val)
             else:
                 field_name = 'file_'+field_name
             irods_file_mdata.append((field_name, field_val))
