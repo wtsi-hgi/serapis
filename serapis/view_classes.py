@@ -512,10 +512,10 @@ class LibrariesMainPageRequestHandler(APIView):
         '''
         try:
 #           data = request.POST['_content']
+            result = dict()
             data = request.DATA
             data = utils.unicode2string(data)
             validator.library_schema(data)
-            result = dict()
             controller.add_library_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:
             result['error'] = "Message contents invalid: "+e.msg

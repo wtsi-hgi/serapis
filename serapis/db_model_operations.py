@@ -1108,11 +1108,18 @@ def update_index_file_path_client(file_id, index_file_path, nr_retries=1):
     #submitted_file.save()
     
 
-def insert_hgi_project(file_id, project):
-    if utils.is_hgi_project(project):
-        upd_dict = {'set__hgi_project' : project, 'inc__version__0' : 1}
-        return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+#def insert_hgi_project(file_id, project):
+#    if utils.is_hgi_project(project):
+#        upd_dict = {'set__hgi_project' : project, 'inc__version__0' : 1}
+#        return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
 
+# PB: I am not keeping track of submission's version...
+# PB: I am not returning an error code/ Exception if the hgi-project name is incorrect!!!
+def insert_hgi_project(subm_id, project):
+    if utils.is_hgi_project(project):
+        print "DB MODELS ----- INSERT HGI PRJ - ", project
+        upd_dict = {'set__hgi_project' : project}
+        return models.Submission.objects(id=subm_id).update_one(**upd_dict)
 
 #def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
 #    submitted_file = retrieve_submitted_file(file_id)
@@ -1408,6 +1415,7 @@ def check_and_update_if_file_has_min_mdata(file_to_submit):
         has_min_mdata = False
     else:
         __find_and_delete_missing_field_from_dict__('no study', constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+
 
     if len(file_to_submit.library_list) == 0:
         if len(file_to_submit.library_well_list) == 0:

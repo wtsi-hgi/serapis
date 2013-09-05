@@ -75,13 +75,13 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
 
 
         result = dict()
-        status, myEnv = getRodsEnv()
-        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
-                                 myEnv.rodsUserName, myEnv.rodsZone)
-        status = clientLogin(conn)
+        # status, myEnv = getRodsEnv()
+        # conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, 
+        #                          myEnv.rodsUserName, myEnv.rodsZone)
+        # status = clientLogin(conn)
 
         try:
-            dest_fd = irodsOpen(conn, dest_file_path, 'r')
+#            dest_fd = irodsOpen(conn, dest_file_path, 'r')
             
             if upld_cmd == 0:
                 result[MD5] = dest_fd.getChecksum()      
@@ -93,8 +93,12 @@ def cluster_fct(src_file_path, dest_file_path, response_status, submission_id, f
                 result[response_status] = FAILURE_STATUS
                 result[FILE_ERROR_LOG] = []
                 result[FILE_ERROR_LOG].append(FILE_ALREADY_EXISTS)
-        except:
-            print "EXCEPTIOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOoON in IPUT!!!!!"
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        except as e:
+            print "EXCEPTIOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOoON in IPUT!!!!!", str(e)
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = [FILE_ALREADY_EXISTS]
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
     # Checking MD5 sum:
     #try:

@@ -417,7 +417,7 @@ class UploadFileTask(Task):
            
 
 
-    def run(self, **kwargs):
+    def run1(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         result['file_upload_job_status'] = SUCCESS_STATUS
@@ -427,7 +427,7 @@ class UploadFileTask(Task):
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
-    # Working version - for upload on the worker        
+    # Working version - for upload on the worker - very old version, NOT using iput       
     # file_id, file_submitted.file_path_client, submission_id, user_id
     def run2(self, **kwargs):
         #time.sleep(2)
@@ -614,18 +614,135 @@ class UploadFileTask(Task):
 
         
     # Modified upload version for uploading fines on the cluster
-    def run1(self, **kwargs):
+    def run_trying_to_use_call(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         file_path = kwargs['file_path']
         response_status = kwargs['response_status']
         submission_id = str(kwargs['submission_id'])
-        dest_file_path = str(kwargs['dest_irods_path'])
         src_file_path = file_path
         
-        #(_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        #dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        #RESULT TO BE RETURNED:
+        result = dict()
+        result[response_status] = constants.IN_PROGRESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         
+        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+       
+        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
+            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
+
+
+
+    def run(self, **kwargs):
+        file_id = kwargs['file_id']
+        src_file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        submission_id = str(kwargs['submission_id'])
+        dest_coll_path = str(kwargs['dest_irods_path'])
+ 
+        print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
+        print "Source file: ", src_file_path
+
+        result = dict()
+        result[response_status] = constants.IN_PROGRESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+ 
+        result = dict()
+        errors_list = []
+        t1 = time.time()
+
+        retcode = subprocess.call(["iput", "-K", src_file_path, dest_coll_path])
+        print "IPUT retcode = ", retcode
+        if retcode != 0:
+            error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
+            errors_list.append(error_msg)
+            print error_msg
+            result[response_status] = FAILURE_STATUS
+            result[FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        else:
+            # All goes well:
+            # t2 = time.time()
+            # print "TIME TAKEN: ", t2-t1
+            # ret = subprocess.call(["ichksum", dest_file_path])
+            # print "OUTPUT OF ICHECKSUM command: ", ret
+            # result[MD5] = ret.split()[1]
+            # print "CHECKSUM: ", result[MD5]
+            # result[response_status] = SUCCESS_STATUS
+            # send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+
+            _, fname = os.path.split(src_file_path)
+            dest_file_path = os.path.join(dest_coll_path, fname)
+            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
+            out, err = ret.communicate()
+            if err:
+                error_msg = "IRODS ichksum error - ", err
+                errors_list.append(error_msg)
+                print error_msg
+                result[response_status] = FAILURE_STATUS
+                result[FILE_ERROR_LOG] = errors_list
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            else:
+                result[MD5] = out.split()[1]
+                print "CHECKSUM: ", result[MD5]
+                result[response_status] = SUCCESS_STATUS
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+        print "ENDED UPLOAD TASK--------------------------------"
+        
+        # retcode = subprocess.call(["iput", "-K", src_file_path])
+        # print "IPUT retcode = ", retcode
+        # if retcode != 0:
+        #     error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
+        #     errors_list.append(error_msg)
+        #     print error_msg
+        #     result[response_status] = FAILURE_STATUS
+        #     result[FILE_ERROR_LOG] = errors_list
+        #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        # else:
+        #     t2 = time.time()
+        #     print "TIME TAKEN: ", t2-t1
+        #     ret = subprocess.call(["ichksum", dest_file_path])
+        #     print "OUTPUT OF ICHECKSUM command: ", ret
+        #     result[MD5] = ret.split()[1]
+        #     print "CHECKSUM: ", result[MD5]
+        #     result[response_status] = SUCCESS_STATUS
+        #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+            # if err:
+            #     error_msg = "IRODS ichksum error - ", err
+            #     errors_list.append(error_msg)
+            #     print error_msg
+            #     result[response_status] = FAILURE_STATUS
+            #     result[FILE_ERROR_LOG] = errors_list
+            #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            # else:
+            #     result[MD5] = out.split()[1]
+            #     print "CHECKSUM: ", result[MD5]
+            #     result[response_status] = SUCCESS_STATUS
+            #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+
+
+
+    # Modified upload version for uploading fines on the cluster
+    # run - running using process call
+    def run_call_popen_process(self, **kwargs):
+        #time.sleep(2)
+        file_id = kwargs['file_id']
+        src_file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        submission_id = str(kwargs['submission_id'])
+        dest_coll_path = str(kwargs['dest_irods_path'])
+        
+        
+        #(_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
+        #dest_coll_path = os.path.join(DEST_DIR_IRODS, src_file_name)
+        
+        print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
+
         #RESULT TO BE RETURNED:
         result = dict()
         result[response_status] = constants.IN_PROGRESS_STATUS
@@ -635,44 +752,44 @@ class UploadFileTask(Task):
         errors_list = []
         t1 = time.time()
         try:
-            retcode = subprocess.check_output(["iput", "-K", src_file_path], stderr=subprocess.STDOUT)
+            retcode = subprocess.check_output(["iput", "-K", src_file_path, dest_coll_path], stderr=subprocess.STDOUT)
             print "IPUT retcode = ", retcode
         except subprocess.CalledProcessError as e:
-            error_msg = "IRODS iput error - return code="+e.returncode+" message: "+e.output
-            errors_list.append(error_msg)
-            print error_msg
-            result[response_status] = FAILURE_STATUS
-            result[FILE_ERROR_LOG] = errors_list
-            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-        
-        t2 = time.time()
-        print "TIME TAKEN: ", t2-t1
-
-        ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
-        out, err = ret.communicate()
-        
-        # out looks like:
-#        c4@hgi-serapis-dev:~$ ichksum users.txt
-#        users.txt                         4b9f970d118a446b89217982daee62ce
-#        Total checksum performed = 1, Failed checksum = 0
-
-        # p = subprocess.Popen(["ntpq", "-p"], stdout=subprocess.PIPE)
-
-        print "OUT: ", out, " ERR: ", err        
-        if err:
-            error_msg = "IRODS ichksum error - ", err
+            error_msg = "IRODS iput error - return code="+str(e.returncode)+" message: "+e.output
             errors_list.append(error_msg)
             print error_msg
             result[response_status] = FAILURE_STATUS
             result[FILE_ERROR_LOG] = errors_list
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
         else:
-            result[MD5] = out.split()[1]
-            print "CHECKSUM: ", result[MD5]
-            result[response_status] = SUCCESS_STATUS
-            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            t2 = time.time()
+            print "TIME TAKEN: ", t2-t1
+
+            _, fname = os.path.split(src_file_path)
+            dest_file_path = os.path.join(dest_coll_path, fname)
+            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
+            out, err = ret.communicate()
+            
+            print "OUT: ", out, " ERR: ", err        
+            if err:
+                error_msg = "IRODS ichksum error - ", err
+                errors_list.append(error_msg)
+                print error_msg
+                result[response_status] = FAILURE_STATUS
+                result[FILE_ERROR_LOG] = errors_list
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            else:
+                result[MD5] = out.split()[1]
+                print "CHECKSUM: ", result[MD5]
+                result[response_status] = SUCCESS_STATUS
+                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
             
+            # output of ichksum looks like:
+    #        c4@hgi-serapis-dev:~$ ichksum users.txt
+    #        users.txt                         4b9f970d118a446b89217982daee62ce
+    #        Total checksum performed = 1, Failed checksum = 0
+    
             
 #        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
 #        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
@@ -1141,8 +1258,7 @@ class AddMdataToIRODSFileTask(Task):
         
         task_id = current_task.request.id
         
-        errors_list = []
-        
+        errors_list = []       
         print "ADD MDATA TO IRODS JOB...works!"
 
         # {'file_path_client' : file_to_submit['file_path_client'], 'file_mdata' : irods_mdata_dict, 

@@ -9,6 +9,7 @@ import djcelery
 
 setup_loader()
 
+BROKER_HEARTBEAT=0
 
 BROKER_URL = 'amqp://guest@localhost:5672'
 #BROKER_URL = 'amqp://guest@hgi-serapis-dev:5672'

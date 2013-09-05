@@ -252,7 +252,8 @@ def submit_jobs_for_file(user_id, file_submitted,
     
     # Submits directly to the humgen/prj zone
     dest_file_path = utils.build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj)
-    
+    print "DEST COLLECTION IRODSSSSSSSSSSSSSSSSSSSSSSSSSSSS", dest_file_path
+
     # WORKING version for uploading to the staging area:
     #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
     if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
@@ -280,12 +281,12 @@ def submit_jobs_for_file(user_id, file_submitted,
             return io_errors_list
     return None
     
-
+def add_mdata_to_submission(submission_id, data):
+    if 'hgi_project' in data:
+        upd = db_model_operations.insert_hgi_project(submission_id, data['hgi_project'])
 
 
 def add_mdata_to_file(file_id, data):
-    if 'hgi_project' in data:
-        upd = db_model_operations.insert_hgi_project(file_id, data['hgi_project'])
     if 'data_type' in data:
         upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
         print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
@@ -357,13 +358,19 @@ def submit_jobs_for_submission(user_id, submission, data):
     io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
     for file_id in submission.files_list:
         add_mdata_to_file(file_id, data)
+        add_mdata_to_submission(submission.id, data)
+
+        # just for testing:
+        submission.reload()
+        print "SUBMISSION project -------------- ", submission.hgi_project
+
         file_submitted = db_model_operations.retrieve_submitted_file(file_id)
         
         # HACK - to be moved!!!
         irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
         file_path_irods = utils.build_file_path_irods(file_submitted.file_path_client, irods_coll)
         
-        if hasattr(file_submitted, 'index_file_path_client'):
+        if hasattr(file_submitted, 'index_file_path_client') and getattr(file_submitted, 'index_file_path_client') != None:
             print "Index file pathhhhhhhhhhhhhhhhhhhhhhhh: ", getattr(file_submitted, 'index_file_path_client')
             print "INDEX from objjjjjjj: ", file_submitted.index_file_path_client
             index_path_irods = utils.build_file_path_irods(file_submitted.index_file_path_client, irods_coll)
@@ -372,7 +379,14 @@ def submit_jobs_for_submission(user_id, submission, data):
             db_model_operations.update_file_path_irods(file_id, file_path_irods)
         #### END of HACK
         
-        file_io_errors = submit_jobs_for_file(user_id, file_submitted)
+
+         # submit_jobs_for_file(user_id, file_submitted, 
+         #                 submission_date=None, 
+         #                 hgi_project=None, 
+         #                 hgi_subprj=None, 
+         #                 read_on_client=True, 
+         #                 upload_task_queue=None):
+        file_io_errors = submit_jobs_for_file(user_id, file_submitted, submission_date=submission.submission_date, hgi_project=submission.hgi_project)
         if file_io_errors:
             io_errors_dict[file_submitted.file_path_client] = file_io_errors
     return io_errors_dict
@@ -441,8 +455,9 @@ def associate_files_with_index_files(index_files_list, submitted_files_list, err
         index_matched = False
         for submitted_file in submitted_files_list:
             subfile_name, sub_file_ext = utils.extract_fname_and_ext(submitted_file.file_path_client)
-            print "index file name: ==============================", index_fname, " and subm file name: ", subfile_name, " and extension:", sub_file_ext 
+            print "index file name: ==============================", index_fname, " and subm file name: ", subfile_name, " and extension:", sub_file_ext
             if index_fname == subfile_name and constants.FILE_TO_INDEX_DICT[sub_file_ext] == index_ext:
+                print "INDEX FILE NAME MATCHES BAM FILES NAME!!!!!!!!!!!!!!!!"
                 if utils.cmp_timestamp_files(submitted_file.file_path_client, index_file_path) <= 0:         # compare file and index timestamp
                     index_matched = True  
                     index_file_path_irods = utils.build_file_path_irods(index_file_path, constants.DEST_DIR_IRODS)
@@ -451,6 +466,7 @@ def associate_files_with_index_files(index_files_list, submitted_files_list, err
                     #index_files_matched.append(index_file_path)
                     break
                 else:
+                    print "TIMESTAMPS ARE DIFFERENT ---- PROBLEM!!!!!!!!!!!!"
                     append_to_errors_dict(index_file_path, constants.INDEX_OLDER_THAN_FILE, errors_dict)
         if not index_matched:
             index_files_unmatched.append(index_file_path)
