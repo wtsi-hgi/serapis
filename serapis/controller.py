@@ -910,6 +910,8 @@ def update_file_submitted(submission_id, file_id, data):
     def update_from_IRODS_SOURCE(data, file_to_update):
         upd = db_model_operations.update_submitted_file(file_id, data, sender)
         file_to_update.reload()
+        db_model_operations.check_and_update_file_submission_status(None, file_to_update)
+        
         
         
     # (CODE OF THE OUTER FUNCTION)
