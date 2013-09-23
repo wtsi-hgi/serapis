@@ -128,5 +128,6 @@ submission_schema = Schema({
     'library_info' : dict,
     'coverage' : str,
     'data_subtype_tags' : dict
+ #   'irods_collection' : str
 })
 

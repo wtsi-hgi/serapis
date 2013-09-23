@@ -28,6 +28,7 @@ from pymongo.errors import InvalidId
 import errno
 import json
 import logging
+import sys
 from mongoengine.queryset import DoesNotExist
 from celery.bin.celery import result
 logging.basicConfig(level=logging.DEBUG)
@@ -120,7 +121,7 @@ class SubmissionsMainPageRequestHandler(APIView):
                 - status=201 if the submission is created
                 - status=400 if the submission wasn't created (list of files empty).
         '''
-        user_id = "ic4"
+        user_id = "yl2"
         try:
 #            data = request.POST['_content']
             result = dict()
@@ -150,6 +151,8 @@ class SubmissionsMainPageRequestHandler(APIView):
         except exceptions.NotEnoughInformationProvided as e:
             result['error'] = e.msg
             return Response(result, status=424)
+        except Exception as e:
+            return Response("Unexpected error:"+ str(sys.exc_info()[0])+" exc: "+str(e), status=500)
 #        except ValueError:
 #            return Response("Not JSON format", status=400)
         #else:
@@ -370,11 +373,11 @@ class SubmittedFileRequestHandler(APIView):
             POST req body should look like: 
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         try:
-            data = request.DATA
-            data = utils.unicode2string(data)
+            # data = request.DATA
+            # data = utils.unicode2string(data)
             result = dict()
-            validator.submitted_file_schema(data)
-            error_list = controller.resubmit_jobs(submission_id, file_id, data)
+            #validator.submitted_file_schema(data)
+            result_resubmit = controller.resubmit_jobs(submission_id, file_id, None)
         except MultipleInvalid as e:
             result['error'] = "Message contents invalid: "+e.msg
             return Response(result, status=400)
@@ -388,14 +391,21 @@ class SubmittedFileRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=404)
         else:
-            if error_list == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded
-                return Response(status=304)
-            else:
-                result['errors'] = error_list
-                # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
-                # What if there are thrown also other exceptions?
+            if result_resubmit['result'] == True:
+                if 'errors' in result_resubmit:
+                    result['errors'] = result_resubmit['errors']
                 result['message'] = "Jobs resubmitted."     # Do I know this?
                 return Response(result, status=202)
+            else:
+                return Response(result_resubmit, status=400)
+            # if error_list == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded            
+            #     return Response(status=304)
+            # else:
+            #     result['errors'] = error_list
+            #     # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
+            #     # What if there are thrown also other exceptions?
+            #     result['message'] = "Jobs resubmitted."     # Do I know this?
+            #     return Response(result, status=202)
                 
     
     def put(self, request, submission_id, file_id, format=None):
@@ -765,12 +775,6 @@ class SampleRequestHandler(APIView):
             data = utils.unicode2string(data)
             validator.sample_schema(data)
             result = dict()
-#            new_data = dict()   # Convert from u'str' to str
-#            for elem in data:
-#                key = ''.join(chr(ord(c)) for c in elem)
-#                val = ''.join(chr(ord(c)) for c in data[elem])
-#                new_data[key] = val
-#            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
             was_updated = controller.update_sample(submission_id, file_id, sample_id, data)
         except MultipleInvalid as e:
             result['error'] = "Message contents invalid: "+e.msg
@@ -942,12 +946,8 @@ class StudyRequestHandler(APIView):
         data = request.DATA
         try:
             result = dict()
-            new_data = dict()
-            for elem in data:
-                key = ''.join(chr(ord(c)) for c in elem)
-                val = ''.join(chr(ord(c)) for c in data[elem])
-                new_data[key] = val
-            was_updated = controller.update_study(submission_id, file_id, study_id, new_data)
+            data = utils.unicode2string(data)
+            was_updated = controller.update_study(submission_id, file_id, study_id, data)
         except InvalidId:
             result['error'] = "Invalid id"
             return Response(result, status=404)
@@ -1021,11 +1021,15 @@ class SubmissionIRODSRequestHandler(APIView):
         ''' Makes the submission to IRODS of all the files 
             contained in this submission. (Probably only the metadata?!?!?!)'''
         try:
+            data = None
+            #print "REQUESTTT: ", vars(request)
+            if hasattr(request, 'DATA'):
+                data = request.DATA
             result = dict()
-            irods_submission_status = controller.submit_all_to_irods(submission_id)
+            irods_submission_status = controller.submit_all_to_irods(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=400)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=404)

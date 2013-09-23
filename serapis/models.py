@@ -196,7 +196,8 @@ class SubmittedFile(DynamicDocument):
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {                                            # Mongoengine specific field for metadata.
-            'allow_inheritance': True
+            'allow_inheritance': True,
+            'indexes' : ['_id', 'submission_id']
             }
     
     last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
