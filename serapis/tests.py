@@ -14,18 +14,21 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis import models, controller, db_model_operations
+from serapis import models, controller, db_model_operations, utils
 from serapis.constants import *
 import unittest
 import requests
 import json
 
+
 from bson.objectid import ObjectId
+
+import os
+
+
 
 
 class TestLibraryFctControllerNEW(unittest.TestCase):
-    
-    
     
     def test_insert_lib(self):
         file_id = ObjectId("519ce663d836192526bf50c1")
@@ -42,7 +45,6 @@ class TestLibraryFctControllerNEW(unittest.TestCase):
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
         subm_file.reload()
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
-        
         
 
 #class TestLibraryFctController(unittest.TestCase):
@@ -102,7 +104,6 @@ from serapis import entities
 # TESTS FOR WORKER CODE
 class TestSamplesFunctionsWoker(unittest.TestCase):
    
-
     def setUp(self):
         self.sample = entities.Sample()
         self.sample.name = "SampleName"

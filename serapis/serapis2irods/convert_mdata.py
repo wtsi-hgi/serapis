@@ -65,6 +65,8 @@ def convert_sample_mdata(sample):
         if hasattr(sample, field_name) and getattr(sample, field_name) != None:
             field_val = getattr(sample, field_name)
             field_val = utils.unicode2string(field_val)
+            if field_name == 'gender':
+                field_name = 'sex'
             irods_sampl_mdata.append((field_name, field_val))
     return irods_sampl_mdata
 
@@ -89,7 +91,12 @@ def convert_library_mdata(lib):
 
 def convert_study_mdata(study):
     STUDY_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'description']
-    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 'study_title', 'faculty_sponsor', 'ena_project_id', 'pi_list', 'study_visibility']
+    STUDY_NONPREFIXED_FIELDS_LIST = ['study_type', 
+                                     'study_title', 
+                                     'faculty_sponsor', 
+                                     'ena_project_id', 
+                                     'pi_list', 
+                                     'study_visibility']
     STUDY_FIELDS_MAPPING = {'pi_list' : 'pi_user_id'}
     irods_study_mdata = []
     for field_name in STUDY_PREFIXED_FIELDS_LIST:
@@ -169,7 +176,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'data_subtype_tags','hgi_project']
+    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'data_subtype_tags','hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     for field_name in FILE_PREFIXED_FIELDS_LIST:
@@ -220,7 +227,11 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
         irods_file_mdata.extend(irods_lib_mdata)
     irods_file_mdata.append(('submitter_user_id', utils.unicode2string(sanger_user_id)))
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
-    return list(set(irods_file_mdata))
+    result_list = list(set(irods_file_mdata))
+    result_list.sort(key=lambda tup: tup[0])
+    return result_list
+
+#data.sort(key=lambda tup: tup[1])
 
 
 

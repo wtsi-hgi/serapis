@@ -25,6 +25,8 @@ from os.path import isfile, join
 from bson.objectid import ObjectId
 from pymongo.errors import InvalidId
 
+#import ipdb
+import sys
 import errno
 import json
 import logging
@@ -111,6 +113,7 @@ class SubmissionsMainPageRequestHandler(APIView):
         subm_serialized = serializers.serialize(submissions_list)
         return Response("Submission list: "+subm_serialized, status=200)
     
+    #import pdb
     
     # POST = create a new submission, for uploading the list of files given as param
     def post(self, request):
@@ -123,33 +126,55 @@ class SubmissionsMainPageRequestHandler(APIView):
         user_id = "ic4"
         try:
 #            data = request.POST['_content']
-            result = dict()
+            print "start of the reqest!!!!"
+            req_result = dict()
             data = request.DATA
             data = utils.unicode2string(data)
             validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
-            result_dict = controller.create_submission(user_id, data)
-            submission_id = result_dict['submission_id']
-            if submission_id == None:
-                # TODO: what status should be returned when the format of the req is ok, but the data is bad (logically incorrect)?
-                msg = "Submission not created."
-                result_dict['message'] = msg
-                return Response(result_dict, status=424)    # Method failure
+     
+            subm_result = controller.create_submission(user_id, data)
+            submission_id = subm_result.result
+            if subm_result.error_dict:
+                req_result['errors'] = subm_result.error_dict
+            if not submission_id:
+                req_result['message'] = "Submission not created"
+                if subm_result.message:
+                    req_result['message'] = req_result['message'] + subm_result.message
+                if subm_result.warning_dict:
+                    req_result['warnings'] = subm_result.warning_dict
+                return Response(req_result, status=424)
             else:
-                msg = "Submission created"  
-                result_dict['message'] = msg
+                msg = "Submission created" 
+                req_result['message'] = msg
+                req_result['result'] = submission_id 
+                if subm_result.warning_dict:
+                    req_result['warnings'] = subm_result.warning_dict
                 # TESTING PURPOSES:
                 #files = [str(f.id) for f in db_model_operations.retrieve_all_files_from_submission(result_dict['submission_id'])]
-                files = [str(f.id) for f in models.SubmittedFile.objects(submission_id=result_dict['submission_id']).all()]
-                result_dict['testing'] = files
+                files = [str(f.id) for f in models.SubmittedFile.objects(submission_id=submission_id).all()]
+                req_result['testing'] = files
                 # END TESTING
-                return Response(result_dict, status=201)
+                return Response(req_result, status=201)
             
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
-            return Response(result, status=400)
-        except exceptions.NotEnoughInformationProvided as e:
-            result['error'] = e.msg
-            return Response(result, status=424)
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            req_result['error'] = "Message contents invalid: "+e.msg + " "+ path
+            return Response(req_result, status=400)
+        except (exceptions.NotEnoughInformationProvided, exceptions.InformationConflict) as e:
+            req_result['error'] = e.message
+            return Response(req_result, status=424)
+        except ValueError as e:
+            req_result['error'] = e.message
+            return Response(req_result, status=424)
+            
+        #This should be here: 
+#        except:
+#            return Response("Unexpected error:"+ str(sys.exc_info()[0]), status=400)
 #        except ValueError:
 #            return Response("Not JSON format", status=400)
         #else:
@@ -370,16 +395,22 @@ class SubmittedFileRequestHandler(APIView):
             POST req body should look like: 
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         try:
-            data = request.DATA
-            data = utils.unicode2string(data)
+            #data = request.DATA
+            #data = utils.unicode2string(data)
             result = dict()
-            validator.submitted_file_schema(data)
-            error_list = controller.resubmit_jobs(submission_id, file_id, data)
+            #validator.submitted_file_schema(data)
+            were_resubmitted = controller.resubmit_jobs_for_file(submission_id, file_id)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -388,13 +419,16 @@ class SubmittedFileRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=404)
         else:
-            if error_list == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded
+            if were_resubmitted == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded
                 return Response(status=304)
             else:
-                result['errors'] = error_list
+                #result['errors'] = error_list
                 # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
                 # What if there are thrown also other exceptions?
-                result['message'] = "Jobs resubmitted."     # Do I know this?
+                if were_resubmitted:
+                    result['message'] = "Jobs resubmitted."     # Do I know this?
+                else:
+                    result['message'] = "The jobs haven't been resubmitted"
                 return Response(result, status=202)
                 
     
@@ -409,11 +443,17 @@ class SubmittedFileRequestHandler(APIView):
             print "After converting to string: -------", str(data)
             validator.submitted_file_schema(data)
             controller.update_file_submitted(submission_id, file_id, data)
-#        except MultipleInvalid as e:
-#            result['error'] = "Message contents invalid: "+e.msg
-#            return Response(result, status=400)
+        except MultipleInvalid as e:
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
+            return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -447,7 +487,7 @@ class SubmittedFileRequestHandler(APIView):
             result = dict()
             was_deleted = controller.delete_submitted_file(submission_id, file_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -455,6 +495,9 @@ class SubmittedFileRequestHandler(APIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
             return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
         else:
             if was_deleted == True:
                 result['result'] = "Successfully deleted"
@@ -490,7 +533,7 @@ class LibrariesMainPageRequestHandler(APIView):
             result = dict()
             libs = controller.get_all_libraries(submission_id, file_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -518,10 +561,16 @@ class LibrariesMainPageRequestHandler(APIView):
             validator.library_schema(data)
             controller.add_library_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -590,10 +639,16 @@ class LibraryRequestHandler(APIView):
             result = dict()
             was_updated = controller.update_library(submission_id, file_id, library_id, data)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -630,7 +685,7 @@ class LibraryRequestHandler(APIView):
             result = dict()
             was_deleted = controller.delete_library(submission_id, file_id, library_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -668,7 +723,7 @@ class SamplesMainPageRequestHandler(APIView):
             result = dict()
             samples = controller.get_all_samples(submission_id, file_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -697,10 +752,16 @@ class SamplesMainPageRequestHandler(APIView):
             validator.sample_schema(data)
             controller.add_sample_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -739,7 +800,7 @@ class SampleRequestHandler(APIView):
             result = dict()
             lib = controller.get_sample(submission_id, file_id, sample_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -773,10 +834,16 @@ class SampleRequestHandler(APIView):
 #            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
             was_updated = controller.update_sample(submission_id, file_id, sample_id, data)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -789,7 +856,7 @@ class SampleRequestHandler(APIView):
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
-            result['erors'] = e.faulty_expression
+            result['errors'] = e.faulty_expression
             return Response(result, status=404)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.message
@@ -814,7 +881,7 @@ class SampleRequestHandler(APIView):
             result = dict()
             was_deleted = controller.delete_sample(submission_id, file_id, sample_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -848,7 +915,7 @@ class StudyMainPageRequestHandler(APIView):
             result = dict()
             studies = controller.get_all_studies(submission_id, file_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -876,10 +943,16 @@ class StudyMainPageRequestHandler(APIView):
             validator.study_schema(data)
             controller.add_study_to_file_mdata(submission_id, file_id, data)
         except MultipleInvalid as e:
-            result['error'] = "Message contents invalid: "+e.msg
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['error'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -918,7 +991,7 @@ class StudyRequestHandler(APIView):
             result = dict()
             lib = controller.get_study(submission_id, file_id, study_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -949,7 +1022,7 @@ class StudyRequestHandler(APIView):
                 new_data[key] = val
             was_updated = controller.update_study(submission_id, file_id, study_id, new_data)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
@@ -990,7 +1063,7 @@ class StudyRequestHandler(APIView):
             result = dict()
             was_deleted = controller.delete_study(submission_id, file_id, study_id)
         except InvalidId:
-            result['error'] = "Invalid id"
+            result['errors'] = "Invalid id"
             return Response(result, status=404)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -1021,14 +1094,28 @@ class SubmissionIRODSRequestHandler(APIView):
         ''' Makes the submission to IRODS of all the files 
             contained in this submission. (Probably only the metadata?!?!?!)'''
         try:
+            data = None
+            if hasattr(request, 'DATA'):
+                data = request.DATA
+                data = utils.unicode2string(data)
             result = dict()
-            irods_submission_status = controller.submit_all_to_irods(submission_id)
+            irods_submission_status = controller.submit_all_to_irods(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
+            result['result'] = False
             return Response(result, status=404)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
+            result['result'] = False
             return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            result['result'] = False
+            return Response(result, status=424)
+        except exceptions.OperationAlreadyPerformed as e:
+            result['errors'] = e.message
+            result['result'] = False
+            return Response(result, status=304)
         else:
             result['result'] = irods_submission_status
             return Response(result, status=200)
@@ -1036,7 +1123,7 @@ class SubmissionIRODSRequestHandler(APIView):
 
 
 # Submit File to iRODS:
-class SubmittedFileIRODSOperationsRequestHandler(APIView):
+class SubmittedFileIRODSRequestHandler(APIView):
     def post(self, request, submission_id, file_id, format=None):
         ''' Submits the file to iRODS. (Probably only the metadata?!?!?!)'''
         try:
@@ -1048,10 +1135,16 @@ class SubmittedFileIRODSOperationsRequestHandler(APIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
         else:
             result['result'] = irods_submission_status
             return Response(result, status=200)
-       
+            
        
 
     

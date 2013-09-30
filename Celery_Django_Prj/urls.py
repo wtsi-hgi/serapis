@@ -56,6 +56,8 @@ urlpatterns = patterns('',
     
     url(r'^api-rest/', include('serapis.rest_urls', namespace='rest_framework')),
     
+    #url(r'^rest-api/', include('rest_framework_docs.urls')),
+    
 #    url(r'api/doc/', include('tastypie_swagger.urls', namespace='tastypie_swagger')),
     
 #    url(r'^api/', include(v1_api.urls),)

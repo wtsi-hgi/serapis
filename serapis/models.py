@@ -80,25 +80,31 @@ class Study(Entity):
     pi_list = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 #    reference_genome = StringField()
     
-class AbstractLibrary(Entity):
-    # Fields to be taken from the user:
+class AbstractLibrary(DynamicEmbeddedDocument):
     library_source = StringField(choices=LIBRARY_SOURCES.keys())
     library_selection = StringField(default="unspecified")
     library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
     instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
     coverage = StringField()
     
+    meta = {'allow_inheritance': True}
+    
 
 class Library(AbstractLibrary):
     library_type = StringField()
     public_name = StringField()
     sample_internal_id = IntField()
+    
 
+#class ReferenceGenome(Document):
+#    md5 = StringField(primary_key=True)
+#    paths = ListField()
+#    name = StringField(unique_with='md5')
 
 class ReferenceGenome(Document):
-    md5 = StringField(primary_key=True)
+    md5 = StringField()
     paths = ListField()
-    name = StringField(unique_with='md5')
+    name = StringField()
      
 
 class Sample(Entity):          # one sample can be member of many studies
@@ -119,14 +125,16 @@ class Sample(Entity):          # one sample can be member of many studies
     common_name = StringField()          # This is the field name given for mdata in iRODS /seq
     
   
-class GeneralFileMdata(DynamicDocument):
-    hgi_project = StringField()
+# This is not a document, it's just a container
+class GeneralFileMdata:
+    #hgi_project = StringField()
     #DATA-RELATED FIELDS:
     data_type = StringField(choices=DATA_TYPES)
     data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
-    abstract_library = EmbeddedDocumentField(Library)
+    abstract_library = EmbeddedDocumentField(AbstractLibrary)
     study = EmbeddedDocumentField(Study)
+    
     
     
 class SubmittedFile(DynamicDocument):
@@ -135,16 +143,20 @@ class SubmittedFile(DynamicDocument):
     id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
-    file_path_irods = StringField()    
+    file_path_irods = StringField()            #missleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
     
     #OPTIONAL:
     index_file_path_irods = StringField()
-    index_file_path_client = StringField()
+    index_file_path_client = StringField()      #missleading - should be renamed!!! It is actually the collection name
     index_file_md5 = StringField()
-    
-    # ABSTRACT ENTITIES:
+
+    # SUBMISSION MDATA
+    file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
+    data_type = StringField(choices=DATA_TYPES)
+    data_subtype_tags = DictField()
+    hgi_project = StringField()
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
@@ -196,16 +208,16 @@ class SubmittedFile(DynamicDocument):
     missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
     meta = {                                            # Mongoengine specific field for metadata.
-            'allow_inheritance': True
+            'allow_inheritance': True,
+            'indexes' : ['_id', 'submission_id']
             }
-    
     last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
     
     
     
 
 class BAMFile(SubmittedFile):
-    bam_type = StringField()    # ??? Do we still need this one, since we have data_type field now?
+    #bam_type = StringField()    # ??? Do we still need this one, since we have data_type field now?
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
     lane_list = ListField()             # list of strings
     tag_list = ListField()              # list of strings
@@ -229,22 +241,37 @@ class VCFFile(SubmittedFile):
     reference = StringField()
      
         
+#    library_source = StringField(choices=LIBRARY_SOURCES.keys())
+#    library_selection = StringField(default="unspecified")
+#    library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
+#    instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
+#    coverage = StringField()
+        
+        
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=SUBMISSION_STATUS)
-    submission_date = StringField()
-    #files_list = ListField(EmbeddedDocumentField(SubmittedFile))
-    #files_list = ListField(ReferenceField(SubmittedFile, reverse_delete_rule=CASCADE))
-    files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
-    dir_path = StringField()
     hgi_project = StringField()
-    meta = {
-        'indexes': ['sanger_user_id', '_id'],
-            }
+    submission_date = StringField()
+
+    files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
+#    dir_path = StringField()
     
+    # Files metadata:
     data_type = StringField(choices=DATA_TYPES)
     data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
+    abstract_library = EmbeddedDocumentField(AbstractLibrary)
+    study = EmbeddedDocumentField(Study)
+    
+    irods_collection = StringField()
+    upload_as_serapis = BooleanField(default=True)
+    
+    version = IntField(default=0)
+    
+    meta = {
+        'indexes': ['_id', 'sanger_user_id'],
+            }
     
 #    meta = {
 #        'allow_inheritance': True,

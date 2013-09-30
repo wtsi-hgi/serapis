@@ -417,12 +417,16 @@ class UploadFileTask(Task):
            
 
 
-    def run1(self, **kwargs):
+    def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
-        result['file_upload_job_status'] = SUCCESS_STATUS
+        response_status = kwargs['response_status'] 
+        result[response_status] = SUCCESS_STATUS
+        result['md5'] = "123"
         file_id = kwargs['file_id']
         submission_id = str(kwargs['submission_id'])
+        
+        time.sleep(3)
 
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
@@ -634,8 +638,8 @@ class UploadFileTask(Task):
             "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
 
-
-    def run(self, **kwargs):
+    # the current version for serapis
+    def run_serapis_yang(self, **kwargs):
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
         response_status = kwargs['response_status']
@@ -1017,7 +1021,7 @@ class ParseBAMHeaderTask(Task):
             #file_mdata.file_mdata_status = IN_PROGRESS_STATUS
         
         # Sending an update back
-        self.send_parse_header_update(file_mdata)
+        #self.send_parse_header_update(file_mdata)
     
         ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
         #new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
@@ -1048,7 +1052,7 @@ class ParseBAMHeaderTask(Task):
         
             # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
             #file_mdata.update_file_mdata_status()           # update the status after the last findings
-            file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
+            #file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
             
             # Exception or not - either way - send file_mdata to the server:
             
@@ -1071,21 +1075,26 @@ class ParseBAMHeaderTask(Task):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
+        
+#        import ipdb
+#        ipdb.set_trace()
+
         file_mdata['id'] = str(file_id)
         #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
 #        file_mdata.pop('null')
         #print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
 
+        
         #submitted_file = SubmittedFile()
         file_mdata = BAMFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         
-        on_client_flag = kwargs['read_on_client']
-        if on_client_flag:
-            file_path = file_mdata.file_path_client
-        else:
-            file_path = file_mdata.file_path_irods            
+#        on_client_flag = kwargs['read_on_client']
+#        if on_client_flag:
+        file_path = file_mdata.file_path_client
+#        else:
+#            file_path = file_mdata.file_path_irods            
         try:
             header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
@@ -1271,9 +1280,9 @@ class AddMdataToIRODSFileTask(Task):
         print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
         
         
-        import sys
-        sys.path.append(SOFTWARE_PYTHON_PACKAGES)
-        from irods import *
+#        import sys
+#        sys.path.append(SOFTWARE_PYTHON_PACKAGES)
+#        from irods import *
         
         # Working copy - using API:
 #        status, myEnv = getRodsEnv()

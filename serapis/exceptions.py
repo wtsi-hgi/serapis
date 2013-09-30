@@ -146,7 +146,23 @@ class NotEnoughInformationProvided(Exception):
         self.message = msg
         
     def __str__(self):
-        text = 'Information conflict '
+        text = 'Information conflict. '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+class TooMuchInformationProvided(Exception):
+    ''' This exception is thrown when there have been given 
+        too many fields/data for identifying an entity.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Too many fields provided. '
         if self.faulty_expression != None:
             text += self.faulty_expression
             text += ' - '
@@ -155,6 +171,89 @@ class NotEnoughInformationProvided(Exception):
         return text
     
     
+class OperationAlreadyPerformed(Exception):
+    ''' This exception is raised whenever one tries to redo a one-time operation
+        (operation that is only possible to be performed once)
+        Examples of this category are: submit already submitted files to iRODS.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Operation already performed. Nothing changed.'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+    
+class OperationNotAllowed(Exception):
+    ''' This exception is raised when the operation requested cannot be performed
+        from business logic reasons (e.g. conditions not satisfied).
+    '''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Operation not allowed'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+class IncorrectMetadataError(Exception):
+    ''' This exception is raised when some incorrect metadata
+        for a file or submission was provided.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Incorrect metadata.'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+class RequestParamteresInvalid(Exception):
+    ''' This exception is raised when some of the data
+        provided as parameters for a request is not valid.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Request parameters invalid. '
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+class IndexOlderThanFileError(Exception):
+    ''' This exception is raised because the timestamp
+        of a file to be submitted indicates that 
+        this one is newer than its index.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Index file is older than the file.'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
     
     
     

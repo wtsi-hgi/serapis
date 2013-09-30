@@ -25,31 +25,29 @@ def calculate_md5(file_path):
         if not data:
             break
         md5_sum.update(data)
-    print "MD5 DIGEST - before returning: ", md5_sum.hexdigest()
     return md5_sum.hexdigest()
 
 
-def insert_reference(ref_name, path_list, md5=None):
+def insert_reference_genome(ref_dict):
+    ref_name, path_list = None, []
+    if 'name' in ref_dict:
+        ref_name = ref_dict['name']
+    if 'path' in ref_dict:
+        if not type(ref_dict['path']) == list:
+            path_list = [ref_dict['path']]
+        else:
+            path_list = ref_dict['path']
     ref_genome = models.ReferenceGenome()
-    if ref_name == None or path_list == None or len(path_list) == 0:
-        error_text = 'You need to provide both reference name and at least one path in order to insert a new reference genome.'
-        raise exceptions.NotEnoughInformationProvided(msg=error_text)
+    if not path_list or not ref_name:
+        raise exceptions.NotEnoughInformationProvided(msg="You must provide both the name and the path for the reference genome.") 
     ref_genome.name = ref_name
     ref_genome.paths = path_list
     
     for path in path_list:
-        if md5 == None:
-            md5 = calculate_md5(path)
-        else:
-            md5_check = calculate_md5(path)
-            if md5 != md5_check:
-                print "DIFFERENT FILESSSSSSSSSSSSSS!!!!"
-                error_text = 'The md5 of the file found at '+path+' does not match the md5 provided along.'
-                raise exceptions.InformationConflict(msg=error_text)
-                return
+        md5 = calculate_md5(path)
     ref_genome.md5 = md5
     ref_genome.save()
-    return md5
+    return ref_genome.id
     
 
 def retrieve_reference_by_path(path):
@@ -71,9 +69,25 @@ def retrieve_reference_by_name(canonical_name):
         return models.ReferenceGenome.objects(name=canonical_name).get()
     except DoesNotExist:
         return None
+    
+def retrieve_reference_genome(ref_gen_dict):
+    if not ref_gen_dict:
+        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided")
+    ref_gen_name, ref_gen_p = None, None
+    if 'name' in ref_gen_dict:
+        ref_gen_name = retrieve_reference_by_name(ref_gen_dict['name'])
+    if 'path' in ref_gen_dict:
+        ref_gen_p = retrieve_reference_by_path(ref_gen_dict['path'])
+    
+    if ref_gen_name and ref_gen_p and ref_gen_name != ref_gen_p:
+        raise exceptions.InformationConflict(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
+    if ref_gen_name:
+        return ref_gen_name.id
+    return ref_gen_p.id
 
 
-def retrieve_reference_genome(md5=None, name=None, path=None):
+# I plan not to use this. Out of use for now.
+def retrieve_reference_genome2(md5=None, name=None, path=None):
     if md5 == None and name == None and path == None:
         raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided")
         return None
@@ -338,8 +352,12 @@ def retrieve_all_user_submissions(user_id):
 def retrieve_submission(subm_id):
     return models.Submission.objects(_id=ObjectId(subm_id)).get()
 
-def retrieve_all_files_from_submission(subm_id):
-    return models.Submission.objects(id=ObjectId(subm_id)).only('files_list').get()
+def retrieve_all_file_ids_for_submission(subm_id):
+    return models.Submission.objects(id=ObjectId(subm_id)).only('files_list').get().files_list
+
+def retrieve_all_files_for_submission(subm_id):
+    files = models.SubmittedFile.objects(submission_id=subm_id)
+    return [f for f in files]
 
 def retrieve_submitted_file(file_id):
     return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
@@ -986,8 +1004,22 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
             if update_source == constants.EXTERNAL_SOURCE:
                 update_db_dict['set__data_type'] = field_val
                 update_db_dict['inc__version__0'] = 1
+        elif field_name == 'data_subtype_tags':
+            if update_source == constants.EXTERNAL_SOURCE:
+                if getattr(submitted_file, 'data_subtype_tags') != None:
+                    subtypes_dict = submitted_file.data_subtype_tags
+                    subtypes_dict.update(field_val)
+                else:
+                    subtypes_dict = field_val
+                update_db_dict['set__data_subtype_tags'] = subtypes_dict
+        elif field_name == 'abstract_library':
+            if update_source == constants.EXTERNAL_SOURCE:
+                update_db_dict['set__abstract_library'] = field_val
+        elif field_name == 'file_reference_genome_id':
+            if update_source == constants.EXTERNAL_SOURCE:
+                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
+                update_db_dict['set__file_reference_genome_id'] = str(field_val)
         elif field_name != None and field_name != "null":
-            import logging
             logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: "+field_name)
     #                    setattr(self, key, val)
     #                    self.last_updates_source[key] = update_source
@@ -1000,7 +1032,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
     
 
 
-def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
+def update_submitted_file(file_id, update_dict, update_source, statuses_dict=None, nr_retries=3):
     print "IN DB UPDATE SUBMITTED FILE>...."
     upd = 0
     i = 0
@@ -1012,6 +1044,8 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
             field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file) # atomic_update=True
             update_db_dict.update(field_update_dict)
         if len(update_db_dict) > 0:
+            if statuses_dict:
+                update_db_dict.update(statuses_dict)
             print "FILE ID ----- HERE's A PB----------------", file_id, " and TYPE: ", type(file_id), "UPD DB DICT: ", update_db_dict
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
             print "ATOMIC UPDATE RESULT from :", update_source," =================================================================", upd
@@ -1021,6 +1055,37 @@ def update_submitted_file(file_id, update_dict, update_source, nr_retries=1):
             break
         i+=1
     return upd
+
+
+
+
+#def get_or_insert_reference_genome(data):
+#    ref_dict = data['reference_genome']
+#    ref_gen, path, md5, name = None, None, None, None
+#    if 'name' in ref_dict:
+#        name = ref_dict['name']
+#    if 'path' in ref_dict:
+#        path = ref_dict['path']
+#    if 'md5' in ref_dict:
+#        md5 = ref_dict['md5']
+##    try:
+#    ref_gen = retrieve_reference_genome(md5, name, path)
+#    if ref_gen == None:
+#        print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
+#        ref_genome_id = insert_reference(name, [path], md5)
+#    else:
+#        ref_genome_id = ref_gen.md5
+#        print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
+#        #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
+#    #upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+#    return ref_genome_id
+
+
+    
+
+    
+
+# --------------- Update individual fields atomically --------------------
 
 def update_file_path_irods(file_id, file_path_irods, index_path_irods=None):
     if not index_path_irods:
@@ -1075,7 +1140,6 @@ def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=1):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : status}
     upd_dict['inc__version__0'] = 1
-#    upd_dict['safe'] = True
     upd = 0
     while nr_retries > 0 and upd == 0:
         upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -1108,48 +1172,15 @@ def update_index_file_path_client(file_id, index_file_path, nr_retries=1):
     #submitted_file.save()
     
 
-#def insert_hgi_project(file_id, project):
-#    if utils.is_hgi_project(project):
-#        upd_dict = {'set__hgi_project' : project, 'inc__version__0' : 1}
-#        return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
 
 # PB: I am not keeping track of submission's version...
 # PB: I am not returning an error code/ Exception if the hgi-project name is incorrect!!!
 def insert_hgi_project(subm_id, project):
     if utils.is_hgi_project(project):
-        print "DB MODELS ----- INSERT HGI PRJ - ", project
         upd_dict = {'set__hgi_project' : project}
         return models.Submission.objects(id=subm_id).update_one(**upd_dict)
 
-#def update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=1):
-#    submitted_file = retrieve_submitted_file(file_id)
-#    file_update_db_dict = dict()
-#    for (field_name, field_val) in update_dict.iteritems():
-#        field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file, atomic_update, nr_retries)
-#        if atomic_update == False and field_update_dict != None and len(field_update_dict) > 0:
-#            i = 0
-#            upd = False
-#            while i < nr_retries:
-#                if independent_fields == False:
-#                    upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**field_update_dict)
-#                else:
-#                    upd = models.SubmittedFile.objects(id=file_id).update_one(**field_update_dict)
-#                submitted_file.reload()
-#                update_db_dict = {}
-#                if upd == True:
-#                    break
-#                i+=1
-#            print "UPDATE (NON ATOMIC) RESULT IS ...................................", upd, " AND KEY IS: ", field_name
-#        else:
-#            file_update_db_dict.update(field_update_dict)
-#    if atomic_update == True and len(update_db_dict) > 0:
-#        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-#        print "ATOMIC UPDATE RESULT: =================================================================", upd
-#    print "BEFORE UPDATE -- IN UPD from json -- THE UPDATE DICT: ", update_db_dict
-##    SubmittedFile.objects(id=self.id).update_one(**update_db_dict)
-#
-#
-#
+
 #def update_submitted_file_logic(file_id, update_dict, update_source):
 #    if update_source == constants.EXTERNAL_SOURCE:
 #        update_submitted_file(file_id, update_dict, update_source, atomic_update=True, nr_retries=3)
@@ -1158,17 +1189,106 @@ def insert_hgi_project(subm_id, project):
 #    elif update_source == constants.UPDATE_MDATA_MSG_SOURCE:
 #        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=3)
 #        #TODO: implement a all or nothing strategy for this case...
-#    check_and_update_all_statuses(file_id)
+#    check_and_update_all_file_statuses(file_id)
 
 
-def update_submission(id):
-    pass
 
+def update_submission(update_dict, submission_id, submission=None, nr_retries=1):
+    ''' Updates an existing submission or creates a new submission 
+        if no submission_id is provided. 
+        Returns -- 0 if nothing was changed, 1 if the update has happened
+        Throws:
+            ValueError - if the data in update_dict is not correct
+        '''
+    if submission_id == None:
+        return 0
+    elif not submission:
+        submission = retrieve_submission(submission_id)
+    i = 0
+    while i < nr_retries:
+        update_db_dict = dict()
+        for (field_name, field_val) in update_dict.iteritems():
+            if field_name == 'files_list':
+                pass
+            elif field_name == 'hgi_project' and field_val:
+                if utils.is_hgi_project(field_val):
+                    update_db_dict['set__hgi_project'] = field_val
+                else:
+                    raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT)) 
+            elif field_name == 'upload_as_serapis' and field_val:
+                update_db_dict['set__upload_as_serapis'] = field_val
+            # File-related metadata:
+            elif field_name == 'data_subtype_tags':
+                if getattr(submission, 'data_subtype_tags'):
+                    subtypes_dict = submission.data_subtype_tags
+                    subtypes_dict.update(field_val)
+                else:
+                    subtypes_dict = field_val
+                update_db_dict['set__data_subtype_tags'] = subtypes_dict
+            elif field_name == 'data_type':
+                update_db_dict['set__data_type'] = field_val
+            # TODO: put here the logic around inserting a ref genome
+            elif field_name == 'file_reference_genome_id':
+                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
+                update_db_dict['set__file_reference_genome_id'] = field_val
+            # This should be tested if it's ok...
+            elif field_name == 'library_metadata':
+                update_db_dict['set__abstract_library'] = field_val
+            elif field_name == 'study':
+                update_db_dict['set__study'] = field_val
+            elif field_name == 'irods_collection':
+                update_db_dict['set__irods_collection'] = field_val
+            else:
+                print "ERROR: KEY not in Submission class declaration!!!!!"
+#                k = 'set__' + field_name
+#                update_db_dict[k] = field_val
+        upd = models.Submission.objects(id=submission.id, version=submission.version).update_one(**update_db_dict)
+        print "Updating submission...updated? ", upd
+        i+=1
+    return upd
+    
+            
+
+def propagate_submission_updates_to_all_files(submission_update_dict, submission_id):
+    submission = retrieve_submission(submission_id)
+    update_dict = {}
+    if 'study' in submission_update_dict:
+        update_dict['study_list'] = [submission_update_dict['study']]
+    if 'library_metadata' in submission_update_dict:
+        update_dict['abstract_library'] = submission_update_dict['library_metadata']
+    if 'file_reference_genome_id' in submission_update_dict:
+        update_dict['file_reference_genome_id'] = str(submission_update_dict['file_reference_genome_id'])
+    if 'data_type' in submission_update_dict:
+        update_dict['data_type'] = submission_update_dict['data_type']
+    if 'data_subtype_tags' in submission_update_dict:
+        update_dict['data_subtype_tags'] = submission_update_dict['data_subtype_tags']
+    print "UPDATE DICT ------------------------ FROM PROPAGATEEEEE: ", update_dict
+    for file_id in submission.files_list:
+        update_submitted_file(file_id, update_dict, constants.EXTERNAL_SOURCE, nr_retries=3)
+    return True
+
+
+            
+def insert_submission(submission_data, user_id):
+    ''' Inserts a submission in the DB, but the submission
+        won't have the files_list set, as the files are created
+        after the submission exists.
+    '''
+    submission = models.Submission()
+    submission.sanger_user_id = user_id
+    submission.submission_date = utils.get_today_date()
+    submission.save()
+    if update_submission(submission_data, submission.id, submission) == 1:
+        return submission.id
+    submission.delete()
+    return None
+        
 
 
 def insert_submission_date(submission_id, date):
-    date = utils.get_today_date()
-    return models.Submission.objects(id=submission_id).update_one(submission_date=date)
+    if date != None:
+        return models.Submission.objects(id=submission_id).update_one(set__submission_date=date)
+    return None
     
 #----------------------- DELETE----------------------------------
 
@@ -1223,13 +1343,14 @@ def delete_submitted_file(file_id, submitted_file=None):
     return True
 
 # !!! This is not ATOMIC!!!!
-def delete_submission(submission_id):
-    submission = retrieve_submission(submission_id)
+def delete_submission(submission_id, submission=None):
+    if not submission:
+        submission = retrieve_submission(submission_id)
     # 1. Check that all the files can be deleted:
     for file_id in submission.files_list:
         subm_file = retrieve_submitted_file(file_id)
         #### if subm_file != None:
-        check_and_update_all_statuses(None, subm_file)
+        check_and_update_all_file_statuses(None, subm_file)
         if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
             return False
         
@@ -1238,6 +1359,16 @@ def delete_submission(submission_id):
     for file_id in submission.files_list:
         delete_submitted_file(file_id)
     return True
+
+
+def update_submission_file_list(submission_id, files_list, submission=None):
+    if not submission:
+        submission = retrieve_submission(submission_id)
+    if not files_list:
+        return delete_submission(submission_id, submission)
+    upd_dict = {"inc__version" : 1, "set__files_list" : files_list}
+    return models.Submission.objects(id=submission_id).update_one(**upd_dict)
+
 
 
  
@@ -1354,11 +1485,11 @@ def check_bam_file_mdata(file_to_submit):
             __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
             has_min_mdata = False
         else:
-            attr = getattr(file_to_submit, field)
-            if attr == None:
+            attr_val = getattr(file_to_submit, field)
+            if attr_val == None:
                 __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
                 has_min_mdata = False
-            elif type(attr) == list and len(attr) == 0:
+            elif type(attr_val) == list and len(attr_val) == 0:
                 __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
                 has_min_mdata = False
             else:
@@ -1391,15 +1522,19 @@ def check_file_mdata(file_to_submit):
         else:
             __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
     
-    if file_to_submit.index_file_path_client and not file_to_submit.index_file_md5:
-        return False
+    if file_to_submit.index_file_path_client:
+        if not file_to_submit.index_file_md5:
+            __add_missing_field_to_dict__('index_file_md5', 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+            return False
+        else:
+            __find_and_delete_missing_field_from_dict__('index_file_md5', 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
         
     if file_to_submit.file_type == constants.BAM_FILE:
         return check_bam_file_mdata(file_to_submit) and has_min_mdata
     return False
     
 
-def check_and_update_if_file_has_min_mdata(file_to_submit):
+def check_update_file_obj_if_has_min_mdata(file_to_submit):
     if file_to_submit.has_minimal == True:
         return file_to_submit.has_minimal
     has_min_mdata = True
@@ -1449,35 +1584,36 @@ def check_and_update_if_file_has_min_mdata(file_to_submit):
         if check_if_sample_has_minimal_mdata(sample, file_to_submit) == False:
             #print "NOT ENOUGH SAMPLE MDATA............................."
             has_min_mdata = False
-
-    
-    if has_min_mdata == True:
-        # UPDATE IN DB:
-        upd_dict = {}
-        upd_dict['set__has_minimal'] = True
-        upd_dict['set__library_list'] = file_to_submit.library_list
-        upd_dict['set__sample_list'] = file_to_submit.sample_list
-        upd_dict['set__study_list'] = file_to_submit.study_list
-        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
-        upd_dict['inc__version__0'] = 1
-        upd_dict['inc__version__1'] = 1
-        upd_dict['inc__version__2'] = 1
-        upd_dict['inc__version__3'] = 1
-        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
-        return has_min_mdata
-    else:
-        upd_dict = {}
-        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
-        upd_dict['inc__version__0'] = 1
-        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
-    return False
+    return has_min_mdata
+#    if has_min_mdata == True:
+#        # UPDATE IN DB:
+#        upd_dict = {}
+#        upd_dict['set__has_minimal'] = True
+#        upd_dict['set__library_list'] = file_to_submit.library_list
+#        upd_dict['set__sample_list'] = file_to_submit.sample_list
+#        upd_dict['set__study_list'] = file_to_submit.study_list
+#        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+#        upd_dict['inc__version__0'] = 1
+#        upd_dict['inc__version__1'] = 1
+#        upd_dict['inc__version__2'] = 1
+#        upd_dict['inc__version__3'] = 1
+#        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
+#        return has_min_mdata
+#    else:
+#        upd_dict = {}
+#        upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+#        upd_dict['inc__version__0'] = 1
+#        models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(None, file_to_submit)).update_one(**upd_dict)
+#    return False
 
 
 
 def check_all_tasks_statuses(task_dict, task_status):
     ''' Checks if all the tasks in task_dict have the status
         given as parameter.
-        '''
+    '''
+    if not task_dict:
+        return True
     for status in task_dict.values():
         if not status == task_status:
             return False
@@ -1487,69 +1623,100 @@ def check_all_task_statuses_in_coll(task_dict, status_coll):
     ''' Checks if all the tasks in task_dict have as status one 
         of the statuses in status_coll parameter.
     '''
+    if not task_dict:
+        return True
     for status in task_dict.values():
         if not status in status_coll:
             return False
     return True
 
+def check_any_task_has_status(task_dict, status):
+    ''' Checks if any of the tasks in task_dict has
+        the status given as parameter.'''
+    if not task_dict:
+        return False
+    for task_status in task_dict.values():
+        if task_status == status:
+            return True
+    return False
+
 
 
 # !!!!!!!!!!!!!!!!!!!
 # TODO: this is incomplete
-def check_and_update_all_statuses(file_id, submitted_file=None):
-    if submitted_file == None:
-        submitted_file = retrieve_submitted_file(file_id)
-    if submitted_file.file_upload_job_status == constants.FAILURE_STATUS:
-        #TODO: DELETE ALL MDATA AND FILE
+def check_and_update_all_file_statuses(file_id, file_to_submit=None):
+    if file_to_submit == None:
+        file_to_submit = retrieve_submitted_file(file_id)
+    if file_to_submit.file_upload_job_status == constants.FAILURE_STATUS:
+        if file_to_submit.index_file_path_client and file_to_submit.index_file_upload_job_status == constants.FAILURE_STATUS:
+        #TODO: DELETE the FILE that has failed from the staging area
+            pass
         pass
-    if submitted_file.file_upload_job_status == constants.SUCCESS_STATUS and submitted_file.file_header_parsing_job_status in constants.FINISHED_STATUS:
-        if check_and_update_if_file_has_min_mdata(submitted_file) == True:
-            submitted_file.reload()
+    
+    if file_to_submit.irods_jobs_dict and not check_any_task_has_status(file_to_submit.irods_jobs_dict, constants.IN_PROGRESS_STATUS):
+        print "CHECKING ON IRODS STATUSSSSESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSs...returns 0 "
+        return 0
+    
+    tasks_finished = False
+    if (file_to_submit.file_upload_job_status == constants.SUCCESS_STATUS and
+        file_to_submit.file_header_parsing_job_status in constants.FINISHED_STATUS and
+        check_all_task_statuses_in_coll(file_to_submit.file_update_jobs_dict, constants.FINISHED_STATUS)):
+        
+        if file_to_submit.index_file_path_client:
+            if file_to_submit.index_file_upload_job_status == constants.SUCCESS_STATUS: 
+                tasks_finished = True
+            else:
+                tasks_finished = False
+        else:
+            tasks_finished = True
+        
+    if tasks_finished:
+        if check_update_file_obj_if_has_min_mdata(file_to_submit) == True:
             print "FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!"
             upd_dict = {}
-            #if check_if_all_update_jobs_finished(None, submitted_file):
-            if check_all_task_statuses_in_coll(submitted_file.file_update_jobs_dict, constants.FINISHED_STATUS):
-                upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
-                submitted_file.reload()
+            upd_dict['set__has_minimal'] = True
+            upd_dict['set__library_list'] = file_to_submit.library_list
+            upd_dict['set__sample_list'] = file_to_submit.sample_list
+            upd_dict['set__study_list'] = file_to_submit.study_list
+            upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+            upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
+            upd_dict['inc__version__1'] = 1
+            upd_dict['inc__version__2'] = 1
+            upd_dict['inc__version__3'] = 1
+            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
         else:
-            updates_finished = check_all_task_statuses_in_coll(submitted_file.file_update_jobs_dict, constants.FINISHED_STATUS)
-#            for update_job_status in submitted_file.file_update_jobs_dict:
-#                if not update_job_status in constants.FINISHED_STATUS:
-#                    updates_finished = False
-#                    break
-            if updates_finished and len(submitted_file.irods_jobs_dict) == 0:
-                submitted_file.reload()
-                print "FILE DOES NOT NOT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
-                upd_dict = {}
-                upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
-                upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
-                upd_dict['inc__version__0'] = 1
-                return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**upd_dict)
+            print "FILE DOES NOT NOT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!"
+            upd_dict = {}
+            upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
+            upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
+            upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
+            upd_dict['inc__version__0'] = 1
+            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     return 0
     
   
 
+# This is incomplete!!! TO DO: re-check and re-think how this should be, depending what its usage is
 def check_and_update_file_submission_status(file_id, submitted_file=None):
     if submitted_file == None:
         submitted_file = retrieve_submitted_file(file_id)
-    #if check_if_all_irods_jobs_finished(None, submitted_file) == True:
     if check_all_task_statuses_in_coll(submitted_file.irods_jobs_dict, constants.FINISHED_STATUS):
-        #if check_if_all_irods_jobs_successful(None, submitted_file):
         if check_all_tasks_statuses(submitted_file.irods_jobs_dict, constants.SUCCESS_STATUS):
-            return update_file_submission_status(file_id, constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS)
+            return update_file_submission_status(submitted_file.id, constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS)
         else:      
-            return update_file_submission_status(file_id, constants.FAILURE_SUBMISSION_TO_IRODS_STATUS)                          
+            return update_file_submission_status(submitted_file.id, constants.FAILURE_SUBMISSION_TO_IRODS_STATUS)                          
 
 
 def decide_submission_status(nr_files, status_dict):
     if status_dict["nr_success"] == nr_files:
-        return constants.SUCCESS_STATUS
+        return constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
     elif status_dict["nr_fail"] == nr_files:
-        return constants.FAILURE_STATUS
+        return constants.FAILURE_SUBMISSION_TO_IRODS_STATUS
     elif status_dict["nr_fail"] > 0:
+        return constants.INCOMPLETE_SUBMISSION_TO_IRODS_STATUS
+    elif status_dict['nr_success'] > 0:
         return constants.INCOMPLETE_SUBMISSION_TO_IRODS_STATUS
     elif status_dict["nr_ready"] == nr_files:
         return constants.READY_FOR_IRODS_SUBMISSION_STATUS
@@ -1560,14 +1727,16 @@ def decide_submission_status(nr_files, status_dict):
     
 
 def compute_file_status_statistics(submission_id, submission=None):
+    ''' Checks for the statuses of interest to see if the submission status
+        should be changed. Ignores the SUBMISSION_IN_PROGRESS status.'''
     if submission == None:
         submission = retrieve_submission(submission_id)
     status_dict = dict.fromkeys(["nr_success", "nr_fail", "nr_pending", "nr_progress", "nr_ready"], 0)
     for file_id in submission.files_list:
         subm_file = retrieve_submitted_file(file_id)
-        if subm_file.file_submission_status == constants.SUCCESS_STATUS:
+        if subm_file.file_submission_status == constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS:
             status_dict["nr_success"]+=1
-        elif subm_file.file_submission_status == constants.FAILURE_STATUS:
+        elif subm_file.file_submission_status == constants.FAILURE_SUBMISSION_TO_IRODS_STATUS:
             status_dict["nr_fail"] += 1
         elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
             status_dict["nr_pending"] += 1
@@ -1575,14 +1744,18 @@ def compute_file_status_statistics(submission_id, submission=None):
             status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1
+#        elif subm_file.file_submission_status == constants.SUBMISSION_IN_PROGRESS_STATUS:
+#            status_dict["nr_subm_in_progress"] +=1
     return status_dict
 
 def check_and_update_submission_status(submission_id, submission=None):
     status_dict = compute_file_status_statistics(submission_id, submission)
     if submission == None:
         submission = retrieve_submission(submission_id)
-    return decide_submission_status(len(submission.files_list), status_dict)
-
+    crt_status = decide_submission_status(len(submission.files_list), status_dict)
+    if not crt_status:
+        return submission.submission_status
+    return crt_status 
 
 
 

@@ -225,6 +225,7 @@ INSTALLED_APPS = (
     # 'django.contrib.admindocs',
     'serapis',
     'rest_framework',
+    #'rest_framework_docs',
 #    'tastypie_swagger'
 )
 

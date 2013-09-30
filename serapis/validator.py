@@ -1,5 +1,13 @@
-from voluptuous import Schema, MultipleInvalid
+from voluptuous import Schema, Any,  MultipleInvalid
 
+
+abstract_library_schema =Schema({
+        'library_source' : Any(str, None),
+        'library_selection' : Any(str, None),
+        'library_strategy' : Any(str, None),
+        'instrument_model' : Any(str, None),
+        'coverage' : Any(str, None)
+})
 
 library_schema = Schema({
         'internal_id': int,
@@ -14,16 +22,16 @@ library_schema = Schema({
 })
 
 study_schema = Schema({
-        'internal_id': int,
-        'name': str,
-        'accession_number' : str,
-        'study_type' : str,
-        'faculty_sponsor' : str,
-        'ena_project_id' : str,
-        'reference_genome' : str,
-        'study_visibility' : str,
-        'description' : str,
-        'pi' : list,
+        'internal_id': Any(int, None),
+        'name': Any(str, None),
+        'accession_number' : Any(str, None),
+        'study_type' : Any(str, None),
+        'faculty_sponsor' : Any(str, None),
+        'ena_project_id' : Any(str, None),
+        'reference_genome' : Any(str, None),
+        'study_visibility' : Any(str, None),
+        'description' : Any(str, None),
+        'pi_list' : list,
         
         'is_complete' : bool,
         'has_minimal' : bool, 
@@ -56,7 +64,7 @@ sample_schema = Schema({
 
 submitted_file_schema = Schema({
     'version' : list,
-    'bam_type' : str,
+    #'bam_type' : str,
     'lane_nrs_list' : list,                    
     'submission_id' : str,
     'id' : str,
@@ -65,7 +73,6 @@ submitted_file_schema = Schema({
     'file_path_irods' : str,    
     'md5' : str,
     'hgi_project' : str,
-    
     'study_list' : list,               # = ListField(EmbeddedDocumentField(Study))
     'library_list' : list,             # = ListField(EmbeddedDocumentField(Library))
     'sample_list' : list,              # = ListField(EmbeddedDocumentField(Sample))
@@ -73,7 +80,7 @@ submitted_file_schema = Schema({
 
     'data_type' : str,
     'data_subtype_tags' : dict,
-    'abstract_library' : dict,
+    'abstract_library' : abstract_library_schema,
 
     'sender' : str,
     'has_minimal' : bool,
@@ -96,7 +103,7 @@ submitted_file_schema = Schema({
     'run_list' : list,
     'platform_list' : list,
     'seq_date_list' : list,
-    'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
+    #'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
     'library_well_list' : list,
     'file_reference_genome_id' : str,
     'data_type' : str,
@@ -112,6 +119,16 @@ submitted_file_schema = Schema({
     
 })
 
+
+
+reference_genome_schema = Schema({
+    'md5' : str,
+    'path' : str,
+    'name' : str
+    })
+
+
+
 submission_schema = Schema({
     'sanger_user_id' : str,
     'submission_status' : str,
@@ -119,14 +136,12 @@ submission_schema = Schema({
     'submission_date' : str,
     'hgi_project' : str,
     'dir_path' : str,
-    #'study_name' : str,
-    #'pi' : list
-    #visibility
-    'study' : dict,
-    'reference_genome' : dict,
+    'study' : study_schema,
+    'reference_genome' : reference_genome_schema,
+    'library_metadata' : abstract_library_schema,
+    #'coverage' : str,
     'data_type' : str,
-    'library_info' : dict,
-    'coverage' : str,
-    'data_subtype_tags' : dict
+    'data_subtype_tags' : dict,
+    'irods_collection' : str,
+    'upload_as_serapis' : bool
 })
-
