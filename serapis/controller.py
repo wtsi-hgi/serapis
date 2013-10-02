@@ -1305,15 +1305,14 @@ def update_file_submitted(submission_id, file_id, data):
     
     
         
-    def update_from_EXTERNAL_SRC(data, file_to_update):
+    def update_from_EXTERNAL_SRC(data):
+        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
         has_new_entities = __check_if_has_new_entities__(data, file_to_update)
         if has_new_entities == True:
-            statuses = {'set__file_submission_status' : constants.PENDING_ON_WORKER_STATUS, 
-                        'set__file_mdata_status' : constants.IN_PROGRESS_STATUS}
-            db_model_operations.update_submitted_file(file_id, data, sender, statuses_dict=statuses) 
-            #db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-            #db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-            file_to_update.reload()
+#            statuses = {'set__file_submission_status' : constants.PENDING_ON_WORKER_STATUS, 
+#                        'set__file_mdata_status' : constants.IN_PROGRESS_STATUS}
+#            db_model_operations.update_submitted_file(file_id, data, sender, statuses_dict=statuses) 
+            #file_to_update.reload()
             launch_update_file_job(file_to_update)
             print "I HAVE LAUNCHED UPDATE JOB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "
         else:
@@ -1321,13 +1320,13 @@ def update_file_submitted(submission_id, file_id, data):
             db_model_operations.check_and_update_all_file_statuses(file_id)
         
             
-    def update_from_PARSE_HEADER_TASK_SRC(data, file_to_update):
+    def update_from_PARSE_HEADER_TASK_SRC(data):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         upd_status = db_model_operations.check_and_update_all_file_statuses(file_id)
         print "HAS IT ACTUALLY UPDATED THE STATUSssssssssssss?", upd_status
         
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
-        file_to_update.reload()
+        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
         serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
 
         #from subprocess import call
@@ -1336,7 +1335,7 @@ def update_file_submitted(submission_id, file_id, data):
         
      
     # TO DO: rewrite this part - very crappy!!!
-    def update_from_UPLOAD_TASK_SRC(data, file_to_update):
+    def update_from_UPLOAD_TASK_SRC(data):
         if 'index_file_upload_job_status' in data:      # INDEX UPLOAD
             status = 'index_file_upload_job_status'
             upload_status = data[status]
@@ -1351,7 +1350,7 @@ def update_file_submitted(submission_id, file_id, data):
             upload_status = data[status]
             upd = db_model_operations.update_submitted_file(file_id, data, sender)
             print "HAS THE FILE ACTUALLY BEEN UPDATED????????  " ,upd 
-            file_to_update.reload()
+            file_to_update = db_model_operations.retrieve_submitted_file(file_id)
             if upload_status == constants.SUCCESS_STATUS:
 #            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
                 if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
@@ -1368,29 +1367,28 @@ def update_file_submitted(submission_id, file_id, data):
         
         
 
-    def update_from_UPDATE_TASK_SRC(data, file_to_update):
+    def update_from_UPDATE_TASK_SRC(data):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         db_model_operations.check_and_update_all_file_statuses(file_id)
         
-    def update_from_IRODS_SOURCE(data, file_to_update):
+    def update_from_IRODS_SOURCE(data):
         upd = db_model_operations.update_submitted_file(file_id, data, sender)
-        #file_to_update.reload()
         db_model_operations.check_and_update_file_submission_status(file_id)
         
         
     # (CODE OF THE OUTER FUNCTION)
     sender = get_request_source(data)
-    file_to_update = db_model_operations.retrieve_submitted_file(file_id)    
+    #file_to_update = db_model_operations.retrieve_submitted_file(file_id)    
     if sender == constants.PARSE_HEADER_MSG_SOURCE:
-        update_from_PARSE_HEADER_TASK_SRC(data, file_to_update)
+        update_from_PARSE_HEADER_TASK_SRC(data)
     elif sender == constants.UPDATE_MDATA_MSG_SOURCE:
-        update_from_UPDATE_TASK_SRC(data, file_to_update)
+        update_from_UPDATE_TASK_SRC(data)
     elif sender == constants.UPLOAD_FILE_MSG_SOURCE:
-        update_from_UPLOAD_TASK_SRC(data, file_to_update)
+        update_from_UPLOAD_TASK_SRC(data)
     elif sender == constants.EXTERNAL_SOURCE:
-        update_from_EXTERNAL_SRC(data, file_to_update)
+        update_from_EXTERNAL_SRC(data)
     elif sender == constants.IRODS_JOB_MSG_SOURCE:
-        update_from_IRODS_SOURCE(data, file_to_update)
+        update_from_IRODS_SOURCE(data)
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
 #    file_to_update.reload()
@@ -1442,7 +1440,7 @@ def resubmit_jobs_for_file(submission_id, file_id):
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
         #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         '''
-    user_id = 'ic4'
+    user_id = 'yl2'
     file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
     jobs_resubmitted = False
     
@@ -1466,6 +1464,7 @@ def resubmit_jobs_for_file(submission_id, file_id):
     any_update_fail = db_model_operations.check_any_task_has_status_in_coll(file_to_resubmit.file_update_jobs_dict, 
                                                                             [constants.FAILURE_STATUS, constants.PENDING_ON_WORKER_STATUS])         
     if any_update_fail:
+        file_to_resubmit.reload()
         models.SubmittedFile.objects(id=file_to_resubmit.id).update(set__file_update_jobs_dict={}, inc__version__0=1)
         launch_update_file_job(file_to_resubmit)
         jobs_resubmitted = True
