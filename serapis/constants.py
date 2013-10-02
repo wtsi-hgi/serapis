@@ -40,7 +40,7 @@ EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
-MAX_RETRIES = 3
+MAX_DBUPDATE_RETRIES = 5
 
 # HEADER constants:
 # PU header:

@@ -10,6 +10,7 @@ import logging
 import time
 import hashlib
 import subprocess
+from collections import defaultdict
 #from subprocess import call, check_output
 #import MySQLdb
 
@@ -854,18 +855,18 @@ class ParseBAMHeaderTask(Task):
             Returns a list of dicts, like: [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]'''
         bamfile = pysam.Samfile(file_path, "rb" )
         header = bamfile.header['RG']
-    
         for header_grp in header:
             for header_elem_key in header_grp.keys():
                 if header_elem_key not in self.HEADER_TAGS:
                     header_grp.pop(header_elem_key) 
-        #print "HEADER -----------------", header
+        print "HEADER -----------------", header
+        bamfile.close()
         return header
     
     
     def process_json_header(self, header_json):
         ''' Gets the header and extracts from it a list of libraries, a list of samples, etc. '''
-        from collections import defaultdict
+        #from collections import defaultdict
         dictionary = defaultdict(set)
         for map_json in header_json:
             for k,v in map_json.items():
@@ -881,14 +882,18 @@ class ParseBAMHeaderTask(Task):
             the BAM header's RG section, under PU entry => between last _ and #. 
             A PU entry looks like: '120815_HS16_08276_A_C0NKKACXX_4#1'. '''
         beats_list = pu_header.split("_")
-        last_beat = beats_list[-1] 
-        return int(last_beat[0])
+        if beats_list:
+            last_beat = beats_list[-1] 
+            return int(last_beat[0])
+        return None
 
     def extract_tag_from_PUHeader(self, pu_header):
         ''' This method extracts the tag nr from the string found in the 
             BAM header - section RG, under PU entry => the nr after last #'''
         last_hash_index = pu_header.rfind("#", 0, len(pu_header))
-        return int(pu_header[last_hash_index + 1 :])     
+        if last_hash_index != -1:
+            return int(pu_header[last_hash_index + 1 :])
+        return None
 
     def extract_run_from_PUHeader(self, pu_header):
         ''' This method extracts the run nr from the string found in
@@ -953,7 +958,7 @@ class ParseBAMHeaderTask(Task):
                 if search_field_name != None:
                     entity_dict = {search_field_name : ent_name_h}
                     incomplete_ent_list.append(entity_dict)
-        print "IN SELECT NEW INCOMPLETE ENTITIES - LIST OF DICT SHOULD BE RETURNED: ", str(incomplete_ent_list)
+        #print "IN SELECT NEW INCOMPLETE ENTITIES - LIST OF DICT SHOULD BE RETURNED: ", str(incomplete_ent_list)
         return incomplete_ent_list
     
                 
@@ -970,8 +975,6 @@ class ParseBAMHeaderTask(Task):
         
         
     def parse_header(self, header_processed, file_mdata):
-        # TODO: to decomment in the real app
-        #file_mdata.header_associations = header_json
         
         # Updating fields of my file_submitted object
         file_mdata.seq_centers = header_processed['CN']
@@ -1000,8 +1003,13 @@ class ParseBAMHeaderTask(Task):
                         run = self.extract_run_from_PUHeader(pu_entry)
                         lane = self.extract_lane_from_PUHeader(pu_entry)
                         tag = self.extract_tag_from_PUHeader(pu_entry)
-                        run_id = str(run) + '_' + str(lane) + '#' + str(tag)
-                        file_mdata.run_list.append(run_id)
+                        if run and lane:
+                            if tag:
+                                run_id = str(run) + '_' + str(lane) + '#' + str(tag)
+                                file_mdata.run_list.append(run_id)
+                            else:
+                                run_id = str(run) + '_' + str(lane)
+                                file_mdata.run_list.append(run_id)
                         
         #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
         #   file_mdata.run_list = list(set(runs))
@@ -1050,18 +1058,12 @@ class ParseBAMHeaderTask(Task):
             print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
             print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
         
-            # WE DON'T REALLY NEED TO DO THIS HERE -> IT'S DONE ON SERVER ANYWAY
-            #file_mdata.update_file_mdata_status()           # update the status after the last findings
             #file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
-            
-            # Exception or not - either way - send file_mdata to the server:
             
             filtered_dict = filter_none_fields(vars(file_mdata))  
             #serial = filtered_dict.to_json()
             #print "FILE serialized - JSON: ", serial
-            
             #deserial = simplejson.loads(serial)
-            
             #print "parse header: BEFORE EXITING WORKER RETURNS.......................", deserial
             #res = file_mdata.to_dict()
             resp = send_http_PUT_req(filtered_dict, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
@@ -1075,18 +1077,13 @@ class ParseBAMHeaderTask(Task):
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
-        
-#        import ipdb
-#        ipdb.set_trace()
-
         file_mdata['id'] = str(file_id)
+
         #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
 #        file_mdata.pop('null')
         #print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
         #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
-
         
-        #submitted_file = SubmittedFile()
         file_mdata = BAMFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         

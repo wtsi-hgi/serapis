@@ -34,17 +34,20 @@ FILE_TYPES = (BAM_FILE, VCF_FILE)
 ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
 
-FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status', 
+FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
+                              'index_file_upload_job_status', 
                               'file_header_parsing_job_status', 
                               'header_has_mdata', 
                               'file_update_jobs_dict', 
                               'last_updates_source',
                               'file_mdata_status',
                               'file_submission_status',
-                              #'file_error_log',
+                              'file_update_jobs_dict',
+                              'missing_mandatory_fields_dict',
+                              'file_error_log',
                               ]
   
-
+  
 class Entity(DynamicEmbeddedDocument):
     internal_id = IntField()
     name = StringField()    # UNIQUE
@@ -90,7 +93,7 @@ class AbstractLibrary(DynamicEmbeddedDocument):
     meta = {'allow_inheritance': True}
     
 
-class Library(AbstractLibrary):
+class Library(AbstractLibrary, Entity):
     library_type = StringField()
     public_name = StringField()
     sample_internal_id = IntField()

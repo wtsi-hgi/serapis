@@ -57,14 +57,18 @@ class NoEntityIdentifyingFieldsProvided(Exception):
     ''' Exception thrown when a POST/PUT request comes in containing the information
         for creating/updating an entity, but the description of the entity does not contain
         any identifier for that entity.'''
-    def __init__(self, msg=None):
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
         self.message = msg
         
     def __str__(self):
         text = 'No identifying fields for this entity provided.'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
         if self.message != None:
-            text += self.message
-        return text
+            text +=self.message
+        return text 
 
 
 class NotSupportedFileType(Exception):
@@ -254,6 +258,30 @@ class IndexOlderThanFileError(Exception):
         if self.message != None:
             text += self.message
         return text
+    
+######### Exceptions specific to Serapis implementation -- logic######
+
+class TaskNotRegisteredError(Exception):
+    ''' Thrown when a HTTP request comes to the controller 
+        on behalf of a worker, but the task has not been
+        registered before in the controller within the DB.
+    '''
+    def __init__(self, faulty_expression, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Task not registered '+self.faulty_expression
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+    
+    
+    
     
     
     

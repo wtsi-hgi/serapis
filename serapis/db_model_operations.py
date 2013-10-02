@@ -8,7 +8,7 @@ from mongoengine.queryset import DoesNotExist
 
 #------------------- CONSTANTS - USEFUL ONLY IN THIS SCRIPT -----------------
 
-NR_RETRIES = 5
+#NR_RETRIES = 5
 
 
 #---------------------- REFERENCE GENOMES COLLECTION -------------------------
@@ -145,55 +145,37 @@ def check_if_JSONEntity_has_identifying_fields(json_entity):
     return False
 
 
-def json2library(json_obj, source):
+def json2entity(json_obj, source, entity_type):
+    ''' Makes an entity of one of the types (entity_type param): 
+        models.Entity : Library, Study, Sample 
+        from the json object received as a parameter. 
+        Initializes the entity fields depending on the source's priority.'''
+    if not entity_type in [models.Library, models.Sample, models.Study]:
+        return None
     has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
     if not has_identifying_fields:
         raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
-    lib = models.Library()
+    ent = entity_type()
     has_new_field = False
     for key in json_obj:
-        if key in models.Library._fields  and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
-            setattr(lib, key, json_obj[key])
-            lib.last_updates_source[key] = source
+        if key in entity_type._fields  and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
+            setattr(ent, key, json_obj[key])
+            ent.last_updates_source[key] = source
             has_new_field = True
     if has_new_field:
-        return lib
+        return ent
     else:
         return None
     
+    
+def json2library(json_obj, source):
+    return json2entity(json_obj, source, models.Library)   
     
 def json2study(json_obj, source):
-    has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
-    if not has_identifying_fields:
-        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
-    study = models.Study()
-    has_field = False
-    for key in json_obj:
-        if key in models.Study._fields  and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
-            setattr(study, key, json_obj[key])
-            study.last_updates_source[key] = source
-            has_field = True
-    if has_field:
-        return study
-    else:
-        return None
-
+    return json2entity(json_obj, source, models.Study)
 
 def json2sample(json_obj, source):
-    has_identifying_fields = check_if_JSONEntity_has_identifying_fields(json_obj)
-    if not has_identifying_fields:
-        raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
-    sampl = models.Sample()
-    has_field = False
-    for key in json_obj:
-        if key in models.Sample._fields and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
-            setattr(sampl, key, json_obj[key])
-            sampl.last_updates_source[key] = source
-            has_field = True
-    if has_field:
-        return sampl
-    else:
-        return None
+    return json2entity(json_obj, source, models.Sample)
 
 
 def get_entity_by_field(field_name, field_value, entity_list):
@@ -257,7 +239,7 @@ def check_if_entities_are_equal(entity, json_entity):
         Returns boolean.
     '''
     for id_field in models.ENTITY_IDENTITYING_FIELDS:
-        if id_field in json_entity and hasattr(entity, id_field) and json_entity[id_field] != None and getattr(entity, id_field) != None:
+        if id_field in json_entity and json_entity[id_field] != None and hasattr(entity, id_field) and getattr(entity, id_field) != None:
             are_same = json_entity[id_field] == getattr(entity, id_field)
             return are_same
     return False
@@ -487,7 +469,9 @@ def search_JSONEntity_in_list(entity_json, entity_list):
     '''
     if entity_list == None or len(entity_list) == 0:
         return None
-    check_if_JSONEntity_has_identifying_fields(entity_json)     # This throws an exception if the json entity doesn't have any ids
+    has_ids = check_if_JSONEntity_has_identifying_fields(entity_json)     # This throws an exception if the json entity doesn't have any ids
+    if not has_ids:
+        raise exceptions.NoEntityIdentifyingFieldsProvided(faulty_expression=entity_json)
     for ent in entity_list:
         if check_if_entities_are_equal(ent, entity_json) == True:
             return ent
@@ -528,6 +512,9 @@ def search_JSONStudy(study_json, file_id, submitted_file=None):
 
 # Hackish way of putting the attributes of the abstract lib, in each lib inserted:
 def __update_lib_from_abstract_lib__(library, abstract_lib):
+    print "IN UPDATE LIB FROM ABSTRACT LIB ----------LIB IS:::::::::::::::: ", library
+    if not library:
+        return None
     for field in models.AbstractLibrary._fields:
         if hasattr(abstract_lib, field) and getattr(abstract_lib, field) not in [None, "unspecified"]:
             setattr(library, field, getattr(abstract_lib, field))
@@ -535,14 +522,17 @@ def __update_lib_from_abstract_lib__(library, abstract_lib):
     
 
 def insert_library_in_SFObj(library_json, sender, submitted_file):
-    if submitted_file == None:
+    if submitted_file == None or not library_json:
         return False
     if search_JSONLibrary(library_json, submitted_file.id, submitted_file) == None:
+        print "IN INSERT IN SFOBJ ------------- LIB JSON IS: ", library_json
         library = json2library(library_json, sender)
+        print "IN INSERT IN SFOBJ ------------- THE CREATED LIB IS: ", library
         library = __update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
         print "IN INSERT LIB: ------ AFTER UPDATING FROM ABSTRACT----------------------------------------", vars(library)
         submitted_file.library_list.append(library)
         return True
+    print "SEARCH JSON LIB RETURNED != NONE => THE ENTITY EXISTS>...................", submitted_file.library_list, " and searched ent: ", library_json
     return False
 
 def insert_sample_in_SFObj(sample_json, sender, submitted_file):
@@ -697,7 +687,8 @@ def insert_or_update_library_in_SFObj(library_json, sender, submitted_file):
 #            #print "INSERT OR UPDATE -------------------- WAS FOUND = TRUE: library json", library_json, "  and Old library: ", old_library
     lib_exists = search_JSONEntity_in_list(library_json, submitted_file.library_list)
     print "DOES LIB EXIST?????????????????????????????????????????????????????????", lib_exists
-    if lib_exists == None:
+    if not lib_exists:
+        print "INSERTING LIB............................."
         return insert_library_in_SFObj(library_json, sender, submitted_file)
     else:
         return update_library_in_SFObj(library_json, sender, submitted_file)
@@ -924,13 +915,14 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 for error in field_val:
                     update_db_dict['add_to_set__file_error_log'] = error
                 update_db_dict['inc__version__0'] = 1
-        elif field_name == 'missing_entities_error_dict':
+        elif field_name == 'missing_entities_error_dict' and field_val:
             for entity_categ, entities in field_val.iteritems():
                 update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
             update_db_dict['inc__version__0'] = 1
-        elif field_name == 'not_unique_entity_error_dict':
+        elif field_name == 'not_unique_entity_error_dict' and field_val:
             for entity_categ, entities in field_val.iteritems():
-                update_db_dict['push_all__not_unique_entity_error_dict'] = entities
+                #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
+                update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
             update_db_dict['inc__version__0'] = 1
         elif field_name == 'header_has_mdata':
             if update_source == constants.PARSE_HEADER_MSG_SOURCE:
@@ -969,12 +961,15 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 if len(field_val) > 1:
                     print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - UPDATE DICT HAS MORE THAN ONE!!!"
                     return None
+                elif len(field_val) == 0:
+                    print "ERROR: UPDATE TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!!"
+                    return None
                 else:
                     task_id, task_status = field_val.items()[0]
                     print "LET s SEE WHAT's in UPDATE DICT BEFORE UPDATING::::::::::::::::::::::::::::::", str(submitted_file.file_update_jobs_dict)
                     if not task_id in old_update_job_dict:
                         print "NOT UPDATED!!!!ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!!", task_id, " source:", update_source
-                        return None
+                        raise exceptions.TaskNotRegisteredError(task_id)
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
                     print "LET's SEE WHAT THE NEW STATUS IS: ", task_status
                     old_update_job_dict[task_id] = task_status
@@ -987,10 +982,14 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 if len(field_val) > 1:
                     print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR - IRODS JOB DICT HAS MORE THAN ONE!!!", task_id, " source:", update_source
                     return None
+                elif len(field_val) == 0:
+                    print "ERROR: UPDATE TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!!"
+                    return None
                 else:
                     task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
                     if not task_id in old_irods_jobs_dict:
                         print "ERRRRRRRRRRRRRRRRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!! - field=irods jobs", task_id, " source:", update_source
+                        raise exceptions.TaskNotRegisteredError(task_id)
                         # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
                         # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
                         return None
@@ -1032,7 +1031,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
     
 
 
-def update_submitted_file(file_id, update_dict, update_source, statuses_dict=None, nr_retries=3):
+def update_submitted_file(file_id, update_dict, update_source, statuses_dict=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     print "IN DB UPDATE SUBMITTED FILE>...."
     upd = 0
     i = 0
@@ -1041,16 +1040,22 @@ def update_submitted_file(file_id, update_dict, update_source, statuses_dict=Non
         #file_update_db_dict = dict()
         update_db_dict = dict()
         for (field_name, field_val) in update_dict.iteritems():
-            field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file) # atomic_update=True
-            update_db_dict.update(field_update_dict)
+            try:
+                field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file) # atomic_update=True
+            except exceptions.TaskNotRegisteredError:
+                i += 1
+                continue
+            else:
+                if field_update_dict:
+                    update_db_dict.update(field_update_dict)
         if len(update_db_dict) > 0:
             if statuses_dict:
                 update_db_dict.update(statuses_dict)
-            print "FILE ID ----- HERE's A PB----------------", file_id, " and TYPE: ", type(file_id), "UPD DB DICT: ", update_db_dict
+            print "FILE ID ----- HERE's A PB----------------", file_id, " and TYPE: ", type(file_id)#, "UPD DB DICT: ", update_db_dict
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-            print "ATOMIC UPDATE RESULT from :", update_source," =================================================================", upd
-        print "AFTER UPDATE -- IN UPD from json -- THE UPDATE DICT WAS: ", update_db_dict
-        print "zzzzzzzzzzzzzzz THis IS WHAT WAS ACTUALLY UPDATED:::::::::::::", vars(submitted_file.reload())
+            print "ATOMIC UPDATE RESULT from :", update_source," NR TRY: ", i,"=================================================================", upd
+#        print "AFTER UPDATE -- IN UPD from json -- THE UPDATE DICT WAS: ", update_db_dict
+ #       print "zzzzzzzzzzzzzzz THis IS WHAT WAS ACTUALLY UPDATED:::::::::::::", vars(submitted_file.reload())
         if upd == 1:
             break
         i+=1
@@ -1109,6 +1114,17 @@ def update_file_submission_status(file_id, status):
     upd_dict = {'set__file_submission_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
     
+
+def update_file_statuses(file_id, statuses_dict):
+    if not statuses_dict:
+        return 0
+    upd_dict = dict()
+    for k,v in statuses_dict.items():
+        upd_dict['set__'+k] = v
+    upd_dict['inc__version__0'] = 1
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+
+    
 def update_file_mdata_status(file_id, status):
     upd_dict = {'set__file_mdata_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -1116,6 +1132,10 @@ def update_file_mdata_status(file_id, status):
     
 def update_file_upload_job_status(file_id, status):
     upd_dict = {'set__file_upload_job_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+
+def update_index_file_upload_job_status(file_id, status):
+    upd_dict = {'set__index_file_upload_job_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
     
 def update_file_parse_header_job_status(file_id, status):
@@ -1136,7 +1156,7 @@ def update_file_error_log(error_log, file_id=None, submitted_file=None):
     upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
-def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=1):
+def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : status}
     upd_dict['inc__version__0'] = 1
@@ -1149,7 +1169,7 @@ def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=1):
         time.sleep(1)
     return upd
 
-def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=1):
+def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd_str = 'set__irods_jobs_dict__'+str(task_id)
     upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
     upd_dict['inc__version__0'] = 1
@@ -1160,7 +1180,7 @@ def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=1):
         nr_retries -= 1
     return upd
 
-def update_index_file_path_client(file_id, index_file_path, nr_retries=1):
+def update_index_file_path_client(file_id, index_file_path, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd_dict = {'set__index_file_path_client' : index_file_path, 'inc__version__0' : 1}
     upd = 0
     while nr_retries > 0 and upd == 0:
@@ -1193,7 +1213,7 @@ def insert_hgi_project(subm_id, project):
 
 
 
-def update_submission(update_dict, submission_id, submission=None, nr_retries=1):
+def update_submission(update_dict, submission_id, submission=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     ''' Updates an existing submission or creates a new submission 
         if no submission_id is provided. 
         Returns -- 0 if nothing was changed, 1 if the update has happened
@@ -1248,24 +1268,24 @@ def update_submission(update_dict, submission_id, submission=None, nr_retries=1)
     return upd
     
             
-
-def propagate_submission_updates_to_all_files(submission_update_dict, submission_id):
-    submission = retrieve_submission(submission_id)
-    update_dict = {}
-    if 'study' in submission_update_dict:
-        update_dict['study_list'] = [submission_update_dict['study']]
-    if 'library_metadata' in submission_update_dict:
-        update_dict['abstract_library'] = submission_update_dict['library_metadata']
-    if 'file_reference_genome_id' in submission_update_dict:
-        update_dict['file_reference_genome_id'] = str(submission_update_dict['file_reference_genome_id'])
-    if 'data_type' in submission_update_dict:
-        update_dict['data_type'] = submission_update_dict['data_type']
-    if 'data_subtype_tags' in submission_update_dict:
-        update_dict['data_subtype_tags'] = submission_update_dict['data_subtype_tags']
-    print "UPDATE DICT ------------------------ FROM PROPAGATEEEEE: ", update_dict
-    for file_id in submission.files_list:
-        update_submitted_file(file_id, update_dict, constants.EXTERNAL_SOURCE, nr_retries=3)
-    return True
+# NOT USED!
+#def propagate_submission_updates_to_all_files(submission_update_dict, submission_id):
+#    submission = retrieve_submission(submission_id)
+#    update_dict = {}
+#    if 'study' in submission_update_dict:
+#        update_dict['study_list'] = [submission_update_dict['study']]
+#    if 'library_metadata' in submission_update_dict:
+#        update_dict['abstract_library'] = submission_update_dict['library_metadata']
+#    if 'file_reference_genome_id' in submission_update_dict:
+#        update_dict['file_reference_genome_id'] = str(submission_update_dict['file_reference_genome_id'])
+#    if 'data_type' in submission_update_dict:
+#        update_dict['data_type'] = submission_update_dict['data_type']
+#    if 'data_subtype_tags' in submission_update_dict:
+#        update_dict['data_subtype_tags'] = submission_update_dict['data_subtype_tags']
+#    print "UPDATE DICT ------------------------ FROM PROPAGATEEEEE: ", update_dict
+#    for file_id in submission.files_list:
+#        update_submitted_file(file_id, update_dict, constants.EXTERNAL_SOURCE, nr_retries=3)
+#    return True
 
 
             
@@ -1640,6 +1660,13 @@ def check_any_task_has_status(task_dict, status):
             return True
     return False
 
+def check_any_task_has_status_in_coll(task_dict, status_coll):
+    if not task_dict:
+        return False
+    for task_status in task_dict.values():
+        if task_status in status_coll:
+            return True
+    return False
 
 
 # !!!!!!!!!!!!!!!!!!!

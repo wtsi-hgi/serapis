@@ -90,21 +90,23 @@ def launch_parse_BAM_header_job(file_submitted, queue=PROCESS_MDATA_Q):
 #    This shouldn't be here...
     #models.SubmittedFile.objects(id=file_submitted.id, version=db_model_operations.get_file_version(None, file_submitted)).update_one(set__file_header_parsing_job_status=constants.PENDING_ON_WORKER_STATUS)   
     
-    db_model_operations.update_file_parse_header_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
-    #print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER BEFORE SERIAL -----------------------", vars(file_submitted)
+    # previously working:
     #file_serialized = serializers.serialize(file_submitted)
     file_serialized = serializers.serialize_excluding_meta(file_submitted)
     
-    #print "SUBMITTED FILE --- ------------ IN LAUNCH BAM HEADER AFTER SERIAL -----------------------", vars(file_submitted)
-    
-    
-    # WORKING PART  
-    # PARSE FILE HEADER AND QUERY SEQSCAPE - " TASKS CHAINED:
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
     parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                               'file_id' : file_submitted.id
                                               },
                                       queue=queue)
+    #db_model_operations.update_file_parse_header_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
+    statuses_to_upd = {'file_header_parsing_job_status' : constants.PENDING_ON_WORKER_STATUS, 
+                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
+                       }
+    
+    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
+    
     
     
 def launch_upload_job(user_id, file_id, submission_id, file_path, response_status, dest_irods_path, queue=UPLOAD_Q):
@@ -118,7 +120,10 @@ def launch_upload_job(user_id, file_id, submission_id, file_path, response_statu
                                     'dest_irods_path' : dest_irods_path
                                     }, 
                             queue=queue)
-    db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+    statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
+                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
+    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
+    #db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
 
 
 
@@ -128,6 +133,8 @@ def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_i
     cp_staging2dest_irods.apply_async(kwargs={'src_path_irods' : src_path_irods,
                                               'dest_path_irods' : dest_path_irods
                                               })
+    
+    
     
     
 def launch_update_file_job(file_submitted):
@@ -140,13 +147,20 @@ def launch_update_file_job(file_submitted):
     #file_submitted.reload()
     
     # Save to the DB the job id:
-    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
+    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task_id, constants.PENDING_ON_WORKER_STATUS)
     print "LAUNCH UPDATE FILE JOB ---------------------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ??????????", upd
+    
+    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
+                       }
+    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
 
-    upd = db_model_operations.update_file_mdata_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
-    print "LAUNCH UPDATE FILE JOB ---------------------------------------------HAS THE METADATA STATUS BEEN UPDATED ??????????", upd
-
-    upd = db_model_operations.update_file_submission_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
+    
+#
+#    upd = db_model_operations.update_file_mdata_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
+#    print "LAUNCH UPDATE FILE JOB ---------------------------------------------HAS THE METADATA STATUS BEEN UPDATED ??????????", upd
+#
+#    upd = db_model_operations.update_file_submission_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
 
 
 def launch_add_mdata2irods_job(file_id, submission_id):
@@ -181,7 +195,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
                                                      'file_md5' : file_to_submit.md5
                                                      },
                                              queue=PROCESS_MDATA_Q)
-    return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS, nr_retries=5)
+    return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
 #    upd_str = 'set__irods_jobs_dict__'+str(task_id)
 #    upd_dict = {upd_str : constants.PENDING_ON_WORKER_STATUS}
 #    upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
@@ -448,112 +462,112 @@ def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload
     
 
 # Not used!
-def add_mdata_to_submission(submission_id, data):
-    ''' Throws:
-         - NotEnoughInformation - if there isn't enough info provided for a new ref genome to be added in the coll
-         - InformationConflict - if the info provided for the ref genome contradicts itself
-    '''
-    if 'hgi_project' in data:
-        upd = db_model_operations.insert_hgi_project(submission_id, data['hgi_project'])
-    if 'submission_date' in data:
-        db_model_operations.insert_submission_date(submission_id, data['submission_date'])
-    if 'reference_genome' in data:
-        ref_genome = data.pop('reference_genome')
-        reference_genome_id = db_model_operations.get_or_insert_reference_genome(ref_genome)
+#def add_mdata_to_submission(submission_id, data):
+#    ''' Throws:
+#         - NotEnoughInformation - if there isn't enough info provided for a new ref genome to be added in the coll
+#         - InformationConflict - if the info provided for the ref genome contradicts itself
+#    '''
+#    if 'hgi_project' in data:
+#        upd = db_model_operations.insert_hgi_project(submission_id, data['hgi_project'])
+#    if 'submission_date' in data:
+#        db_model_operations.insert_submission_date(submission_id, data['submission_date'])
+#    if 'reference_genome' in data:
+#        ref_genome = data.pop('reference_genome')
+#        reference_genome_id = db_model_operations.get_or_insert_reference_genome(ref_genome)
 
 
 # not used:
-def add_mdata_to_file(file_id, data):
-    if 'data_type' in data:
-        upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
-        print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
-    if 'library_info' in data:
-        upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
-        print "UPDATED ABSTRACT LIB..............................", upd
-    if 'study' in data:
-        study_data = data['study']
-        name, visib, pi_list = None, None, None
-        if 'name' in study_data:
-            name = study_data['name']
-        if 'visibility' in study_data:
-            visib = study_data['visibility']
-        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
-            pi_list = study_data['pi_list'] #list
-        if not name or not visib or not pi_list:
-            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
-        else:
-            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
-            print "Has the study been inserted? - from controller....", inserted
-            if inserted:
-                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
-                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                submitted_file.reload()
-                launch_update_file_job(submitted_file)
-            else:
-                #TODO: report error - mdata couldn't be added
-                #raise exceptions.EditConflictError("Study couldn't be added.")
-                return False
-    if 'data_subtype_tags' in data:
-        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
-        print "Has DATA SUBTYPES been updated????"
-    
-    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
-        ref_dict = data['reference_genome']
-        ref_gen, path, md5, name = None, None, None, None
-        if 'name' in ref_dict:
-            name = ref_dict['name']
-        if 'path' in ref_dict:
-            path = ref_dict['path']
-        if 'md5' in ref_dict:
-            md5 = ref_dict['md5']
-        try:
-            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
-            if ref_gen == None:
-                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
-                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
-            else:
-                ref_genome_id = ref_gen.md5
-                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
-                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
-            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
-            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
-        except exceptions.NotEnoughInformationProvided as e:
-            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
-            logging.debug(error_text)
-            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
-            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
-        except exceptions.InformationConflict as e:
-            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
-            logging.debug(error_text)
-            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
-            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
-    return True
+#def add_mdata_to_file(file_id, data):
+#    if 'data_type' in data:
+#        upd = db_model_operations.update_file_data_type(file_id, data['data_type'])
+#        print "WAS THE DATA TYPE UPDATED FOR THIS FILE -- in CONTROLLER -add_Subm: ", upd
+#    if 'library_info' in data:
+#        upd = db_model_operations.update_file_abstract_library(file_id, data['library_info'])
+#        print "UPDATED ABSTRACT LIB..............................", upd
+#    if 'study' in data:
+#        study_data = data['study']
+#        name, visib, pi_list = None, None, None
+#        if 'name' in study_data:
+#            name = study_data['name']
+#        if 'visibility' in study_data:
+#            visib = study_data['visibility']
+#        if 'pi_list' in study_data and isinstance(study_data['pi_list'], list) == True:
+#            pi_list = study_data['pi_list'] #list
+#        if not name or not visib or not pi_list:
+#            db_model_operations.update_file_error_log('Not enough information for the study! Study name and visibility and PI are all mandatory!', file_id=file_id)
+#        else:
+#            inserted = db_model_operations.insert_study_in_db({'name' : name, 'study_visibility' : visib, 'pi_list' : pi_list}, constants.EXTERNAL_SOURCE, file_id)
+#            print "Has the study been inserted? - from controller....", inserted
+#            if inserted:
+#                submitted_file = db_model_operations.retrieve_submitted_file(file_id)
+#                db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+#                db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+#                submitted_file.reload()
+#                launch_update_file_job(submitted_file)
+#            else:
+#                #TODO: report error - mdata couldn't be added
+#                #raise exceptions.EditConflictError("Study couldn't be added.")
+#                return False
+#    if 'data_subtype_tags' in data:
+#        upd = db_model_operations.update_data_subtype_tags(file_id, data['data_subtype_tags'])
+#        print "Has DATA SUBTYPES been updated????"
+#    
+#    if 'reference_genome' in data:      # must be a dict - with fields just like ReferenceGenome type
+#        ref_dict = data['reference_genome']
+#        ref_gen, path, md5, name = None, None, None, None
+#        if 'name' in ref_dict:
+#            name = ref_dict['name']
+#        if 'path' in ref_dict:
+#            path = ref_dict['path']
+#        if 'md5' in ref_dict:
+#            md5 = ref_dict['md5']
+#        try:
+#            ref_gen = db_model_operations.retrieve_reference_genome(md5, name, path)
+#            if ref_gen == None:
+#                print "THE REF GENOME DOES NOT EXIIIIIIIIIIIIIIIIIIIIIST!!!!! => adding it!", path
+#                ref_genome_id = db_model_operations.insert_reference(name, [path], md5)
+#            else:
+#                ref_genome_id = ref_gen.md5
+#                print "EXISTING REFFFFffffffffffffffffffffffffffffffffffffffffffffff....", ref_gen.name
+#                #upd = db_model_operations.update_file_ref_genome(file_id, ref_gen.id)
+#            upd = db_model_operations.update_file_ref_genome(file_id, ref_genome_id)
+#            print "HAS GENOME BEEN UPDATEd????? - from controller.add mdata",upd
+#        except exceptions.NotEnoughInformationProvided as e:
+#            error_text = 'Not enough information provided for the new ref genome to be added!'+str(vars(e))
+#            logging.debug(error_text)
+#            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+#            logging.debug("Has the error log been updated????????? Reference CAN'T BE ADDED!!! "+str(upd))
+#        except exceptions.InformationConflict as e:
+#            error_text = 'Information conflict when trying to add a new ref genome!'+e.message
+#            logging.debug(error_text)
+#            upd = db_model_operations.update_file_error_log(e.message, file_id=file_id)
+#            logging.debug("HAS THE ERROR LOG ACTUALLY BEEN UPDATEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD?" + str(upd))
+#    return True
 
 #not used!
 
 #not used
-def submit_jobs_for_submission_old(user_id, submission, data):
-    io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
-    for file_id in submission.files_list:
-        add_mdata_to_file(file_id, data)
-        add_mdata_to_submission(submission.id, data)
-
-        # just for testing:
-        submission.reload()
-        print "SUBMISSION project -------------- ", submission.hgi_project
-
-        file_submitted = db_model_operations.retrieve_submitted_file(file_id)
-        
-        # HACK - to be moved!!!
-        irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
-        file_path_irods = utils.build_file_path_irods(file_submitted.file_path_client, irods_coll)
-        
-        if hasattr(file_submitted, 'index_file_path_client') and getattr(file_submitted, 'index_file_path_client') != None:
-            index_path_irods = utils.build_file_path_irods(file_submitted.index_file_path_client, irods_coll)
-            db_model_operations.update_file_path_irods(file_id, file_path_irods, index_path_irods)
-        else:
-            db_model_operations.update_file_path_irods(file_id, file_path_irods)
+#def submit_jobs_for_submission_old(user_id, submission, data):
+#    io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+#    for file_id in submission.files_list:
+#        add_mdata_to_file(file_id, data)
+#        add_mdata_to_submission(submission.id, data)
+#
+#        # just for testing:
+#        submission.reload()
+#        print "SUBMISSION project -------------- ", submission.hgi_project
+#
+#        file_submitted = db_model_operations.retrieve_submitted_file(file_id)
+#        
+#        # HACK - to be moved!!!
+#        irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
+#        file_path_irods = utils.build_file_path_irods(file_submitted.file_path_client, irods_coll)
+#        
+#        if hasattr(file_submitted, 'index_file_path_client') and getattr(file_submitted, 'index_file_path_client') != None:
+#            index_path_irods = utils.build_file_path_irods(file_submitted.index_file_path_client, irods_coll)
+#            db_model_operations.update_file_path_irods(file_id, file_path_irods, index_path_irods)
+#        else:
+#            db_model_operations.update_file_path_irods(file_id, file_path_irods)
         #### END of HACK
         
         
@@ -563,29 +577,30 @@ def submit_jobs_for_submission_old(user_id, submission, data):
         #                 hgi_subprj=None, 
         #                 read_on_client=True, 
         #                 upload_task_queue=None):
-        file_io_errors = submit_upload_jobs_for_file(user_id, file_submitted, submission_date=submission.submission_date, hgi_project=submission.hgi_project)
-        if file_io_errors:
-            io_errors_dict[file_submitted.file_path_client] = file_io_errors
-    return io_errors_dict
+#        file_io_errors = submit_upload_jobs_for_file(user_id, file_submitted, submission_date=submission.submission_date, hgi_project=submission.hgi_project)
+#        if file_io_errors:
+#            io_errors_dict[file_submitted.file_path_client] = file_io_errors
+#    return io_errors_dict
 
 
 
-def submit_jobs_for_submission(user_id, submission, data):
-    io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
-    for file_id in submission.files_list:
-        file_submitted = db_model_operations.retrieve_submitted_file(file_id)
-        
-        
-        # submit_jobs_for_file(user_id, file_submitted, 
-        #                 submission_date=None, 
-        #                 hgi_project=None, 
-        #                 hgi_subprj=None, 
-        #                 read_on_client=True, 
-        #                 upload_task_queue=None):
-        file_io_errors = submit_upload_jobs_for_file(user_id, file_submitted, submission_date=submission.submission_date, hgi_project=submission.hgi_project)
-        if file_io_errors:
-            io_errors_dict[file_submitted.file_path_client] = file_io_errors
-    return io_errors_dict
+#Not used!
+#def submit_jobs_for_submission(user_id, submission, data):
+#    io_errors_dict = dict()         # List of io exceptions. A python IOError contains the fields: errno, filename, strerror
+#    for file_id in submission.files_list:
+#        file_submitted = db_model_operations.retrieve_submitted_file(file_id)
+#        
+#        
+#        # submit_jobs_for_file(user_id, file_submitted, 
+#        #                 submission_date=None, 
+#        #                 hgi_project=None, 
+#        #                 hgi_subprj=None, 
+#        #                 read_on_client=True, 
+#        #                 upload_task_queue=None):
+#        file_io_errors = submit_upload_jobs_for_file(user_id, file_submitted, submission_date=submission.submission_date, hgi_project=submission.hgi_project)
+#        if file_io_errors:
+#            io_errors_dict[file_submitted.file_path_client] = file_io_errors
+#    return io_errors_dict
 
 # ----------------- DB - RELATED OPERATIONS ----------------------------
 
@@ -666,86 +681,86 @@ def associate_files_with_indexes(file_paths):
 
 
 
-# Used to be called init submission
-def init_submission(user_id, data, errors_dict, warnings_dict):
-    ''' Initialises a new submission, given a list of files. 
-        Returns a dictionary containing: submission created and list of errors 
-        for each existing file, plus list of files that don't exist.'''
-    
-    # Verify submission data:
-    #files_list = verify_submission_data_correctness(data)
-    
-    if files_list:
-        # Init submission with submission data in the request
-        try:
-            files_mdata = data.pop('files_metadata')
-        except KeyError:
-            pass
-        
-        upd = db_model_operations.upsert_submission(data)       # Throws value error if date format is not correct!!!
-    else:
-        return None
-
-    # Add files to submission -> should be an independent function
-    submitted_files_list = []
-    index_files_list = []
-    for file_path in files_list:        
-        # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
-        # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
-     
-        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
-        # Checking the file type theoretically it has been checked before
-        try:
-            file_type = detect_file_type(file_path)
-        except exceptions.NotSupportedFileType as e:
-            append_to_errors_dict(e.faulty_expression, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
-            print "NOT SUPPORTED TYPE!!!!!", file_type
-            continue
-        else:
-            if file_type == constants.BAM_FILE:
-                file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)   # bam_type="LANEPLEX"
-            elif file_type == constants.BAI_FILE:
-                index_files_list.append(file_path)
-                continue
-            elif file_type == constants.VCF_FILE:
-                continue
-            
-            # ATTENTION! Here I only check for read access and NO ACCESS - assuming that these are the only possibilities
-            status = check_file_permission(file_path)
-            if status == constants.READ_ACCESS:
-                file_status = constants.PENDING_ON_WORKER_STATUS
-            elif status == constants.NOACCESS:
-                file_status = constants.PENDING_ON_USER_STATUS
-            elif status == constants.NON_EXISTING_FILE:
-                append_to_errors_dict(file_path, constants.NON_EXISTING_FILE, errors_dict)
-                continue
-            else:
-                print "ERROR -- STATUS not in [READ_ACCESS, NOACCESS]. Check controller.init_submission"
-                continue
-            
-            # Instantiating the SubmittedFile object if the file is alright
-            file_submitted.file_header_parsing_job_status = file_status
-            file_submitted.file_upload_job_status = file_status
-            file_submitted.file_submission_status = file_status
-            file_submitted.file_type = file_type
-            file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
-            file_submitted.save()
-            submitted_files_list.append(file_submitted)
-
-    # ASSOCIATE ALL THE INDEX FILES IN THE LIST WITH THE FILES IN THE SUBMITTED_FILES_LIST:
-    #print "INDEX FILESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS: ", str(index_files_list)
-    associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict)
-
-    if len(submitted_files_list) > 0:
-        submission.files_list = [f.id for f in submitted_files_list]
-        submission.sanger_user_id = user_id
-        submission.submission_date = utils.get_today_date()
-        submission.save(cascade=True)
-        return submission
-    else:
-        submission.delete()
-        return None
-    
+## Used to be called init submission
+#def init_submission(user_id, data, errors_dict, warnings_dict):
+#    ''' Initialises a new submission, given a list of files. 
+#        Returns a dictionary containing: submission created and list of errors 
+#        for each existing file, plus list of files that don't exist.'''
+#    
+#    # Verify submission data:
+#    #files_list = verify_submission_data_correctness(data)
+#    
+#    if files_list:
+#        # Init submission with submission data in the request
+#        try:
+#            files_mdata = data.pop('files_metadata')
+#        except KeyError:
+#            pass
+#        
+#        upd = db_model_operations.upsert_submission(data)       # Throws value error if date format is not correct!!!
+#    else:
+#        return None
+#
+#    # Add files to submission -> should be an independent function
+#    submitted_files_list = []
+#    index_files_list = []
+#    for file_path in files_list:        
+#        # TODO2: this is fishy, i catch some types of IOError, if other IOErr happen, I ignore them?! Is this ok?! Plus I don't return the list of errors
+#        # so in the calling function, if submission == None, it is inferred that there is no file to be submitted?! Is this ok?!
+#     
+#        # -------- TODO: CALL FILE MAGIC TO DETERMINE FILE TYPE:
+#        # Checking the file type theoretically it has been checked before
+#        try:
+#            file_type = detect_file_type(file_path)
+#        except exceptions.NotSupportedFileType as e:
+#            append_to_errors_dict(e.faulty_expression, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
+#            print "NOT SUPPORTED TYPE!!!!!", file_type
+#            continue
+#        else:
+#            if file_type == constants.BAM_FILE:
+#                file_submitted = models.BAMFile(submission_id=str(submission.id), file_path_client=file_path)   # bam_type="LANEPLEX"
+#            elif file_type == constants.BAI_FILE:
+#                index_files_list.append(file_path)
+#                continue
+#            elif file_type == constants.VCF_FILE:
+#                continue
+#            
+#            # ATTENTION! Here I only check for read access and NO ACCESS - assuming that these are the only possibilities
+#            status = check_file_permission(file_path)
+#            if status == constants.READ_ACCESS:
+#                file_status = constants.PENDING_ON_WORKER_STATUS
+#            elif status == constants.NOACCESS:
+#                file_status = constants.PENDING_ON_USER_STATUS
+#            elif status == constants.NON_EXISTING_FILE:
+#                append_to_errors_dict(file_path, constants.NON_EXISTING_FILE, errors_dict)
+#                continue
+#            else:
+#                print "ERROR -- STATUS not in [READ_ACCESS, NOACCESS]. Check controller.init_submission"
+#                continue
+#            
+#            # Instantiating the SubmittedFile object if the file is alright
+#            file_submitted.file_header_parsing_job_status = file_status
+#            file_submitted.file_upload_job_status = file_status
+#            file_submitted.file_submission_status = file_status
+#            file_submitted.file_type = file_type
+#            file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
+#            file_submitted.save()
+#            submitted_files_list.append(file_submitted)
+#
+#    # ASSOCIATE ALL THE INDEX FILES IN THE LIST WITH THE FILES IN THE SUBMITTED_FILES_LIST:
+#    #print "INDEX FILESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS: ", str(index_files_list)
+#    associate_files_with_index_files(index_files_list, submitted_files_list, errors_dict)
+#
+#    if len(submitted_files_list) > 0:
+#        submission.files_list = [f.id for f in submitted_files_list]
+#        submission.sanger_user_id = user_id
+#        submission.submission_date = utils.get_today_date()
+#        submission.save(cascade=True)
+#        return submission
+#    else:
+#        submission.delete()
+#        return None
+#    
 
 
 def verify_file_paths(file_paths_list):
@@ -840,10 +855,8 @@ def create_submission(user_id, data):
     file_paths_list = get_files_list_from_request(submission_data)
     if not file_paths_list:
         raise exceptions.NotEnoughInformationProvided(msg="Files list is empty.")
+
     
-#   ipdb.set_trace()
-    
-           
     verif_result = verify_file_paths(file_paths_list)
     if verif_result.error_dict:
         return verif_result
@@ -1001,31 +1014,31 @@ def create_submission(user_id, data):
     
 
 # Not used for now, it's for POST req on submission/submission_id
-def add_files_to_submission(submission_id, user_id, data):
-    ''' Adds some files to an existing submission.
-    '''
-    if 'files_list' in data:
-        files_list = data['files_list']
-    elif 'dir_path' in data:
-        files_list = utils.get_files_from_dir(data['dir_path'])
-    else:
-        raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
-    
-    submission = db_model_operations.retrieve_submission(submission_id)
-    result_init_submission = init_submission(user_id, set(files_list), submission)
-    
-    result = dict()
-    errors_dict = result_init_submission['errors']
-    if result_init_submission['submission'] != None:
-        submission = result_init_submission['submission']
-        io_errors_dict = submit_jobs_for_submission(user_id, submission, data)
-        if io_errors_dict:
-            errors_dict[constants.IO_ERROR] = io_errors_dict
-        result['submission_id'] = str(submission.id)
-    else:
-        result['submission_id'] = None
-    result['errors'] = errors_dict
-    return result
+#def add_files_to_submission(submission_id, user_id, data):
+#    ''' Adds some files to an existing submission.
+#    '''
+#    if 'files_list' in data:
+#        files_list = data['files_list']
+#    elif 'dir_path' in data:
+#        files_list = utils.get_files_from_dir(data['dir_path'])
+#    else:
+#        raise exceptions.NotEnoughInformationProvided(msg="Empty list of files and directory name. You need to provide at least one of these.")
+#    
+#    submission = db_model_operations.retrieve_submission(submission_id)
+#    result_init_submission = init_submission(user_id, set(files_list), submission)
+#    
+#    result = dict()
+#    errors_dict = result_init_submission['errors']
+#    if result_init_submission['submission'] != None:
+#        submission = result_init_submission['submission']
+#        io_errors_dict = submit_jobs_for_submission(user_id, submission, data)
+#        if io_errors_dict:
+#            errors_dict[constants.IO_ERROR] = io_errors_dict
+#        result['submission_id'] = str(submission.id)
+#    else:
+#        result['submission_id'] = None
+#    result['errors'] = errors_dict
+#    return result
 
 
 #def aadd_submission(user_id, data):
@@ -1208,12 +1221,13 @@ def get_submitted_file(file_id):
 def get_submitted_file_status(file_id):
     ''' Retrieves and returns the statuses of this file. '''
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
-    # print "HAS BEEN UPDATED???", db_model_operations.check_and_update_all_statuses(file_id, subm_file)
-    # subm_file.reload()
-    # #pdb.set_trace()
+    
+    index_status = None
+    if subm_file.index_file_path_client and hasattr(subm_file, 'index_file_upload_job_status'):
+        index_status = subm_file.index_file_upload_job_status
     return {'testing-file_path' : subm_file.file_path_client if hasattr(subm_file, 'file_path_client') else None,
             'file_upload_status' : subm_file.file_upload_job_status if hasattr(subm_file, 'file_upload_job_status') else None,
-            'index_file_upload_status' : subm_file.index_file_upload_job_status if hasattr(subm_file, 'index_file_upload_job_status') else None,
+            'index_file_upload_status' : index_status, 
             'file_metadata_status' : subm_file.file_mdata_status if hasattr(subm_file, 'file_mdata_status') else None,
             'file_submission_status' : subm_file.file_submission_status if hasattr(subm_file, 'file_submission_status') else None 
             }
@@ -1320,14 +1334,10 @@ def update_file_submitted(submission_id, file_id, data):
         #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/mdata-cluster.txt", "-G", "hgi", "imeta", "ls", "-d", file_to_update.file_path_irods])
         #imeta ls -d /seq/9971/9971_1#0.bam
         
-        
-    # TO DO: rewrite this part - very crappy!!!
      
     # TO DO: rewrite this part - very crappy!!!
     def update_from_UPLOAD_TASK_SRC(data, file_to_update):
         if 'index_file_upload_job_status' in data:      # INDEX UPLOAD
-            #ipdb.set_trace()
-            
             status = 'index_file_upload_job_status'
             upload_status = data[status]
             if 'md5' in data:
@@ -1364,8 +1374,8 @@ def update_file_submitted(submission_id, file_id, data):
         
     def update_from_IRODS_SOURCE(data, file_to_update):
         upd = db_model_operations.update_submitted_file(file_id, data, sender)
-        file_to_update.reload()
-        db_model_operations.check_and_update_file_submission_status(None, file_to_update)
+        #file_to_update.reload()
+        db_model_operations.check_and_update_file_submission_status(file_id)
         
         
     # (CODE OF THE OUTER FUNCTION)
@@ -1443,17 +1453,20 @@ def resubmit_jobs_for_file(submission_id, file_id):
     if file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
         db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
         
-    if (file_to_resubmit.file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS] or
-        file_to_resubmit.index_file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]):
+    if file_to_resubmit.file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
         db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-        
+    
+    if file_to_resubmit.index_file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
+        db_model_operations.update_index_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
         
     if file_to_resubmit.file_header_parsing_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]: 
         db_model_operations.update_file_parse_header_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-        
-    if (db_model_operations.check_any_task_has_status(file_to_resubmit.file_update_jobs_dict, constants.FAILURE_STATUS) or
-        db_model_operations.check_any_task_has_status(file_to_resubmit.file_update_jobs_dict, constants.PENDING_ON_WORKER_STATUS)):
-        models.SubmittedFile.objects(id=file_to_resubmit.id).update(set__file_update_jobs_dict={})
+
+
+    any_update_fail = db_model_operations.check_any_task_has_status_in_coll(file_to_resubmit.file_update_jobs_dict, 
+                                                                            [constants.FAILURE_STATUS, constants.PENDING_ON_WORKER_STATUS])         
+    if any_update_fail:
+        models.SubmittedFile.objects(id=file_to_resubmit.id).update(set__file_update_jobs_dict={}, inc__version__0=1)
         launch_update_file_job(file_to_resubmit)
         jobs_resubmitted = True
     file_to_resubmit.reload()
@@ -1469,36 +1482,29 @@ def resubmit_jobs_for_file(submission_id, file_id):
     else:
         raise IOError()
     
-    if not upload_resubmitted:
-        if file_to_resubmit.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-            launch_parse_BAM_header_job(file_to_resubmit)   # to be moved down - in the different cases
-            jobs_resubmitted = True
+    if file_to_resubmit.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+        launch_parse_BAM_header_job(file_to_resubmit)   # to be moved down - in the different cases
+        jobs_resubmitted = True
 
-    return jobs_resubmitted
+    return jobs_resubmitted or upload_resubmitted
 
 
-    # submission_date=None, 
-    #  hgi_project=None, 
-    #  hgi_subprj=None, 
-    #  read_on_client=True, 
-    #  upload_task_queue=None):
-
-    submission = db_model_operations.retrieve_submission(submission_id)
-
-    permission_denied = False
-    try:
-        with open(file_to_resubmit.file_path_client): pass       
-    except IOError as e:
-        if e.errno == errno.EACCES:
-            permission_denied = True
-    if permission_denied == False:     
-        result_dict = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date)
-    else:
-        error_list = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date, read_on_client=False, upload_task_queue="user."+user_id)
-    if 'errors' in result_dict:
-        db_model_operations.update_file_error_log(result_dict['errors'], submitted_file=file_to_resubmit)
-    #file_to_resubmit.save(validate=False)
-    return result_dict
+#    submission = db_model_operations.retrieve_submission(submission_id)
+#
+#    permission_denied = False
+#    try:
+#        with open(file_to_resubmit.file_path_client): pass       
+#    except IOError as e:
+#        if e.errno == errno.EACCES:
+#            permission_denied = True
+#    if permission_denied == False:     
+#        result_dict = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date)
+#    else:
+#        error_list = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date, read_on_client=False, upload_task_queue="user."+user_id)
+#    if 'errors' in result_dict:
+#        db_model_operations.update_file_error_log(result_dict['errors'], submitted_file=file_to_resubmit)
+#    #file_to_resubmit.save(validate=False)
+#    return result_dict
 
     
 #    permission_denied = False

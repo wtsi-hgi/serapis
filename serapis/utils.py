@@ -17,9 +17,11 @@ def __ucode2str__(ucode):
 def __ucode2str_list__(ucode_list):
     str_list = []
     for elem in ucode_list:
-        str_elem = __ucode2str__(elem)
-        str_list.append(str_elem)
+        elem = unicode2string(elem)
+        str_list.append(elem)
     return str_list
+
+    
 
 def __ucode2str_dict__(ucode_dict):
     str_dict = dict()
