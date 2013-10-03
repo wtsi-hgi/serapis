@@ -1464,7 +1464,7 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
         else:
             error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is None"
         error_list.append(error_msg)
-        return {"message" : "failure", "errors" : error_list}
+        return {"result" : "failure", "errors" : error_list}
 
     f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
     if not f_md5_correct:
@@ -1480,11 +1480,11 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
         was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
         if was_launched == 1:
             db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
-            return {"message" : "success"}        
+            return {"result" : "success"}        
     else:
         #error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
         #error_list.append(error_msg)
-        return {"message" : "failure", "errors" : error_list}
+        return {"result" : "failure", "errors" : error_list}
 
 
 
@@ -1495,7 +1495,8 @@ def submit_all_to_irods_nonatomic(submission_id):
     results = dict()
     print "FILES LIST: ", str(files_list)
     for file_id in files_list:
-        results[file_id] = submit_file_to_irods(file_id, submission_id)
+        print type(file_id)
+        results[str(file_id)] = submit_file_to_irods(file_id, submission_id)
     return results
     
 
