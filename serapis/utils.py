@@ -49,7 +49,7 @@ def cmp_timestamp_files(file_path1, file_path2):
     tstamp2 = os.path.getmtime(file_path2)
     tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
     tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
-    print "Timestamp of file 1: ", tstamp1, " and file2: ", tstamp2
+    #print "Timestamp of file 1: ", tstamp1, " and file2: ", tstamp2
     return cmp(tstamp1, tstamp2)
 
 

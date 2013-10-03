@@ -279,8 +279,17 @@ class TaskNotRegisteredError(Exception):
             text += self.message
         return text
     
-    
-    
+
+class UpdateMustBeDismissed(Exception):
+    ''' Thrown when an update to the DB MUST be dismissed,
+        for some critical reason.
+    '''
+    def __init__(self, reason):
+        self.reason = reason
+        
+    def __str__(self):
+        return 'Update must be dismissed because -- '+self.reason
+        
     
     
     

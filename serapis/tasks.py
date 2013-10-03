@@ -406,16 +406,16 @@ class UploadFileTask(Task):
         dest_fd.close()
         return m.hexdigest()
 
-    def calculate_md5(self, file_path):
-        file_obj = file(file_path)
+    def calculate_md5(self, file_path, block_size=2**10):
+        file_obj = open(file_path, 'rb')
         md5 = hashlib.md5()
         while True:
-            data = file_obj.read(128)
+            data = file_obj.read(block_size)
             if not data:
                 break
             md5.update(data)
         return md5.hexdigest()
-           
+    
 
 
     def run(self, **kwargs):
@@ -770,6 +770,11 @@ class UploadFileTask(Task):
             t2 = time.time()
             print "TIME TAKEN: ", t2-t1
 
+
+#            md5 = self.calculate_md5(src_file_path)
+            
+        
+            # Working version of getting the md5 from ichksum:
             _, fname = os.path.split(src_file_path)
             dest_file_path = os.path.join(dest_coll_path, fname)
             ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
@@ -790,6 +795,8 @@ class UploadFileTask(Task):
                 send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
             
+            
+            
             # output of ichksum looks like:
     #        c4@hgi-serapis-dev:~$ ichksum users.txt
     #        users.txt                         4b9f970d118a446b89217982daee62ce
@@ -798,33 +805,6 @@ class UploadFileTask(Task):
             
 #        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
 #        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-
-#        Working version using subprocess.call:
-#        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
-#            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
-
-        
-        # WORKING VERSION for local execution:
-#        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
-#            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
-
-        # upld_cmd = "http_proxy=\"\" HTTP_PROXY=\"\" HTTPS_PROXY=\"\" python /nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py"
-        # upld_cmd = upld_cmd+" --src_file_path "+src_file_path+" --dest_file_path "+ dest_file_path +" --response_status "+ response_status+" --submission_id "+str(submission_id)+" --file_id "+str(file_id) 
-        
-        # WORKING version for the cluster:
-        # upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_script.py", 
-        #     "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
-
-#        call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", "-R\"select[mem>4000] rusage[mem=4000]\"", "-M4000000", upld_cmd])
-
-
-
-
-        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster2.txt", "-G", "hgi", 
-        #       "-R\"select[mem>8000] rusage[mem=8000]\"", "-M8000000", upld_cmd])
-        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "\'"+upld_cmd+"\'"])
-        #call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster4.txt", "-G", "hgi", upld_cmd])
-        # call(["bsub", "-o", "/nfs/users/nfs_i/ic4/imp-cluster.txt", "-G", "hgi", "iput", "-K", src_file_path])
 
 
 
