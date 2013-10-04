@@ -1,6 +1,6 @@
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
-from celery.utils.log import get_task_logger
+#from celery.utils.log import get_task_logger
 import pysam
 import os, sys
 import re
@@ -11,7 +11,8 @@ import time
 import hashlib
 import subprocess
 from collections import defaultdict
-#from subprocess import call, check_output
+
+from subprocess import call, check_output
 #import MySQLdb
 
 
@@ -28,11 +29,12 @@ from celery import current_task
 
 
 
+#BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
 BASE_URL = "http://localhost:8000/api-rest/submissions/"
 FILE_ERROR_LOG = 'file_error_log'
 MD5 = "md5"
 
-logger = get_task_logger(__name__)
+#logger = get_task_logger(__name__)
 
 #---------- Auxiliary functions - used by all tasks ------------
 
@@ -93,6 +95,7 @@ def send_http_PUT_req(msg, submission_id, file_id, sender):
     print "REQUEST DATA TO SEND================================", msg  
     url_str = build_url(submission_id, file_id)
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
+    print "URL WHERE to send the data: ", url_str
     response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
     print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
@@ -647,6 +650,8 @@ class UploadFileTask(Task):
         submission_id = str(kwargs['submission_id'])
         dest_coll_path = str(kwargs['dest_irods_path'])
  
+        #dest_coll_path = "/humgen/projects/crohns/20130909"
+        
         print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
         print "Source file: ", src_file_path
 
@@ -734,7 +739,7 @@ class UploadFileTask(Task):
 
     # Modified upload version for uploading fines on the cluster
     # run - running using process call
-    def run_call_popen_process(self, **kwargs):
+    def run_using_checkoutput(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
@@ -846,7 +851,6 @@ class ParseBAMHeaderTask(Task):
     
     def process_json_header(self, header_json):
         ''' Gets the header and extracts from it a list of libraries, a list of samples, etc. '''
-        #from collections import defaultdict
         dictionary = defaultdict(set)
         for map_json in header_json:
             for k,v in map_json.items():
@@ -934,11 +938,9 @@ class ParseBAMHeaderTask(Task):
                     print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
                     #entity_dict = {UNKNOWN_FIELD : ent_name_h}
                     
-                    
                 if search_field_name != None:
                     entity_dict = {search_field_name : ent_name_h}
                     incomplete_ent_list.append(entity_dict)
-        #print "IN SELECT NEW INCOMPLETE ENTITIES - LIST OF DICT SHOULD BE RETURNED: ", str(incomplete_ent_list)
         return incomplete_ent_list
     
                 
@@ -1256,8 +1258,7 @@ class AddMdataToIRODSFileTask(Task):
 
         print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
         
-        
-#        import sys
+
 #        sys.path.append(SOFTWARE_PYTHON_PACKAGES)
 #        from irods import *
         
@@ -1277,7 +1278,7 @@ class AddMdataToIRODSFileTask(Task):
             try:
                 subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-                error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
+                error_msg = "IRODS imeta error - return code="+e.returncode+" message: "+e.output
                 errors_list.append(error_msg)
                 print error_msg
 

@@ -341,9 +341,10 @@ def retrieve_all_files_for_submission(subm_id):
     files = models.SubmittedFile.objects(submission_id=subm_id)
     return [f for f in files]
 
+
 def retrieve_submitted_file(file_id):
     return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
-
+    
 
 def retrieve_sample_list(file_id):
     return models.SubmittedFile.objects(id=ObjectId(file_id)).only('sample_list').get().sample_list
@@ -418,6 +419,13 @@ def retrieve_submission_date(file_id, submission_id=None):
     if submission_id == None:
         submission_id = retrieve_submission_id(file_id)
     return models.Submission.objects(id=ObjectId(submission_id)).only('submission_date').get().submission_date
+
+
+# TODO: if no obj can be found => get() throws an ugly exception!
+def retrieve_submission_upload_as_serapis_flag(submission_id):
+    if not submission_id:
+        return None
+    return models.Submission.objects(id=submission_id).only('upload_as_serapis').get().upload_as_serapis
  
 def get_file_version(file_id, submitted_file=None):
     if submitted_file == None:
@@ -444,15 +452,7 @@ def get_study_version(file_id, submitted_file=None):
     return submitted_file.version[3]
 
 
-#
-#def compare_versions(file_json, file_id, submitted_file=None):
-#    if submitted_file == None:
-#        submitted_file = retrieve_submitted_file(file_id)
-#    lib_vers_file = get_library_version(submitted_file)
-#    lib_vers_json = file_json['version']
-#    return lib_vers_file == lib_vers_json
-#    
-#    
+
 
 #------------------------ SEARCH ENTITY ---------------------------------
 
@@ -1018,6 +1018,7 @@ def update_submitted_file(file_id, update_dict, update_source, statuses_dict=Non
             if statuses_dict:
                 update_db_dict.update(statuses_dict)
             logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s", str(file_id))
+
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
             logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             #print "ATOMIC UPDATE RESULT from :", update_source," NR TRY: ", i,"=================================================================", upd
@@ -1276,6 +1277,7 @@ def insert_submission_date(submission_id, date):
     if date != None:
         return models.Submission.objects(id=submission_id).update_one(set__submission_date=date)
     return None
+
     
 #----------------------- DELETE----------------------------------
 
@@ -1366,20 +1368,11 @@ def __add_missing_field_to_dict__(field, categ, missing_fields_dict):
     logging.info("Field missing: %s, from category: %s", field, categ)
     if categ not in missing_fields_dict.keys():
         missing_fields_dict[categ] = [field]
-#        print "WHAT@S IN NEWWWWWWW MISSING DICT??????????????????????============"
-#        for pair in missing_fields_dict.items():
-#            print pair, " type:", type(pair[0])       
     else:
         existing_list = missing_fields_dict[categ]
-#        print "WHAT@S IN MISSING DICT??????????????????????============"
-#        for pair in missing_fields_dict.items():
-#            print pair, " type:", type(pair[0])   
         if field not in existing_list:
             existing_list.append(field)
             missing_fields_dict[categ] = existing_list 
-#            print "AFTER ADDING................."
-#            for pair in missing_fields_dict.items():
-#                print pair, " type:", type(pair[0])   
 #        else:
 #            print "THE FIELD EXISTS ALREADY!!!"
     
@@ -1497,6 +1490,7 @@ def check_file_mdata(file_to_submit):
         else:
             __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
     
+
     if file_to_submit.index_file_path_client:
         if not file_to_submit.index_file_md5:
             __add_missing_field_to_dict__('index_file_md5', 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
@@ -1560,6 +1554,7 @@ def check_update_file_obj_if_has_min_mdata(file_to_submit):
             #print "NOT ENOUGH SAMPLE MDATA............................."
             has_min_mdata = False
     return has_min_mdata
+
 
 
 
@@ -1649,6 +1644,7 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
             return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
         else:
             logging.info("FILE DOES NOT NOTTTTT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!")
+
             upd_dict = {}
             upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS

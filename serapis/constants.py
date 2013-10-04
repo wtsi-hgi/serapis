@@ -70,7 +70,7 @@ FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 
 STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
-SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'gender', 'cohort', 'ethnicity'} # 'country_of_origin'
+SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'cohort'} # 'country_of_origin', , 'ethnicity', 'gender', 
 FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
@@ -189,7 +189,8 @@ JOB_TYPES = (UPDATE_JOBS,
 #DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
 #DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
-DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
+#DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
+DEST_DIR_IRODS = "/humgen/projects"
 STAGING_IRODS = "/Sanger1-dev/home/ic4/staging_area/projects"
 
 #-------- EVENT TYPE -------

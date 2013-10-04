@@ -3,7 +3,7 @@ from django.views.generic.edit import FormView
 from django.http import HttpResponseRedirect
 
 #from serapis.forms import UploadForm
-from serapis import controller, db_model_operations
+from serapis import controller
 from serapis import models
 from serapis import exceptions
 from serapis import serializers
@@ -26,24 +26,17 @@ from bson.objectid import ObjectId
 from pymongo.errors import InvalidId
 
 #import ipdb
-import sys
 import errno
 import json
-import logging
 from mongoengine.queryset import DoesNotExist
-from celery.bin.celery import result
+#from celery.bin.celery import result
+
+import logging
 logging.basicConfig(level=logging.DEBUG)
-#from serapis.controller import get_submission
-        
-        
-        
-#    subm_id_obj = ObjectId(submission_id)
-#    submission_qset = models.Submission.objects(_id=subm_id_obj)
-#    #submission_qset = models.Submission.objects(__raw__={'_id' : ObjectId(submission_id)})
-#    
-#    submission = submission_qset.get()   
 
-
+    
+        
+        
 
 # ----------------------------- AUXILIARY FCTIONS ---------------------------
 
@@ -123,7 +116,7 @@ class SubmissionsMainPageRequestHandler(APIView):
                 - status=201 if the submission is created
                 - status=400 if the submission wasn't created (list of files empty).
         '''
-        user_id = "ic4"
+        user_id = "yl2"
         try:
 #            data = request.POST['_content']
             print "start of the reqest!!!!"
@@ -155,7 +148,6 @@ class SubmissionsMainPageRequestHandler(APIView):
                 req_result['testing'] = files
                 # END TESTING
                 return Response(req_result, status=201)
-            
         except MultipleInvalid as e:
             path = ''
             for p in e.path:
@@ -175,38 +167,8 @@ class SubmissionsMainPageRequestHandler(APIView):
         #This should be here: 
 #        except:
 #            return Response("Unexpected error:"+ str(sys.exc_info()[0]), status=400)
-#        except ValueError:
-#            return Response("Not JSON format", status=400)
-        #else:
-            #result_dict = controller.create_submission(user_id, data)
-                
     
     
-    
-    
-    
-    
-#            perm_denied_list = []
-#            other_io_errs = []
-#            for err in error_list:
-#                if err.errno == errno.EACCES:
-#                    perm_denied_list.append(err.filename)
-#                else:
-#                    other_io_errs.append({"file":err.filename, "error" : err.strerror})
-#            if len(perm_denied_list) > 0:
-#                err_msg = "PERMISSION DENIED for these files:" + str(perm_denied_list)
-#                err_msg = err_msg+". PLEASE RUN THE SCRIPT x ON THE CLUSTER OR GIVE PERMISSION TO USER MERCURY TO READ YOUR FILES! Submission id: "+str(submission_id) 
-#                err_msg = err_msg + ". Submission created: " + str(submission_id)
-#                return Response(err_msg, status=202)
-#            elif len(other_io_errs) > 0:
-#                err_msg = "IO Errors in the following files:" + str(other_io_errs)
-#                err_msg = err_msg + ". Submission created: " + str(submission_id)
-#                return Response(err_msg, status=202)
-#            else:
-#                return Response("Created the submission with id="+str(submission_id), status=201)
-
-
-        
     
 # ---------------------- HANDLE 1 SUBMISSION -------------
 
@@ -399,7 +361,7 @@ class SubmittedFileRequestHandler(APIView):
             #data = utils.unicode2string(data)
             result = dict()
             #validator.submitted_file_schema(data)
-            were_resubmitted = controller.resubmit_jobs_for_file(submission_id, file_id)
+            resubmission_result = controller.resubmit_jobs_for_file(submission_id, file_id)
         except MultipleInvalid as e:
             path = ''
             for p in e.path:
@@ -407,7 +369,7 @@ class SubmittedFileRequestHandler(APIView):
                     path = path+ '->' + p
                 else:
                     path = p
-            result['error'] = "Message contents invalid: "+e.msg + " "+ path
+            result['errors'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
             result['errors'] = "Invalid id"
@@ -419,17 +381,18 @@ class SubmittedFileRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=404)
         else:
-            if were_resubmitted == None:      # Nothing has changed - no new job submitted, because the last jobs succeeded
-                return Response(status=304)
+            if resubmission_result.error_dict:
+                result['errors'] = resubmission_result.error_dict 
+            if resubmission_result.message:
+                
+                result['message'] = resubmission_result.message
+            if not resubmission_result.result:      # Nothing has changed - no new job submitted, because the last jobs succeeded
+                result['result'] = False
+                result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted - " 
+                return Response(result, status=304)
             else:
-                #result['errors'] = error_list
-                # TODO: How do I know if there were resubmitted or not? it depends on what I have in the errors list...
-                # What if there are thrown also other exceptions?
-                if were_resubmitted:
-                    result['message'] = "Jobs resubmitted."     # Do I know this?
-                else:
-                    result['message'] = "The jobs haven't been resubmitted"
-                return Response(result, status=202)
+                result['message'] = "Jobs resubmitted."+str(result['message']) if 'message' in result else "Jobs resubmitted." 
+                return Response(result, status=200)
                 
     
     def put(self, request, submission_id, file_id, format=None):
@@ -826,12 +789,6 @@ class SampleRequestHandler(APIView):
             data = utils.unicode2string(data)
             validator.sample_schema(data)
             result = dict()
-#            new_data = dict()   # Convert from u'str' to str
-#            for elem in data:
-#                key = ''.join(chr(ord(c)) for c in elem)
-#                val = ''.join(chr(ord(c)) for c in data[elem])
-#                new_data[key] = val
-#            was_updated = controller.update_sample(submission_id, file_id, sample_id, new_data)
             was_updated = controller.update_sample(submission_id, file_id, sample_id, data)
         except MultipleInvalid as e:
             path = ''
@@ -1015,12 +972,8 @@ class StudyRequestHandler(APIView):
         data = request.DATA
         try:
             result = dict()
-            new_data = dict()
-            for elem in data:
-                key = ''.join(chr(ord(c)) for c in elem)
-                val = ''.join(chr(ord(c)) for c in data[elem])
-                new_data[key] = val
-            was_updated = controller.update_study(submission_id, file_id, study_id, new_data)
+            data = utils.unicode2string(data)
+            was_updated = controller.update_study(submission_id, file_id, study_id, data)
         except InvalidId:
             result['errors'] = "Invalid id"
             return Response(result, status=404)
@@ -1103,7 +1056,7 @@ class SubmissionIRODSRequestHandler(APIView):
         except InvalidId:
             result['errors'] = "InvalidId"
             result['result'] = False
-            return Response(result, status=404)
+            return Response(result, status=400)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             result['result'] = False
@@ -1146,8 +1099,6 @@ class SubmittedFileIRODSRequestHandler(APIView):
             return Response(result, status=200)
             
        
-
-    
 # ------------------------------ NOT USED ---------------------------
 
 
@@ -1160,8 +1111,6 @@ class GetFolderContent(APIView):
         return Response({"rasp" : "POST"})
     
          
-         
-
 # Get all submissions of this user_id
 class GetAllUserSubmissions(APIView):
     def get(self, request, user_id, format=None):
@@ -1169,64 +1118,5 @@ class GetAllUserSubmissions(APIView):
         return Response(submission_list)
 
 
-# Get all submissions ever
-class GetAllSubmissions(APIView):
-    def get(self, request):
-        submission_list = models.Submission.objects.all()
-        return Response(submission_list)
-    
-    
-# Get all submissions with this status
-class GetStatusSubmissions(APIView):
-    def get(self, status, request):
-        submission_list = models.Submission.objects.filter(submission_status=status)
-        return Response(submission_list)
-    
-    
-
-    
-    
-####---------------------- FOR TESTING PURPOSES -----------
-         
-        
-class MdataInsert(APIView):
-    def get(self, request, format=None):
-        myObj = {'sampleID' : 1, 'libID' : 2}
-        data_serialized = json.dumps(myObj)
-        print "SERIALIZED DATA: ", str(data_serialized)
-        
-        file_list = []
-        mypath = "/home/ic4/data-test/bams"
-        for f in listdir(mypath):
-            if isfile(join(mypath, f)):
-                file_list.append(join(mypath, f))
-        
-        for f in file_list:
-            print "File SENT TO WORKER: ", f
-            controller.upload_test(f)
-            
-        return Response(data_serialized)
-    
-    def post(self, request, format=None):        
-        data = JSONParser().parse(request)
-        orig = json.loads(data)
-        print "ORIGINAL DATA: ", orig
-        
-        #for i in range(100):
-            #controller.upload_test("/home/ic4/data-test/bams/HG00242.chrom11.ILLUMINA.bwa.GBR.exome.20120522.bam")
-
-
-class MdataUpdate(APIView):
-    def get(self, request, format=None):
-        print "Update GET Called!"
-        data_serialized = json.dumps("Update Get called")
-        return Response(data_serialized)
-    
-    def post(self, request, format=None):
-        data = JSONParser().parse(request)
-        orig = json.loads(data)
-        print "Update POST Called"
-        return Response("Update POST called")
-        
          
         

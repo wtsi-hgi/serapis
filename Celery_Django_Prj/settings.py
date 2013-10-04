@@ -12,7 +12,7 @@ setup_loader()
 BROKER_HEARTBEAT=0
 
 BROKER_URL = 'amqp://guest@localhost:5672'
-#BROKER_URL = 'amqp://guest@hgi-serapis-dev:5672'
+#BROKER_URL = 'amqp://guest@hgi-serapis-dev.internal.sanger.ac.uk:5672'
 
 # to be config by me...-> from http://docs.dotcloud.com/tutorials/python/django-celery/
 #BROKER_HOST = 
@@ -58,6 +58,7 @@ AUTHENTICATION_BACKENDS = (
 
 
 CELERY_RESULT_BACKEND = "amqp"
+CELERY_TASK_RESULT_EXPIRES = 60
 #CELERY_RESULT_BACKEND = "mongodb"
 
 # added recently:
@@ -81,8 +82,13 @@ CELERYD_PREFETCH_MULTIPLIER = 1
 
 # WORKING BEAT - MONGOENGINE:
 connect('MetadataDB')
+#connect('mongodb://hgi-serapis-dev.internal.sanger.ac.uk:27017/SerapisDB')
+#connect('mongodb://172.17.138.169:27017/SerapisDB')
 
+# WORKING ON SERAPIS - to be decommented:
+connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
+#connect('MetadataDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
 
 #DATABASES = {

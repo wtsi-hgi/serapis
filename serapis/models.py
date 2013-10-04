@@ -268,7 +268,7 @@ class Submission(DynamicDocument):
     study = EmbeddedDocumentField(Study)
     
     irods_collection = StringField()
-    upload_as_serapis = BooleanField(default=True)
+    upload_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
     
     version = IntField(default=0)
     
