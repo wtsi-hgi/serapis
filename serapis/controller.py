@@ -113,7 +113,6 @@ def launch_upload_job(user_id, file_id, submission_id, file_path, response_statu
     statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
                        'file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
     db_model_operations.update_file_statuses(file_id, statuses_to_upd)
-    #db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
 
 
 
@@ -134,13 +133,10 @@ def launch_update_file_job(file_submitted):
                                                    'file_id' : file_submitted.id
                                                    },
                                            queue=PROCESS_MDATA_Q)
-    # queue = UPDATE_Q -> for now I will let the updates and irods add mdata tasks in t
-    #file_submitted.reload()
     
     # Save to the DB the job id:
     upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task_id, constants.PENDING_ON_WORKER_STATUS)
     logging.info("LAUNCH UPDATE FILE JOB ----------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ?????????? %s", upd)
-    #print "INFO: LAUNCH UPDATE FILE JOB ---------------------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ??????????", upd
     
     statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
                        'file_mdata_status' : constants.IN_PROGRESS_STATUS
@@ -164,7 +160,6 @@ def launch_add_mdata2irods_job(file_id, submission_id):
         index_file_path_irods = None
         index_file_md5 = None
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
-        #print "No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!"
     
 #    if 'index_file_path' in file_to_submit:
 #        index_file_path = file_to_submit.index_file_path

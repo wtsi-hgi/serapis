@@ -935,7 +935,6 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                     raise exceptions.UpdateMustBeDismissed(" the worker has NO entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
                 else:
                     task_id, task_status = field_val.items()[0]
-                    #print "LET s SEE WHAT's in UPDATE DICT BEFORE UPDATING::::::::::::::::::::::::::::::", str(submitted_file.file_update_jobs_dict)
                     if not task_id in old_update_job_dict:
                         logging.error("NOT UPDATED!!!!ERRRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!! task_id = %s, source = %s", task_id,update_source)
                         raise exceptions.TaskNotRegisteredError(task_id)
