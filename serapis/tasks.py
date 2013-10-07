@@ -409,15 +409,15 @@ class UploadFileTask(Task):
         dest_fd.close()
         return m.hexdigest()
 
-    def calculate_md5(self, file_path, block_size=2**10):
-        file_obj = open(file_path, 'rb')
-        md5 = hashlib.md5()
-        while True:
-            data = file_obj.read(block_size)
-            if not data:
-                break
-            md5.update(data)
-        return md5.hexdigest()
+#    def calculate_md5(self, file_path, block_size=2**10):
+#        file_obj = open(file_path, 'rb')
+#        md5 = hashlib.md5()
+#        while True:
+#            data = file_obj.read(block_size)
+#            if not data:
+#                break
+#            md5.update(data)
+#        return md5.hexdigest()
     
 
 
@@ -774,45 +774,68 @@ class UploadFileTask(Task):
         else:
             t2 = time.time()
             print "TIME TAKEN: ", t2-t1
+            result[response_status] = SUCCESS_STATUS
+            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
-
-#            md5 = self.calculate_md5(src_file_path)
-            
         
-            # Working version of getting the md5 from ichksum:
-            _, fname = os.path.split(src_file_path)
-            dest_file_path = os.path.join(dest_coll_path, fname)
-            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
-            out, err = ret.communicate()
-            
-            print "OUT: ", out, " ERR: ", err        
-            if err:
-                error_msg = "IRODS ichksum error - ", err
-                errors_list.append(error_msg)
-                print error_msg
-                result[response_status] = FAILURE_STATUS
-                result[FILE_ERROR_LOG] = errors_list
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-            else:
-                result[MD5] = out.split()[1]
-                print "CHECKSUM: ", result[MD5]
-                result[response_status] = SUCCESS_STATUS
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+#            # Working version of getting the md5 from ichksum:
+#            _, fname = os.path.split(src_file_path)
+#            dest_file_path = os.path.join(dest_coll_path, fname)
+#            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
+#            out, err = ret.communicate()
+#            
+#            print "OUT: ", out, " ERR: ", err        
+#            if err:
+#                error_msg = "IRODS ichksum error - ", err
+#                errors_list.append(error_msg)
+#                print error_msg
+#                result[response_status] = FAILURE_STATUS
+#                result[FILE_ERROR_LOG] = errors_list
+#                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+#            else:
+#                result[MD5] = out.split()[1]
+#                print "CHECKSUM: ", result[MD5]
+#                result[response_status] = SUCCESS_STATUS
+#                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
             
-            
-            
-            # output of ichksum looks like:
-    #        c4@hgi-serapis-dev:~$ ichksum users.txt
-    #        users.txt                         4b9f970d118a446b89217982daee62ce
-    #        Total checksum performed = 1, Failed checksum = 0
+class CalculateMD5Task(Task):
+    def calculate_md5(self, file_path, block_size=2**20):
+        file_obj = open(file_path, 'rb')
+        md5 = hashlib.md5()
+        while True:
+            data = file_obj.read(block_size)
+            if not data:
+                break
+            md5.update(data)
+        return md5.hexdigest()
     
-            
-#        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-#        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-
-
-
+    def run(self, **kwargs):
+        file_id = kwargs['file_id']
+        submission_id = kwargs['submission_id']
+        file_path = kwargs['file_path']
+        response_status = kwargs['response_status']
+        file_md5 = self.calculate_md5(file_path)
+        
+        result = {}
+        result[MD5] = file_md5
+        print "CHECKSUM: ", result[MD5]
+        result[response_status] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id, CALC_MD5_MSG_SOURCE)
+        
+        
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        file_id = kwargs['file_id']
+        submission_id = kwargs['submission_id']
+        response_status = kwargs['response_status']
+        
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        result = dict()
+        result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+        result[response_status] = FAILURE_STATUS
+        send_http_PUT_req(result, submission_id, file_id, CALC_MD5_MSG_SOURCE)
+        
 
 
 class ParseBAMHeaderTask(Task):

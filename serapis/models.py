@@ -146,12 +146,12 @@ class SubmittedFile(DynamicDocument):
     id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
-    file_path_irods = StringField()            #missleading - should be renamed!!! It is actually the collection name
+    file_path_irods = StringField()            #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
     
     #OPTIONAL:
     index_file_path_irods = StringField()
-    index_file_path_client = StringField()      #missleading - should be renamed!!! It is actually the collection name
+    index_file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
     index_file_md5 = StringField()
 
     # SUBMISSION MDATA
@@ -183,14 +183,18 @@ class SubmittedFile(DynamicDocument):
     
     ######################## STATUSES ##################################
     # UPLOAD JOB:
-    file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-    index_file_upload_job_status = StringField(choices=FILE_UPLOAD_JOB_STATUS)
+    file_upload_job_status = StringField(choices=TASK_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+    index_file_upload_job_status = StringField(choices=TASK_STATUS)
 
+    # CALC MD5 job:
+    calc_file_md5_job_status = StringField(choices=TASK_STATUS)
+    calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
+    
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
     
     # HEADER PARSING JOB:
-    file_header_parsing_job_status = StringField(choices=HEADER_PARSING_JOB_STATUS) # ("SUCCESS", "FAILURE")
+    file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")
     header_has_mdata = BooleanField()
     
     # UPDATE MDATA JOB:

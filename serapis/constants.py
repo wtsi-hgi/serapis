@@ -37,6 +37,7 @@ UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
 UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
 IRODS_JOB_MSG_SOURCE = "IRODS_JOB_MSG_SOURCE"
 EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
+CALC_MD5_MSG_SOURCE = "CALC_MD5_MSG_SOURCE" 
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
@@ -72,7 +73,7 @@ FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
 SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'cohort'} # 'country_of_origin', , 'ethnicity', 'gender', 
-FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags'}
+FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 
@@ -127,23 +128,29 @@ INCOMPLETE_MDATA_STATUS = "INCOMPLETE_MDATA"
 HAS_MINIMAL_MDATA_STATUS = "HAS_MINIMAL_MDATA"
 CONFLICTUAL_MDATA_STATUS = "CONFLICTUAL_MDATA"
 
-HEADER_PARSING_JOB_STATUS = (SUCCESS_STATUS,
-                             FAILURE_STATUS, 
-                             PENDING_ON_USER_STATUS, 
-                             PENDING_ON_WORKER_STATUS, 
-                             IN_PROGRESS_STATUS)
+TASK_STATUS = (SUCCESS_STATUS,
+               FAILURE_STATUS, 
+               PENDING_ON_USER_STATUS, 
+               PENDING_ON_WORKER_STATUS, 
+               IN_PROGRESS_STATUS)
 
-UPDATE_MDATA_JOB_STATUS = (SUCCESS_STATUS, 
-                           FAILURE_STATUS, 
-                           PENDING_ON_USER_STATUS, 
-                           PENDING_ON_WORKER_STATUS, 
-                           IN_PROGRESS_STATUS)
-
-FILE_UPLOAD_JOB_STATUS = (SUCCESS_STATUS, 
-                          FAILURE_STATUS, 
-                          PENDING_ON_USER_STATUS, 
-                          PENDING_ON_WORKER_STATUS, 
-                          IN_PROGRESS_STATUS)
+#HEADER_PARSING_JOB_STATUS = (SUCCESS_STATUS,
+#                             FAILURE_STATUS, 
+#                             PENDING_ON_USER_STATUS, 
+#                             PENDING_ON_WORKER_STATUS, 
+#                             IN_PROGRESS_STATUS)
+#
+#UPDATE_MDATA_JOB_STATUS = (SUCCESS_STATUS, 
+#                           FAILURE_STATUS, 
+#                           PENDING_ON_USER_STATUS, 
+#                           PENDING_ON_WORKER_STATUS, 
+#                           IN_PROGRESS_STATUS)
+#
+#FILE_UPLOAD_JOB_STATUS = (SUCCESS_STATUS, 
+#                          FAILURE_STATUS, 
+#                          PENDING_ON_USER_STATUS, 
+#                          PENDING_ON_WORKER_STATUS, 
+#                          IN_PROGRESS_STATUS)
 
 FILE_MDATA_STATUS = (COMPLETE_MDATA_STATUS,       # Hierarchy: NOT_ENOUGH < HAS_MINIMAL < INCOMPLETE < COMPLETE
                      INCOMPLETE_MDATA_STATUS, 
@@ -191,7 +198,7 @@ JOB_TYPES = (UPDATE_JOBS,
 #DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
-DEST_DIR_IRODS = "/humgen/projects"
+#DEST_DIR_IRODS = "/humgen/projects"
 STAGING_IRODS = "/Sanger1-dev/home/ic4/staging_area/projects"
 
 #-------- EVENT TYPE -------
