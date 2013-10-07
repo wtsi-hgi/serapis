@@ -106,6 +106,7 @@ def launch_upload_job(user_id, file_id, submission_id, file_path, response_statu
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
+    logging.info("Dest irods collection: %s", dest_irods_path)
     #print "I AM UPLOADING...putting the task in the queue!"
     upload_task.apply_async(kwargs={ 'file_id' : file_id, 
                                     'file_path' : file_path, 
@@ -523,10 +524,25 @@ def verify_file_paths(file_paths_list):
         result = False
     return Result(result, errors_dict, warnings_dict)
     
-    
 
-    
 def get_or_insert_reference_genome(data):
+    ''' This function receives a path identifying 
+        a reference file and retrieves it from the data base 
+        or inserts it if it's not there.
+    Parameters: a path(string)
+    Throws:
+        - TooMuchInformationProvided exception - when the dict has more than a field
+        - NotEnoughInformationProvided - when the dict is empty
+    '''
+    if not data:
+        raise exceptions.NotEnoughInformationProvided(msg="ERROR: the path of the reference genome must be provided.")        
+    ref_gen = db_model_operations.retrieve_reference_by_path(data)
+    if ref_gen:
+        return ref_gen
+    return db_model_operations.insert_reference_genome({'path' : data})
+    
+    
+def get_or_insert_reference_genome_path_and_name(data):
     ''' This function receives a dictionary with data identifying 
         a reference genome and retrieves it from the data base.
     Parameters: a dictionary
@@ -535,7 +551,7 @@ def get_or_insert_reference_genome(data):
         - NotEnoughInformationProvided - when the dict is empty
     '''
     if not 'name' in data and not 'path' in data:
-        raise exceptions.NotEnoughInformationProvided("ERROR: either the name or the path of the reference genome must be provided.")        
+        raise exceptions.NotEnoughInformationProvided(msg="ERROR: either the name or the path of the reference genome must be provided.")        
     ref_gen = db_model_operations.retrieve_reference_genome(data)
     if ref_gen:
         return ref_gen
@@ -590,9 +606,8 @@ def create_submission(user_id, data):
     # Should ref genome be smth mandatory?????
     if 'reference_genome' in submission_data:
         ref_gen = submission_data.pop('reference_genome')
-        ref_genome_id = get_or_insert_reference_genome(ref_gen)
-        #print "REFERENCE ID: ", ref_genome_id
-        submission_data['file_reference_genome_id'] = ref_genome_id
+        ref_genome = get_or_insert_reference_genome(ref_gen)
+        submission_data['file_reference_genome_id'] = ref_genome.id
     else:
         raise exceptions.NotEnoughInformationProvided(msg="There was no information regarding the reference genome provided")
     
@@ -628,19 +643,19 @@ def create_submission(user_id, data):
                 return Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
 
         # Initializing the path to irods for the uploaded files:
-        if hasattr(submission, 'irods_collection') and getattr(submission, 'irods_collection'):
-            irods_coll = getattr(submission, 'irods_collection')
-        else:
-            irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
-        file_submitted.file_path_irods = irods_coll
+#        if hasattr(submission, 'irods_collection') and getattr(submission, 'irods_collection'):
+        irods_coll = getattr(submission, 'irods_collection')
+#        else:
+#            irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
+        file_submitted.file_path_irods = os.path.join(irods_coll, utils.extract_basename(file_path))
         if index_file_path:
-            file_submitted.index_file_path_irods = irods_coll
-
+            file_submitted.index_file_path_irods = os.path.join(irods_coll, utils.extract_basename(index_file_path))
+        
         
         # NOTE:this implementation is a all-or-nothing => either all files are uploaded as serapis or all as other user...pb?
-        if upld_as_serapis:
+        if upld_as_serapis == True:
             file_status = constants.PENDING_ON_WORKER_STATUS
-        elif upld_as_serapis == False:
+        else:
             file_status = constants.PENDING_ON_USER_STATUS
         
         # Instantiating the SubmittedFile object if the file is alright
@@ -1064,10 +1079,12 @@ def resubmit_jobs_for_file(submission_id, file_id):
         upload_resubmitted = submit_upload_jobs_for_file(user_id, file_to_resubmit, dest_irods_coll, 
                                                          upload_task_queue=UPLOAD_Q+"_"+user_id, 
                                                          upload_index_task_queue=INDEX_UPLOAD_Q+"_"+user_id)
-        resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
+        if upload_resubmitted:
+            resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
     elif permissions == constants.READ_ACCESS:
         upload_resubmitted = submit_upload_jobs_for_file(user_id, file_to_resubmit, dest_irods_coll)
-        resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
+        if upload_resubmitted:
+            resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
     else:
         raise IOError()
     
@@ -1076,8 +1093,11 @@ def resubmit_jobs_for_file(submission_id, file_id):
         launch_parse_BAM_header_job(file_to_resubmit)   # to be moved down - in the different cases
         resubm_jobs_dict['PARSE_HEADER'] = True
 
-    res = len(resubm_jobs_dict) > 0
+    print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(resubm_jobs_dict)
+    res = (len(resubm_jobs_dict) > 0)
+    print "RESULT: ", res
     return Result(res, message=resubm_jobs_dict)
+
 
 
 #    submission = db_model_operations.retrieve_submission(submission_id)

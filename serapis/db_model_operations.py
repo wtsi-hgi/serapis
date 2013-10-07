@@ -47,7 +47,7 @@ def insert_reference_genome(ref_dict):
         md5 = calculate_md5(path)
     ref_genome.md5 = md5
     ref_genome.save()
-    return ref_genome.id
+    return ref_genome
     
 
 def retrieve_reference_by_path(path):

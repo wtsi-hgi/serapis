@@ -85,9 +85,11 @@ CELERYD_PREFETCH_MULTIPLIER = 1
 #connect('mongodb://hgi-serapis-dev.internal.sanger.ac.uk:27017/SerapisDB')
 #connect('mongodb://172.17.138.169:27017/SerapisDB')
 
-# WORKING ON SERAPIS - to be decommented:
+
+# WORKING ON SERAPIS - to be decommented - when submitting to the actual archive:
 #connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
+# WORKING - to be used for irods dev zone (testing)
 connect('MetadataDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
 

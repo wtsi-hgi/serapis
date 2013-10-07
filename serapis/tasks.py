@@ -12,6 +12,7 @@ import hashlib
 import subprocess
 from collections import defaultdict
 
+from time import gmtime, strftime
 from subprocess import call, check_output
 #import MySQLdb
 
@@ -420,8 +421,8 @@ class UploadFileTask(Task):
         return md5.hexdigest()
     
 
-
-    def run(self, **kwargs):
+    # WORKING TEST_VERSION, does not upload to irods, just skips
+    def run_home(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
         response_status = kwargs['response_status'] 
@@ -642,8 +643,8 @@ class UploadFileTask(Task):
             "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
 
-    # the current version for serapis
-    def run_serapis_yang(self, **kwargs):
+    # the current version for serapis - YANG
+    def run_yang(self, **kwargs):
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
         response_status = kwargs['response_status']
@@ -683,7 +684,8 @@ class UploadFileTask(Task):
             # result[response_status] = SUCCESS_STATUS
             # send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
-
+            t2 = time.time()
+            print "TIME TAKEN: ", t2-t1
             _, fname = os.path.split(src_file_path)
             dest_file_path = os.path.join(dest_coll_path, fname)
             ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
@@ -739,7 +741,7 @@ class UploadFileTask(Task):
 
     # Modified upload version for uploading fines on the cluster
     # run - running using process call
-    def run_using_checkoutput(self, **kwargs):
+    def run(self, **kwargs):
         #time.sleep(2)
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
@@ -765,7 +767,8 @@ class UploadFileTask(Task):
             retcode = subprocess.check_output(["iput", "-K", src_file_path, dest_coll_path], stderr=subprocess.STDOUT)
             print "IPUT retcode = ", retcode
         except subprocess.CalledProcessError as e:
-            error_msg = "IRODS iput error - return code="+str(e.returncode)+" message: "+e.output
+            timestmp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+            error_msg = timestmp + " IRODS iput error - return code="+str(e.returncode)+" message: "+e.output
             errors_list.append(error_msg)
             print error_msg
             result[response_status] = FAILURE_STATUS
@@ -774,10 +777,6 @@ class UploadFileTask(Task):
         else:
             t2 = time.time()
             print "TIME TAKEN: ", t2-t1
-
-
-#            md5 = self.calculate_md5(src_file_path)
-            
         
             # Working version of getting the md5 from ichksum:
             _, fname = os.path.split(src_file_path)
@@ -787,7 +786,8 @@ class UploadFileTask(Task):
             
             print "OUT: ", out, " ERR: ", err        
             if err:
-                error_msg = "IRODS ichksum error - ", err
+                timestmp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+                error_msg = timestmp + " IRODS ichksum error - ", err
                 errors_list.append(error_msg)
                 print error_msg
                 result[response_status] = FAILURE_STATUS
@@ -1024,9 +1024,10 @@ class ParseBAMHeaderTask(Task):
         try:
             processSeqsc = ProcessSeqScapeData()
         except mysqlError:
+            timestmp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
             result = {}
             result['file_header_parsing_job_status'] = FAILURE_STATUS
-            result['file_error_log'] = [constants.SEQSCAPE_DB_CONNECTION_ERROR]
+            result['file_error_log'] = [timestmp + " "+ constants.SEQSCAPE_DB_CONNECTION_ERROR]
             send_http_PUT_req(result, file_mdata.submission_id, file_mdata.id, constants.PARSE_HEADER_MSG_SOURCE)
         else: 
             #processSeqsc.fetch_and_process_lib_mdata(new_libs_list, file_mdata)
@@ -1080,9 +1081,10 @@ class ParseBAMHeaderTask(Task):
             
             #header_seq_centers = header_processed['CN']
         except ValueError:      # This comes from BAM header parsing
+            timestmp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
             result = dict()
             result['file_header_parsing_job_status'] = FAILURE_STATUS
-            result['file_error_log'] = [constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+            result['file_error_log'] = [timestmp+" "+ constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
             result['header_has_mdata'] = False
             resp = send_http_PUT_req(result, file_mdata.submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", resp
@@ -1100,11 +1102,12 @@ class ParseBAMHeaderTask(Task):
         print "EXCEPTION HAS the following fields: ", vars(exc)
         print "Exception looks like:", exc, " and type: ", type(exc)
         
+        timestmp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         result = dict()
         result['file_header_parsing_job_status'] = FAILURE_STATUS
-        result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+        result['file_error_log'] = [timestmp+" "+ str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
         result['header_has_mdata'] = False
         resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
