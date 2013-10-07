@@ -907,7 +907,7 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
         elif field_name == 'calc_file_md5_job_status':
             if update_source == constants.CALC_MD5_MSG_SOURCE:
                 update_db_dict['set__calc_file_md5_job_status'] = field_val
-                update_db_dict['inc_version__0'] = 1
+                update_db_dict['inc__version__0'] = 1
         elif field_name == 'file_upload_job_status':
             if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
                 update_db_dict['set__file_upload_job_status'] = field_val
@@ -1027,7 +1027,7 @@ def update_submitted_file(file_id, update_dict, update_source, statuses_dict=Non
             if statuses_dict:
                 update_db_dict.update(statuses_dict)
             logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s", str(file_id))
-
+            logging.info("UPDATE DICT: %s", str(update_db_dict))
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
             logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             #print "ATOMIC UPDATE RESULT from :", update_source," NR TRY: ", i,"=================================================================", upd

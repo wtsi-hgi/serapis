@@ -740,7 +740,6 @@ class UploadFileTask(Task):
     # Modified upload version for uploading fines on the cluster
     # run - running using process call
     def run_using_checkoutput(self, **kwargs):
-        #time.sleep(2)
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
         response_status = kwargs['response_status']
@@ -798,7 +797,20 @@ class UploadFileTask(Task):
 #                result[response_status] = SUCCESS_STATUS
 #                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
-            
+        
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        file_id = kwargs['file_id']
+        submission_id = kwargs['submission_id']
+        response_status = kwargs['response_status']
+        
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        result = dict()
+        result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+        result[response_status] = FAILURE_STATUS
+        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+         
+           
 class CalculateMD5Task(Task):
     def calculate_md5(self, file_path, block_size=2**20):
         file_obj = open(file_path, 'rb')
@@ -815,6 +827,8 @@ class CalculateMD5Task(Task):
         submission_id = kwargs['submission_id']
         file_path = kwargs['file_path']
         response_status = kwargs['response_status']
+        
+        print "Calculate MD5 sum job started!"
         file_md5 = self.calculate_md5(file_path)
         
         result = {}
