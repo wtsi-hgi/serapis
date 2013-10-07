@@ -1,5 +1,5 @@
-from voluptuous import Schema, Any,  MultipleInvalid
-
+from voluptuous import  Schema, Any, All, Length, Required, IsDir, IsFile, Match  #MultipleInvalid
+from serapis import constants
 
 abstract_library_schema =Schema({
         'library_source' : Any(str, None),
@@ -32,7 +32,6 @@ study_schema = Schema({
         'study_visibility' : Any(str, None),
         'description' : Any(str, None),
         'pi_list' : list,
-        
         'is_complete' : bool,
         'has_minimal' : bool, 
         'last_updates_source' : dict
@@ -145,3 +144,45 @@ submission_schema = Schema({
     'irods_collection' : str,
     'upload_as_serapis' : bool
 })
+
+
+################# VALIDATORS PER REQUEST TYPE ####################
+
+from datetime import datetime
+def Date(fmt='%Y-%m-%d'):
+    return lambda v: datetime.strptime(v, fmt)
+schema_date = Schema(Date())
+
+#def CheckFilesList(files_list):
+#    return lambda files_list: IsFile(f) for f in files_list
+
+# POST /submissions/
+study_post_submission_validator = Schema({
+        Required('name'): All(str, Length(min=1)),
+        Required('study_visibility') : All(str, Length(min=1)),
+        Required('pi_list') : All([str], Length(min=1)),
+})
+
+
+submission_post_validator = Schema({
+    'files_list' : [str],
+    IsDir('dir_path') : All(str, Length(min=1)),
+    Required('sanger_user_id') :  All(str, Length(min=1)),
+    Required('hgi_project') : All(str, Length(min=1)),
+    Required('study') : study_post_submission_validator,
+    Required('reference_genome') : IsFile(str),
+    Required('library_metadata') : abstract_library_schema,
+    Required('data_type') : All(str, Length(min=1)),
+    Required('data_subtype_tags') : dict,
+    #Required('irods_collection') : All(Match(constants.REGEX_IRODS_PROJECT_PATH), Length(min=1)),
+    Required('irods_collection') : str,     # For testing in dev zone
+    Required('upload_as_serapis') : bool                                    
+})
+
+
+
+
+
+
+
+

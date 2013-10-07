@@ -47,6 +47,7 @@ MAX_DBUPDATE_RETRIES = 5
 REGEX_PU_1 = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
 REGEX_HGI_PROJECT = "[a-zA-Z0-9_-]{3,17}" 
 REGEX_HGI_PROJECT_PATH = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*"
+REGEX_IRODS_PROJECT_PATH = "/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/"
 
 DATE_FORMAT = "%Y%m%d"
 MIN_SUBMISSION_YEAR = 2013

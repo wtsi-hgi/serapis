@@ -123,7 +123,8 @@ class SubmissionsMainPageRequestHandler(APIView):
             req_result = dict()
             data = request.DATA
             data = utils.unicode2string(data)
-            validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
+            #validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
+            validator.submission_post_validator(data)
      
             subm_result = controller.create_submission(user_id, data)
             submission_id = subm_result.result
@@ -155,12 +156,18 @@ class SubmissionsMainPageRequestHandler(APIView):
                     path = path+ '->' + p
                 else:
                     path = p
-            req_result['error'] = "Message contents invalid: "+e.msg + " "+ path
+            print "TYPE: ", type(e)
+            print " and e: ", str(e)
+            #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
+            req_result['error'] = str(e)
             return Response(req_result, status=400)
         except (exceptions.NotEnoughInformationProvided, exceptions.InformationConflict) as e:
             req_result['error'] = e.message
+            logging.error("Not enough info %s", e)
+            logging.error(e.message)
             return Response(req_result, status=424)
         except ValueError as e:
+            logging.error("Value error %s", e.message)
             req_result['error'] = e.message
             return Response(req_result, status=424)
             
@@ -384,13 +391,15 @@ class SubmittedFileRequestHandler(APIView):
             if resubmission_result.error_dict:
                 result['errors'] = resubmission_result.error_dict 
             if resubmission_result.message:
-                
                 result['message'] = resubmission_result.message
             if not resubmission_result.result:      # Nothing has changed - no new job submitted, because the last jobs succeeded
                 result['result'] = False
-                result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted - " 
-                return Response(result, status=304)
+                result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted. " 
+                logging.info("RESULT RESUBMIT JOBS: %s", result)
+                return Response(result, status=200) # Should it be 304? (nothing has changed)
             else:
+                result['result'] = True
+                logging.info("RESULT RESUBMIT JOBS: %s", result)
                 result['message'] = "Jobs resubmitted."+str(result['message']) if 'message' in result else "Jobs resubmitted." 
                 return Response(result, status=200)
                 

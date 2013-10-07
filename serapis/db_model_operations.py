@@ -47,7 +47,7 @@ def insert_reference_genome(ref_dict):
         md5 = calculate_md5(path)
     ref_genome.md5 = md5
     ref_genome.save()
-    return ref_genome.id
+    return ref_genome
     
 
 def retrieve_reference_by_path(path):
@@ -83,7 +83,9 @@ def retrieve_reference_genome(ref_gen_dict):
         raise exceptions.InformationConflict(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
     if ref_gen_name:
         return ref_gen_name.id
-    return ref_gen_p.id
+    if ref_gen_p:
+        return ref_gen_p.id
+    return None
 
 
 # I plan not to use this. Out of use for now.
