@@ -29,8 +29,8 @@ from celery import current_task
 
 
 
-#BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
-BASE_URL = "http://localhost:8000/api-rest/submissions/"
+BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
+#BASE_URL = "http://localhost:8000/api-rest/submissions/"
 FILE_ERROR_LOG = 'file_error_log'
 MD5 = "md5"
 

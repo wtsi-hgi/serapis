@@ -83,7 +83,10 @@ def retrieve_reference_genome(ref_gen_dict):
         raise exceptions.InformationConflict(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
     if ref_gen_name:
         return ref_gen_name.id
-    return ref_gen_p.id
+    if ref_gen_p:
+        return ref_gen_p.id
+    return None
+
 
 
 # I plan not to use this. Out of use for now.
