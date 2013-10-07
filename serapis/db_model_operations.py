@@ -901,11 +901,14 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 update_db_dict['set__header_has_mdata'] = field_val
                 update_db_dict['inc__version__0'] = 1
         elif field_name == 'md5':
-            # TODO: from here I don't add these fields to the last_updates_source dict, should I?
-            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+            if update_source == constants.CALC_MD5_MSG_SOURCE:
                 update_db_dict['set__md5'] = field_val
                 update_db_dict['inc__version__0'] = 1
                 logging.debug("UPDATING md5")
+        elif field_name == 'calc_file_md5_job_status':
+            if update_source == constants.CALC_MD5_MSG_SOURCE:
+                update_db_dict['set__calc_file_md5_job_status'] = field_val
+                update_db_dict['inc__version__0'] = 1
         elif field_name == 'file_upload_job_status':
             if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
                 update_db_dict['set__file_upload_job_status'] = field_val
@@ -915,8 +918,12 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
                 update_db_dict['set__index_file_upload_job_status'] = field_val
                 update_db_dict['inc__version__0'] = 1
         elif field_name == 'index_file_md5':
-            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
+            if update_source == constants.CALC_MD5_MSG_SOURCE:
                 update_db_dict['set__index_file_md5'] = field_val
+                update_db_dict['inc__version__0'] = 1
+        elif field_name == 'calc_index_file_md5_job_status':
+            if update_source == constants.CALC_MD5_MSG_SOURCE:
+                update_db_dict['set__calc_index_file_md5_job_status'] = field_val
                 update_db_dict['inc__version__0'] = 1
         elif field_name == 'file_header_parsing_job_status':
             if update_source == constants.PARSE_HEADER_MSG_SOURCE:
@@ -1012,7 +1019,7 @@ def update_submitted_file(file_id, update_dict, update_source, statuses_dict=Non
                 i += 1
                 continue
             except exceptions.UpdateMustBeDismissed as e:
-                logging.error("UPDATE HAS BEEN DISMISSED -- %s", e.reason)
+                logging.error("UPDATE HAS BEEN DISMISSED: reason=  %s", e.reason)
                 return 0
             else:
                 if field_update_dict:
@@ -1021,7 +1028,7 @@ def update_submitted_file(file_id, update_dict, update_source, statuses_dict=Non
             if statuses_dict:
                 update_db_dict.update(statuses_dict)
             logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s", str(file_id))
-
+            logging.info("UPDATE DICT: %s", str(update_db_dict))
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
             logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             #print "ATOMIC UPDATE RESULT from :", update_source," NR TRY: ", i,"=================================================================", upd
@@ -1112,6 +1119,15 @@ def update_index_file_upload_job_status(file_id, status):
 def update_file_parse_header_job_status(file_id, status):
     upd_dict = {'set__file_header_parsing_job_status' : status, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+ 
+def update_calc_file_md5_job_status(file_id, status):
+    upd_dict = {'set__calc_file_md5_job_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+
+def update_calc_index_file_md5_job_status(file_id, status):
+    upd_dict = {'set__calc_index_file_md5_job_status' : status, 'inc__version__0' : 1}
+    return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+
     
 def update_file_error_log(error_log, file_id=None, submitted_file=None):
     if file_id == None and submitted_file == None:
@@ -1483,7 +1499,11 @@ def check_file_mdata(file_to_submit):
 #    if file_to_submit.file_reference_genome_id == None:
 #        return False
     has_min_mdata = True
-    for field in constants.FILE_MANDATORY_FIELDS:
+    mandatory_fields = constants.FILE_MANDATORY_FIELDS
+    if file_to_submit.index_file_path_client:
+        mandatory_fields = mandatory_fields.add('index_file_md5')
+        
+    for field in mandatory_fields:
         if not hasattr(file_to_submit, field):
             __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
             has_min_mdata = False
@@ -1493,14 +1513,6 @@ def check_file_mdata(file_to_submit):
         else:
             __find_and_delete_missing_field_from_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
     
-
-    if file_to_submit.index_file_path_client:
-        if not file_to_submit.index_file_md5:
-            __add_missing_field_to_dict__('index_file_md5', 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-            return False
-        else:
-            __find_and_delete_missing_field_from_dict__('index_file_md5', 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-        
     if file_to_submit.file_type == constants.BAM_FILE:
         return check_bam_file_mdata(file_to_submit) and has_min_mdata
     return False
@@ -1619,10 +1631,12 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
     tasks_finished = False
     if (file_to_submit.file_upload_job_status == constants.SUCCESS_STATUS and
         file_to_submit.file_header_parsing_job_status in constants.FINISHED_STATUS and
+        file_to_submit.calc_file_md5_job_status in constants.FINISHED_STATUS and
         check_all_task_statuses_in_coll(file_to_submit.file_update_jobs_dict, constants.FINISHED_STATUS)):
         
         if file_to_submit.index_file_path_client:
-            if file_to_submit.index_file_upload_job_status == constants.SUCCESS_STATUS: 
+            if (file_to_submit.index_file_upload_job_status == constants.SUCCESS_STATUS and
+                file_to_submit.calc_index_file_md5_job_status == constants.SUCCESS_STATUS): 
                 tasks_finished = True
             else:
                 tasks_finished = False

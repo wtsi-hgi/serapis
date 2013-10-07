@@ -114,7 +114,11 @@ submitted_file_schema = Schema({
     'index_file_path_irods' : str,
     'index_file_path_client' : str,
     'index_file_md5' : str,
-    'index_file_upload_job_status' : str
+    'index_file_upload_job_status' : str,
+    
+    'calc_file_md5_job_status' : str,
+    'calc_index_file_md5_job_status' : str
+    
     
 })
 

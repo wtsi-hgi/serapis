@@ -34,6 +34,7 @@ parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
 add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
 cp_staging2dest_irods = tasks.CopyStaging2IRODSDestTask()
+calculate_md5_task = tasks.CalculateMD5Task()
 
 #UPLOAD_EXCHANGE = 'UploadExchange'
 #MDATA_EXCHANGE = 'MdataExchange'
@@ -51,6 +52,9 @@ PROCESS_MDATA_Q = "ProcessMdataQ"
 
 # Index files queue:
 INDEX_UPLOAD_Q = "IndexUploadQ"
+
+# Calculate md5 queue:
+CALCULATE_MD5_Q = "CalculateMD5Q"
 
     
 #class MyRouter(object):
@@ -120,16 +124,12 @@ def launch_upload_job(user_id, file_id, submission_id, file_path, response_statu
     db_model_operations.update_file_statuses(file_id, statuses_to_upd)
 
 
-
-
 def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_irods):
     print "I am COPYING the submission : ", src_path_irods, " to IRODS humgen collection...", dest_path_irods
     
     cp_staging2dest_irods.apply_async(kwargs={'src_path_irods' : src_path_irods,
                                               'dest_path_irods' : dest_path_irods
                                               })
-    
-    
     
     
 def launch_update_file_job(file_submitted):
@@ -149,8 +149,21 @@ def launch_update_file_job(file_submitted):
                        'file_mdata_status' : constants.IN_PROGRESS_STATUS
                        }
     db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
-
     
+    
+def launch_calculate_md5_task(file_path, file_id, submission_id, response_status, queue=CALCULATE_MD5_Q):
+    logging.info("LAUNCHING CALCULATE MD5 TASK!")
+    calculate_md5_task.apply_async(kwargs={'file_path' :file_path,
+                                           'file_id' : file_id,
+                                           'submission_id' : submission_id,
+                                           'response_status' : response_status
+                                           },
+                                   queue=queue)
+    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+                       'file_mdata_status' : constants.IN_PROGRESS_STATUS,
+                       response_status : constants.PENDING_ON_WORKER_STATUS
+                       }
+    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
     
 
 def launch_add_mdata2irods_job(file_id, submission_id):
@@ -190,7 +203,36 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
 
 
+def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload_task_queue=UPLOAD_Q, upload_index_task_queue=INDEX_UPLOAD_Q):
+    if not dest_irods_coll:
+        return False
 
+    # WORKING version for uploading to the staging area:
+    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
+    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
+        upl_file, upl_idx = False, False
+        if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
+            launch_upload_job(user_id, 
+                              file_submitted.id, 
+                              file_submitted.submission_id, 
+                              file_submitted.file_path_client, 
+                              'file_upload_job_status', 
+                              dest_irods_coll,
+                              queue=upload_task_queue)
+            upl_file = True
+        if hasattr(file_submitted, 'index_file_path_client') and file_submitted.index_file_path_client:
+            if file_submitted.index_file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
+                launch_upload_job(user_id, 
+                                  file_submitted.id,
+                                  file_submitted.submission_id, 
+                                  file_submitted.index_file_path_client, 
+                                  'index_file_upload_job_status', 
+                                  dest_irods_coll,
+                                  queue=upload_index_task_queue)
+                upl_idx = True
+        return upl_file or upl_idx
+    return False
+    
     
 
 #def launch_upload_job(user_id, file_submitted):
@@ -411,36 +453,7 @@ def get_files_list_from_request(request_data):
 #----------------------- MAIN LOGIC -----------------------
     
 
-def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload_task_queue=UPLOAD_Q, upload_index_task_queue=INDEX_UPLOAD_Q):
-    if not dest_irods_coll:
-        return False
 
-    # WORKING version for uploading to the staging area:
-    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
-    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
-        upl_file, upl_idx = False, False
-        if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-            launch_upload_job(user_id, 
-                              file_submitted.id, 
-                              file_submitted.submission_id, 
-                              file_submitted.file_path_client, 
-                              'file_upload_job_status', 
-                              dest_irods_coll,
-                              queue=upload_task_queue)
-            upl_file = True
-        if hasattr(file_submitted, 'index_file_path_client') and file_submitted.index_file_path_client:
-            if file_submitted.index_file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-                launch_upload_job(user_id, 
-                                  file_submitted.id,
-                                  file_submitted.submission_id, 
-                                  file_submitted.index_file_path_client, 
-                                  'index_file_upload_job_status', 
-                                  dest_irods_coll,
-                                  queue=upload_index_task_queue)
-                upl_idx = True
-        return upl_file or upl_idx
-    return False
-    
 
 def search_for_index_file(file_path, indexes):
     file_name, file_ext = utils.extract_fname_and_ext(file_path)
@@ -697,11 +710,18 @@ def create_submission(user_id, data):
         if not upld_as_serapis:     # MUST upload as user_id
             launch_update_file_job(file_obj, queue=user_id)
             submit_upload_jobs_for_file(user_id, file_obj, dest_irods_coll, upload_task_queue=UPLOAD_Q+"_"+user_id, upload_index_task_queue=INDEX_UPLOAD_Q+"_"+user_id)
-            
+            launch_parse_BAM_header_job(file_obj)
+            launch_calculate_md5_task(file_obj.file_path_client, file_obj.id, submission_id, 'calc_file_md5_job_status', queue=CALCULATE_MD5_Q+"_"+user_id)
+            if file_obj.index_file_path_client:
+                launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status', queue=CALCULATE_MD5_Q+"_"+user_id)
         else:
             launch_update_file_job(file_obj)
             submit_upload_jobs_for_file(user_id, file_obj, dest_irods_coll)
-            
+            launch_parse_BAM_header_job(file_obj)
+            launch_calculate_md5_task(file_obj.file_path_client, file_obj.id, submission_id, 'calc_file_md5_job_status')
+            if file_obj.index_file_path_client:
+                launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status')
+
             
     if not upld_as_serapis:
         return Result(str(submission.id), warning_dict="You have requested to upload the files as "+user_id+", therefore you need to run the following...script on the cluster")
@@ -820,18 +840,21 @@ def get_submitted_file(file_id):
 #             }
 
 #import pdb
-    
 def get_submitted_file_status(file_id):
     ''' Retrieves and returns the statuses of this file. '''
     subm_file = db_model_operations.retrieve_submitted_file(file_id)
-    index_status = None
+    index_status, index_md5 = None, None
     if subm_file.index_file_path_client and hasattr(subm_file, 'index_file_upload_job_status'):
         index_status = subm_file.index_file_upload_job_status
+        if hasattr(subm_file, 'calc_index_file_md5_job_status'):
+            index_md5 = subm_file.calc_index_file_md5_job_status
     return {'testing-file_path' : subm_file.file_path_client if hasattr(subm_file, 'file_path_client') else None,
             'file_upload_status' : subm_file.file_upload_job_status if hasattr(subm_file, 'file_upload_job_status') else None,
-            'index_file_upload_status' : index_status, 
+            'index_file_upload_status' : index_status,
+            'calc_index_md5_job_status' : index_md5, 
+            'calc_file_md5_job_status' : subm_file.calc_file_md5_job_status if hasattr(subm_file, 'calc_file_md5_job_status') else None,
             'file_metadata_status' : subm_file.file_mdata_status if hasattr(subm_file, 'file_mdata_status') else None,
-            'file_submission_status' : subm_file.file_submission_status if hasattr(subm_file, 'file_submission_status') else None 
+            'file_submission_status' : subm_file.file_submission_status if hasattr(subm_file, 'file_submission_status') else None,
             }
 
 
@@ -905,7 +928,15 @@ def update_file_submitted(submission_id, file_id, data):
             return True
         return False
     
-    
+    def update_from_CALC_MD5_MSG_SOURCE(data):
+        if 'calc_index_file_md5_job_status' in data:      # INDEX UPLOAD
+            if 'md5' in data:
+                md5 = data.pop('md5')
+                data['index_file_md5'] = md5 
+        db_model_operations.update_submitted_file(file_id, data, sender)
+        upd_status = db_model_operations.check_and_update_all_file_statuses(file_id)
+        logging.info("CALC MD5 ---> HAS IT ACTUALLY UPDATED THE STATUS FROM CALC md5 task? %s", upd_status)
+        
         
     def update_from_EXTERNAL_SRC(data):
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)
@@ -920,42 +951,42 @@ def update_file_submitted(submission_id, file_id, data):
     def update_from_PARSE_HEADER_TASK_SRC(data):
         db_model_operations.update_submitted_file(file_id, data, sender) 
         upd_status = db_model_operations.check_and_update_all_file_statuses(file_id)
-        logging.info("HAS IT ACTUALLY UPDATED THE STATUSssssssssssss? %s", upd_status)
+        logging.info("HAS IT ACTUALLY UPDATED THE STATUSssssssssssss after updating from PARSE HEADER TASK? %s", upd_status)
         #print "HAS IT ACTUALLY UPDATED THE STATUSssssssssssss?", upd_status
         
         # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
-        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
-        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+#        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+#        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
      
     # TO DO: rewrite this part - very crappy!!!
     def update_from_UPLOAD_TASK_SRC(data):
         if 'index_file_upload_job_status' in data:      # INDEX UPLOAD
-            status = 'index_file_upload_job_status'
-            upload_status = data[status]
+#            status = 'index_file_upload_job_status'
+#            upload_status = data[status]
             if 'md5' in data:
                 md5 = data.pop('md5')
                 data['index_file_md5'] = md5 
             upd = db_model_operations.update_submitted_file(file_id, data, sender)
             logging.info("UPDATE REQUEST - from UPLOAD TASK on INDEX --> HAS THE INDEX BEEN UPDATEDDDDD????????????? %s", upd)
         elif 'file_upload_job_status' in data:          # FILE UPLOAD
-            status = 'file_upload_job_status'
-            upload_status = data[status]
+#            status = 'file_upload_job_status'
+#            upload_status = data[status]
             upd = db_model_operations.update_submitted_file(file_id, data, sender)
             logging.info("UPDATE REQUEST - from UPLOAD TASK on FILE --> HAS THE FILE BEEN UPDATED???? %s", upd)
             #print "HAS THE FILE ACTUALLY BEEN UPDATED????????  " ,upd 
-            file_to_update = db_model_operations.retrieve_submitted_file(file_id)
-            if upload_status == constants.SUCCESS_STATUS:
-#            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
-                if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-                    db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                    db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
-                    if file_to_update.file_type == constants.BAM_FILE:
-                        file_to_update.reload()
-                        launch_parse_BAM_header_job(file_to_update)
-                    elif file_to_update.file_type == constants.VCF_FILE:
-                        pass
-            elif data[status] == constants.FAILURE_STATUS:
-                db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)    
+#            file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+#            if upload_status == constants.SUCCESS_STATUS:
+##            # TODO: what if parse_header throws exceptions?!?!?! then the status won't be modified => all goes wrong!!!
+#                if file_to_update.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
+#                    db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+#                    db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
+#                    if file_to_update.file_type == constants.BAM_FILE:
+#                        file_to_update.reload()
+#                        launch_parse_BAM_header_job(file_to_update)
+#                    elif file_to_update.file_type == constants.VCF_FILE:
+#                        pass
+#            elif data[status] == constants.FAILURE_STATUS:
+#                db_model_operations.update_file_submission_status(file_id, constants.FAILURE_STATUS)    
         db_model_operations.check_and_update_all_file_statuses(file_id)  
         
         
@@ -982,6 +1013,8 @@ def update_file_submitted(submission_id, file_id, data):
         update_from_EXTERNAL_SRC(data)
     elif sender == constants.IRODS_JOB_MSG_SOURCE:
         update_from_IRODS_SOURCE(data)
+    elif sender == constants.CALC_MD5_MSG_SOURCE:
+        update_from_CALC_MD5_MSG_SOURCE(data)
     
     # TEST CONVERT SERAPIS MDATA TO IRODS K-V PAIRS
 #    file_to_update.reload()
@@ -1063,7 +1096,12 @@ def resubmit_jobs_for_file(submission_id, file_id):
     if file_to_resubmit.file_header_parsing_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]: 
         db_model_operations.update_file_parse_header_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
 
-
+    if file_to_resubmit.calc_file_md5_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
+        db_model_operations.update_calc_file_md5_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+    
+    if file_to_resubmit.calc_index_file_md5_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
+        db_model_operations.update_calc_index_file_md5_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
+                            
     resubm_jobs_dict = {}
     any_update_fail = db_model_operations.check_any_task_has_status_in_coll(file_to_resubmit.file_update_jobs_dict, 
                                                                             [constants.FAILURE_STATUS, constants.PENDING_ON_WORKER_STATUS])         
@@ -1092,6 +1130,12 @@ def resubmit_jobs_for_file(submission_id, file_id):
     if file_to_resubmit.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
         launch_parse_BAM_header_job(file_to_resubmit)   # to be moved down - in the different cases
         resubm_jobs_dict['PARSE_HEADER'] = True
+        
+    if file_to_resubmit.calc_file_md5_job_status == constants.PENDING_ON_WORKER_STATUS:
+        launch_calculate_md5_task(file_to_resubmit.file_path_client, file_id, submission_id, 'calc_file_md5_job_status')
+        
+    if file_to_resubmit.calc_index_file_md5_job_status == constants.PENDING_ON_WORKER_STATUS:
+        launch_calculate_md5_task(file_to_resubmit.index_file_path_client, file_id, submission_id, 'calc_index_file_md5_job_status')
 
     print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(resubm_jobs_dict)
     res = (len(resubm_jobs_dict) > 0)
