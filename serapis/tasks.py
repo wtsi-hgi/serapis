@@ -194,13 +194,8 @@ class QuerySeqScape():
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
         return data
-
-    
     # TODO: deal differently with diff exceptions thrown here, + try reconnect if connection fails
-#    @staticmethod
-#    def get_library_data(connection, library_fields_dict):
-#        return QuerySeqScape.get_library_data_from_table(connection, library_fields_dict, "current_library_tubes")
-    
+
     
     @staticmethod
     def get_study_data(connection, study_field_dict):
@@ -223,8 +218,6 @@ class QuerySeqScape():
             return data
 
     
-    
-
 #############################################################################
 #--------------------- PROCESSING SEQSCAPE DATA ---------
 ############ DEALING WITH SEQSCAPE DATA - AUXILIARY FCT  ####################
@@ -382,19 +375,17 @@ class ProcessSeqScapeData():
 # --------------------- TASKS --------------
 ############################################
 
-#    def change_state_event(self, state):
-#        connection = self.app.broker_connection()
-#        evd = self.app.events.Dispatcher(connection=connection)
-#        try:
-#            self.update_state(state="CUSTOM")
-#            evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
-#        finally:
-#            evd.close()
-#            connection.close()
 
 class UploadFileTask(Task):
-    ignore_result = True
-
+    acks_late = False           # ACK as soon as one worker got the task
+    max_retries = 1             # 1 RETRY if the upload task fails in the first place
+    default_retry_delay = 600   # The upload should be retried after 10mins.
+    track_started = True        # the task will report its status as STARTED when it starts
+    time_limit = 5400           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 3600      # an exception is raised => can be used for cleanup
+    rate_limit = "200/h"        # limits the nr of tasks that can be run per h, 
+                                # so that irods doesn't get overwhelmed
+    
     def md5_and_copy(self, source_file, dest_file):
         src_fd = open(source_file, 'rb')
         dest_fd = open(dest_file, 'wb')
@@ -430,6 +421,7 @@ class UploadFileTask(Task):
         file_id = kwargs['file_id']
         submission_id = str(kwargs['submission_id'])
         
+        time.sleep(5)
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
@@ -796,11 +788,13 @@ class UploadFileTask(Task):
 #                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
         
+        
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         file_id = kwargs['file_id']
         submission_id = kwargs['submission_id']
         response_status = kwargs['response_status']
         
+        print "ON FAILURE EXECUTED----------------------------"
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         result = dict()
@@ -810,6 +804,13 @@ class UploadFileTask(Task):
          
            
 class CalculateMD5Task(Task):
+    acks_late = True
+    max_retries = 3             # 3 RETRIES if the task fails in the first place
+    default_retry_delay = 60    # The task should be retried after 1min.
+    track_started = False       # the task will NOT report its status as STARTED when it starts
+    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+
     def calculate_md5(self, file_path, block_size=2**20):
         file_obj = open(file_path, 'rb')
         md5 = hashlib.md5()
@@ -852,7 +853,13 @@ class CalculateMD5Task(Task):
 
 class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
-    ignore_result = True
+    #ignore_result = True
+    acks_late = True
+    max_retries = 5             # 3 RETRIES if the task fails in the first place
+    default_retry_delay = 60    # The task should be retried after 1min.
+    track_started = False       # the task will NOT report its status as STARTED when it starts
+    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
     def trigger_event(self, event_type, state, result):
         connection = self.app.broker_connection()
@@ -981,23 +988,12 @@ class ParseBAMHeaderTask(Task):
                 
     #----------------------- HELPER METHODS --------------------
     
-    def send_parse_header_update(self, file_mdata):
-        update_msg_dict = build_result(file_mdata.submission_id, file_mdata.id)
-        update_msg_dict['file_header_parsing_job_status'] = file_mdata.file_header_parsing_job_status
-        update_msg_dict['header_has_mdata'] = file_mdata.header_has_mdata
-        #update_msg_dict['file_mdata_status'] = file_mdata.file_mdata_status
-        print "UPDATE DICT =======================", update_msg_dict, " AND TYPE OF UPDATE DICT: ", type(update_msg_dict)
-        #self.trigger_event(UPDATE_EVENT, "SUCCESS", update_msg_dict)
-        send_http_PUT_req(update_msg_dict, file_mdata.submission_id, file_mdata.id, PARSE_HEADER_MSG_SOURCE)
-        
         
     def parse_header(self, header_processed, file_mdata):
-        
         # Updating fields of my file_submitted object
         file_mdata.seq_centers = header_processed['CN']
         header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
         header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
-        
         
         # NEW FIELDS:
         if 'PL' in header_processed:
@@ -1096,25 +1092,13 @@ class ParseBAMHeaderTask(Task):
         file_id = kwargs['file_id']
         file_mdata['id'] = str(file_id)
 
-        #print "TASK PARSE ----------------CHECK RECEIVED FOR NONE----------", file_mdata
-#        file_mdata.pop('null')
-        #print "HEADER-TASK: FILE SERIALIZED _ BEFORE DESERIAL: ", file_serialized
-        #print "FILE MDATA WHEN I GOT IT: ", file_mdata, "Data TYPE: ", type(file_mdata)
-        
         file_mdata = BAMFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
-        
-#        on_client_flag = kwargs['read_on_client']
-#        if on_client_flag:
         file_path = file_mdata.file_path_client
-#        else:
-#            file_path = file_mdata.file_path_irods            
         try:
-            header_json = self.get_header_mdata(file_path)  # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
+            header_json = self.get_header_mdata(file_path)              # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
             header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
-            
-            #header_seq_centers = header_processed['CN']
-        except ValueError:      # This comes from BAM header parsing
+        except ValueError:                      # This comes from BAM header parsing
             result = dict()
             result['file_header_parsing_job_status'] = FAILURE_STATUS
             result['file_error_log'] = [constants.FILE_HEADER_INVALID_OR_CANNOT_BE_PARSED]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
@@ -1148,6 +1132,12 @@ class ParseBAMHeaderTask(Task):
 
 
 class UpdateFileMdataTask(Task):
+    acks_late = True
+    max_retries = 5             # 3 RETRIES if the task fails in the first place
+    default_retry_delay = 60    # The task should be retried after 1min.
+    track_started = False       # the task will NOT report its status as STARTED when it starts
+    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
     def __filter_fields__(self, fields_dict):
         filtered_dict = dict()
@@ -1192,18 +1182,12 @@ class UpdateFileMdataTask(Task):
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         file_submitted = SubmittedFile.build_from_json(file_mdata)
-        # file_submitted.file_submission_status = constants.IN_PROGRESS_STATUS
-        
-        #print "UPDATE TASKxxxxxxxxxxxxxxxxxxxxxxxxxxx -- AFTER BUILDING FROM JSON A FILE ---", vars(file_submitted)
-        
         incomplete_libs_list = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)
         print "INCOMPLETE SAMPLES LIST ----- BEFORE SEARCHING SEQSCAPE***************************************", incomplete_samples_list
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
-        
         print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
         print "STUDIES INCOMPLETE: -------------", incomplete_studies_list
-        
         
         try:
             processSeqsc = ProcessSeqScapeData()
@@ -1232,7 +1216,6 @@ class UpdateFileMdataTask(Task):
              
             #file_submitted.update_file_mdata_status()           # update the status after the last findings
             #file_submitted.file_update_mdata_job_status = SUCCESS_STATUS
-            print "IS UPDATE JOB STATUS EMPTY????????????????????", str(file_submitted.file_update_jobs_dict)
             file_submitted.file_update_jobs_dict = dict()
             task_id = current_task.request.id
             file_submitted.file_update_jobs_dict[task_id] = SUCCESS_STATUS
@@ -1266,12 +1249,16 @@ class UpdateFileMdataTask(Task):
 
 
 class AddMdataToIRODSFileTask(Task):
+    track_started = True
+    acks_late = False
+    max_retries = 0             # 0 RETRIES
+    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
     def run(self, **kwargs):
         file_irods_mdata = kwargs['irods_mdata']
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
-        #src_file_path = str(kwargs['file_path_client'])
         dest_file_path_irods = str(kwargs['dest_file_path_irods'])
         
         # TEMP:
@@ -1280,22 +1267,10 @@ class AddMdataToIRODSFileTask(Task):
         file_md5 = str(kwargs['file_md5'])
         
         task_id = current_task.request.id
-        
         errors_list = []       
         print "ADD MDATA TO IRODS JOB...works!"
-
-        # {'file_path_client' : file_to_submit['file_path_client'], 'file_mdata' : irods_mdata_dict, 
-        # 'file_id' : file_id, 'submission_id' : submission_id})
         file_irods_mdata = deserialize(file_irods_mdata)
-
-#        (_, src_file_name) = os.path.split(src_file_path)  
-#        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-
         print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
-        
-
-#        sys.path.append(SOFTWARE_PYTHON_PACKAGES)
-#        from irods import *
         
         # Working copy - using API:
 #        status, myEnv = getRodsEnv()
@@ -1313,6 +1288,7 @@ class AddMdataToIRODSFileTask(Task):
             try:
                 subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
+                # TODO: rollback -> unset all the mdata set already
                 error_msg = "IRODS imeta error - return code="+e.returncode+" message: "+e.output
                 errors_list.append(error_msg)
                 print error_msg
@@ -1352,6 +1328,7 @@ class AddMdataToIRODSFileTask(Task):
             result['file_error_log'] = errors_list
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
+    
     
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"

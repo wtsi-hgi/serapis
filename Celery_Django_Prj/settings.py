@@ -58,7 +58,7 @@ AUTHENTICATION_BACKENDS = (
 
 
 CELERY_RESULT_BACKEND = "amqp"
-CELERY_TASK_RESULT_EXPIRES = 60
+CELERY_TASK_RESULT_EXPIRES = 1             # The results will expire after 1s.(not using it!)
 #CELERY_RESULT_BACKEND = "mongodb"
 
 # added recently:
