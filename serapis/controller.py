@@ -131,13 +131,13 @@ def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_i
                                               })
     
     
-def launch_update_file_job(file_submitted):
+def launch_update_file_job(file_submitted, queue=PROCESS_MDATA_Q):
     logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
     file_serialized = serializers.serialize(file_submitted)
     task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                    'file_id' : file_submitted.id
                                                    },
-                                           queue=PROCESS_MDATA_Q)
+                                           queue=queue)
 
     
     # Save to the DB the job id:
@@ -584,6 +584,7 @@ def create_submission(user_id, data):
         Throws:
             ValueError - when the data provided in data parameter is incorrect.
         '''
+    t1 = time.time()
     # Make a copy of the request data
     submission_data = copy.deepcopy(data)
     
@@ -634,6 +635,10 @@ def create_submission(user_id, data):
     if file_et_index_tuples.error_dict:
         return Result(False, error_dict=file_et_index_tuples.error_dict, warning_dict=file_et_index_tuples.warning_dict)
     
+    t2 = time.time()
+    delta = t2 - t1
+    logging.info("TIME TAKEN TO CHECK THE VALIDITY OF REQ: %s",delta)
+    t1 = time.time() 
     # Initialize each file:
     submitted_files_list = []
     for (file_path, index_file_path) in file_et_index_tuples.result:
@@ -701,9 +706,13 @@ def create_submission(user_id, data):
         submission.delete()
         return Result(False, message="No files could be uploaded.")
 
+    t2 = time.time()
+    delta = t2-t1
+    logging.info("TIME TAKEN TO INIT ALL FILES: %s", delta)
+    t1 = time.time()
     # Submit jobs for the file:
     for file_obj in submitted_files_list:
-        file_obj.reload()
+        #file_obj.reload()
         dest_irods_coll = os.path.dirname(file_submitted.file_path_irods)
         if not dest_irods_coll:
             return Result(False, error_dict={constants.COLLECTION_DOES_NOT_EXIST : dest_irods_coll})
@@ -716,14 +725,33 @@ def create_submission(user_id, data):
             if file_obj.index_file_path_client:
                 launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status', queue=CALCULATE_MD5_Q+"_"+user_id)
         else:
+            t3 = time.time()
             launch_update_file_job(file_obj)
+            t4 = time.time()
+            delta = t4 - t3
+            logging.info("TIME TAKEN TO launch update job %s", delta)
+            
             submit_upload_jobs_for_file(user_id, file_obj, dest_irods_coll)
+            t5 = time.time()
+            delta = t5 - t4
+            logging.info("TIME TAKEN TO SUBMIT UPLOAD JOBS: %s", delta)
+            
             launch_parse_BAM_header_job(file_obj)
+            t6 = time.time()
+            delta = t6 - t5
+            logging.info("TIME TAKEN TO LAUNCH PARSE HEADER: %s", delta)            
+
             launch_calculate_md5_task(file_obj.file_path_client, file_obj.id, submission_id, 'calc_file_md5_job_status')
+            t7 = time.time()
+            delta = t7 - t6
+            logging.info("TIME TAKEN TO LAUNCH MD5 JOB %s", delta)
+            
             if file_obj.index_file_path_client:
                 launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status')
 
-            
+    t2 = time.time()
+    delta = t2 - t1
+    logging.info("TIME TAKEN TO SUBMIT THE JOBS: %s", delta)
     if not upld_as_serapis:
         return Result(str(submission.id), warning_dict="You have requested to upload the files as "+user_id+", therefore you need to run the following...script on the cluster")
     return Result(str(submission.id))

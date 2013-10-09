@@ -17,7 +17,7 @@ class Entity(object):
             return False
         if not isinstance(other, self.__class__):
             return False
-        for id_field in ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
             if hasattr(other, id_field) and hasattr(self, id_field) and getattr(other, id_field) != None and getattr(self, id_field) != None:
                 are_same = (getattr(self, id_field) == getattr(other, id_field))
                 return are_same
@@ -62,13 +62,13 @@ class Study(Entity):
     def build_from_json(json_obj):
         study = Study()
         for key, val in json_obj.iteritems():
-            if not key in FILE_META_FIELDS and val != None:
+            if not key in constants.FILE_META_FIELDS and val != None:
                 setattr(study, key, json_obj[key])
         return study
 
     @staticmethod
     def normalize_value(key, val):
-        serapis_dict = STUDY_NORMALIZATION_MAP
+        serapis_dict = constants.STUDY_NORMALIZATION_MAP
         if not key in serapis_dict:
             if key == 'ena_project_id' and str(val) == "0":
                 return None
@@ -80,7 +80,7 @@ class Study(Entity):
         
         for srp_val in serapis_dict:
             str_dist = utils.levenshtein(srp_val.lower, val.lower)
-            if float(str_dist) / len(val) < MAX_STRING_DISIMILARITY_RATIO:
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_val
         print "ERROR: SEQSC -> SERAPIS MAPPER: THE STUDY FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         return val
@@ -110,7 +110,7 @@ class Library(Entity):
     def build_from_json(json_obj):
         lib = Library()
         for key, val in json_obj.iteritems():
-            if key not in FILE_META_FIELDS and val != None:
+            if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(lib, key, json_obj[key])
         return lib
 
@@ -136,13 +136,13 @@ class Sample(Entity):
     def build_from_json(json_obj):
         sampl = Sample()
         for key, val in json_obj.iteritems():
-            if key not in FILE_META_FIELDS and val != None:
+            if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(sampl, key, json_obj[key])
         return sampl
     
     @staticmethod
     def normalize_value(key, val):
-        serapis_dict = SAMPLE_NORMALIZATION_MAP
+        serapis_dict = constants.SAMPLE_NORMALIZATION_MAP
         if not key in serapis_dict:
             if val == " ":
                 return None
@@ -158,10 +158,10 @@ class Sample(Entity):
         
         # Comparing the val received with all the possible string in Seqscape
         if key == 'organism':
-            seqsc_possible_vals = SEQSC_FIELDS[key]
+            seqsc_possible_vals = constants.SEQSC_FIELDS[key]
             for seqsc_val in seqsc_possible_vals:
                 str_dist = utils.levenshtein(seqsc_val.lower(), val.lower())
-                if float(str_dist) / len(val) < MAX_STRING_DISIMILARITY_RATIO:
+                if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                     return srp_dict_entry
             print "NO NORMALIZATION ON ORGANISM! val = ", val
             return val
@@ -183,7 +183,7 @@ class Sample(Entity):
         if key == 'common_name':
             str_dist = utils.levenshtein(srp_dict_entry.lower(), val.lower())
             #print "DISIM ratio -- COMMON NAME: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_dict_entry, "type: ", type(srp_dict_entry) 
-            if float(str_dist) / len(val) < MAX_STRING_DISIMILARITY_RATIO:
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_dict_entry
             print "NO NORMALIZATION ON COMMONA_name, val=",val
             return val
@@ -192,12 +192,12 @@ class Sample(Entity):
             for srp_val in srp_dict_entry:
                 str_dist = utils.levenshtein(srp_val.lower(), val.lower())
                 #print "DISIM ratio: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_val, "type: ", type(srp_val) 
-                if float(str_dist) / len(val) < MAX_STRING_DISIMILARITY_RATIO:
+                if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                     return srp_val
         else:
             str_dist = utils.levenshtein(srp_dict_entry.lower(), val.lower())
             #print "DISIM ratio: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_dict_entry, "type: ", type(srp_dict_entry) 
-            if float(str_dist) / len(val) < MAX_STRING_DISIMILARITY_RATIO:
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_dict_entry
                        
         print "ERROR: SEQSC -> SERAPIS MAPPER: THE SAMPLE FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -358,7 +358,7 @@ class SubmittedFile():
                 subm_file.sample_list = []
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            elif key not in FILE_META_FIELDS and key != 'file_error_log':        
+            elif key not in constants.FILE_META_FIELDS and key != 'file_error_log':        
                 #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
         return subm_file
@@ -385,7 +385,7 @@ class SubmittedFile():
             parameters, hence it tries to match this parameters with all the identifying fields of the entity.'''
         entity_list = self.__get_entity_list__(entity_type)
         for entity in entity_list:
-            for identifier in ENTITY_IDENTITYING_FIELDS:
+            for identifier in constants.ENTITY_IDENTITYING_FIELDS:
                 if hasattr(entity, identifier) and getattr(entity, identifier) == identifier:
                     return True
         return False
@@ -403,7 +403,7 @@ class SubmittedFile():
     def __remove_fields__dict(obj_to_modify):
         result_dict = dict()
         for k, v in vars(obj_to_modify).items():
-            if k not in FILE_META_FIELDS:
+            if k not in constants.FILE_META_FIELDS:
                 result_dict[k] = v
         return result_dict
     

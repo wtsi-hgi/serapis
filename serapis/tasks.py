@@ -430,8 +430,6 @@ class UploadFileTask(Task):
         file_id = kwargs['file_id']
         submission_id = str(kwargs['submission_id'])
         
-        time.sleep(3)
-
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 

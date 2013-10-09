@@ -1142,16 +1142,15 @@ def update_file_error_log(error_log, file_id=None, submitted_file=None):
     upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
-def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+def update_file_update_jobs_dict(file_id, task_id, job_status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
-    upd_dict = {upd_str : status}
+    upd_dict = {upd_str : job_status}
     upd_dict['inc__version__0'] = 1
     upd = 0
     while nr_retries > 0 and upd == 0:
         upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
         logging.info("UPDATING UPDATE JOBS DICT -- was it updated? %s", upd)
         nr_retries -=1
-        time.sleep(1)
     return upd
 
 def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
