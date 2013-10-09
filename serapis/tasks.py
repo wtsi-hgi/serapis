@@ -1154,7 +1154,7 @@ class UpdateFileMdataTask(Task):
     def __filter_fields__(self, fields_dict):
         filtered_dict = dict()
         for (field_name, field_val) in fields_dict.iteritems():
-            if field_val != None and field_name not in ENTITY_META_FIELDS:
+            if field_val != None and field_name not in constants.ENTITY_META_FIELDS:
                 filtered_dict[field_name] = field_val
         return filtered_dict
 

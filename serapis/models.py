@@ -5,34 +5,16 @@ from serapis.constants import *
 from bson.objectid import ObjectId
 #from mongoengine.base import ObjectIdField
 
-import re
-import simplejson
-import logging
+#import re
+#import simplejson
+#import logging
 
 
-
-FILE_TYPES = (BAM_FILE, VCF_FILE)
-
-# maybe also: PENDING, STARTED, RETRY - if using result-backend
-
-#FILE_HEADER_MDATA_STATUS = ("PRESENT", "MISSING")
-#FILE_SUBMISSION_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")
-#FILE_UPLOAD_JOB_STATUS = ("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-#FILE_MDATA_STATUS = ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL")
-
-#("SUCCESSFULLY_UPLOADED", "WAITING_ON_METADATA", "FAILURE", "PENDING", "IN_PROGRESS")
-
-#FILE_SUBMISSION_STATUS = ("COMPLETED", "NOT_COMPLETED")
-#FILE_UPLOAD_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
-#FILE_MDATA_TASK_STATUS = ("FINISHED", "NOT_FINISHED")
 
 
 
 # ------------------- Model classes ----------------------------------
     
-#ENTITY_APP_MDATA_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
-ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
-ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
 
 FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
                               'index_file_upload_job_status', 

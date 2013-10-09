@@ -160,7 +160,7 @@ def json2entity(json_obj, source, entity_type):
     ent = entity_type()
     has_new_field = False
     for key in json_obj:
-        if key in entity_type._fields  and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
+        if key in entity_type._fields  and key not in constants.ENTITY_META_FIELDS and key != None:
             setattr(ent, key, json_obj[key])
             ent.last_updates_source[key] = source
             has_new_field = True
@@ -196,7 +196,7 @@ def update_entity(entity_json, crt_ent, sender):
     has_changed = False
     for key in entity_json:
         old_val = getattr(crt_ent, key)
-        if key in models.ENTITY_APP_MDATA_FIELDS or key == None:
+        if key in constants.ENTITY_META_FIELDS or key == None:
             continue
         elif old_val == None or old_val == 'unspecified':
             setattr(crt_ent, key, entity_json[key])
@@ -277,7 +277,7 @@ def merge_entities(ent1, ent2, result_entity):
     ''' Merge 2 samples, considering that the senders have eqaual priority. '''    
     #entity = models.Sample()
     for key_s1, val_s1 in vars(ent1):
-        if key_s1 in models.ENTITY_APP_MDATA_FIELDS or key_s1 == None:
+        if key_s1 in constants.ENTITY_META_FIELDS or key_s1 == None:
             continue
         if hasattr(ent2, key_s1):
             attr_val = getattr(ent2, key_s1)
@@ -297,7 +297,7 @@ def merge_entities(ent1, ent2, result_entity):
                     result_entity.last_updates_source[key_s1] = ent2.last_updates_source[key_s1]
     
     for key_s2, val_s2 in vars(ent2):
-        if key_s2 in models.ENTITY_APP_MDATA_FIELDS or key_s2 == None:
+        if key_s2 in constants.ENTITY_META_FIELDS or key_s2 == None:
             continue
         if hasattr(result_entity, key_s2) and getattr(result_entity, key_s2) != None:
                 continue

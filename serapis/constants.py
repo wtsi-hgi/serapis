@@ -29,6 +29,8 @@ EXECUTE_ACCESS = "EXECUTE_ACCESS"
 NOACCESS = "NOACCESS"
 
 
+
+
 #------------------- MSG SOURCE -------------------------
 
 INIT_SOURCE = "INIT"
@@ -86,6 +88,7 @@ BAM_FILE = "bam"
 BAI_FILE = "bai"
 VCF_FILE = "vcf"
 
+FILE_TYPES = (BAM_FILE, VCF_FILE)
 SFILE_EXTENSIONS = ['bam', 'bai', 'vcf']
 ALL_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'md5']
 
@@ -353,3 +356,30 @@ INSTRUMENT_MODEL = {
             "Illumina HiScanSQ",
             "unspecified"                    
                     }
+
+
+
+# ------------------- TASKS CONSTANTS (= const used on the workers' side) ----------------
+MAX_STRING_DISIMILARITY_RATIO = 0.25
+
+ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
+#FILE_META_FIELDS = ['last_updates_source']
+
+#ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
+
+ENTITY_IDENTITYING_FIELDS = ['internal_id', 
+                             'name', 
+                             'accession_number']
+
+STUDY_NORMALIZATION_MAP = {'study_type' : STUDY_TYPES,
+                           'study_visibility' : STUDY_VISIBILITY,
+                           }
+
+SAMPLE_NORMALIZATION_MAP = {'common_name' : 'Homo Sapiens',
+                            'organism' : 'Homo Sapiens'
+                            }
+
+SEQSC_FIELDS = {'organism' : ['Homo sapiens', 'human']
+                }
+
+

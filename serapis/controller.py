@@ -864,7 +864,7 @@ def get_submitted_file_status(file_id, file_obj=None):
 def get_all_submitted_files_status(submission_id):
 #    submission = db_model_operations.retrieve_submission(submission_id)
     files_list = db_model_operations.retrieve_all_files_for_submission(submission_id)
-    result = {str(file_obj) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
+    result = {str(file_obj.id) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
     return result
 
 
