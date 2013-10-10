@@ -619,8 +619,8 @@ def create_submission(user_id, data):
     # Should ref genome be smth mandatory?????
     if 'reference_genome' in submission_data:
         ref_gen = submission_data.pop('reference_genome')
-        ref_genome = get_or_insert_reference_genome(ref_gen)
-        submission_data['file_reference_genome_id'] = ref_genome.id
+        ref_gen = get_or_insert_reference_genome(ref_gen)
+        submission_data['file_reference_genome_id'] = ref_gen.id
     else:
         raise exceptions.NotEnoughInformationProvided(msg="There was no information regarding the reference genome provided")
     
@@ -672,12 +672,14 @@ def create_submission(user_id, data):
             file_status = constants.PENDING_ON_USER_STATUS
         
         # Instantiating the SubmittedFile object if the file is alright
+        file_submitted.calc_file_md5_job_status = file_status
         file_submitted.file_header_parsing_job_status = file_status
         file_submitted.file_upload_job_status = file_status
         file_submitted.file_submission_status = file_status
         file_submitted.file_type = file_type
         if index_file_path:
             file_submitted.index_file_upload_job_status = file_status
+            file_submitted.calc_index_file_md5_job_status = file_status
             
         # Set mdata from submission:
         if submission.study:
@@ -840,50 +842,40 @@ def get_submitted_file(file_id):
 #             }
 
 #import pdb
-def get_submitted_file_status(file_id):
+    
+def get_submitted_file_status(file_id, file_obj=None):
     ''' Retrieves and returns the statuses of this file. '''
-    subm_file = db_model_operations.retrieve_submitted_file(file_id)
+    if not file_obj:
+        file_obj = db_model_operations.retrieve_submitted_file(file_id)
     index_status, index_md5 = None, None
-    if subm_file.index_file_path_client and hasattr(subm_file, 'index_file_upload_job_status'):
-        index_status = subm_file.index_file_upload_job_status
-        if hasattr(subm_file, 'calc_index_file_md5_job_status'):
-            index_md5 = subm_file.calc_index_file_md5_job_status
-    return {'testing-file_path' : subm_file.file_path_client if hasattr(subm_file, 'file_path_client') else None,
-            'file_upload_status' : subm_file.file_upload_job_status if hasattr(subm_file, 'file_upload_job_status') else None,
+    if file_obj.index_file_path_client and hasattr(file_obj, 'index_file_upload_job_status'):
+        index_status = file_obj.index_file_upload_job_status
+        if hasattr(file_obj, 'calc_index_file_md5_job_status'):
+            index_md5 = file_obj.calc_index_file_md5_job_status
+    return {'testing-file_path' : file_obj.file_path_client if hasattr(file_obj, 'file_path_client') else None,
+            'file_upload_status' : file_obj.file_upload_job_status if hasattr(file_obj, 'file_upload_job_status') else None,
             'index_file_upload_status' : index_status,
-            'calc_index_md5_job_status' : index_md5, 
-            'calc_file_md5_job_status' : subm_file.calc_file_md5_job_status if hasattr(subm_file, 'calc_file_md5_job_status') else None,
-            'file_metadata_status' : subm_file.file_mdata_status if hasattr(subm_file, 'file_mdata_status') else None,
-            'file_submission_status' : subm_file.file_submission_status if hasattr(subm_file, 'file_submission_status') else None,
+            'index_md5_job_status' : index_md5, 
+            'calc_file_md5_job_status' : file_obj.calc_file_md5_job_status if hasattr(file_obj, 'calc_file_md5_job_status') else None,
+            'file_metadata_status' : file_obj.file_mdata_status if hasattr(file_obj, 'file_mdata_status') else None,
+            'file_submission_status' : file_obj.file_submission_status if hasattr(file_obj, 'file_submission_status') else None,
             }
 
 
 def get_all_submitted_files_status(submission_id):
-    submission = db_model_operations.retrieve_submission(submission_id)
-    result = {str(file_id) : get_submitted_file_status(file_id) for file_id in submission.files_list}
+#    submission = db_model_operations.retrieve_submission(submission_id)
+    files_list = db_model_operations.retrieve_all_files_for_submission(submission_id)
+    result = {str(file_obj) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
     return result
-#
-#def get_submitted_file_status(file_id, file_to_submit=None):
-#    ''' Retrieves and returns the statuses of this file. 
-#    '''
-#    if not file_to_submit:
-#        file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
-#    return {'file_upload_status' : file_to_submit.file_upload_job_status if hasattr(file_to_submit, 'file_upload_job_status') else None,
-#            'file_metadata_status' : file_to_submit.file_mdata_status if hasattr(file_to_submit, 'file_mdata_status') else None,
-#            'file_submission_status' : file_to_submit.file_submission_status if hasattr(file_to_submit, 'file_submission_status') else None 
-#            }
-#    
-#
+
+
 #def get_all_submitted_files_status(submission_id):
-#    files_list = db_model_operations.retrieve_all_files_for_submission(submission_id)
-#    return {str(file_to_submit.id) : get_submitted_file_status(file_to_submit.id, file_to_submit) for file_to_submit in files_list}
-    
-    
-    
 #    submission = db_model_operations.retrieve_submission(submission_id)
 #    result = {str(file_id) : get_submitted_file_status(file_id) for file_id in submission.files_list}
-#    print "TYPE OF RESULT : ", type(result), " and values: ", result
 #    return result
+
+
+
 
 
 def get_all_submitted_files(submission_id):
