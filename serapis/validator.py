@@ -117,8 +117,10 @@ submitted_file_schema = Schema({
     'index_file_upload_job_status' : str,
     
     'calc_file_md5_job_status' : str,
-    'calc_index_file_md5_job_status' : str
+    'calc_index_file_md5_job_status' : str,
     
+    'presubmission_tasks_dict' : dict, 
+    'submission_tasks_dict' : dict
     
 })
 

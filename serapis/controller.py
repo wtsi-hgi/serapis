@@ -12,7 +12,7 @@ from serapis import exceptions
 from serapis import models
 from serapis import constants, serializers, utils
 
-#from celery import chain
+from celery.result import AsyncResult
 from serapis import db_model_operations
 from serapis2irods import serapis2irods_logic
 
@@ -35,6 +35,8 @@ update_file_task = tasks.UpdateFileMdataTask()
 add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
 cp_staging2dest_irods = tasks.CopyStaging2IRODSDestTask()
 calculate_md5_task = tasks.CalculateMD5Task()
+
+
 
 #UPLOAD_EXCHANGE = 'UploadExchange'
 #MDATA_EXCHANGE = 'MdataExchange'
@@ -91,10 +93,10 @@ def launch_parse_BAM_header_job(file_submitted, queue=PROCESS_MDATA_Q):
     file_serialized = serializers.serialize_excluding_meta(file_submitted)
     
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
-    parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
-                                              'file_id' : file_submitted.id
-                                              },
-                                      queue=queue)
+    task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
+                                                     'file_id' : file_submitted.id
+                                                     },
+                                             queue=queue)
     #db_model_operations.update_file_parse_header_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
     statuses_to_upd = {'file_header_parsing_job_status' : constants.PENDING_ON_WORKER_STATUS, 
                        'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
@@ -102,6 +104,8 @@ def launch_parse_BAM_header_job(file_submitted, queue=PROCESS_MDATA_Q):
                        }
     
     db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
+    status = AsyncResult(task.id).state
+    db_model_operations.update_presubm_tasks_dict(file_submitted.id, task.id, parse_BAM_header_task.name, status)
 
     
     
@@ -111,16 +115,18 @@ def launch_upload_job(user_id, file_id, submission_id, file_path, response_statu
         will be placed in the normal upload queue.'''
     logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
     #print "I AM UPLOADING...putting the task in the queue!"
-    upload_task.apply_async(kwargs={ 'file_id' : file_id, 
-                                    'file_path' : file_path, 
-                                    'response_status' : response_status, 
-                                    'submission_id' : submission_id,
-                                    'dest_irods_path' : dest_irods_path
-                                    }, 
-                            queue=queue)
+    task = upload_task.apply_async(kwargs={  'file_id' : file_id, 
+                                                'file_path' : file_path, 
+                                                'response_status' : response_status, 
+                                                'submission_id' : submission_id,
+                                                'dest_irods_path' : dest_irods_path
+                                                }, 
+                                        queue=queue)
     statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
                        'file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
     db_model_operations.update_file_statuses(file_id, statuses_to_upd)
+    status = AsyncResult(task.id).state
+    db_model_operations.update_presubm_tasks_dict(file_id, task.id, upload_task.name, status)
 
 
 def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_irods):
@@ -134,25 +140,27 @@ def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_i
 def launch_update_file_job(file_submitted, queue=PROCESS_MDATA_Q):
     logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
     file_serialized = serializers.serialize(file_submitted)
-    task_id = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
+    task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                    'file_id' : file_submitted.id
                                                    },
                                            queue=queue)
 
     
     # Save to the DB the job id:
-    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task_id, constants.PENDING_ON_WORKER_STATUS)
+    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task.id, constants.PENDING_ON_WORKER_STATUS)
     logging.info("LAUNCH UPDATE FILE JOB ----------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ?????????? %s", upd)
     
     statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
                        'file_mdata_status' : constants.IN_PROGRESS_STATUS
                        }
     db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
+    status = AsyncResult(task.id).state
+    db_model_operations.update_presubm_tasks_dict(file_submitted.id, task.id, update_file_task.name, status)
     
     
 def launch_calculate_md5_task(file_path, file_id, submission_id, response_status, queue=CALCULATE_MD5_Q):
     logging.info("LAUNCHING CALCULATE MD5 TASK!")
-    calculate_md5_task.apply_async(kwargs={'file_path' :file_path,
+    task = calculate_md5_task.apply_async(kwargs={'file_path' :file_path,
                                            'file_id' : file_id,
                                            'submission_id' : submission_id,
                                            'response_status' : response_status
@@ -163,6 +171,8 @@ def launch_calculate_md5_task(file_path, file_id, submission_id, response_status
                        response_status : constants.PENDING_ON_WORKER_STATUS
                        }
     db_model_operations.update_file_statuses(file_id, statuses_to_upd)
+    status = AsyncResult(task.id).state
+    db_model_operations.update_presubm_tasks_dict(file_id, task.id, calculate_md5_task.name, status)
     
 
 def launch_add_mdata2irods_job(file_id, submission_id):
@@ -199,6 +209,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
                                                      'file_md5' : file_to_submit.md5
                                                      },
                                              queue=PROCESS_MDATA_Q)
+    #db_model_operations.update_submission_tasks_dict(file_id, task_id, add_mdata_to_IRODS.name)
     return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
 
 
@@ -870,7 +881,7 @@ def get_submitted_file(file_id):
 
 #import pdb
     
-def get_submitted_file_status(file_id, file_obj=None):
+def get_submitted_file_status_working(file_id, file_obj=None):
     ''' Retrieves and returns the statuses of this file. '''
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
@@ -887,6 +898,46 @@ def get_submitted_file_status(file_id, file_obj=None):
             'file_metadata_status' : file_obj.file_mdata_status if hasattr(file_obj, 'file_mdata_status') else None,
             'file_submission_status' : file_obj.file_submission_status if hasattr(file_obj, 'file_submission_status') else None,
             }
+
+
+def get_submitted_file_status(file_id, file_obj=None):
+    ''' Retrieves and returns the statuses of this file. '''
+    if not file_obj:
+        file_obj = db_model_operations.retrieve_submitted_file(file_id)
+    result = {'file_path' : file_obj.file_path_client}
+    tasks_list = []
+    task_dict = file_obj.presubmission_tasks_dict
+    for task_id, task_info_dict in task_dict.iteritems():
+        task_type = task_info_dict['type']
+        if task_info_dict['status'] not in constants.FINISHED_STATUS:
+            async = AsyncResult(task_id)
+            state = async.state
+            #status = async.status
+            if task_type == parse_BAM_header_task.name:
+                ready = async.result
+            else:
+                ready = async.ready()
+            #result[state] = (task_type, state)
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type, " ready?", ready
+            tasks_list.append((task_id, task_type, state, ready))
+        else:
+            tasks_list.append((task_id,task_type, task_info_dict['status'] ))
+    result['tasks'] = tasks_list
+    return result
+#    
+#    index_status, index_md5 = None, None
+#    if file_obj.index_file_path_client and hasattr(file_obj, 'index_file_upload_job_status'):
+#        index_status = file_obj.index_file_upload_job_status
+#        if hasattr(file_obj, 'calc_index_file_md5_job_status'):
+#            index_md5 = file_obj.calc_index_file_md5_job_status
+#    return {'testing-file_path' : file_obj.file_path_client if hasattr(file_obj, 'file_path_client') else None,
+#            'file_upload_status' : file_obj.file_upload_job_status if hasattr(file_obj, 'file_upload_job_status') else None,
+#            'index_file_upload_status' : index_status,
+#            'index_md5_job_status' : index_md5, 
+#            'calc_file_md5_job_status' : file_obj.calc_file_md5_job_status if hasattr(file_obj, 'calc_file_md5_job_status') else None,
+#            'file_metadata_status' : file_obj.file_mdata_status if hasattr(file_obj, 'file_mdata_status') else None,
+#            'file_submission_status' : file_obj.file_submission_status if hasattr(file_obj, 'file_submission_status') else None,
+#            }
 
 
 def get_all_submitted_files_status(submission_id):

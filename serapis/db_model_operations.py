@@ -1170,12 +1170,26 @@ def update_index_file_path_client(file_id, index_file_path, nr_retries=constants
     upd = 0
     while nr_retries > 0 and upd == 0:
         upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-        logging.info("UPDATING INDEX FILE PATH --------- UPDATED?????", upd)
+        logging.info("UPDATING INDEX FILE PATH --------- UPDATED????? %s", upd)
         nr_retries -= 1
     return upd
-    #submitted_file.index_file_path = index_file_path
-    #submitted_file.save()
-    
+
+
+def update_presubm_tasks_dict(file_id, task_id, task_type, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+    upd_dict = {'set__presubmission_tasks_dict__'+task_id : {'type' : task_type, 'status' : status}, 'inc__version__0' : 1}
+    upd = 0
+    while nr_retries > 0 and upd == 0:
+        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        logging.info("UPDATING PRESUBMISSION TASKS dict %s", upd)
+    return upd
+
+def update_submission_tasks_dict(file_id, task_id, task_type, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+    upd_dict = {'set__submission_tasks_dict__'+task_id : task_type, 'inc__version__0' : 1}
+    upd = 0
+    while nr_retries > 0 and upd == 0:
+        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
+        logging.info("UPDATING SUBMISSION TASKS dict %s", upd)
+    return upd
 
 
 # PB: I am not keeping track of submission's version...
@@ -1499,7 +1513,7 @@ def check_file_mdata(file_to_submit):
     has_min_mdata = True
     mandatory_fields = constants.FILE_MANDATORY_FIELDS
     if file_to_submit.index_file_path_client:
-        mandatory_fields = mandatory_fields.add('index_file_md5')
+        mandatory_fields.add('index_file_md5')
         
     for field in mandatory_fields:
         if not hasattr(file_to_submit, field):
@@ -1623,7 +1637,7 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
             pass
         pass
     
-    if file_to_submit.irods_jobs_dict and not check_any_task_has_status(file_to_submit.irods_jobs_dict, constants.IN_PROGRESS_STATUS):
+    if file_to_submit.irods_jobs_dict and not check_any_task_has_status(file_to_submit.irods_jobs_dict, constants.RUNNING_STATUS):
         return 0
     
     tasks_finished = False
@@ -1693,7 +1707,7 @@ def decide_submission_status(nr_files, status_dict):
     elif status_dict["nr_ready"] == nr_files:
         return constants.READY_FOR_IRODS_SUBMISSION_STATUS
     elif status_dict["nr_progress"] > 0:
-        return constants.IN_PROGRESS_STATUS
+        return constants.RUNNING_STATUS
     elif status_dict["nr_pending"] > 0:
         return constants.SUBMISSION_IN_PREPARATION_STATUS
     
@@ -1712,7 +1726,7 @@ def compute_file_status_statistics(submission_id, submission=None):
             status_dict["nr_fail"] += 1
         elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
             status_dict["nr_pending"] += 1
-        elif subm_file.file_submission_status == constants.IN_PROGRESS_STATUS:
+        elif subm_file.file_submission_status == constants.RUNNING:
             status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1

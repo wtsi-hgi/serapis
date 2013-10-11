@@ -27,6 +27,7 @@ FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
                               'file_update_jobs_dict',
                               'missing_mandatory_fields_dict',
                               'file_error_log',
+                              'presubmission_tasks_dict'
                               ]
   
   
@@ -164,6 +165,11 @@ class SubmittedFile(DynamicDocument):
     version = ListField(default=lambda : [0,0,0,0])
     
     ######################## STATUSES ##################################
+    
+    presubmission_tasks_dict = DictField()   # Dict of tasks: {task_id : {type : 'parse', status : 'RUNNING'}} for all the tasks submitted in PREPARATION phase
+    submission_tasks_dict = DictField()      # Dict of tasks: --"-- - for all the submission tasks (add metadata and move from staging to iRODS coll
+    
+    
     # UPLOAD JOB:
     file_upload_job_status = StringField(choices=TASK_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
     index_file_upload_job_status = StringField(choices=TASK_STATUS)

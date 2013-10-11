@@ -377,9 +377,10 @@ class ProcessSeqScapeData():
 
 
 class UploadFileTask(Task):
+    ignore_result = True
     acks_late = False           # ACK as soon as one worker got the task
     max_retries = 1             # 1 RETRY if the upload task fails in the first place
-    default_retry_delay = 600   # The upload should be retried after 10mins.
+    default_retry_delay = 60    # The upload should be retried after 10mins.
     track_started = True        # the task will report its status as STARTED when it starts
     time_limit = 5400           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 3600      # an exception is raised => can be used for cleanup
@@ -424,6 +425,8 @@ class UploadFileTask(Task):
         time.sleep(5)
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        current_task.update_state(state=constants.SUCCESS_STATUS)
+
 
     # Working version - for upload on the worker - very old version, NOT using iput       
     # file_id, file_submitted.file_path_client, submission_id, user_id
@@ -730,22 +733,18 @@ class UploadFileTask(Task):
     # Modified upload version for uploading fines on the cluster
     # run - running using process call
     def run_using_checkoutput(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
         file_id = kwargs['file_id']
         src_file_path = kwargs['file_path']
         response_status = kwargs['response_status']
         submission_id = str(kwargs['submission_id'])
         dest_coll_path = str(kwargs['dest_irods_path'])
-        
-        
-        #(_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        #dest_coll_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-        
         print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
 
         #RESULT TO BE RETURNED:
-        result = dict()
-        result[response_status] = constants.IN_PROGRESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+#        result = dict()
+#        result[response_status] = constants.IN_PROGRESS_STATUS
+#        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
  
         result = dict()
         errors_list = []
@@ -760,11 +759,13 @@ class UploadFileTask(Task):
             result[response_status] = FAILURE_STATUS
             result[FILE_ERROR_LOG] = errors_list
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            current_task.update_state(state=constants.FAILURE_STATUS)
         else:
             t2 = time.time()
             print "TIME TAKEN: ", t2-t1
             result[response_status] = SUCCESS_STATUS
             send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            current_task.update_state(state=constants.SUCCESS_STATUS)
 
         
 #            # Working version of getting the md5 from ichksum:
@@ -793,23 +794,41 @@ class UploadFileTask(Task):
         file_id = kwargs['file_id']
         submission_id = kwargs['submission_id']
         response_status = kwargs['response_status']
+        src_file_path = kwargs['file_path']
+        dest_coll_path = str(kwargs['dest_irods_path'])
         
-        print "ON FAILURE EXECUTED----------------------------"
-        str_exc = str(exc).replace("\"","" )
-        str_exc = str_exc.replace("\'", "")
+        print "ON FAILURE EXECUTED----------------------------irm file..."
+        
+        errors_list = []
+        excep = str(exc).replace("\"","")
+        excep = excep.replace("\'", "")
+        errors_list.append(excep)
+        try:
+            fname = os.path.split(src_file_path)
+            irods_file_path = os.path.join(dest_coll_path, fname)
+            retcode = subprocess.check_output(["irm", irods_file_path], stderr=subprocess.STDOUT)
+            print "iRM retcode = ", retcode
+        except subprocess.CalledProcessError as e:
+            error_msg = "IRODS irm error - return code="+str(e.returncode)+" message: "+e.output
+            errors_list.append(error_msg)
+            print error_msg
+            
         result = dict()
-        result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
+        result['file_error_log'] = errors_list         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
         result[response_status] = FAILURE_STATUS
         send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
          
            
 class CalculateMD5Task(Task):
     acks_late = True
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
-    track_started = False       # the task will NOT report its status as STARTED when it starts
+    track_started = True        # the task will NOT report its status as STARTED when it starts
     time_limit = 3600           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+    ignore_result = True
 
     def calculate_md5(self, file_path, block_size=2**20):
         file_obj = open(file_path, 'rb')
@@ -822,19 +841,27 @@ class CalculateMD5Task(Task):
         return md5.hexdigest()
     
     def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
         file_id = kwargs['file_id']
         submission_id = kwargs['submission_id']
         file_path = kwargs['file_path']
         response_status = kwargs['response_status']
         
+        # Calculate md5:
         print "Calculate MD5 sum job started!"
+        t1 = time.time()
         file_md5 = self.calculate_md5(file_path)
+        delta = time.time() - t1
+        print "TIME TAKEN TO CALCULATE md5 = ", delta
         
+        # Report the results:
         result = {}
         result[MD5] = file_md5
         print "CHECKSUM: ", result[MD5]
         result[response_status] = SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id, CALC_MD5_MSG_SOURCE)
+        current_task.update_state(state=constants.SUCCESS_STATUS)
+
         
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -848,12 +875,14 @@ class CalculateMD5Task(Task):
         result['file_error_log'] = [str_exc]         #  3 : 'FILE HEADER INVALID OR COULD NOT BE PARSED' =>see ERROR_DICT[3]
         result[response_status] = FAILURE_STATUS
         send_http_PUT_req(result, submission_id, file_id, CALC_MD5_MSG_SOURCE)
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
         
 
 
 class ParseBAMHeaderTask(Task):
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
-    #ignore_result = True
+    ignore_result = True
     acks_late = True
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
@@ -1087,6 +1116,7 @@ class ParseBAMHeaderTask(Task):
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
@@ -1105,11 +1135,17 @@ class ParseBAMHeaderTask(Task):
             result['header_has_mdata'] = False
             resp = send_http_PUT_req(result, file_mdata.submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", resp
-            raise
+            current_task.update_state(state=constants.FAILURE_STATUS)
+            #raise
         else:
             self.parse_header(header_processed, file_mdata)
+            current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
+        #current_task.update_state(state='PROGRESS', meta={'description': 'Doing some task', 'current': 59, 'tota': 73})
+        
+        
             
     def on_failure(self, exc, task_id, args, kwargs, einfo):
+        ''' This method will be called when uncaught exceptions are raised.'''
         print "I've failed to execute the BAM HEADER PARSIiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiing!!!!!!!"
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
@@ -1127,6 +1163,8 @@ class ParseBAMHeaderTask(Task):
         result['header_has_mdata'] = False
         resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
 
 
 
@@ -1138,6 +1176,7 @@ class UpdateFileMdataTask(Task):
     track_started = False       # the task will NOT report its status as STARTED when it starts
     time_limit = 3600           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+    ignore_result = True
     
     def __filter_fields__(self, fields_dict):
         filtered_dict = dict()
@@ -1170,6 +1209,7 @@ class UpdateFileMdataTask(Task):
         
     # TODO: check if each sample in discussion is complete, if complete skip
     def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
         file_serialized = kwargs['file_mdata']
         file_mdata = deserialize(file_serialized)
         file_id = kwargs['file_id']
@@ -1191,7 +1231,7 @@ class UpdateFileMdataTask(Task):
         
         try:
             processSeqsc = ProcessSeqScapeData()
-        except mysqlError:
+        except mysqlError as exc:
             result = dict()
             file_update_jobs_dict = dict()
             task_id = current_task.request.id
@@ -1199,8 +1239,9 @@ class UpdateFileMdataTask(Task):
             result['file_update_jobs_dict'] = file_update_jobs_dict
             result['file_error_log'] = [constants.SEQSCAPE_DB_CONNECTION_ERROR]
             send_http_PUT_req(result, file_mdata['submission_id'], file_id, constants.UPDATE_MDATA_MSG_SOURCE)
+            current_task.update_state(state=constants.FAILURE_STATUS)
+            #self.retry(kwargs, exc)
         else: 
-
             #processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
             processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
             processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
@@ -1225,6 +1266,8 @@ class UpdateFileMdataTask(Task):
             print "BEFORE SENDING OFF THE SUBMITTED FILE: ", deserial
             response = send_http_PUT_req(deserial, file_submitted.submission_id, file_submitted.id, UPDATE_MDATA_MSG_SOURCE)
             print "RESPONSE FROM SERVER: ", response
+            current_task.update_state(state=constants.SUCCESS_STATUS)
+
             
             
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -1241,6 +1284,8 @@ class UpdateFileMdataTask(Task):
         result['file_error_log'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id, constants.PARSE_HEADER_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
             
 # TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
 # then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
@@ -1256,6 +1301,7 @@ class AddMdataToIRODSFileTask(Task):
     soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
     def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
         file_irods_mdata = kwargs['irods_mdata']
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
@@ -1272,42 +1318,28 @@ class AddMdataToIRODSFileTask(Task):
         file_irods_mdata = deserialize(file_irods_mdata)
         print "IN ADD MDATA JOB _ YEEY - MDATA TO BE ADDED: ", file_irods_mdata
         
-        # Working copy - using API:
-#        status, myEnv = getRodsEnv()
-#        conn, errMsg = rcConnect(myEnv.rodsHost, myEnv.rodsPort, myEnv.rodsUserName, myEnv.rodsZone)
-#        status = clientLogin(conn)
-
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
         for attr_val in file_irods_mdata:
             attr = str(attr_val[0])
             val = str(attr_val[1])
-
-            # Working copy - using the python API:
-            #addFileUserMetadata(conn, dest_file_path, attr, val)
-            
             try:
                 subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-                # TODO: rollback -> unset all the mdata set already
-                error_msg = "IRODS imeta error - return code="+e.returncode+" message: "+e.output
+                # TODO: ROLLBACK -> unset all the mdata set already
+                error_msg = "ERROR: IRODS imeta errorrrrrrr - return code="+e.returncode+" message: "+e.output
                 errors_list.append(error_msg)
                 print error_msg
-
-            # working version - using subprocess.call
-            #retcode = call(["imeta", "add","-d", dest_file_path, attr, val], stdout=out, stderr=err)
-#            print "OUTPUT OF IMETA CMD: --------------------", retcode
-#            if int(retcode) != 0:
-#                errors_returned = True
-#                
-            
-        # Working, with API:
-        #print "Mdata added: ", getFileUserMetadata(conn, dest_file_path)
+                result = {}
+                file_irods_jobs_dict = {'task_id' : FAILURE_STATUS}
+                result['irods_jobs_dict'] = file_irods_jobs_dict
+                result['file_error_log'] = errors_list
+                send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
+                current_task.update_state(state=constants.FAILURE_STATUS)
+                return
 
         # Hack for adding mdata to the index file:
         if index_file_path_irods:
             print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
-#            (_, index_file_name) = os.path.split(index_file_path) 
-#            index_path_irods = os.path.join(DEST_DIR_IRODS, index_file_name)
             try:
                 ret1 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'file_md5', index_file_md5], stderr=subprocess.STDOUT)
                 ret2 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'indexed_file_md5', file_md5])
@@ -1322,10 +1354,13 @@ class AddMdataToIRODSFileTask(Task):
         file_irods_jobs_dict = dict()
         if not errors_list:
             file_irods_jobs_dict[task_id] = SUCCESS_STATUS
+            current_task.update_state(state=constants.SUCCESS_STATUS)
         else:
             print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! "
             file_irods_jobs_dict[task_id] = FAILURE_STATUS
             result['file_error_log'] = errors_list
+            current_task.update_state(state=constants.FAILURE_STATUS)
+
         result['irods_jobs_dict'] = file_irods_jobs_dict
         send_http_PUT_req(result, submission_id, file_id, IRODS_JOB_MSG_SOURCE)
     
@@ -1346,6 +1381,8 @@ class AddMdataToIRODSFileTask(Task):
         result['file_error_log'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id, constants.IRODS_JOB_MSG_SOURCE)
         print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
 
         
         
