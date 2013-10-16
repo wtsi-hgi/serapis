@@ -33,13 +33,18 @@ NOACCESS = "NOACCESS"
 
 #------------------- MSG SOURCE -------------------------
 
-INIT_SOURCE = "INIT"
+#INIT_SOURCE = "INIT"
+EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
+
+# Presubmission tasks:
 PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
-UPLOAD_FILE_MSG_SOURCE = "UPLOAD_FILE_MSG_SOURCE"
 UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
-IRODS_JOB_MSG_SOURCE = "IRODS_JOB_MSG_SOURCE"
-EXTERNAL_SOURCE = "EXTERNAL_SOURCE"
-CALC_MD5_MSG_SOURCE = "CALC_MD5_MSG_SOURCE" 
+CALC_MD5_MSG_SOURCE     = "CALC_MD5_MSG_SOURCE"
+
+# iRODS tasks:
+IRODS_JOB_MSG_SOURCE    = "IRODS_JOB_MSG_SOURCE"
+# UPLOAD_FILE_MSG_SOURCE  = "UPLOAD_FILE_MSG_SOURCE"
+ 
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
@@ -76,6 +81,7 @@ STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor'
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
 SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'cohort'} # 'country_of_origin', , 'ethnicity', 'gender', 
 FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
+INDEX_MANDATORY_FIELDS = {'file_path_irods', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 
@@ -361,12 +367,19 @@ INSTRUMENT_MODEL = {
                     }
 
 
+BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
+                                "GA" : "Illumina Genome Analyzer",
+                                "HS" : "Illumina HiSeq",
+                                "MS" : "Illumina MiSeq",
+                                "IL" : "Illumina",
+                               }
+
 
 # ------------------- TASKS CONSTANTS (= const used on the workers' side) ----------------
 MAX_STRING_DISIMILARITY_RATIO = 0.25
 
 ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
-FILE_META_FIELDS = ['last_updates_source']
+FILE_META_FIELDS = ['last_updates_source', 'tasks_dict']
 
 #ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 

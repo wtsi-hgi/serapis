@@ -20,21 +20,16 @@ import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='controller.log',level=logging.DEBUG)
 
 
-class Result:
-    def __init__(self, result, error_dict=None, warning_dict=None, message=None):
-        self.result = result
-        self.error_dict = error_dict
-        self.warning_dict = warning_dict
-        self.message = message
-
 
 # TASKS:
 upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
 add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
-cp_staging2dest_irods = tasks.CopyStaging2IRODSDestTask()
 calculate_md5_task = tasks.CalculateMD5Task()
+
+PRESUBMISSION_TASKS = [upload_task.name, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
+SUBMISSION_TASKS = [add_mdata_to_IRODS.name]
 
 
 
@@ -59,120 +54,102 @@ INDEX_UPLOAD_Q = "IndexUploadQ"
 CALCULATE_MD5_Q = "CalculateMD5Q"
 
     
-#class MyRouter(object):
-#    def route_for_task(self, task, args=None, kwargs=None):
-#        if task == upload_task.name:
-#            return {'exchange': constants.UPLOAD_EXCHANGE,
-#                    'exchange_type': 'topic',
-#                    'routing_key': 'user.*'}
-#        elif task == parse_BAM_header_task or task == query_seqscape.name:
-#            return {'exchange': constants.MDATA_EXCHANGE,
-#                    'exchange_type': 'direct',
-#                    'routing_key': constants.MDATA_ROUTING_KEY}
-#            
-#        return None
-
-
-
     
 # ------------------------ SUBMITTING TASKS ----------------------------------
 
-#TODO: Header should be parsed by analysing the file on the client or the copy on iRODS?
-# If the latter, then the jobs (upload and header parse) MUST be chained, so that header parsing 
-# starts only after the upload is finished...
-# !!! RIGHT NOW I am parsing the file on the client!!! -> see tasks.parse... 
-
 def launch_parse_BAM_header_job(file_submitted, queue=PROCESS_MDATA_Q):
-#    file_submitted.file_header_parsing_job_status = constants.PENDING_ON_WORKER_STATUS
-#    This shouldn't be here...
-    #models.SubmittedFile.objects(id=file_submitted.id, version=db_model_operations.get_file_version(None, file_submitted)).update_one(set__file_header_parsing_job_status=constants.PENDING_ON_WORKER_STATUS)   
     
     logging.info("PUTTING THE PARSE HEADER TASK IN THE QUEUE")
     # previously working:
-    #file_serialized = serializers.serialize(file_submitted)
     file_serialized = serializers.serialize_excluding_meta(file_submitted)
     
     #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
     task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
-                                                     'file_id' : file_submitted.id
+                                                     'file_id' : file_submitted.id,
+                                                     'submission_id' : file_submitted.submission_id,
                                                      },
                                              queue=queue)
     #db_model_operations.update_file_parse_header_job_status(file_submitted.id, constants.PENDING_ON_WORKER_STATUS)
-    statuses_to_upd = {'file_header_parsing_job_status' : constants.PENDING_ON_WORKER_STATUS, 
-                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
-                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
-                       }
-    
-    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
-    status = AsyncResult(task.id).state
-    db_model_operations.update_presubm_tasks_dict(file_submitted.id, task.id, parse_BAM_header_task.name, status)
+#    statuses_to_upd = {'file_header_parsing_job_status' : constants.PENDING_ON_WORKER_STATUS, 
+#                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+#                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
+#                       }
+#    
+#    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
+ 
+    return task.id
+#    db_model_operations.add_task_to_file(file_submitted.id, task.id, parse_BAM_header_task.name, status)
 
     
     
-    
-def launch_upload_job(user_id, file_id, submission_id, file_path, response_status, dest_irods_path, queue=UPLOAD_Q):
+def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_irods_path, queue=UPLOAD_Q):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
     #print "I AM UPLOADING...putting the task in the queue!"
-    task = upload_task.apply_async(kwargs={  'file_id' : file_id, 
-                                                'file_path' : file_path, 
-                                                'response_status' : response_status, 
-                                                'submission_id' : submission_id,
-                                                'dest_irods_path' : dest_irods_path
-                                                }, 
+    task = upload_task.apply_async(kwargs={ 'file_id' : file_id, 
+                                            'file_path' : file_path, 
+                                            'index_file_path' : index_file_path, 
+                                            'submission_id' : submission_id,
+                                            'dest_irods_path' : dest_irods_path
+                                            }, 
                                         queue=queue)
-    statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
-                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
-    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
-    status = AsyncResult(task.id).state
-    db_model_operations.update_presubm_tasks_dict(file_id, task.id, upload_task.name, status)
+#    statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
+#                       'file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
+#    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
+#    status = AsyncResult(task.id).state
+#    db_model_operations.add_task_to_file(file_id, task.id, upload_task.name, status)
+    return task.id
 
 
-def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_irods):
-    print "I am COPYING the submission : ", src_path_irods, " to IRODS humgen collection...", dest_path_irods
-    
-    cp_staging2dest_irods.apply_async(kwargs={'src_path_irods' : src_path_irods,
-                                              'dest_path_irods' : dest_path_irods
-                                              })
-    
+#def launch_cp_submission_staging2dest_irods_coll_job(src_path_irods, dest_path_irods):
+#    print "I am COPYING the submission : ", src_path_irods, " to IRODS humgen collection...", dest_path_irods
+#    
+#    cp_staging2dest_irods.apply_async(kwargs={'src_path_irods' : src_path_irods,
+#                                              'dest_path_irods' : dest_path_irods
+#                                              })
+#    
     
 def launch_update_file_job(file_submitted, queue=PROCESS_MDATA_Q):
     logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
     file_serialized = serializers.serialize(file_submitted)
     task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
-                                                   'file_id' : file_submitted.id
-                                                   },
+                                                'file_id' : file_submitted.id,
+                                                'submission_id' : file_submitted.submission_id,
+                                                },
                                            queue=queue)
 
     
     # Save to the DB the job id:
-    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task.id, constants.PENDING_ON_WORKER_STATUS)
-    logging.info("LAUNCH UPDATE FILE JOB ----------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ?????????? %s", upd)
+#    upd = db_model_operations.update_file_update_jobs_dict(file_submitted.id, task.id, constants.PENDING_ON_WORKER_STATUS)
+#    logging.info("LAUNCH UPDATE FILE JOB ----------------------------------HAS THE UPDATE_JOB_DICT BEEN UPDATED ?????????? %s", upd)
     
-    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
-                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
-                       }
-    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
-    status = AsyncResult(task.id).state
-    db_model_operations.update_presubm_tasks_dict(file_submitted.id, task.id, update_file_task.name, status)
+#    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+#                       'file_mdata_status' : constants.IN_PROGRESS_STATUS
+#                       }
+#    db_model_operations.update_file_statuses(file_submitted.id, statuses_to_upd)
+#    status = AsyncResult(task.id).state
+#    db_model_operations.add_task_to_file(file_submitted.id, task.id, update_file_task.name, status)
+    return task.id
     
-    
-def launch_calculate_md5_task(file_path, file_id, submission_id, response_status, queue=CALCULATE_MD5_Q):
+
+
+def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path, queue=CALCULATE_MD5_Q):
     logging.info("LAUNCHING CALCULATE MD5 TASK!")
-    task = calculate_md5_task.apply_async(kwargs={'file_path' :file_path,
-                                           'file_id' : file_id,
-                                           'submission_id' : submission_id,
-                                           'response_status' : response_status
-                                           },
-                                   queue=queue)
-    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
-                       'file_mdata_status' : constants.IN_PROGRESS_STATUS,
-                       response_status : constants.PENDING_ON_WORKER_STATUS
-                       }
-    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
-    status = AsyncResult(task.id).state
-    db_model_operations.update_presubm_tasks_dict(file_id, task.id, calculate_md5_task.name, status)
+    task = calculate_md5_task.apply_async(kwargs={ 'file_id' : file_id,
+                                                   'submission_id' : submission_id,
+                                                   'file_path' :file_path,
+                                                   'index_file_path' : index_file_path
+                                                   },
+                                           queue=queue)
+#    statuses_to_upd = {'file_submission_status' : constants.PENDING_ON_WORKER_STATUS,
+#                       'file_mdata_status' : constants.IN_PROGRESS_STATUS,
+#                       response_status : constants.PENDING_ON_WORKER_STATUS
+#                       }
+#    db_model_operations.update_file_statuses(file_id, statuses_to_upd)
+#    status = AsyncResult(task.id).state
+#    db_model_operations.add_task_to_file(file_id, task.id, calculate_md5_task.name, status)
+    return task.id
     
 
 def launch_add_mdata2irods_job(file_id, submission_id):
@@ -200,7 +177,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     
     
     # TODO: replace the client_path with the irods path:
-    task_id = add_mdata_to_IRODS.apply_async(kwargs={'dest_file_path_irods' : file_to_submit['file_path_irods'], 
+    task = add_mdata_to_IRODS.apply_async(kwargs={'dest_file_path_irods' : file_to_submit['file_path_irods'], 
                                                      'irods_mdata' : irods_mdata_dict, 
                                                      'file_id' : file_id, 
                                                      'submission_id' : submission_id,
@@ -210,100 +187,89 @@ def launch_add_mdata2irods_job(file_id, submission_id):
                                                      },
                                              queue=PROCESS_MDATA_Q)
     #db_model_operations.update_submission_tasks_dict(file_id, task_id, add_mdata_to_IRODS.name)
-    return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
+    #return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
+#    status = AsyncResult(task.id).state
+#    db_model_operations.add_task_to_file(file_id, task.id, add_mdata_to_IRODS.name, status)
+#    return 1
+    return task.id
 
 
-def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload_task_queue=UPLOAD_Q, upload_index_task_queue=INDEX_UPLOAD_Q):
-    if not dest_irods_coll:
-        return False
-
-    # WORKING version for uploading to the staging area:
-    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
-    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
-        upl_file, upl_idx = False, False
-        if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-            launch_upload_job(user_id, 
-                              file_submitted.id, 
-                              file_submitted.submission_id, 
-                              file_submitted.file_path_client, 
-                              'file_upload_job_status', 
-                              dest_irods_coll,
-                              queue=upload_task_queue)
-            upl_file = True
-        if hasattr(file_submitted, 'index_file_path_client') and file_submitted.index_file_path_client:
-            if file_submitted.index_file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-                launch_upload_job(user_id, 
-                                  file_submitted.id,
-                                  file_submitted.submission_id, 
-                                  file_submitted.index_file_path_client, 
-                                  'index_file_upload_job_status', 
-                                  dest_irods_coll,
-                                  queue=upload_index_task_queue)
-                upl_idx = True
-        return upl_file or upl_idx
-    return False
-    
-    
-
-#def launch_upload_job(user_id, file_submitted):
-#    # SUBMIT UPLOAD TASK TO QUEUE:
-#    #(upload_task.delay(file_id=file_id, file_path=file_submitted.file_path_client, submission_id=submission_id, user_id=user_id))
-#    try:
-#        with open(file_submitted.file_path_client): pass       # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-#    except IOError as e:
-#        if e.errno == errno.EACCES:
-#            print "PERMISSION DENIED!"
-#            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
-#            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
-#            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
-#        raise   # raise anyway all the exceptions 
-#    else:
-#        # TODO: check if there is any task in this queue, before resubmitting it, otherwise we might put more than 1 task doing the same thing
-#        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
-#        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
-#        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-        
-    
-#    try:
-#        # DIRTY WAY OF DOING THIS - SHOULD CHANGE TO USING os.stat for checking file permissions
-#        src_fd = open(file_submitted.file_path_client, 'rb')
-#        src_fd.close()
-##            # => WE HAVE PERMISSION TO READ FILE
-##            # SUBMIT UPLOAD TASK TO QUEUE:
-#        #upload_task.apply_async(kwargs={'submission_id' : submission_id, 'file' : file_serialized })
-#        upload_task.apply_async( kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id})
-#        file_submitted.file_upload_job_status = constants.PENDING_ON_WORKER_STATUS
-#        
-#        #file_submitted.save(validate=False)
-#        #queue=constants.UPLOAD_QUEUE_GENERAL    --- THIS WORKS, SHOULD BE INCLUDED IN REAL VERSION
-#        #exchange=constants.UPLOAD_EXCHANGE,
-#   
-#        ########## PROBLEM!!! => IF PERMISSION DENIED I CAN@T PARSE THE HEADER!!! 
-#        ## I have to wait until the copying problem gets solved and afterwards to analyse the file
-#        ## by reading it from iRODS
-#          
-#    except IOError as e:
-#        if e.errno == errno.EACCES:
-#            print "PERMISSION DENIED!"
-#            # TODO: Put a timeout on this task, on this queue => if the user doesn't run it in the next hour, the task will be deleted from the queue
-#            upload_task.apply_async(kwargs={ 'file_id' : file_submitted.file_id, 'file_path' : file_submitted.file_path_client, 'submission_id' : file_submitted.submission_id}, queue="user."+user_id)
-#            file_submitted.file_upload_job_status = constants.PENDING_ON_USER_STATUS
-#        raise   # raise anyway all the exceptions 
-#    
+#def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload_task_queue=UPLOAD_Q, upload_index_task_queue=INDEX_UPLOAD_Q):
+#    if not dest_irods_coll:
+#        return False
 #
-#    #(chain(parse_BAM_header.s((submission_id, file_id, file_path, user_id), query_seqscape.s()))).apply_async()
-#    # , queue=constants.MDATA_QUEUE
-#    
-##        chain(parse_BAM_header.s((submission_id, 
-##                                 file_id, file_path, user_id),
-##                                 queue=constants.MDATA_QUEUE, 
-##                                 link=[query_seqscape.s(retry=True, 
-##                                   retry_policy={'max_retries' : 1},
-##                                   queue=constants.MDATA_QUEUE
-##                                   )])).apply_async()
-#    #parse_header_async_res = seqscape_async_res.parent
-#    #return permission_denied
+#    # WORKING version for uploading to the staging area:
+#    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
+#    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
+#        upl_file, upl_idx = False, False
+#        if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
+#            launch_upload_job(user_id, 
+#                              file_submitted.id, 
+#                              file_submitted.submission_id, 
+#                              file_submitted.file_path_client, 
+#                              'file_upload_job_status', 
+#                              dest_irods_coll,
+#                              queue=upload_task_queue)
+#            upl_file = True
+#        if hasattr(file_submitted, 'index_file_path_client') and file_submitted.index_file_path_client:
+#            if file_submitted.index_file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
+#                launch_upload_job(user_id, 
+#                                  file_submitted.id,
+#                                  file_submitted.submission_id, 
+#                                  file_submitted.index_file_path_client, 
+#                                  'index_file_upload_job_status', 
+#                                  dest_irods_coll,
+#                                  queue=upload_index_task_queue)
+#                upl_idx = True
+#        return upl_file or upl_idx
+#    return False
 
+def submit_jobs_for_file(file_id, dest_irods_coll, user_id, file_obj=None, as_serapis=True):
+    if not file_obj:
+        file_obj = db_model_operations.retrieve_submitted_file(file_id)
+    tasks_dict = {}
+    if as_serapis:
+        task_id = launch_update_file_job(file_obj)
+        tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+        
+        task_id = launch_upload_job(file_obj.id, 
+                          file_obj.submission_id, 
+                          file_obj.file_path_client, 
+                          file_obj.index_file.file_path_client, 
+                          dest_irods_coll)
+        tasks_dict[task_id] = {'type' : upload_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+        
+        task_id = launch_parse_BAM_header_job(file_obj)
+        tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+        
+        task_id = launch_calculate_md5_task(file_obj.id,
+                      file_obj.submission_id,
+                      file_obj.file_path_client, 
+                      file_obj.index_file.file_path_client)
+        tasks_dict[task_id] = {'type' : calculate_md5_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+    else:
+        task_id = launch_update_file_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+        tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
+        
+        task_id = launch_upload_job(file_obj.id, 
+                          file_obj.submission_id, 
+                          file_obj.file_path_client, 
+                          file_obj.index_file_path_client, 
+                          dest_irods_coll, 
+                          queue=UPLOAD_Q+"."+user_id)
+        tasks_dict[task_id] = {'type' : upload_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
+        
+        task_id = launch_parse_BAM_header_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+        tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
+        
+        task_id = launch_calculate_md5_task(file_obj.id, 
+                                  file_obj.submission_id, 
+                                  file_obj.file_path_client, 
+                                  file_obj.index_file.file_path_client,
+                                  queue=CALCULATE_MD5_Q+"."+user_id)
+        tasks_dict[task_id] = {'type' : calculate_md5_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
+    return tasks_dict
+    
 
 #------------------------ DATA INTEGRITY CHECKS -----------
 
@@ -512,7 +478,7 @@ def associate_files_with_indexes(file_paths):
             file_tuples.append((file_path, None))
     if indexes:
         extend_errors_dict(indexes,  constants.UNMATCHED_INDEX_FILES, errors_dict)
-    return Result(file_tuples, error_dict=errors_dict, warning_dict=warnings_dict)
+    return models.Result(file_tuples, error_dict=errors_dict, warning_dict=warnings_dict)
 
 
 
@@ -545,7 +511,7 @@ def verify_file_paths(file_paths_list):
         result = True
     else:
         result = False
-    return Result(result, errors_dict, warnings_dict)
+    return models.Result(result, errors_dict, warnings_dict)
     
 
 def get_or_insert_reference_genome(data):
@@ -595,9 +561,9 @@ def create_submission(user_id, data):
         Throws:
             ValueError - when the data provided in data parameter is incorrect.
         '''
-    t1 = time.time()
     # Make a copy of the request data
     submission_data = copy.deepcopy(data)
+    user_id = submission_data.pop('sanger_user_id')
     
     # Get files from the request data:
     file_paths_list = get_files_list_from_request(submission_data)
@@ -621,7 +587,7 @@ def create_submission(user_id, data):
         upld_as_serapis =  submission_data['upload_as_serapis']
          
     if upld_as_serapis and constants.NOACCESS in verif_result.warning_dict:
-        result = Result(False, verif_result.warning_dict, None)
+        result = models.Result(False, verif_result.warning_dict, None)
         result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
         result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
         result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
@@ -638,18 +604,14 @@ def create_submission(user_id, data):
     # Build the submission:
     submission_id = db_model_operations.insert_submission(submission_data, user_id)
     if not submission_id:
-        return Result(False, message="Submission couldn't be created.")
+        return models.Result(False, message="Submission couldn't be created.")
     submission = db_model_operations.retrieve_submission(submission_id)
     
     # Split the files_list in files and indexes:
     file_et_index_tuples = associate_files_with_indexes(file_paths_list)
     if file_et_index_tuples.error_dict:
-        return Result(False, error_dict=file_et_index_tuples.error_dict, warning_dict=file_et_index_tuples.warning_dict)
+        return models.Result(False, error_dict=file_et_index_tuples.error_dict, warning_dict=file_et_index_tuples.warning_dict)
     
-    t2 = time.time()
-    delta = t2 - t1
-    logging.info("TIME TAKEN TO CHECK THE VALIDITY OF REQ: %s",delta)
-    t1 = time.time() 
     # Initialize each file:
     submitted_files_list = []
     for (file_path, index_file_path) in file_et_index_tuples.result:
@@ -657,8 +619,10 @@ def create_submission(user_id, data):
         file_type = detect_file_type(file_path)
         if file_type == constants.BAM_FILE:
             file_submitted = models.BAMFile(submission_id=str(submission.id), 
-                                            file_path_client=file_path, 
-                                            index_file_path_client=index_file_path)
+                                            file_path_client=file_path)
+            index_file = models.IndexFile()
+            index_file.file_path_client=index_file_path
+            file_submitted.index_file = index_file
         elif file_type == constants.VCF_FILE:
             continue
         
@@ -668,7 +632,7 @@ def create_submission(user_id, data):
         else:
             file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
             if not file_submitted.hgi_project:
-                return Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
+                return models.Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
 
         # Initializing the path to irods for the uploaded files:
 #        if hasattr(submission, 'irods_collection') and getattr(submission, 'irods_collection'):
@@ -677,7 +641,7 @@ def create_submission(user_id, data):
 #            irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
         file_submitted.file_path_irods = os.path.join(irods_coll, utils.extract_basename(file_path))
         if index_file_path:
-            file_submitted.index_file_path_irods = os.path.join(irods_coll, utils.extract_basename(index_file_path))
+            file_submitted.index_file.file_path_irods = os.path.join(irods_coll, utils.extract_basename(index_file_path))
         
         
         # NOTE:this implementation is a all-or-nothing => either all files are uploaded as serapis or all as other user...pb?
@@ -687,14 +651,15 @@ def create_submission(user_id, data):
             file_status = constants.PENDING_ON_USER_STATUS
         
         # Instantiating the SubmittedFile object if the file is alright
-        file_submitted.calc_file_md5_job_status = file_status
-        file_submitted.file_header_parsing_job_status = file_status
-        file_submitted.file_upload_job_status = file_status
+#        file_submitted.calc_file_md5_job_status = file_status
+#        file_submitted.file_header_parsing_job_status = file_status
+#        file_submitted.file_upload_job_status = file_status
         file_submitted.file_submission_status = file_status
+        file_submitted.file_mdata_status = file_status
         file_submitted.file_type = file_type
-        if index_file_path:
-            file_submitted.index_file_upload_job_status = file_status
-            file_submitted.calc_index_file_md5_job_status = file_status
+#        if index_file_path:
+#            file_submitted.index_file_upload_job_status = file_status
+#            file_submitted.calc_index_file_md5_job_status = file_status
             
         # Set mdata from submission:
         if submission.study:
@@ -715,60 +680,30 @@ def create_submission(user_id, data):
         models.Submission.objects(id=submission.id).update_one(set__files_list=[f.id for f in submitted_files_list])
     else:
         submission.delete()
-        return Result(False, message="No files could be uploaded.")
+        return models.Result(False, message="No files could be uploaded.")
 
-    t2 = time.time()
-    delta = t2-t1
-    logging.info("TIME TAKEN TO INIT ALL FILES: %s", delta)
-    t1 = time.time()
     # Submit jobs for the file:
     for file_obj in submitted_files_list:
         #file_obj.reload()
         dest_irods_coll = os.path.dirname(file_submitted.file_path_irods)
         if not dest_irods_coll:
-            return Result(False, error_dict={constants.COLLECTION_DOES_NOT_EXIST : dest_irods_coll})
+            return models.Result(False, error_dict={constants.COLLECTION_DOES_NOT_EXIST : dest_irods_coll})
         
-        if not upld_as_serapis:     # MUST upload as user_id
-            launch_update_file_job(file_obj, queue=user_id)
-            submit_upload_jobs_for_file(user_id, file_obj, dest_irods_coll, upload_task_queue=UPLOAD_Q+"_"+user_id, upload_index_task_queue=INDEX_UPLOAD_Q+"_"+user_id)
-            launch_parse_BAM_header_job(file_obj)
-            launch_calculate_md5_task(file_obj.file_path_client, file_obj.id, submission_id, 'calc_file_md5_job_status', queue=CALCULATE_MD5_Q+"_"+user_id)
-            if file_obj.index_file_path_client:
-                launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status', queue=CALCULATE_MD5_Q+"_"+user_id)
+        tasks_dict = {}
+        tasks_dict = submit_jobs_for_file(file_obj.id, dest_irods_coll, user_id, file_obj, upld_as_serapis)
+        if upld_as_serapis:
+            status = constants.PENDING_ON_WORKER_STATUS
         else:
-            t3 = time.time()
-            launch_update_file_job(file_obj)
-            t4 = time.time()
-            delta = t4 - t3
-            logging.info("TIME TAKEN TO launch update job %s", delta)
-            
-            submit_upload_jobs_for_file(user_id, file_obj, dest_irods_coll)
-            t5 = time.time()
-            delta = t5 - t4
-            logging.info("TIME TAKEN TO SUBMIT UPLOAD JOBS: %s", delta)
-            
-            launch_parse_BAM_header_job(file_obj)
-            t6 = time.time()
-            delta = t6 - t5
-            logging.info("TIME TAKEN TO LAUNCH PARSE HEADER: %s", delta)            
+            status = constants.PENDING_ON_USER_STATUS
+        update_dict = {'set__file_submission_status' : status,
+                       'set__file_mdata_status' : status,
+                       'set__tasks_dict' : tasks_dict
+                        }
+        db_model_operations.update_file_from_dict(file_obj.id, update_dict)
 
-            launch_calculate_md5_task(file_obj.file_path_client, file_obj.id, submission_id, 'calc_file_md5_job_status')
-            t7 = time.time()
-            delta = t7 - t6
-            logging.info("TIME TAKEN TO LAUNCH MD5 JOB %s", delta)
-            
-            if file_obj.index_file_path_client:
-                launch_calculate_md5_task(file_obj.index_file_path_client, file_obj.id, submission_id, 'calc_index_file_md5_job_status')
-
-    t2 = time.time()
-    delta = t2 - t1
-    logging.info("TIME TAKEN TO SUBMIT THE JOBS: %s", delta)
     if not upld_as_serapis:
-        return Result(str(submission.id), warning_dict="You have requested to upload the files as "+user_id+", therefore you need to run the following...script on the cluster")
-    return Result(str(submission.id))
-
-
-    
+        return models.Result(str(submission.id), warning_dict="You have requested to upload the files as "+user_id+", therefore you need to run the following...script on the cluster")
+    return models.Result(str(submission.id))
 
 
 # TODO: with each PUT request, check if data is complete => change status of the submission or file
@@ -905,39 +840,24 @@ def get_submitted_file_status(file_id, file_obj=None):
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
     result = {'file_path' : file_obj.file_path_client}
-    tasks_list = []
-    task_dict = file_obj.presubmission_tasks_dict
+    # !!! If there are more tasks of the same type - this should be a list (dict 
+    tasks_status_dict = {}
+    task_dict = file_obj.tasks_dict
     for task_id, task_info_dict in task_dict.iteritems():
         task_type = task_info_dict['type']
-        if task_info_dict['status'] not in constants.FINISHED_STATUS:
-            async = AsyncResult(task_id)
+        async = AsyncResult(task_id)
+        if async and task_info_dict['status'] not in constants.FINISHED_STATUS:
             state = async.state
-            #status = async.status
-            if task_type == parse_BAM_header_task.name:
-                ready = async.result
-            else:
-                ready = async.ready()
+            ready = async.ready()
             #result[state] = (task_type, state)
             print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type, " ready?", ready
-            tasks_list.append((task_id, task_type, state, ready))
+            #tasks_list.append((task_id, task_type, state, ready))
+            tasks_status_dict[task_type] = state
         else:
-            tasks_list.append((task_id,task_type, task_info_dict['status'] ))
-    result['tasks'] = tasks_list
+            #tasks_list.append((task_id,task_type, task_info_dict['status'] ))
+            tasks_status_dict[task_type] = task_info_dict['status']
+    result['tasks'] = tasks_status_dict
     return result
-#    
-#    index_status, index_md5 = None, None
-#    if file_obj.index_file_path_client and hasattr(file_obj, 'index_file_upload_job_status'):
-#        index_status = file_obj.index_file_upload_job_status
-#        if hasattr(file_obj, 'calc_index_file_md5_job_status'):
-#            index_md5 = file_obj.calc_index_file_md5_job_status
-#    return {'testing-file_path' : file_obj.file_path_client if hasattr(file_obj, 'file_path_client') else None,
-#            'file_upload_status' : file_obj.file_upload_job_status if hasattr(file_obj, 'file_upload_job_status') else None,
-#            'index_file_upload_status' : index_status,
-#            'index_md5_job_status' : index_md5, 
-#            'calc_file_md5_job_status' : file_obj.calc_file_md5_job_status if hasattr(file_obj, 'calc_file_md5_job_status') else None,
-#            'file_metadata_status' : file_obj.file_mdata_status if hasattr(file_obj, 'file_mdata_status') else None,
-#            'file_submission_status' : file_obj.file_submission_status if hasattr(file_obj, 'file_submission_status') else None,
-#            }
 
 
 def get_all_submitted_files_status(submission_id):
@@ -945,14 +865,6 @@ def get_all_submitted_files_status(submission_id):
     files_list = db_model_operations.retrieve_all_files_for_submission(submission_id)
     result = {str(file_obj.id) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
     return result
-
-
-#def get_all_submitted_files_status(submission_id):
-#    submission = db_model_operations.retrieve_submission(submission_id)
-#    result = {str(file_id) : get_submitted_file_status(file_id) for file_id in submission.files_list}
-#    return result
-
-
 
 
 
@@ -971,8 +883,73 @@ def get_all_submitted_files(submission_id):
     return db_model_operations.retrieve_all_file_ids_for_submission(submission_id)
     
 
-
 def update_file_submitted(submission_id, file_id, data):
+    ''' Updates a file from a submission.
+    Params:
+        submission_id -- a string with the id of the submission
+        file_id -- a string containing the id of the file to be modified
+    Throws:
+        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        KeyError -- if a key does not exist in the model of the submitted file
+    '''
+    #logging.info("*********************************** START ************************************************" + str(file_id))
+    # INNER FUNCTIONS - I ONLY USE IT HERE
+    def check_if_has_new_entities(data, file_to_update):
+        # print 'in UPDATE FILE SUBMITTED -- CHECK IF HAS NEW - the DATA is:', data
+        if 'library_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.library_list, data['library_list']) == True: 
+            logging.debug("Has new libraries!")
+            return True
+        elif 'sample_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.sample_list, data['sample_list']) == True:
+            logging.debug("Has new samples!")
+            return True
+        elif 'study_list' in data and db_model_operations.check_if_list_has_new_entities(file_to_update.study_list, data['study_list']) == True:
+            logging.debug("Has new studies!")
+            return True
+        return False
+            
+      
+    update_source = None
+    if 'task_id' in data:
+        tasks_dict = db_model_operations.retrieve_tasks_dict(file_id)
+        try: 
+            task_type = tasks_dict[data['task_id']]['type']
+            print "TASK TYPE:::::::::::::::::", task_type
+        except KeyError:
+            raise exceptions.TaskNotRegisteredError
+        
+        if task_type == parse_BAM_header_task.name:
+            update_source = constants.PARSE_HEADER_MSG_SOURCE
+        elif task_type == update_file_task.name:
+            update_source = constants.UPDATE_MDATA_MSG_SOURCE
+        elif task_type == calculate_md5_task.name:
+            update_source = constants.CALC_MD5_MSG_SOURCE
+        elif task_type in [upload_task.name, add_mdata_to_IRODS.name]:
+            update_source = constants.IRODS_JOB_MSG_SOURCE
+
+        errors = None
+        if 'errors' in data:
+            errors = data['errors']
+        
+        if update_source == constants.IRODS_JOB_MSG_SOURCE or data['status'] == constants.FAILURE_STATUS:
+            db_model_operations.update_task_status(file_id, data['task_id'], data['status'], errors)
+        else:
+            db_model_operations.update_file_mdata(file_id, data['result'], update_source, data['task_id'], data['status'], errors)
+    else:
+        update_source = constants.EXTERNAL_SOURCE
+        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
+        db_model_operations.update_file_mdata(file_id, data['result'], update_source)
+        if has_new_entities == True:
+            file_to_update.reload()
+            launch_update_file_job(file_to_update)
+        
+    db_model_operations.check_and_update_all_file_statuses(file_id)
+        
+        
+    
+def update_file_submitted_old(submission_id, file_id, data):
     ''' Updates a file from a submission.
     Params:
         submission_id -- a string with the id of the submission
@@ -1019,6 +996,10 @@ def update_file_submitted(submission_id, file_id, data):
         
             
     def update_from_PARSE_HEADER_TASK_SRC(data):
+        task_id = data.pop('task_id')
+        task_result = data.pop('result')
+        # TODO: get task_type from the dict
+        db_model_operations.update_presubm_tasks_dict(file_id, task_id, parse_BAM_header_task.name, task_result)
         db_model_operations.update_submitted_file(file_id, data, sender) 
         upd_status = db_model_operations.check_and_update_all_file_statuses(file_id)
         logging.info("HAS IT ACTUALLY UPDATED THE STATUSssssssssssss after updating from PARSE HEADER TASK? %s", upd_status)
@@ -1062,6 +1043,11 @@ def update_file_submitted(submission_id, file_id, data):
         
 
     def update_from_UPDATE_TASK_SRC(data):
+        task_id = data.pop('task_id')
+        task_result = data.pop('result')
+        # TODO: get task_type from the dict
+        db_model_operations.update_presubm_tasks_dict(file_id, task_id, parse_BAM_header_task.name, task_result)
+        
         db_model_operations.update_submitted_file(file_id, data, sender) 
         db_model_operations.check_and_update_all_file_statuses(file_id)
         
@@ -1126,7 +1112,89 @@ def update_file_submitted(submission_id, file_id, data):
 #            print "NOTHING TO UPDATE!!!!!!!!!!!!!!!!!!!!!! -------))))))(((()()()()("
             
 
-def resubmit_jobs_for_file(submission_id, file_id):
+
+
+def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
+    ''' Function called for resubmitting the jobs for a file, as a result
+        of a POST request on a specific file. It checks for permission and 
+        resubmits the jobs in the corresponding queue, depending on permissions.
+    Throws:
+        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+    '''
+    if file_to_resubmit == None:
+        file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
+    
+    # TODO: success and fail -statuses...
+    # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
+    
+    #TODo - to rewrite this taking into account the fact that serapis needs access to the files for PARSE HEADER as well, not only for upload
+    permissions = check_file_permissions(file_to_resubmit.file_path_client)
+    upld_as_srp_flag = db_model_operations.retrieve_submission_upload_as_serapis_flag(submission_id)
+    if permissions == constants.NOACCESS:
+        if upld_as_srp_flag == True:
+            result = models.Result(False, error_dict={constants.PERMISSION_DENIED : [file_id]})
+            result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
+            result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
+            result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
+            return result
+
+    has_resubmitted = False    
+    new_tasks_dict = {}
+    tasks_dict = file_to_resubmit.tasks_dict
+    for task_id, task_info in tasks_dict.iteritems():
+        status = task_info['status']
+        task_type = task_info['type']
+        if status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]:
+            if task_type == parse_BAM_header_task.name:
+                task_id = launch_parse_BAM_header_job(file_to_resubmit)
+                new_tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS}
+            elif task_type == update_file_task.name:
+                task_id = launch_update_file_job(file_to_resubmit)
+                new_tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+            elif task_type == upload_task.name:
+                dest_irods_coll = os.path.dirname(file_to_resubmit.file_path_irods)
+                task_id = launch_upload_job(file_id, submission_id, 
+                                  file_to_resubmit.file_path_client, 
+                                  file_to_resubmit.index_file.file_path_client, 
+                                  dest_irods_coll)
+                new_tasks_dict[task_id] = {'type' : upload_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS}
+            elif task_type == calculate_md5_task.name:
+                task_id = launch_calculate_md5_task(file_id, submission_id, 
+                                                    file_to_resubmit.file_path_client, 
+                                                    file_to_resubmit.index_file.file_path_client)
+                new_tasks_dict[task_id] = {'type' : calculate_md5_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS}
+            else:
+                logging.error("TASK TYPE NOT IN MY REGISTRY.......")
+            has_resubmitted = True
+        else:
+            new_tasks_dict[task_id] = task_info
+
+
+# Checking on statuses and modifying them:
+    if has_resubmitted: #and file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
+        update_dict = {'set__tasks_dict' : new_tasks_dict, 'set__file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
+        db_model_operations.update_file_from_dict(file_id, update_dict)
+    
+    print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(new_tasks_dict)
+    print "RESULT: ", has_resubmitted
+    return models.Result(has_resubmitted)
+
+
+
+def resubmit_jobs_for_submission(submission_id):
+    files = db_model_operations.retrieve_all_files_for_submission(submission_id)
+    result = {}
+    for f in files:
+        f_resubm_result = resubmit_jobs_for_file(submission_id, str(f.id), f)  
+        result[str(f.id)] = f_resubm_result.result
+    return models.Result(result)
+        
+        
+        
+
+def resubmit_jobs_for_file_old(submission_id, file_id):
     ''' Function called for resubmitting the jobs for a file, as a result
         of a POST request on a specific file. It checks for permission and 
         resubmits the jobs in the corresponding queue, depending on permissions.
@@ -1146,7 +1214,7 @@ def resubmit_jobs_for_file(submission_id, file_id):
     upld_as_srp_flag = db_model_operations.retrieve_submission_upload_as_serapis_flag(submission_id)
     if permissions == constants.NOACCESS:
         if upld_as_srp_flag == True:
-            result = Result(False, error_dict={constants.PERMISSION_DENIED : [file_id]})
+            result = models.Result(False, error_dict={constants.PERMISSION_DENIED : [file_id]})
             result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
             result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
             result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
@@ -1184,13 +1252,23 @@ def resubmit_jobs_for_file(submission_id, file_id):
     
     dest_irods_coll = os.path.dirname(file_to_resubmit.file_path_irods)
     if permissions == constants.NOACCESS:
-        upload_resubmitted = submit_upload_jobs_for_file(user_id, file_to_resubmit, dest_irods_coll, 
-                                                         upload_task_queue=UPLOAD_Q+"_"+user_id, 
-                                                         upload_index_task_queue=INDEX_UPLOAD_Q+"_"+user_id)
+        upload_resubmitted = launch_upload_job(user_id, 
+                                               file_id, 
+                                               submission_id, 
+                                               file_to_resubmit.file_path_client, 
+                                               file_to_resubmit.index_file.file_path_client,
+                                               dest_irods_coll, 
+                                               queue=user_id+"_"+UPLOAD_Q)
         if upload_resubmitted:
             resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
     elif permissions == constants.READ_ACCESS:
-        upload_resubmitted = submit_upload_jobs_for_file(user_id, file_to_resubmit, dest_irods_coll)
+        upload_resubmitted = launch_upload_job(user_id, 
+                                               file_id, 
+                                               submission_id, 
+                                               file_to_resubmit.file_path_client, 
+                                               file_to_resubmit.index_file.file_path_client,
+                                               dest_irods_coll) 
+                             
         if upload_resubmitted:
             resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
     else:
@@ -1210,42 +1288,8 @@ def resubmit_jobs_for_file(submission_id, file_id):
     print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(resubm_jobs_dict)
     res = (len(resubm_jobs_dict) > 0)
     print "RESULT: ", res
-    return Result(res, message=resubm_jobs_dict)
+    return models.Result(res, message=resubm_jobs_dict)
 
-
-
-#    submission = db_model_operations.retrieve_submission(submission_id)
-#
-#    permission_denied = False
-#    try:
-#        with open(file_to_resubmit.file_path_client): pass       
-#    except IOError as e:
-#        if e.errno == errno.EACCES:
-#            permission_denied = True
-#    if permission_denied == False:     
-#        result_dict = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date)
-#    else:
-#        error_list = submit_jobs_for_file(user_id, file_to_resubmit, hgi_project=file_to_resubmit.hgi_project, submission_date=submission.submission_date, read_on_client=False, upload_task_queue="user."+user_id)
-#    if 'errors' in result_dict:
-#        db_model_operations.update_file_error_log(result_dict['errors'], submitted_file=file_to_resubmit)
-#    #file_to_resubmit.save(validate=False)
-#    return result_dict
-
-    
-#    permission_denied = False
-#    try:
-#        with open(file_to_resubmit.file_path_client): pass       
-#    except IOError as e:
-#        if e.errno == errno.EACCES:
-#            permission_denied = True
-#    if permission_denied == False:     
-#        error_list = submit_upload_jobs_for_file(user_id, file_to_resubmit)
-#        #file_to_resubmit.file_error_log.extend(error_list)
-#        db_model_operations.update_file_error_log(error_list, submitted_file=file_to_resubmit)
-#    else:
-#        error_list = submit_upload_jobs_for_file(user_id, file_to_resubmit, read_on_client=False, upload_task_queue="user."+user_id)
-#    file_to_resubmit.save(validate=False)
-#    return error_list
 
 
 

@@ -57,8 +57,12 @@ AUTHENTICATION_BACKENDS = (
 #}
 
 
+####
 CELERY_RESULT_BACKEND = "amqp"
-CELERY_TASK_RESULT_EXPIRES = 1             # The results will expire after 1s.(not using it!)
+
+CELERY_TASK_RESULT_EXPIRES = 60             # The results will expire after 1s.(not using it!)
+
+
 #CELERY_RESULT_BACKEND = "mongodb"
 
 # added recently:
@@ -86,7 +90,7 @@ connect('MetadataDB')
 #connect('mongodb://172.17.138.169:27017/SerapisDB')
 
 # WORKING ON SERAPIS - to be decommented:
-connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
+#connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
 #connect('MetadataDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
