@@ -1,6 +1,6 @@
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
-from mysql.connector.errors import OperationalError
+#from mysql.connector.errors import OperationalError
 #from celery.utils.log import get_task_logger
 import pysam
 import os, sys
@@ -12,10 +12,8 @@ import time
 import hashlib
 import subprocess
 from collections import defaultdict
-
 from subprocess import call, check_output
 #import MySQLdb
-
 
 
 from MySQLdb import connect, cursors
@@ -27,7 +25,6 @@ from serapis.constants import *
 from serapis.entities import *
 
 from celery import current_task
-from usbcreator.backends.base.backend import abstract
 
 
 
