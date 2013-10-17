@@ -161,7 +161,7 @@ def json2entity(json_obj, source, entity_type):
     ent = entity_type()
     has_new_field = False
     for key in json_obj:
-        if key in entity_type._fields  and key not in models.ENTITY_APP_MDATA_FIELDS and key != None:
+        if key in entity_type._fields  and key not in constants.ENTITY_META_FIELDS and key != None:
             setattr(ent, key, json_obj[key])
             ent.last_updates_source[key] = source
             has_new_field = True
@@ -197,7 +197,7 @@ def update_entity(entity_json, crt_ent, sender):
     has_changed = False
     for key in entity_json:
         old_val = getattr(crt_ent, key)
-        if key in models.ENTITY_APP_MDATA_FIELDS or key == None:
+        if key in constants.ENTITY_META_FIELDS or key == None:
             continue
         elif old_val == None or old_val == 'unspecified':
             setattr(crt_ent, key, entity_json[key])
@@ -278,7 +278,7 @@ def merge_entities(ent1, ent2, result_entity):
     ''' Merge 2 samples, considering that the senders have eqaual priority. '''    
     #entity = models.Sample()
     for key_s1, val_s1 in vars(ent1):
-        if key_s1 in models.ENTITY_APP_MDATA_FIELDS or key_s1 == None:
+        if key_s1 in constants.ENTITY_META_FIELDS or key_s1 == None:
             continue
         if hasattr(ent2, key_s1):
             attr_val = getattr(ent2, key_s1)
@@ -298,7 +298,7 @@ def merge_entities(ent1, ent2, result_entity):
                     result_entity.last_updates_source[key_s1] = ent2.last_updates_source[key_s1]
     
     for key_s2, val_s2 in vars(ent2):
-        if key_s2 in models.ENTITY_APP_MDATA_FIELDS or key_s2 == None:
+        if key_s2 in constants.ENTITY_META_FIELDS or key_s2 == None:
             continue
         if hasattr(result_entity, key_s2) and getattr(result_entity, key_s2) != None:
                 continue
@@ -1143,16 +1143,15 @@ def update_file_error_log(error_log, file_id=None, submitted_file=None):
     upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
-def update_file_update_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+def update_file_update_jobs_dict(file_id, task_id, job_status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd_str = 'set__file_update_jobs_dict__'+str(task_id)
-    upd_dict = {upd_str : status}
+    upd_dict = {upd_str : job_status}
     upd_dict['inc__version__0'] = 1
     upd = 0
     while nr_retries > 0 and upd == 0:
         upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
         logging.info("UPDATING UPDATE JOBS DICT -- was it updated? %s", upd)
         nr_retries -=1
-        time.sleep(1)
     return upd
 
 def update_file_irods_jobs_dict(file_id, task_id, status, nr_retries=constants.MAX_DBUPDATE_RETRIES):
@@ -1501,7 +1500,7 @@ def check_file_mdata(file_to_submit):
     has_min_mdata = True
     mandatory_fields = constants.FILE_MANDATORY_FIELDS
     if file_to_submit.index_file_path_client:
-        mandatory_fields = mandatory_fields.add('index_file_md5')
+        mandatory_fields.add('index_file_md5')
         
     for field in mandatory_fields:
         if not hasattr(file_to_submit, field):

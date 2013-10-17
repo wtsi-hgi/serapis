@@ -1,5 +1,5 @@
 
-from serapis import models, controller, db_model_operations, utils, exceptions, constants
+from serapis import models, controller, db_model_operations, utils, exceptions, constants, entities
 from serapis.constants import *
 import unittest
 import requests
@@ -11,14 +11,40 @@ from bson.objectid import ObjectId
 import os
 
 
-  
-def check_any_task_has_status(task_dict, status):
-    ''' Checks if any of the tasks in task_dict has
-        the status given as parameter.'''
-    for task_status in task_dict.values():
-        if task_status == status:
-            return True
-    return False
+def build_from_seqscape(sample_mdata):
+    sample = Sample()
+    for field_name in sample_mdata:
+        norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
+        setattr(sample, field_name, norm_field_val)
+    return sample
+
+
+class TestWorkerEntitiesOperations(unittest.TestCase):
+    def test_seqsc2serapis(self):
+#        seqsc_dict = {"gender": "Male", 
+#                      "common_name": "Homo sapien", 
+#                      "taxon_id": "9606", 
+#                      "organism": "Homo sapiens"}
+#        sample = entities.Sample.build_from_seqscape(seqsc_dict)
+#        print "SAMPLE AFTER MAPPING: ", vars(sample)
+#        serapis_dict = {"gender": "Male", 
+#                      "common_name": "Homo Sapiens", 
+#                      "taxon_id": "9606", 
+#                      "organism": "Homo Sapiens"}
+#        self.assertDictEqual(serapis_dict, vars(sample))
+
+        
+        seqsc_dict = {"common_name" : "Homo Sapien"}
+        sample = entities.Sample.build_from_seqscape(seqsc_dict)
+        serapis_dict = {"common_name" : "Homo Sapiens"}
+        self.assertDictEqual(serapis_dict, vars(sample))
+        
+#        
+#        seqsc_dict = {"common_name" : "homo_sapien"}
+#        sample = entities.Sample.build_from_seqscape(seqsc_dict)
+#        serapis_dict = {"common_name" : "Homo Sapiens"}
+#        self.assertDictEqual(serapis_dict, vars(sample))
+#        
 
 
 class TestDBModelOperations(unittest.TestCase):
@@ -149,10 +175,15 @@ class TestController(unittest.TestCase):
         errors = controller.verify_files_validity(paths)
         self.assertDictEqual({constants.FILE_DUPLICATES : ["", "/dupl/dupl.bam"], constants.NON_EXISTING_FILE : paths}, errors)
         
-        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", "/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]
+        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
+                 "/home/ic4/media-tmp/bams/8887_8#94.bac", 
+                 "/home/ic4/media-tmp/bams/8887_8#94.bb"]
         errors = controller.verify_files_validity(paths)
-        self.assertDictEqual(errors, {constants.NON_EXISTING_FILE : ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"],
-                                       constants.NOT_SUPPORTED_FILE_TYPE : ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]})
+        self.assertDictEqual(errors, {constants.NON_EXISTING_FILE : ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
+                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bac",  
+                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bb"],
+                                       constants.NOT_SUPPORTED_FILE_TYPE : ["/home/ic4/media-tmp/bams/8887_8#94.bac", 
+                                                                            "/home/ic4/media-tmp/bams/8887_8#94.bb"]})
         
     
     def test_get_file_duplicates(self):

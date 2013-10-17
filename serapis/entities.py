@@ -1,31 +1,23 @@
 
 import simplejson
-from serapis import constants
-from django.conf.locale import id
+import pycountry
+from serapis import constants, utils
 from serapis.constants import SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE
-#import json
+
 # ------------------ ENTITIES ---------------------------
 
 # TODO: to RENAME the class to: logical_model
 
-ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
-FILE_META_FIELDS = ['last_updates_source']
-ENTITY_IDENTITYING_FIELDS = ['internal_id', 'name', 'accession_number']
 
 
 class Entity(object):
-    def __init__(self):
-        self.internal_id = None
-        self.name = None
-        self.is_complete = False        # Fields used for implementing the application's logic
-        self.has_minimal = False        #
-        
+
     def __eq__(self, other):
         if other == None:
             return False
         if not isinstance(other, self.__class__):
             return False
-        for id_field in ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
             if hasattr(other, id_field) and hasattr(self, id_field) and getattr(other, id_field) != None and getattr(self, id_field) != None:
                 are_same = (getattr(self, id_field) == getattr(other, id_field))
                 return are_same
@@ -59,30 +51,7 @@ class Entity(object):
     
 
 class Study(Entity):
-    def __init__(self, accession_number=None, name=None, study_type=None, study_title=None, 
-                 faculty_sponsor=None, ena_project_id=None, reference_genome=None, study_visibility=None, 
-                 description=None, pi=None):
-        self.accession_number = accession_number
-        self.study_type = study_type
-        self.study_title = study_title
-        self.faculty_sponsor = faculty_sponsor  
-        self.ena_project_id = ena_project_id
-        self.study_visibility = study_visibility
-        self.description = description
-#        self.pi = pi
-#        self.reference_genome = reference_genome
-        super(Study, self).__init__()
     
-#    def __eq__(self, other):
-#        if super(Study, self).__eq__(other) == True:
-#            return True
-#        if isinstance(other, Study):
-#            if self.accession_number != None and self.accession_number == other.accession_number:
-#                return True
-#            elif self.name != None and self.name == other.name:
-#                return True
-#        return False
-     
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
         if self.accession_number != None and self.name != None:
@@ -92,40 +61,43 @@ class Study(Entity):
     @staticmethod
     def build_from_json(json_obj):
         study = Study()
-        for key in json_obj:
-            if key not in FILE_META_FIELDS:
-            #if key in Study._fields:
-            #if key in study._fields:
+        for key, val in json_obj.iteritems():
+            if not key in constants.FILE_META_FIELDS and val != None:
                 setattr(study, key, json_obj[key])
         return study
-    
+
+    @staticmethod
+    def normalize_value(key, val):
+        serapis_dict = constants.STUDY_NORMALIZATION_MAP
+        if not key in serapis_dict:
+            if key == 'ena_project_id' and str(val) == "0":
+                return None
+            return val
+        
+        dict_entry = serapis_dict[key]
+        if val in dict_entry:
+            return val
+        
+        for srp_val in serapis_dict:
+            str_dist = utils.levenshtein(srp_val.lower, val.lower)
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
+                return srp_val
+        print "ERROR: SEQSC -> SERAPIS MAPPER: THE STUDY FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        return val
+
+
     
     @staticmethod
     def build_from_seqscape(study_mdata):
         study = Study()
-        for field_name in study_mdata:
-            setattr(study, field_name, study_mdata[field_name])
+        for field_name, field_val in study_mdata.iteritems():
+            if field_val != None:
+                norm_field_val = Study.normalize_value(field_name, field_val)
+                setattr(study, field_name, norm_field_val)
         return study
 
-    #internal_id = IntField() # to be used only for link table
-    # remove_x_and_autosomes = StringField()
-    
     
 class Library(Entity):
-    def __init__(self, name=None, lib_type=None, public_name=None):
-        self.library_type = lib_type
-        self.public_name = public_name
-        super(Library, self).__init__()
-        #sample_internal_id = IntField()
-
-        
-#    def __eq__(self, other):
-#        if super(Library, self).__eq__(other) == True:
-#            return True
-#        if isinstance(other, Library):
-#            if self.name != None and self.name == other.name:
-#                return True
-#        return False
 
     def check_if_has_minimal_mdata(self):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
@@ -137,55 +109,21 @@ class Library(Entity):
     @staticmethod
     def build_from_json(json_obj):
         lib = Library()
-        for key in json_obj:
-            if key not in FILE_META_FIELDS:
+        for key, val in json_obj.iteritems():
+            if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(lib, key, json_obj[key])
         return lib
 
     @staticmethod
     def build_from_seqscape(lib_mdata):
         lib = Library()
-        for field_name in lib_mdata:
-            setattr(lib, field_name, lib_mdata[field_name])
-#        lib.internal_id = lib_mdata['internal_id']
-#        lib.name = lib_mdata['name']
-#        lib.public_name = lib_mdata['public_name']
-#        lib.library_type = lib_mdata['library_type']
+        for field_name, field_val in lib_mdata.iteritems():
+            if field_val != None:
+                setattr(lib, field_name, field_val)
         return lib
     
-    @staticmethod
-    def build_from_db_model(self, db_obj):
-        lib = Library()
-        for key in vars(db_obj):
-            attr_val = getattr(db_obj, key)
-            setattr(lib, key, attr_val)
-        return lib
-    
-    
 
-class Sample(Entity): # one sample can be member of many studies
-    # each sample relates to EXACTLY 1 individual
-    def __init__(self, accession_number=None, sanger_sample_id=None, name=None, public_name=None, tissue_type=None, ref_genome=None,
-                 taxon_id=None, sex=None, cohort=None, ethnicity=None, country_of_origin=None, geographical_region=None,
-                 organism=None, common_name=None):
-        self.accession_number = accession_number
-        self.sanger_sample_id = sanger_sample_id
-        self.public_name = public_name
-        self.sample_tissue_type = tissue_type
-        self.reference_genome = ref_genome
-            
-        # Fields relating to the individual:
-        self.taxon_id = taxon_id
-        self.gender = sex
-        self.cohort = cohort
-        self.ethnicity = ethnicity
-        self.country_of_origin = country_of_origin
-        self.geographical_region = geographical_region
-        self.organism = organism
-        self.common_name = common_name
-        super(Sample, self).__init__()
-        
-
+class Sample(Entity):
 
     def check_if_has_minimal_mdata(self):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
@@ -194,34 +132,85 @@ class Sample(Entity): # one sample can be member of many studies
                 self.has_minimal = True
         return self.has_minimal
       
-    # TODO: VALIDATE json before!!! 
     @staticmethod
     def build_from_json(json_obj):
         sampl = Sample()
-        for key in json_obj:
-            if key not in FILE_META_FIELDS:
+        for key, val in json_obj.iteritems():
+            if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(sampl, key, json_obj[key])
         return sampl
+    
+    @staticmethod
+    def normalize_value(key, val):
+        serapis_dict = constants.SAMPLE_NORMALIZATION_MAP
+        if not key in serapis_dict:
+            if val == " ":
+                return None
+            return val
+        
+        # Check if the value is already normalized
+        srp_dict_entry = serapis_dict[key]
+        if type(srp_dict_entry) == list:
+            if val in srp_dict_entry:
+                return val
+        elif val == srp_dict_entry:
+            return val
+        
+        # Comparing the val received with all the possible string in Seqscape
+        if key == 'organism':
+            seqsc_possible_vals = constants.SEQSC_FIELDS[key]
+            for seqsc_val in seqsc_possible_vals:
+                str_dist = utils.levenshtein(seqsc_val.lower(), val.lower())
+                if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
+                    return srp_dict_entry
+            print "NO NORMALIZATION ON ORGANISM! val = ", val
+            return val
+            
+        if key == 'country_of_origin':
+            try:
+                country = pycountry.historic_countries.get(name=val.capitalize())
+                return country
+            except KeyError: pass
+            
+            try:
+                country = pycountry.historic_countries.get(alpha2=country.upper())
+                return country
+            except KeyError: pass
+        
+            # If this doesn't match either, let it just throw the exception -> I will catch it in the calling fct
+            country = pycountry.historic_countries.get(alpha3=country.upper())
+ 
+        if key == 'common_name':
+            str_dist = utils.levenshtein(srp_dict_entry.lower(), val.lower())
+            #print "DISIM ratio -- COMMON NAME: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_dict_entry, "type: ", type(srp_dict_entry) 
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
+                return srp_dict_entry
+            print "NO NORMALIZATION ON COMMONA_name, val=",val
+            return val
+
+        if type(srp_dict_entry) == list:
+            for srp_val in srp_dict_entry:
+                str_dist = utils.levenshtein(srp_val.lower(), val.lower())
+                #print "DISIM ratio: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_val, "type: ", type(srp_val) 
+                if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
+                    return srp_val
+        else:
+            str_dist = utils.levenshtein(srp_dict_entry.lower(), val.lower())
+            #print "DISIM ratio: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_dict_entry, "type: ", type(srp_dict_entry) 
+            if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
+                return srp_dict_entry
+                       
+        print "ERROR: SEQSC -> SERAPIS MAPPER: THE SAMPLE FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        return val
+
   
     @staticmethod
     def build_from_seqscape(sample_mdata):
         sample = Sample()
-        for field_name in sample_mdata:
-            setattr(sample, field_name, sample_mdata[field_name])
-#        sampl.internal_id = sampl_mdata['internal_id']
-#        sampl.accession_number = sampl_mdata['accession_number']
-#        sampl.name = sampl_mdata['name']
-#        sampl.public_name = sampl_mdata['public_name']
-#        sampl.cohort = sampl_mdata['cohort']
-#        sampl.ethnicity = sampl_mdata['ethnicity']
-#        sampl.gender = sampl_mdata['gender']
-#        sampl.country_of_origin = sampl_mdata['country_of_origin']
-#        sampl.sanger_sample_id = sampl_mdata['sanger_sample_id']
-#        sampl.geographical_region = sampl_mdata['geographical_region']
-#        sampl.organism = sampl_mdata['organism']
-#        sampl.common_name = sampl_mdata['common_name']
-#        sampl.reference_genome = sampl_mdata['reference_genome']
-#        sampl.taxon_id = sampl_mdata['taxon_id']
+        for field_name, field_val in sample_mdata.iteritems():
+            if field_val != None: 
+                norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
+                setattr(sample, field_name, norm_field_val)
         return sample
     
 
@@ -369,7 +358,7 @@ class SubmittedFile():
                 subm_file.sample_list = []
                 for sampl_json in json_file['sample_list']:
                     subm_file.sample_list.append(Sample.build_from_json(sampl_json))
-            elif key not in FILE_META_FIELDS and key != 'file_error_log':        
+            elif key not in constants.FILE_META_FIELDS and key != 'file_error_log':        
                 #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
         return subm_file
@@ -396,7 +385,7 @@ class SubmittedFile():
             parameters, hence it tries to match this parameters with all the identifying fields of the entity.'''
         entity_list = self.__get_entity_list__(entity_type)
         for entity in entity_list:
-            for identifier in ENTITY_IDENTITYING_FIELDS:
+            for identifier in constants.ENTITY_IDENTITYING_FIELDS:
                 if hasattr(entity, identifier) and getattr(entity, identifier) == identifier:
                     return True
         return False
@@ -414,7 +403,7 @@ class SubmittedFile():
     def __remove_fields__dict(obj_to_modify):
         result_dict = dict()
         for k, v in vars(obj_to_modify).items():
-            if k not in FILE_META_FIELDS:
+            if k not in constants.FILE_META_FIELDS:
                 result_dict[k] = v
         return result_dict
     
