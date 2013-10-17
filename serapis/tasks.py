@@ -95,7 +95,10 @@ def send_http_PUT_req(msg, submission_id, file_id):
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
     print "URL WHERE to send the data: ", url_str
     response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
-    print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response.text
+    if not response.status_code == '500':
+        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response.text
+    else:
+        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
     return response
 
 
@@ -1128,7 +1131,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         #    tags = [self.extract_tag_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
         #   file_mdata.tag_list = list(set(tags))
          
-        file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
+        #file_mdata.file_header_parsing_job_status = SUCCESS_STATUS
         if len(header_library_name_list) > 0 or len(header_sample_name_list) > 0:
             # TODO: to add the entities in the header to the file_mdata
             file_mdata.header_has_mdata = True

@@ -635,10 +635,7 @@ def create_submission(user_id, data):
                 return models.Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
 
         # Initializing the path to irods for the uploaded files:
-#        if hasattr(submission, 'irods_collection') and getattr(submission, 'irods_collection'):
         irods_coll = getattr(submission, 'irods_collection')
-#        else:
-#            irods_coll = utils.build_irods_coll_dest_path(submission.submission_date, file_submitted.hgi_project)
         file_submitted.file_path_irods = os.path.join(irods_coll, utils.extract_basename(file_path))
         if index_file_path:
             file_submitted.index_file.file_path_irods = os.path.join(irods_coll, utils.extract_basename(index_file_path))
@@ -651,15 +648,9 @@ def create_submission(user_id, data):
             file_status = constants.PENDING_ON_USER_STATUS
         
         # Instantiating the SubmittedFile object if the file is alright
-#        file_submitted.calc_file_md5_job_status = file_status
-#        file_submitted.file_header_parsing_job_status = file_status
-#        file_submitted.file_upload_job_status = file_status
         file_submitted.file_submission_status = file_status
         file_submitted.file_mdata_status = file_status
         file_submitted.file_type = file_type
-#        if index_file_path:
-#            file_submitted.index_file_upload_job_status = file_status
-#            file_submitted.calc_index_file_md5_job_status = file_status
             
         # Set mdata from submission:
         if submission.study:
@@ -765,7 +756,7 @@ def delete_submission(submission_id):
     
 #------------ FILE RELATED REQUESTS: ------------------
 
-
+# NOT USED any more
 def get_request_source(data):
     if 'sender' in data:
         sender = data['sender']
@@ -803,58 +794,25 @@ def get_submitted_file(file_id):
     #return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
 
 
-# def get_submitted_file_status(file_id):
-#     ''' Retrieves and returns the statuses of this file. 
-#     '''
-#     subm_file = db_model_operations.retrieve_submitted_file(file_id)
-#     return {'testing-file_path' : subm_file.file_path_client,
-#             'file_upload_status' : subm_file.file_upload_job_status,
-#             'index_file_upload_status' : subm_file.index_file_upload_job_status,
-#             'file_metadata_status' : subm_file.file_mdata_status,
-#             'file_submission_status' : subm_file.file_submission_status 
-#             }
-
-#import pdb
-    
-def get_submitted_file_status_working(file_id, file_obj=None):
-    ''' Retrieves and returns the statuses of this file. '''
-    if not file_obj:
-        file_obj = db_model_operations.retrieve_submitted_file(file_id)
-    index_status, index_md5 = None, None
-    if file_obj.index_file_path_client and hasattr(file_obj, 'index_file_upload_job_status'):
-        index_status = file_obj.index_file_upload_job_status
-        if hasattr(file_obj, 'calc_index_file_md5_job_status'):
-            index_md5 = file_obj.calc_index_file_md5_job_status
-    return {'testing-file_path' : file_obj.file_path_client if hasattr(file_obj, 'file_path_client') else None,
-            'file_upload_status' : file_obj.file_upload_job_status if hasattr(file_obj, 'file_upload_job_status') else None,
-            'index_file_upload_status' : index_status,
-            'index_md5_job_status' : index_md5, 
-            'calc_file_md5_job_status' : file_obj.calc_file_md5_job_status if hasattr(file_obj, 'calc_file_md5_job_status') else None,
-            'file_metadata_status' : file_obj.file_mdata_status if hasattr(file_obj, 'file_mdata_status') else None,
-            'file_submission_status' : file_obj.file_submission_status if hasattr(file_obj, 'file_submission_status') else None,
-            }
-
-
 def get_submitted_file_status(file_id, file_obj=None):
     ''' Retrieves and returns the statuses of this file. '''
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
     result = {'file_path' : file_obj.file_path_client}
-    # !!! If there are more tasks of the same type - this should be a list (dict 
+    # !!! PROBLEM: If there are more tasks of the same type - this should be a list (DIct just for testing! 
     tasks_status_dict = {}
     task_dict = file_obj.tasks_dict
     for task_id, task_info_dict in task_dict.iteritems():
         task_type = task_info_dict['type']
         async = AsyncResult(task_id)
-        if async and task_info_dict['status'] not in constants.FINISHED_STATUS:
+        #print "TASK STATUS FROM DB: ", task_info_dict['status']
+        if async:
             state = async.state
-            ready = async.ready()
-            #result[state] = (task_type, state)
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type, " ready?", ready
-            #tasks_list.append((task_id, task_type, state, ready))
+        if state and state != 'PENDING':
             tasks_status_dict[task_type] = state
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
         else:
-            #tasks_list.append((task_id,task_type, task_info_dict['status'] ))
+            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
             tasks_status_dict[task_type] = task_info_dict['status']
     result['tasks'] = tasks_status_dict
     return result
@@ -933,9 +891,13 @@ def update_file_submitted(submission_id, file_id, data):
             errors = data['errors']
         
         if update_source == constants.IRODS_JOB_MSG_SOURCE or data['status'] == constants.FAILURE_STATUS:
-            db_model_operations.update_task_status(file_id, data['task_id'], data['status'], errors)
+            db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
         else:
-            db_model_operations.update_file_mdata(file_id, data['result'], update_source, data['task_id'], data['status'], errors)
+            db_model_operations.update_file_mdata(file_id, data['result'], 
+                                                  update_source, 
+                                                  task_id=data['task_id'], 
+                                                  task_status=data['status'], 
+                                                  errors=errors)
     else:
         update_source = constants.EXTERNAL_SOURCE
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)

@@ -33,7 +33,7 @@ NOACCESS = "NOACCESS"
 
 #------------------- MSG SOURCE -------------------------
 
-#INIT_SOURCE = "INIT"
+INIT_SOURCE = "INIT"
 EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
 
 # Presubmission tasks:

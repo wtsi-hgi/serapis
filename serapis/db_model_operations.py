@@ -261,7 +261,7 @@ def compare_sender_priority(source1, source2):
     priority_dict[constants.PARSE_HEADER_MSG_SOURCE] = 1
     priority_dict[constants.UPDATE_MDATA_MSG_SOURCE] = 2
     priority_dict[constants.EXTERNAL_SOURCE] = 3
-    priority_dict[constants.UPLOAD_FILE_MSG_SOURCE] = 4
+    #priority_dict[constants.UPLOAD_FILE_MSG_SOURCE] = 4
     
     prior_s1 = priority_dict[source1]
     prior_s2 = priority_dict[source2]
@@ -819,8 +819,8 @@ def __upd_list_of_primary_types__(crt_list, update_list_json):
     crt_list = list(res)
     return crt_list
 
-
-def update_submitted_file_field(field_name, field_val,update_source, file_id, submitted_file):
+# NOT USED!
+def update_submitted_file_field_old(field_name, field_val,update_source, file_id, submitted_file):
     update_db_dict = dict()
     if field_val == 'null' or not field_val:
         return update_db_dict
@@ -1010,8 +1010,8 @@ def update_submitted_file_field(field_name, field_val,update_source, file_id, su
     return update_db_dict
     
 
-
-def update_submitted_file(file_id, update_dict, update_source, statuses_dict=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+# NOT USED!
+def update_submitted_file_old(file_id, update_dict, update_source, statuses_dict=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd = 0
     i = 0
     while i < nr_retries: 
@@ -1200,9 +1200,12 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     update_db_dict['inc__version__0'] = 1
                     logging.debug("UPDATING md5")
             elif field_name == 'index_file':
-                if update_source == constants.CALC_MD5_MSG_SOURCE:
-                    update_db_dict['set__index_file__md5'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                if update_source == constants.CALC_MD5_MSG_SOURCE: 
+                    if 'md5' in field_val:
+                        update_db_dict['set__index_file__md5'] = field_val['md5']
+                        update_db_dict['inc__version__0'] = 1
+                    else:
+                        raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
             elif field_name == 'hgi_project':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__hgi_project'] = field_val
@@ -1235,7 +1238,7 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
             logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
     return update_db_dict
 
-
+                      
 def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd, i = 0, 0
     db_update_dict = {}
@@ -1383,18 +1386,6 @@ def insert_hgi_project(subm_id, project):
     if utils.is_hgi_project(project):
         upd_dict = {'set__hgi_project' : project}
         return models.Submission.objects(id=subm_id).update_one(**upd_dict)
-
-
-#def update_submitted_file_logic(file_id, update_dict, update_source):
-#    if update_source == constants.EXTERNAL_SOURCE:
-#        update_submitted_file(file_id, update_dict, update_source, atomic_update=True, nr_retries=3)
-#    elif update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.UPLOAD_FILE_MSG_SOURCE]:
-#        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=True)
-#    elif update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-#        update_submitted_file(file_id, update_dict, update_source, atomic_update=False, independent_fields=False, nr_retries=3)
-#        #TODO: implement a all or nothing strategy for this case...
-#    check_and_update_all_file_statuses(file_id)
-
 
 
 def update_submission(update_dict, submission_id, submission=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
