@@ -292,6 +292,14 @@ class UpdateMustBeDismissed(Exception):
         
     
     
+class MdataProblem(Exception):
+    ''' For internal usage only!!!
+    '''
+    def __init__(self, reason):
+        self.reason = reason
+        
+    def __str__(self):
+        return 'Internal error - reason: '+self.reason
     
     
     

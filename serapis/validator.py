@@ -117,8 +117,15 @@ submitted_file_schema = Schema({
     'index_file_upload_job_status' : str,
     
     'calc_file_md5_job_status' : str,
-    'calc_index_file_md5_job_status' : str
+    'calc_index_file_md5_job_status' : str,
     
+    'tasks_dict' : dict, 
+    
+    # TODO: Move these fields in a per request check:
+    'task_id' : str,
+    'result' : dict,
+    'status' : str,
+    'errors' : list
     
 })
 

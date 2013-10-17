@@ -3,6 +3,7 @@ from serapis import exceptions
 from mongoengine import *
 from serapis.constants import *
 from bson.objectid import ObjectId
+from collections import namedtuple
 #from mongoengine.base import ObjectIdField
 
 #import re
@@ -27,8 +28,19 @@ FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
                               'file_update_jobs_dict',
                               'missing_mandatory_fields_dict',
                               'file_error_log',
+                              'presubmission_tasks_dict'
                               ]
   
+########## General classes ###############
+TaskInfo = namedtuple('TaskInfo', ['id', 'type', 'status'])
+
+class Result:
+    def __init__(self, result, error_dict=None, warning_dict=None, message=None):
+        self.result = result
+        self.error_dict = error_dict
+        self.warning_dict = warning_dict
+        self.message = message
+
   
 class Entity(DynamicEmbeddedDocument):
     internal_id = IntField()
@@ -121,6 +133,11 @@ class GeneralFileMdata:
     study = EmbeddedDocumentField(Study)
     
     
+class IndexFile(EmbeddedDocument):
+    file_path_irods = StringField()
+    file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
+    md5 = StringField()
+
     
 class SubmittedFile(DynamicDocument):
     #submission_id = StringField(required=True)
@@ -132,10 +149,8 @@ class SubmittedFile(DynamicDocument):
     md5 = StringField()
     
     #OPTIONAL:
-    index_file_path_irods = StringField()
-    index_file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
-    index_file_md5 = StringField()
-
+    index_file = EmbeddedDocumentField(IndexFile)
+    
     # SUBMISSION MDATA
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
@@ -164,27 +179,32 @@ class SubmittedFile(DynamicDocument):
     version = ListField(default=lambda : [0,0,0,0])
     
     ######################## STATUSES ##################################
+    
+    tasks_dict = DictField()   # Dict of tasks: {task_id : {type : 'parse', status : 'RUNNING'}} for all the tasks submitted in PREPARATION phase
+    #submission_tasks_dict = DictField()      # Dict of tasks: --"-- - for all the submission tasks (add metadata and move from staging to iRODS coll
+    
+    
     # UPLOAD JOB:
-    file_upload_job_status = StringField(choices=TASK_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-    index_file_upload_job_status = StringField(choices=TASK_STATUS)
+    #file_upload_job_status = StringField(choices=TASK_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+    #index_file_upload_job_status = StringField(choices=TASK_STATUS)
 
     # CALC MD5 job:
-    calc_file_md5_job_status = StringField(choices=TASK_STATUS)
-    calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
+    #calc_file_md5_job_status = StringField(choices=TASK_STATUS)
+    #calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
     
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
     
     # HEADER PARSING JOB:
-    file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")
+    #file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")
     header_has_mdata = BooleanField()
     
     # UPDATE MDATA JOB:
 #    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
-    file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
+    #file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
     
     # IRODS JOBS:
-    irods_jobs_dict = DictField()          # Keeps track of the output of the jobs in iRODS
+    #irods_jobs_dict = DictField()          # Keeps track of the output of the jobs in iRODS
     
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER

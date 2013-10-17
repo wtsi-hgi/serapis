@@ -323,7 +323,46 @@ class SubmittedFilesMainPageRequestHandler(APIView):
         
     # TODO: should I really expose this method?
     def post(self, request, submission_id, format=None):
-        pass
+        ''' Resubmit jobs for each file of this submission - used in case of permission denied
+            or other errors that may have happened during the submission (DB inaccessible, etc).
+            POST req body should look like: 
+        '''
+        try:
+            result = dict()
+            resubmission_result = controller.resubmit_jobs_for_submission(submission_id)
+        except MultipleInvalid as e:
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['errors'] = "Message contents invalid: "+e.msg + " "+ path
+            return Response(result, status=400)
+        except InvalidId:
+            result['errors'] = "Invalid id"
+            return Response(result, status=404)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "Submission not found" 
+            return Response(result, status=404)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.message
+            return Response(result, status=404)
+        else:
+            if resubmission_result.error_dict:
+                result['errors'] = resubmission_result.error_dict 
+            if resubmission_result.message:
+                result['message'] = resubmission_result.message
+            if not resubmission_result.result:      # Nothing has changed - no new job submitted, because the last jobs succeeded
+                result['result'] = False
+                result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted. " 
+                logging.info("RESULT RESUBMIT JOBS: %s", result)
+                return Response(result, status=200) # Should it be 304? (nothing has changed)
+            else:
+                result['result'] = resubmission_result.result
+                logging.info("RESULT RESUBMIT JOBS: %s", result)
+                result['message'] = "Jobs resubmitted."+str(result['message']) if 'message' in result else "Jobs resubmitted." 
+                return Response(result, status=200)
     
 
     
@@ -409,7 +448,7 @@ class SubmittedFileRequestHandler(APIView):
         data = request.DATA
         logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
-            result = dict()
+            result = {}
             print "What type is the data coming in????", type(data)
             data = utils.unicode2string(data)
             print "After converting to string: -------", str(data)
@@ -422,7 +461,7 @@ class SubmittedFileRequestHandler(APIView):
                     path = path+ '->' + p
                 else:
                     path = p
-            result['error'] = "Message contents invalid: "+e.msg + " "+ path
+            result['errors'] = "Message contents invalid: "+e.msg + " "+ path
             return Response(result, status=400)
         except InvalidId:
             result['errors'] = "Invalid id"
@@ -438,7 +477,7 @@ class SubmittedFileRequestHandler(APIView):
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
-            result['erors'] = e.message
+            result['errors'] = e.message
             return Response(result, status=404)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.message

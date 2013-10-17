@@ -1,70 +1,57 @@
-
+import os
 from serapis import models, controller, db_model_operations, utils, exceptions, constants, entities
 from serapis.constants import *
 import unittest
 import requests
 import json
-
-
 from bson.objectid import ObjectId
-
-import os
-
-
-def build_from_seqscape(sample_mdata):
-    sample = Sample()
-    for field_name in sample_mdata:
-        norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
-        setattr(sample, field_name, norm_field_val)
-    return sample
 
 
 class TestWorkerEntitiesOperations(unittest.TestCase):
     def test_seqsc2serapis(self):
-#        seqsc_dict = {"gender": "Male", 
-#                      "common_name": "Homo sapien", 
-#                      "taxon_id": "9606", 
-#                      "organism": "Homo sapiens"}
-#        sample = entities.Sample.build_from_seqscape(seqsc_dict)
-#        print "SAMPLE AFTER MAPPING: ", vars(sample)
-#        serapis_dict = {"gender": "Male", 
-#                      "common_name": "Homo Sapiens", 
-#                      "taxon_id": "9606", 
-#                      "organism": "Homo Sapiens"}
-#        self.assertDictEqual(serapis_dict, vars(sample))
+        seqsc_dict = {"gender": "Male", 
+                      "common_name": "Homo sapien", 
+                      "taxon_id": "9606", 
+                      "organism": "Homo sapiens"}
+        sample = entities.Sample.build_from_seqscape(seqsc_dict)
+        print "SAMPLE AFTER MAPPING: ", vars(sample)
+        serapis_dict = {"gender": "Male", 
+                      "common_name": "Homo Sapiens", 
+                      "taxon_id": "9606", 
+                      "organism": "Homo Sapiens"}
+        self.assertDictEqual(serapis_dict, vars(sample))
 
-        
+
         seqsc_dict = {"common_name" : "Homo Sapien"}
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
         serapis_dict = {"common_name" : "Homo Sapiens"}
         self.assertDictEqual(serapis_dict, vars(sample))
-        
-#        
-#        seqsc_dict = {"common_name" : "homo_sapien"}
-#        sample = entities.Sample.build_from_seqscape(seqsc_dict)
-#        serapis_dict = {"common_name" : "Homo Sapiens"}
-#        self.assertDictEqual(serapis_dict, vars(sample))
-#        
 
+        
+        seqsc_dict = {"common_name" : "homo_sapien"}
+        sample = entities.Sample.build_from_seqscape(seqsc_dict)
+        serapis_dict = {"common_name" : "Homo Sapiens"}
+        self.assertDictEqual(serapis_dict, vars(sample))
+        
 
-class TestDBModelOperations(unittest.TestCase):
-    def test_check_any_task_has_status(self):
-        res = db_model_operations.check_any_task_has_status(None, constants.SUCCESS_STATUS)
-        self.assertFalse(res)
-        
-        res = db_model_operations.check_any_task_has_status({}, constants.SUCCESS_STATUS)
-        self.assertFalse(res)
-        
-        res = db_model_operations.check_any_task_has_status({"123" : "SUCCESS"}, constants.SUCCESS_STATUS)
-        self.assertTrue(res)
-        
-        res = db_model_operations.check_any_task_has_status({"123" : "SUCCESS", "234" : "FAILURE"}, constants.SUCCESS_STATUS)
-        self.assertTrue(res)
-        
-        res = db_model_operations.check_any_task_has_status({"123" : "FAILURE"}, constants.SUCCESS_STATUS)
-        self.assertFalse(res)
-        
-        
+# NOT up to date - it's before I restructured to tasks dict
+#class TestDBModelOperations(unittest.TestCase):
+#    def test_check_any_task_has_status(self):
+#        res = db_model_operations.check_any_task_has_status(None, constants.SUCCESS_STATUS)
+#        self.assertFalse(res)
+#        
+#        res = db_model_operations.check_any_task_has_status({}, constants.SUCCESS_STATUS)
+#        self.assertFalse(res)
+#        
+#        res = db_model_operations.check_any_task_has_status({"123" : "SUCCESS"}, constants.SUCCESS_STATUS)
+#        self.assertTrue(res)
+#        
+#        res = db_model_operations.check_any_task_has_status({"123" : "SUCCESS", "234" : "FAILURE"}, constants.SUCCESS_STATUS)
+#        self.assertTrue(res)
+#        
+#        res = db_model_operations.check_any_task_has_status({"123" : "FAILURE"}, constants.SUCCESS_STATUS)
+#        self.assertFalse(res)
+#        
         
 
 
