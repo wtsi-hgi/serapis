@@ -229,6 +229,7 @@ def submit_jobs_for_file(file_id, dest_irods_coll, user_id, file_obj=None, as_se
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
     tasks_dict = {}
+    print "AS SERAPIS????????????????????????", as_serapis
     if as_serapis:
         task_id = launch_update_file_job(file_obj)
         tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
