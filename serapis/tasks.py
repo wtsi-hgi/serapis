@@ -22,8 +22,10 @@ from MySQLdb import Error as mysqlError
 #import serializers
 from serapis.constants import *
 from serapis.entities import *
+from serapis.worker import exceptions
 
 from celery import current_task
+from IPython.utils.io import stdout
 
 
 BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
@@ -32,6 +34,18 @@ FILE_ERROR_LOG = 'file_error_log'
 MD5 = "md5"
 
 #logger = get_task_logger(__name__)
+
+child_pid = None
+
+import signal
+def kill_child():
+    if child_pid is None:
+        pass
+    else:
+        os.kill(child_pid, signal.SIGTERM)
+
+import atexit
+atexit.register(kill_child)
 
 #---------- Auxiliary functions - used by all tasks ------------
 
@@ -468,6 +482,9 @@ class UploadFileTask(iRODSTask):
         result['task_id']= current_task.request.id
         result['status'] = SUCCESS_STATUS
         time.sleep(5)
+        irods_coll  = str(kwargs['irods_coll'])
+        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
+
         print "FROM UPLOADDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD --- TYPE OF FILE ID::::::::", type(file_id)
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
@@ -531,18 +548,6 @@ class UploadFileTask(iRODSTask):
                 allparts.insert(0, parts[1])
         return allparts
 
-    # TO finish - only check if exists
-#    def find_or_create_collection(self, path):
-    def exists_collection(self, path):
-        ''' Unfinished - I couldn't make up my mind how to implement this
-            in a non dirty way (to create a collection I need to check at each step that it exists or not
-            and doing this with the icommands is not very handy. '''
-        #path_parts = self.split_path(path)
-        ret = subprocess.Popen(["icd", path], stdout=subprocess.PIPE)
-        out, err = ret.communicate()
-        if err:
-            return False
-        return True
         
 
     def run_on_serapis(self, **kwargs):
@@ -613,71 +618,6 @@ class UploadFileTask(iRODSTask):
 
         print "ENDED UPLOAD TASK--------------------------------"
     
-    # Version not run - 4 sept 2013
-    def run_call1(self, **kwargs):
-        file_id = kwargs['file_id']
-        src_file_path = kwargs['file_path']
-        response_status = kwargs['response_status']
-        submission_id = str(kwargs['submission_id'])
-        dest_file_path = str(kwargs['dest_irods_path'])
- 
-        result = dict()
-        result[response_status] = constants.IN_PROGRESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
- 
-        result = dict()
-        errors_list = []
-        t1 = time.time()
-
-        retcode = subprocess.call(["iput", "-K", src_file_path])
-        print "IPUT retcode = ", retcode
-        if retcode != 0:
-            error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
-            errors_list.append(error_msg)
-            print error_msg
-            result[response_status] = FAILURE_STATUS
-            result[FILE_ERROR_LOG] = errors_list
-            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-        else:
-            t2 = time.time()
-            print "TIME TAKEN: ", t2-t1
-            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
-            out, err = ret.communicate()
-            print "OUTPUT OF ICHECKSUM command: ", ret
-            if err:
-                error_msg = "IRODS ichksum error - ", err
-                errors_list.append(error_msg)
-                print error_msg
-                result[response_status] = FAILURE_STATUS
-                result[FILE_ERROR_LOG] = errors_list
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-            else:
-                result[MD5] = out.split()[1]
-                print "CHECKSUM: ", result[MD5]
-                result[response_status] = SUCCESS_STATUS
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-
-
-        
-    # Modified upload version for uploading fines on the cluster
-    def run_trying_to_use_call(self, **kwargs):
-        #time.sleep(2)
-        file_id = kwargs['file_id']
-        file_path = kwargs['file_path']
-        response_status = kwargs['response_status']
-        submission_id = str(kwargs['submission_id'])
-        src_file_path = file_path
-        
-        #RESULT TO BE RETURNED:
-        result = dict()
-        result[response_status] = constants.IN_PROGRESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-        
-        (_, src_file_name) = os.path.split(src_file_path)               # _ means "I am not interested in this value, hence I won't name it"
-        dest_file_path = os.path.join(DEST_DIR_IRODS, src_file_name)
-       
-        upld_cmd = call(["python", "/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web/serapis/tasks/upload_iput.py", 
-            "--src_file_path", src_file_path, "--dest_file_path", dest_file_path, "--response_status", response_status, "--submission_id", str(submission_id), "--file_id", str(file_id)])
 
 
     # the current version for serapis - YANG
@@ -742,57 +682,27 @@ class UploadFileTask(iRODSTask):
 
         print "ENDED UPLOAD TASK--------------------------------"
         
-        # retcode = subprocess.call(["iput", "-K", src_file_path])
-        # print "IPUT retcode = ", retcode
-        # if retcode != 0:
-        #     error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
-        #     errors_list.append(error_msg)
-        #     print error_msg
-        #     result[response_status] = FAILURE_STATUS
-        #     result[FILE_ERROR_LOG] = errors_list
-        #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-        # else:
-        #     t2 = time.time()
-        #     print "TIME TAKEN: ", t2-t1
-        #     ret = subprocess.call(["ichksum", dest_file_path])
-        #     print "OUTPUT OF ICHECKSUM command: ", ret
-        #     result[MD5] = ret.split()[1]
-        #     print "CHECKSUM: ", result[MD5]
-        #     result[response_status] = SUCCESS_STATUS
-        #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-
-            # if err:
-            #     error_msg = "IRODS ichksum error - ", err
-            #     errors_list.append(error_msg)
-            #     print error_msg
-            #     result[response_status] = FAILURE_STATUS
-            #     result[FILE_ERROR_LOG] = errors_list
-            #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-            # else:
-            #     result[MD5] = out.split()[1]
-            #     print "CHECKSUM: ", result[MD5]
-            #     result[response_status] = SUCCESS_STATUS
-            #     send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-
-
+     
     def rollback(self, file_path, irods_coll):
         result = dict()
         fname = os.path.split(file_path)
         irods_file_path = os.path.join(irods_coll, fname)
-        try:
-            subprocess.check_output(["ils", "-l", irods_file_path], stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            result['status'] = SUCCESS_STATUS       # The file we meant to irm doesn't exist => success rollback
-            return result
         
-        try:    
-            retcode = subprocess.check_output(["irm", irods_file_path], stderr=subprocess.STDOUT)
-            print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", retcode
-        except subprocess.CalledProcessError as e:
-            error_msg = "IRODS irm error - return code="+str(e.returncode)+" message: "+e.output
+        child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (_, err) = child_proc.communicate()
+        if err:
+            result['status'] = SUCCESS_STATUS
+            return result
+            
+        irm_child_proc = subprocess.Popen(["irm", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (_, err_irm) = irm_child_proc.communicate()
+        if err_irm:
+            print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", err_irm
+            error_msg = "IRODS irm error - return code="+str(irm_child_proc.returncode)+" message: "+err_irm
             result['status'] = FAILURE_STATUS
             result['errors'] = error_msg
         else:
+            print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
             result['status'] = SUCCESS_STATUS
         return result
 
@@ -806,15 +716,60 @@ class UploadFileTask(iRODSTask):
         irods_coll  = str(kwargs['dest_irods_path'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
-        result = {}
-        result['task_id'] = current_task.request.id
+        
         subprocess.check_output(["iput", "-K", file_path, irods_coll], stderr=subprocess.STDOUT)
         if index_file_path:
             subprocess.check_output(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.STDOUT)
+            
+        result = {}
+        result['task_id'] = current_task.request.id
         result['status'] = SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=result['status'])
         
+
+    # Run using Popen and communicate() - 18.10.2013
+    def run_using_popen(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_id         = str(kwargs['file_id'])
+        file_path       = kwargs['file_path']
+        index_file_path = kwargs['index_file_path']
+        submission_id   = str(kwargs['submission_id'])
+        irods_coll  = str(kwargs['irods_coll'])
+        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
+        
+
+        ##### ONLY serapis can do this!!!!!!!!!!        
+        # Check if the collection exists:
+        child_proc = subprocess.Popen(["ils", "-l", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = child_proc.pid
+        (out, err) = child_proc.communicate()
+        if err:
+            child_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = child_proc.pid
+            (out, err) = child_proc.communicate()
+            if err:
+                raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_coll, out)
+        
+        child_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = child_proc.pid
+        (out, err) = child_proc.communicate()
+        if err:
+            raise subprocess.CalledProcessError(child_proc.returncode, "iput -K"+file_path, out)
+        
+        if index_file_path:
+            child_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = child_proc.pid
+        (out, err) = child_proc.communicate()
+        if err:
+            raise subprocess.CalledProcessError(child_proc.returncode, "iput -K"+index_file_path, out)
+         
+        result = {}
+        result['task_id'] = current_task.request.id
+        result['status'] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id)
+        current_task.update_state(state=result['status'])
+
         
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -881,13 +836,13 @@ class CalculateMD5Task(GatherMetadataTask):
         if index_file_path:
             index_md5 = self.calculate_md5(index_file_path)
         
-        t1 = time.time()
-        file_md5 = self.calculate_md5(file_path)
-        delta = time.time() - t1
-        print "TIME TAKEN TO CALCULATE md5 = ", delta
+#        t1 = time.time()
+#        file_md5 = self.calculate_md5(file_path)
+#        delta = time.time() - t1
+#        print "TIME TAKEN TO CALCULATE md5 = ", delta
         
-#        file_md5 = "123456789"
-#        index_md5 = "987654321"
+        file_md5 = "123456789"
+        index_md5 = "987654321"
         
         # Report the results:
         result = {}
@@ -1290,29 +1245,11 @@ class UpdateFileMdataTask(GatherMetadataTask):
         print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
         print "STUDIES INCOMPLETE: -------------", incomplete_studies_list
         
-#        try:
         processSeqsc = ProcessSeqScapeData()
-#        except mysqlError as exc:
-#            result = dict()
-#            result['task_id']   = current_task.request.id
-#            result['status']    = FAILURE_STATUS
-#            result['errors']    = [constants.SEQSCAPE_DB_CONNECTION_ERROR]
-#            send_http_PUT_req(result, file_mdata['submission_id'], file_id)
-#            current_task.update_state(state=constants.FAILURE_STATUS)
-#            #self.retry(kwargs, exc)
-#        else: 
-            #processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
         processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
         processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
         processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
                  
-    #        if len(incomplete_libs_list) > 0:
-    #            processSeqsc.fetch_and_process_lib_mdata(incomplete_libs_list, file_submitted)
-    #        if len(incomplete_samples_list) > 0:
-    #            processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-    #        if len(incomplete_studies_list) > 0:
-    #            processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
-            
         result = {}
         result['task_id']   = current_task.request.id
         result['result']    = vars(file_submitted) 
@@ -1321,31 +1258,120 @@ class UpdateFileMdataTask(GatherMetadataTask):
         print "RESPONSE FROM SERVER: ", response
         current_task.update_state(state=constants.SUCCESS_STATUS)
 
-            
-            
-#    def on_failure(self, exc, task_id, args, kwargs, einfo):
-#        print "I've failed to execute the UPDATE TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
-#        file_id         = kwargs['file_id']
-#        file_serialized = kwargs['file_mdata']
-#        file_mdata      = deserialize(file_serialized)
-#        submission_id   = file_mdata['submission_id']
-#        
-#        str_exc = str(exc).replace("\"","" )
-#        str_exc = str_exc.replace("\'", "")
-#        result = dict()
-#        result['task_id']   = current_task.request.id
-#        result['status']    = FAILURE_STATUS
-#        result['errors']     = [str_exc]
-#        resp = send_http_PUT_req(result, submission_id, file_id)
-#        print "RESPONSE FROM SERVER: ", resp
-#        current_task.update_state(state=constants.FAILURE_STATUS)
 
-            
-# TODO: to modify so that parseBAM sends also a PUT message back to server, saying which library ids he found
-# then the DB will be completed with everything we can get from seqscape. If there will be libraries not found in seqscape,
-# these will appear in MongoDB as Library objects that only have name initialized => NEED code that iterates over all
-# libs and decides whether it is complete or not
 
+#################### iRODS TASKS: ##############################
+
+class SubmitToIRODSPermanentCollTask(iRODSTask):
+    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+
+    def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        file_mdata_irods        = kwargs['file_mdata_irods']
+        index_file_mdata_irods  = kwargs['index_file_mdata_irods']
+        permanent_coll_irods    = str(kwargs['permanent_coll_irods'])
+        file_path_irods         = str(kwargs['file_path_irods'])
+        index_file_path_irods   = str(kwargs['index_file_path_irods'])
+        
+        
+        print "ADDING MDATA TO IRODS................."
+        file_mdata_irods = deserialize(file_mdata_irods)
+        
+        # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
+        for attr_val in file_mdata_irods:
+            attr = str(attr_val[0])
+            val = str(attr_val[1])
+            child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = child_proc.communicate()
+            if err:
+                raise exceptions.iMetaException(err, out)
+
+        # Adding mdata to the index file:
+        if index_file_path_irods:
+            for attr_name_val in index_file_mdata_irods:
+                attr_name = str(attr_name_val[0])
+                attr_val = str(attr_name_val[1])
+                child_proc = subprocess.check_output(["imeta", "add","-d", file_path_irods, attr_name, attr_val], stderr=subprocess.STDOUT)
+                print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
+                (out, err) = child_proc.communicate()
+                if err:
+                    raise exceptions.iMetaException(err, out)
+
+        # Moving from staging area to the permanent collection:
+        child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            raise exceptions.iMVException(err, out)
+        
+        if index_file_path_irods:
+            child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = child_proc.communicate()
+            if err:
+                raise exceptions.iMVException(out, err)
+
+        result = {}
+        result['task_id'] = current_task.request.id
+        result['status'] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id)
+        current_task.update_state(state=constants.SUCCESS_STATUS)
+        
+        
+    def rollback(self, kwargs):
+        file_mdata_irods        = kwargs['file_mdata_irods']
+        index_file_mdata_irods  = kwargs['index_file_mdata_irods']
+        file_path_irods         = str(kwargs['file_path_irods'])
+        index_file_path_irods   = str(kwargs['index_file_path_irods'])
+
+        errors = []
+        for attr, val in file_mdata_irods.iteritems():
+            child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (_, err) = child_proc.communicate()
+            if err:
+                errors.append(err)
+            print "ROLLING BACK THE ADD MDATA FOR FILE..."
+        
+        if index_file_path_irods:
+            for attr_name_val in index_file_mdata_irods:
+                attr_name = str(attr_name_val[0])
+                attr_val = str(attr_name_val[1])
+                subprocess.Popen(["imeta", "rm","-d", file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                (_, err) = child_proc.communicate()
+                if err:
+                    errors.append(err)
+                print "ROLLING BACK THE ADD MDATA INDEX ..."
+        if errors:
+            print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
+            return {'status' : FAILURE_STATUS, 'errors' : errors}
+        print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
+        return {'status' : SUCCESS_STATUS, 'errors' : errors}
+            
+        
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        file_id = str(kwargs['file_id'])
+        submission_id = str(kwargs['submission_id'])
+        
+        if type(exc) == exceptions.iMetaException:      # You can only rollback an iMeta exception
+            errors = self.rollback(kwargs)
+        if isinstance(exc, exceptions.iRODSException):
+            str_exc = exc.error
+        else:
+            str_exc = str(exc)
+        str_exc = str_exc.replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        result = dict()
+        result['task_id']   = current_task.request.id
+        result['status']    = FAILURE_STATUS
+        result['errors'] =  [str_exc].extend(errors)
+        resp = send_http_PUT_req(result, submission_id, file_id)
+        print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
+
+        
+    
 
 class AddMdataToIRODSFileTask(iRODSTask):
     time_limit = 1200           # hard time limit => restarts the worker process when exceeded
@@ -1353,68 +1379,67 @@ class AddMdataToIRODSFileTask(iRODSTask):
 
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
-        file_id             = str(kwargs['file_id'])
-        submission_id       = str(kwargs['submission_id'])
-        file_irods_mdata    = kwargs['irods_mdata']
-        dest_file_path_irods = str(kwargs['dest_file_path_irods'])
-        
-        # TEMP:
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        file_mdata_irods        = kwargs['file_mdata_irods']
+        index_file_mdata_irods  = kwargs['index_file_mdata_irods']
+        dest_file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
-        index_file_md5          = str(kwargs['index_file_md5'])
-        file_md5                = str(kwargs['file_md5'])
         
-        task_id = current_task.request.id
-        errors_list = []       
         print "ADD MDATA TO IRODS JOB...works!"
-        file_irods_mdata = deserialize(file_irods_mdata)
+        file_mdata_irods = deserialize(file_mdata_irods)
         
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
-        for attr_val in file_irods_mdata:
+        for attr_val in file_mdata_irods:
             attr = str(attr_val[0])
             val = str(attr_val[1])
-            try:
-                subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError as e:
-                # TODO: ROLLBACK -> unset all the mdata set already
-                error_msg = "ERROR: IRODS imeta errorrrrrrr - return code="+e.returncode+" message: "+e.output
-                errors_list.append(error_msg)
-                print error_msg
-                result = {}
-                file_irods_jobs_dict = {'task_id' : FAILURE_STATUS}
-                result['irods_jobs_dict'] = file_irods_jobs_dict
-                result['file_error_log'] = errors_list
-                send_http_PUT_req(result, submission_id, file_id)
-                current_task.update_state(state=constants.FAILURE_STATUS)
-                return
+            subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
 
         # Hack for adding mdata to the index file:
         if index_file_path_irods:
-            print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
-            try:
-                ret1 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'file_md5', index_file_md5], stderr=subprocess.STDOUT)
-                ret2 = subprocess.check_output(["imeta", "add","-d", index_file_path_irods, 'indexed_file_md5', file_md5])
-                print "Return code for add index mdata: ", ret1, " and ", ret2 
-            except subprocess.CalledProcessError as e:
-                error_msg = "IRODS imeta error - return code="+e.retcode+" message: "+e.output
-                errors_list.append(error_msg)
-                print error_msg
+            for attr_name_val in index_file_mdata_irods:
+                attr_name = str(attr_name_val[0])
+                attr_val = str(attr_name_val[1])
+                subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.STDOUT)
+                print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
 
-        # Run the pyrods or smth
-        result = dict()
-        file_irods_jobs_dict = dict()
-        if not errors_list:
-            file_irods_jobs_dict[task_id] = SUCCESS_STATUS
-            current_task.update_state(state=constants.SUCCESS_STATUS)
-        else:
-            print "ERRORRRRRRRRRRRRRRRRRRRRRRRR IMETA!!!!!!!!!!!!! "
-            file_irods_jobs_dict[task_id] = FAILURE_STATUS
-            result['file_error_log'] = errors_list
-            current_task.update_state(state=constants.FAILURE_STATUS)
-
-        result['irods_jobs_dict'] = file_irods_jobs_dict
+        result = {}
+        result['task_id'] = current_task.request.id
+        result['status'] = SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
+        current_task.update_state(state=constants.SUCCESS_STATUS)
     
     
+    def rollback(self, kwargs):
+        file_mdata_irods        = kwargs['file_mdata_irods']
+        index_file_mdata_irods  = kwargs['index_file_mdata_irods']
+        dest_file_path_irods    = str(kwargs['dest_file_path_irods'])
+        index_file_path_irods   = str(kwargs['index_file_path_irods'])
+
+        errors = []
+        for attr, val in file_mdata_irods.iteritems():
+            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (_, err) = child_proc.communicate()
+            if err:
+                errors.append(err)
+            print "ROLLING BACK THE ADD MDATA FOR FILE..."
+        
+        if index_file_path_irods:
+            for attr_name_val in index_file_mdata_irods:
+                attr_name = str(attr_name_val[0])
+                attr_val = str(attr_name_val[1])
+                subprocess.Popen(["imeta", "rm","-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                (_, err) = child_proc.communicate()
+                if err:
+                    errors.append(err)
+                print "ROLLING BACK THE ADD MDATA INDEX ..."
+        if errors:
+            print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
+            return {'status' : FAILURE_STATUS, 'errors' : errors}
+        print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
+        return {'status' : SUCCESS_STATUS, 'errors' : errors}
+            
+        
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
         file_id = str(kwargs['file_id'])
@@ -1422,17 +1447,62 @@ class AddMdataToIRODSFileTask(iRODSTask):
         
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
-
+        errors = self.rollback(kwargs)
         result = dict()
         result['task_id']   = current_task.request.id
         result['status']    = FAILURE_STATUS
-        result['errors'] =  [str_exc]
+        result['errors'] =  [str_exc].extend(errors)
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
         current_task.update_state(state=constants.FAILURE_STATUS)
 
 
+class MoveFileToPermanentIRODSCollTask(iRODSTask):
+    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+    
+    def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        irods_src_file_path     = kwargs['irods_src_path']
+        irods_dest_coll_path    = kwargs['irods_dest_path']
+        irods_index_file_path   = kwargs['irods_index_file_path']
+              
+        child_proc = subprocess.Popen(["imv", irods_src_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (_, err) = child_proc.communicate()
+        if err:
+            raise subprocess.CalledProcessError(child_proc.pid, "imv"+irods_src_file_path+" "+irods_dest_coll_path, err)
         
+        if irods_index_file_path:
+            child_proc = subprocess.Popen(["imv", irods_index_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (_, err) = child_proc.communicate()
+            if err:
+                raise subprocess.CalledProcessError(child_proc.pid, "imv"+irods_src_file_path+" "+irods_dest_coll_path, err)
+            
+        result = {}
+        result['task_id'] = current_task.request.id
+        result['status'] = SUCCESS_STATUS
+        send_http_PUT_req(result, submission_id, file_id)
+        current_task.update_state(state=constants.SUCCESS_STATUS)
+        
+        
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        file_id = str(kwargs['file_id'])
+        submission_id = str(kwargs['submission_id'])
+        
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        
+        errors = self.rollback(kwargs)
+        result = dict()
+        result['task_id']   = current_task.request.id
+        result['status']    = FAILURE_STATUS
+        result['errors'] =  [str_exc].extend(errors)
+        resp = send_http_PUT_req(result, submission_id, file_id)
+        print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
         
 
 # --------------------------- NOT USED ------------------------

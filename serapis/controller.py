@@ -25,11 +25,16 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%m/
 upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
 update_file_task = tasks.UpdateFileMdataTask()
-add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
 calculate_md5_task = tasks.CalculateMD5Task()
 
+#add_mdata_to_IRODS = tasks.AddMdataToIRODSFileTask()
+#move_to_permanent_coll_task = tasks.MoveFileToPermanentIRODSCollTask()
+
+submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
+
 PRESUBMISSION_TASKS = [upload_task.name, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
-SUBMISSION_TASKS = [add_mdata_to_IRODS.name]
+SUBMISSION_TASKS = [submit_to_permanent_iRODS_coll_task.name]
+#SUBMISSION_TASKS = [add_mdata_to_IRODS.name]
 
 
 
@@ -52,6 +57,9 @@ INDEX_UPLOAD_Q = "IndexUploadQ"
 
 # Calculate md5 queue:
 CALCULATE_MD5_Q = "CalculateMD5Q"
+
+# IRODS queue:
+IRODS_Q = "IRODSQ"
 
     
     
@@ -92,7 +100,7 @@ def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_i
                                             'file_path' : file_path, 
                                             'index_file_path' : index_file_path, 
                                             'submission_id' : submission_id,
-                                            'dest_irods_path' : dest_irods_path
+                                            'irods_coll' : dest_irods_path
                                             }, 
                                         queue=queue)
 #    statuses_to_upd = {response_status : constants.PENDING_ON_WORKER_STATUS, 
@@ -159,75 +167,73 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
+    index_mdata = None
     if 'index_file_path_client' in file_to_submit:
-        index_file_path_irods = file_to_submit['index_file_path_irods']
-        index_file_md5 = file_to_submit.index_file_md5 if 'index_file_md5' in file_to_submit else None
-        #index_file_path = file_to_submit.index_file_path if 'index_file_path' in file_to_submit else None
+        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
     else:
-        index_file_path_irods = None
-        index_file_md5 = None
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
 
-    
-#    if 'index_file_path' in file_to_submit:
-#        index_file_path = file_to_submit.index_file_path
-#    else:
-#        index_file_path = None 
-
-    #task_id = add_mdata_to_IRODS.apply_async(kwargs={'file_mdata' : file_mdata_dict, 'file_id' : file_id, 'submission_id' : submission_id})
-    
-    
-    # TODO: replace the client_path with the irods path:
-    task = add_mdata_to_IRODS.apply_async(kwargs={'dest_file_path_irods' : file_to_submit['file_path_irods'], 
-                                                     'irods_mdata' : irods_mdata_dict, 
-                                                     'file_id' : file_id, 
-                                                     'submission_id' : submission_id,
-                                                     'index_file_path_irods' : index_file_path_irods,
-                                                     'index_file_md5' : index_file_md5,
-                                                     'file_md5' : file_to_submit.md5
-                                                     },
-                                             queue=PROCESS_MDATA_Q)
-    #db_model_operations.update_submission_tasks_dict(file_id, task_id, add_mdata_to_IRODS.name)
-    #return db_model_operations.update_file_irods_jobs_dict(file_id, task_id, constants.PENDING_ON_WORKER_STATUS)
-#    status = AsyncResult(task.id).state
-#    db_model_operations.add_task_to_file(file_id, task.id, add_mdata_to_IRODS.name, status)
-#    return 1
+    task = add_mdata_to_IRODS.apply_async(kwargs={
+                                                  'file_id' : file_id, 
+                                                  'submission_id' : submission_id,
+                                                  'file_mdata_irods' : irods_mdata_dict,
+                                                  'index_file_mdata_irods': index_mdata,
+                                                  'file_path_irods' : file_to_submit.file_path_irods,
+                                                  'index_file_path_irods' : file_to_submit.index.file_path_irods,
+                                                 },
+                                             queue=IRODS_Q)
     return task.id
 
 
-#def submit_upload_jobs_for_file(user_id, file_submitted, dest_irods_coll, upload_task_queue=UPLOAD_Q, upload_index_task_queue=INDEX_UPLOAD_Q):
-#    if not dest_irods_coll:
-#        return False
-#
-#    # WORKING version for uploading to the staging area:
-#    #dest_file_path = utils.get_irods_staging_path(file_submitted.submission_id)
-#    if file_submitted.file_submission_status == constants.PENDING_ON_WORKER_STATUS:
-#        upl_file, upl_idx = False, False
-#        if file_submitted.file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-#            launch_upload_job(user_id, 
-#                              file_submitted.id, 
-#                              file_submitted.submission_id, 
-#                              file_submitted.file_path_client, 
-#                              'file_upload_job_status', 
-#                              dest_irods_coll,
-#                              queue=upload_task_queue)
-#            upl_file = True
-#        if hasattr(file_submitted, 'index_file_path_client') and file_submitted.index_file_path_client:
-#            if file_submitted.index_file_upload_job_status == constants.PENDING_ON_WORKER_STATUS:
-#                launch_upload_job(user_id, 
-#                                  file_submitted.id,
-#                                  file_submitted.submission_id, 
-#                                  file_submitted.index_file_path_client, 
-#                                  'index_file_upload_job_status', 
-#                                  dest_irods_coll,
-#                                  queue=upload_index_task_queue)
-#                upl_idx = True
-#        return upl_file or upl_idx
-#    return False
 
-def submit_jobs_for_file(file_id, dest_irods_coll, user_id, file_obj=None, as_serapis=True):
+def launch_move_to_permanent_coll_job(file_id, submission_id, file_path_irods, irods_dest_coll, index_file_path_irods):
+    task = move_to_permanent_coll_task.apply_async(kwargs={
+                                                           'file_id' : file_id,
+                                                           'submission_id' : submission_id,
+                                                           'irods_src_path' : file_path_irods,
+                                                           'irods_dest_path' : irods_dest_coll,
+                                                           'irods_index_file_path' : index_file_path_irods
+                                                           
+                                                           },
+                                                   queue=IRODS_Q
+                                                   )
+    return task.id
+
+
+
+
+def launch_submit2irods_job(file_id, submission_id):
+    file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
+    irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
+    irods_mdata_dict = serializers.serialize(irods_mdata_dict)
+    
+    index_mdata = None
+    if 'index_file_path_client' in file_to_submit:
+        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+    else:
+        logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
+
+    permanent_coll_irods = file_to_submit.irods_coll
+    task = submit_to_permanent_iRODS_coll_task.apply_async(kwargs={
+                                                  'file_id' : file_id, 
+                                                  'submission_id' : submission_id,
+                                                  'file_mdata_irods' : irods_mdata_dict,
+                                                  'index_file_mdata_irods': index_mdata,
+                                                  'file_path_irods' : file_to_submit.file_path_irods,
+                                                  'index_file_path_irods' : file_to_submit.index.file_path_irods,
+                                                  'permanent_coll_irods' : permanent_coll_irods
+                                                 },
+                                             queue=IRODS_Q)
+    return task.id
+
+
+
+###############################################
+
+def submit_jobs_for_file(file_id, user_id, file_obj=None, as_serapis=True):
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
+    dest_irods_coll = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id)
     tasks_dict = {}
     print "AS SERAPIS????????????????????????", as_serapis
     if as_serapis:
@@ -638,9 +644,9 @@ def create_submission(user_id, data):
 
         # Initializing the path to irods for the uploaded files:
         irods_coll = getattr(submission, 'irods_collection')
-        file_submitted.file_path_irods = os.path.join(irods_coll, utils.extract_basename(file_path))
+        file_submitted.irods_coll = irods_coll
         if index_file_path:
-            file_submitted.index_file.file_path_irods = os.path.join(irods_coll, utils.extract_basename(index_file_path))
+            file_submitted.index_file.irods_coll = irods_coll
         
         
         # NOTE:this implementation is a all-or-nothing => either all files are uploaded as serapis or all as other user...pb?
@@ -678,12 +684,12 @@ def create_submission(user_id, data):
     # Submit jobs for the file:
     for file_obj in submitted_files_list:
         #file_obj.reload()
-        dest_irods_coll = os.path.dirname(file_submitted.file_path_irods)
-        if not dest_irods_coll:
-            return models.Result(False, error_dict={constants.COLLECTION_DOES_NOT_EXIST : dest_irods_coll})
+#        dest_irods_coll = os.path.dirname(file_submitted.file_path_irods)
+#        if not dest_irods_coll:
+#            return models.Result(False, error_dict={constants.COLLECTION_DOES_NOT_EXIST : dest_irods_coll})
         
         tasks_dict = {}
-        tasks_dict = submit_jobs_for_file(file_obj.id, dest_irods_coll, user_id, file_obj, upld_as_serapis)
+        tasks_dict = submit_jobs_for_file(file_obj.id, user_id, file_obj, upld_as_serapis)
         if upld_as_serapis:
             status = constants.PENDING_ON_WORKER_STATUS
         else:
@@ -885,14 +891,17 @@ def update_file_submitted(submission_id, file_id, data):
             update_source = constants.UPDATE_MDATA_MSG_SOURCE
         elif task_type == calculate_md5_task.name:
             update_source = constants.CALC_MD5_MSG_SOURCE
-        elif task_type in [upload_task.name, add_mdata_to_IRODS.name]:
+        elif task_type in [upload_task.name, submit_to_permanent_iRODS_coll_task.name]:
             update_source = constants.IRODS_JOB_MSG_SOURCE
 
         errors = None
         if 'errors' in data:
             errors = data['errors']
         
-        if update_source == constants.IRODS_JOB_MSG_SOURCE or data['status'] == constants.FAILURE_STATUS:
+        if data['status'] == constants.FAILURE_STATUS:
+            db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
+            
+        if update_source == constants.IRODS_JOB_MSG_SOURCE:
             db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
         else:
             db_model_operations.update_file_mdata(file_id, data['result'], 
@@ -900,6 +909,14 @@ def update_file_submitted(submission_id, file_id, data):
                                                   task_id=data['task_id'], 
                                                   task_status=data['status'], 
                                                   errors=errors)
+#        if task_type == 
+            #task_id = launch_move_to_permanent_coll_task(file_id, submission_id)
+#            if task_id:
+#                update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
+#                               'set__tasks_dict__'+task_id : constants.PENDING_ON_WORKER_STATUS
+#                               }
+#                db_model_operations.update_file_from_dict(file_id, update_dict)
+#                return {"result" : "success"}        
         # TESTING:
         if task_type == upload_task.name:
             file_to_update = db_model_operations.retrieve_submitted_file(file_id)
@@ -1121,7 +1138,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
                 task_id = launch_update_file_job(file_to_resubmit)
                 new_tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
             elif task_type == upload_task.name:
-                dest_irods_coll = os.path.dirname(file_to_resubmit.file_path_irods)
+                dest_irods_coll = os.path.join(constants.IRODS_STAGING_AREA, file_to_resubmit.submission_id)
                 task_id = launch_upload_job(file_id, submission_id, 
                                   file_to_resubmit.file_path_client, 
                                   file_to_resubmit.index_file.file_path_client, 
@@ -1650,10 +1667,12 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
             error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path_client+".md5")
     
     if len(error_list) == 0:
-        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file, user_id, submission_date)
-        was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
-        if was_launched == 1:
-            db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
+        task_id = launch_submit2irods_job(file_id, submission_id)
+        if task_id:
+            update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
+                           'set__tasks_dict__'+task_id : constants.PENDING_ON_WORKER_STATUS
+                           }
+            db_model_operations.update_file_from_dict(file_id, update_dict)
             return {"result" : "success"}        
     else:
         #error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status

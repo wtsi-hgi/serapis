@@ -134,7 +134,7 @@ class GeneralFileMdata:
     
     
 class IndexFile(EmbeddedDocument):
-    file_path_irods = StringField()
+    irods_coll = StringField()
     file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
 
@@ -145,7 +145,7 @@ class SubmittedFile(DynamicDocument):
     id = ObjectId()
     file_type = StringField(choices=FILE_TYPES)
     file_path_client = StringField()
-    file_path_irods = StringField()            #misleading - should be renamed!!! It is actually the collection name
+    irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
     
     #OPTIONAL:
