@@ -1822,9 +1822,9 @@ def check_any_task_has_status(tasks_dict, status, task_categ):
 
 def check_all_tasks_finished(tasks_dict, task_categ):
     for task_info in tasks_dict.values():
-        if task_info['type'] in task_categ and task_info['status'] in constants.FINISHED_STATUS:
-            return True
-    return False
+        if task_info['type'] in task_categ and not task_info['status'] in constants.FINISHED_STATUS:
+            return False
+    return True
 
 def exists_tasks_of_type(tasks_dict, task_categ):
     for task_info in tasks_dict.values():

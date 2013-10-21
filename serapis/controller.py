@@ -900,6 +900,10 @@ def update_file_submitted(submission_id, file_id, data):
                                                   task_id=data['task_id'], 
                                                   task_status=data['status'], 
                                                   errors=errors)
+        # TESTING:
+        if task_type == upload_task.name:
+            file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+            serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
     else:
         update_source = constants.EXTERNAL_SOURCE
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)
@@ -910,7 +914,6 @@ def update_file_submitted(submission_id, file_id, data):
             launch_update_file_job(file_to_update)
         
     db_model_operations.check_and_update_all_file_statuses(file_id)
-        
         
     
 def update_file_submitted_old(submission_id, file_id, data):

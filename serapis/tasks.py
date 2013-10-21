@@ -11,11 +11,8 @@ import time
 import hashlib
 import subprocess
 from collections import defaultdict
-
-from time import gmtime, strftime
 from subprocess import call, check_output
 #import MySQLdb
-
 
 
 from MySQLdb import connect, cursors
