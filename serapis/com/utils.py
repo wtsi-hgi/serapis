@@ -5,7 +5,7 @@ import re
 import os
 from os import listdir
 from os.path import isfile, join, exists
-from serapis import constants
+import constants
 
 ############ UNICODE processing ############
 

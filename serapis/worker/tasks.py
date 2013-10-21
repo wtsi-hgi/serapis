@@ -21,8 +21,8 @@ from MySQLdb import Error as mysqlError
 #from MySQLdb import OperationalError
 
 #import serializers
-from serapis.constants import *
-from serapis.entities import *
+from serapis.com.constants import *
+from entities import *
 from serapis.worker import exceptions
 
 from celery import current_task
@@ -442,6 +442,7 @@ class iRODSTask(Task):
 
 
 class UploadFileTask(iRODSTask):
+    #name='serapis.worker.UploadFileTask'
     time_limit = 5400           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 3600      # an exception is raised => can be used for cleanup
     rate_limit = "200/h"        # limits the nr of tasks that can be run per h, 
@@ -806,6 +807,7 @@ class UploadFileTask(iRODSTask):
          
            
 class CalculateMD5Task(GatherMetadataTask):
+    #name = 'serapis.worker.CalculateMD5Task'
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = True        # the task will NOT report its status as STARTED when it starts
@@ -875,12 +877,14 @@ class CalculateMD5Task(GatherMetadataTask):
 
 
 class ParseBAMHeaderTask(GatherMetadataTask):
-    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
+    #name = 'serapis.worker.ParseBAMHeaderTask'
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
     time_limit = 3600           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+    
+    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     
     def trigger_event(self, event_type, state, result):
         connection = self.app.broker_connection()
@@ -1194,6 +1198,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
 
 
 class UpdateFileMdataTask(GatherMetadataTask):
+    #name = 'serapis.worker.UpdateFileMdataTask'
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
@@ -1262,6 +1267,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
 #################### iRODS TASKS: ##############################
 
 class SubmitToIRODSPermanentCollTask(iRODSTask):
+    #name = 'serapis.worker.tasks.SubmitToIRODSPermanentCollTask'
     time_limit = 1200           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 

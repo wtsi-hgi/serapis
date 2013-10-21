@@ -1,7 +1,7 @@
 
-from serapis import exceptions
+import exceptions
 from mongoengine import *
-from serapis.constants import *
+from serapis.com.constants import *
 from bson.objectid import ObjectId
 from collections import namedtuple
 #from mongoengine.base import ObjectIdField

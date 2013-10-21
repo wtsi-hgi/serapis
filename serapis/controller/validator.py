@@ -1,5 +1,4 @@
 from voluptuous import  Schema, Any, All, Length, Required, IsDir, IsFile, Match  #MultipleInvalid
-from serapis import constants
 
 abstract_library_schema =Schema({
         'library_source' : Any(str, None),

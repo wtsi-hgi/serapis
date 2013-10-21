@@ -14,7 +14,8 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis import models, controller, db_model_operations, utils
+from serapis.controller import models, controller, db_model_operations
+from serapis.com import utils, constants
 from serapis.constants import *
 import unittest
 import requests

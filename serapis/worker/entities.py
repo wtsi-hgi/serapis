@@ -1,8 +1,7 @@
 
 import simplejson
 import pycountry
-from serapis import constants, utils
-from serapis.constants import SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE
+from serapis.com import constants, utils
 
 # ------------------ ENTITIES ---------------------------
 
@@ -370,11 +369,11 @@ class SubmittedFile():
             or None if the type is not known.
         '''
         entity_list = None
-        if entity_type == SAMPLE_TYPE:
+        if entity_type == constants.SAMPLE_TYPE:
             entity_list = self.sample_list
-        elif entity_type == LIBRARY_TYPE:
+        elif entity_type == constants.LIBRARY_TYPE:
             entity_list = self.library_list
-        elif entity_type == STUDY_TYPE:
+        elif entity_type == constants.STUDY_TYPE:
             entity_list = self.study_list
         return entity_list
             

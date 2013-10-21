@@ -1,5 +1,7 @@
 import os
-from serapis import models, controller, db_model_operations, utils, exceptions, constants, entities
+from serapis.controller import models, controller, db_model_operations, exceptions
+from serapis.com import utils, constants
+from serapis.worker import entities
 from serapis.constants import *
 import unittest
 import requests

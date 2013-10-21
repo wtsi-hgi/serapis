@@ -1,4 +1,5 @@
-from serapis import models, constants, exceptions, utils
+import models, exceptions
+from serapis.com import  constants, utils
 import time
 import logging
 
@@ -240,7 +241,7 @@ def check_if_entities_are_equal(entity, json_entity):
     ''' Checks if an entity and a json_entity are equal.
         Returns boolean.
     '''
-    for id_field in models.ENTITY_IDENTITYING_FIELDS:
+    for id_field in constants.ENTITY_IDENTITYING_FIELDS:
         if id_field in json_entity and json_entity[id_field] != None and hasattr(entity, id_field) and getattr(entity, id_field) != None:
             are_same = json_entity[id_field] == getattr(entity, id_field)
             return are_same
@@ -1833,7 +1834,7 @@ def exists_tasks_of_type(tasks_dict, task_categ):
 
 
 def check_and_update_all_file_statuses(file_id, file_to_submit=None):
-    from serapis.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS
+    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS
     
     if file_to_submit == None:
         file_to_submit = retrieve_submitted_file(file_id)

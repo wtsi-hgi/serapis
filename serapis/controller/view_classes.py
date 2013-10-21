@@ -3,12 +3,9 @@ from django.views.generic.edit import FormView
 from django.http import HttpResponseRedirect
 
 #from serapis.forms import UploadForm
-from serapis import controller
-from serapis import models
-from serapis import exceptions
+import models, exceptions, validator, controller
 from serapis import serializers
-from serapis import validator
-from serapis import utils
+from serapis.com import utils
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
@@ -18,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 #from rest_framework.decorators import api_view
 
-from serializers import ObjectIdEncoder
+#from serializers import ObjectIdEncoder
 
 from os import listdir
 from os.path import isfile, join
