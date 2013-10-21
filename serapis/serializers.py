@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from mongoengine.fields import *
 
-import models
+from serapis.controller import models
 
 import json
 import logging

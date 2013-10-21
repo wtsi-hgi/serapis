@@ -1,24 +1,21 @@
 from django.conf.urls import patterns, include, url
 
-from serapis import controller
-from serapis import results_processing
+#from serapis import controller
+#from serapis import results_processing
 
 #import threading
 #import time
 
-from multiprocessing import Process
-import settings
+#from multiprocessing import Process
+#import settings
 
 ########## PROCESS BASED: ###############
-print "SETTINGS WSGI ARGS: ", settings.WSGI_APPLICATION
-daemon_process = Process(target=results_processing.my_monitor)
-daemon_process.daemon = True
-daemon_process.start()
-print "PROCESS ID: ", daemon_process.pid
-
-
-
-
+# Working with a backgroup process...
+#print "SETTINGS WSGI ARGS: ", settings.WSGI_APPLICATION
+#daemon_process = Process(target=results_processing.my_monitor)
+#daemon_process.daemon = True
+#daemon_process.start()
+#print "PROCESS ID: ", daemon_process.pid
 
 
 ###### THREAD BASED: ######

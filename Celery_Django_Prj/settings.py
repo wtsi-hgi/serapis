@@ -3,9 +3,12 @@
 from djcelery import setup_loader
 from mongoengine import connect
 import os
-import manage
-
+#import manage
 import djcelery
+
+import sys
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
 
 setup_loader()
 
@@ -42,6 +45,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 
+CELERY_IMPORTS = ('serapis.worker.tasks',)
 
 #
 #DATABASES = {
@@ -237,7 +241,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'serapis',
+#    'serapis',
     'rest_framework',
     #'rest_framework_docs',
 #    'tastypie_swagger'

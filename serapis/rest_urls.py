@@ -1,6 +1,6 @@
 from django.conf.urls import patterns, include, url
 
-from serapis import view_classes
+from serapis.controller import view_classes
 #from serapis.view_classes import LoginView, UploadView
 from django.views.generic import TemplateView
 
