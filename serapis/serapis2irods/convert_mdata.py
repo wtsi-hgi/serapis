@@ -232,8 +232,12 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     return result_list
 
 #data.sort(key=lambda tup: tup[1])
-
-
+#
+## For index files:
+def convert_index_file_mdata(file_md5, indexed_file_md5):
+    irods_file_mdata = []
+    irods_file_mdata.append(('file_md5', file_md5))
+    irods_file_mdata.append(('indexed_file_md5', indexed_file_md5))
 
 
 

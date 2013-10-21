@@ -830,7 +830,7 @@ def update_submitted_file_field_old(field_name, field_val,update_source, file_id
                      '_id',
                      'version',
                      'file_type', 
-                     'file_path_irods', 
+                     'irods_coll',      # TODO: make it so that this can be updated too but only by the user, and only if status < submitted2irods
                      'file_path_client', 
                      'last_updates_source', 
                      'file_mdata_status',
@@ -1129,7 +1129,7 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                          '_id',
                          'version',
                          'file_type', 
-                         'file_path_irods', 
+                         'irods_coll',      # TODO: make it updateble by user, if file not yet submitted to permanent irods coll 
                          'file_path_client', 
                          'last_updates_source', 
                          'file_mdata_status',
@@ -1291,10 +1291,10 @@ def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_s
 
 # --------------- Update individual fields atomically --------------------
 
-def update_file_path_irods(file_id, file_path_irods, index_path_irods=None):
-    if not index_path_irods:
-        return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, inc__version__0=1)
-    return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, set__index_file_path_irods=index_path_irods,inc__version__0=1)
+#def update_file_path_irods(file_id, file_path_irods, index_path_irods=None):
+#    if not index_path_irods:
+#        return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, inc__version__0=1)
+#    return models.SubmittedFile.objects(id=file_id).update_one(set__file_path_irods=file_path_irods, set__index_file_path_irods=index_path_irods,inc__version__0=1)
     
 def update_data_subtype_tags(file_id, subtype_tags_dict):
     return models.SubmittedFile.objects(id=file_id).update_one(set__data_subtype_tags=subtype_tags_dict, inc__version__0=1)
