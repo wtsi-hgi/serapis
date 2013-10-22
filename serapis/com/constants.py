@@ -211,7 +211,7 @@ JOB_TYPES = (UPDATE_JOBS,
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
 DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #DEST_DIR_IRODS = "/humgen/projects"
-IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/staging_area"
+IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
 
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/staging_area" #serapis_staging

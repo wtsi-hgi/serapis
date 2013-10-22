@@ -924,7 +924,7 @@ def update_file_submitted(submission_id, file_id, data):
     else:
         update_source = constants.EXTERNAL_SOURCE
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)
-        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
+        has_new_entities = check_if_has_new_entities(data, file_to_update)
         db_model_operations.update_file_mdata(file_id, data['result'], update_source)
         if has_new_entities == True:
             file_to_update.reload()

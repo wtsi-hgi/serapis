@@ -25,7 +25,7 @@ from entities import *
 from serapis.worker import exceptions
 
 from celery import current_task
-from IPython.utils.io import stdout
+
 
 
 BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
@@ -686,7 +686,8 @@ class UploadFileTask(iRODSTask):
      
     def rollback(self, file_path, irods_coll):
         result = dict()
-        fname = os.path.split(file_path)
+        (_, fname) = os.path.split(file_path)
+        print "IN ROLLBACK --- here it throws an exception, irods_coll = ", irods_coll, " and fname = ", fname
         irods_file_path = os.path.join(irods_coll, fname)
         
         child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -708,7 +709,7 @@ class UploadFileTask(iRODSTask):
         return result
 
     # run - running using process call - WORKING VERSION - used currently 11.oct2013
-    def run(self, **kwargs):
+    def run_using_checkoutput(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
         file_id         = str(kwargs['file_id'])
         file_path       = kwargs['file_path']
@@ -730,7 +731,7 @@ class UploadFileTask(iRODSTask):
         
 
     # Run using Popen and communicate() - 18.10.2013
-    def run_using_popen(self, **kwargs):
+    def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
         file_id         = str(kwargs['file_id'])
         file_path       = kwargs['file_path']
@@ -746,25 +747,29 @@ class UploadFileTask(iRODSTask):
         child_pid = child_proc.pid
         (out, err) = child_proc.communicate()
         if err:
-            child_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = child_proc.pid
-            (out, err) = child_proc.communicate()
+            imkdir_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = imkdir_proc.pid
+            (out, err) = imkdir_proc.communicate()
             if err:
-                raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_coll, out)
+                raise subprocess.CalledProcessError(imkdir_proc.returncode, "imkdir"+irods_coll, out)
         
-        child_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = child_proc.pid
-        (out, err) = child_proc.communicate()
+        iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = iput_proc.pid
+        (out, err) = iput_proc.communicate()
+        print "IPUT the file resulted in: out = ", out, " err = ", err
         if err:
-            raise subprocess.CalledProcessError(child_proc.returncode, "iput -K"+file_path, out)
+            raise subprocess.CalledProcessError(iput_proc.returncode, "iput -K"+file_path, out)
+
         
         if index_file_path:
-            child_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = child_proc.pid
-        (out, err) = child_proc.communicate()
-        if err:
-            raise subprocess.CalledProcessError(child_proc.returncode, "iput -K"+index_file_path, out)
-         
+            iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = iiput_proc.pid
+            (out, err) = iiput_proc.communicate()
+            print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
+            if err:
+                raise subprocess.CalledProcessError(iiput_proc.returncode, "iput -K"+index_file_path, out)
+             
+        print "SENDING THE RESULT BACK...."
         result = {}
         result['task_id'] = current_task.request.id
         result['status'] = SUCCESS_STATUS
@@ -778,9 +783,9 @@ class UploadFileTask(iRODSTask):
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
         submission_id   = str(kwargs['submission_id'])
-        irods_coll      = str(kwargs['dest_irods_path'])
+        irods_coll      = str(kwargs['irods_coll'])
         
-        print "ON FAILURE EXECUTED----------------------------irm file..."
+        print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
         errors_list = []
         if type(exc) == subprocess.CalledProcessError:
             exc = exc.output 
@@ -799,6 +804,7 @@ class UploadFileTask(iRODSTask):
 
         # SEND RESULT BACK:
         result = {}
+        result['task_id'] = current_task.request.id
         result['errors'] = errors_list
         result['status'] = FAILURE_STATUS
         send_http_PUT_req(result, submission_id, file_id)
@@ -838,13 +844,13 @@ class CalculateMD5Task(GatherMetadataTask):
         if index_file_path:
             index_md5 = self.calculate_md5(index_file_path)
         
-#        t1 = time.time()
-#        file_md5 = self.calculate_md5(file_path)
-#        delta = time.time() - t1
-#        print "TIME TAKEN TO CALCULATE md5 = ", delta
+        t1 = time.time()
+        file_md5 = self.calculate_md5(file_path)
+        delta = time.time() - t1
+        print "TIME TAKEN TO CALCULATE md5 = ", delta
         
-        file_md5 = "123456789"
-        index_md5 = "987654321"
+        # file_md5 = "123456789"
+        # index_md5 = "987654321"
         
         # Report the results:
         result = {}
