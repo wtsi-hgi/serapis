@@ -814,12 +814,20 @@ def get_submitted_file_status(file_id, file_obj=None):
         #print "TASK STATUS FROM DB: ", task_info_dict['status']
         if async:
             state = async.state
-        if state and state != 'PENDING':
-            tasks_status_dict[task_type] = state
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
-        else:
-            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
-            tasks_status_dict[task_type] = task_info_dict['status']
+            task_state_grade = constants.TASK_STATUS_HIERARCHY[state]
+            db_state_grade = constants.TASK_STATUS_HIERARCHY[task_info_dict['status']]
+            if task_state_grade > db_state_grade:
+                tasks_status_dict[task_type] = task_state_grade
+            else:
+                tasks_status_dict[task_type] = db_state_grade
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+        
+#        if state and state != 'PENDING':
+#            tasks_status_dict[task_type] = state
+#            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
+#        else:
+#            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
+#            tasks_status_dict[task_type] = task_info_dict['status']
     result['tasks'] = tasks_status_dict
     return result
 
@@ -922,7 +930,7 @@ def update_file_submitted(submission_id, file_id, data):
     else:
         update_source = constants.EXTERNAL_SOURCE
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)
-        has_new_entities = __check_if_has_new_entities__(data, file_to_update)
+        has_new_entities = check_if_has_new_entities(data, file_to_update)
         db_model_operations.update_file_mdata(file_id, data['result'], update_source)
         if has_new_entities == True:
             file_to_update.reload()

@@ -26,7 +26,7 @@ from entities import *
 from serapis.worker import exceptions
 
 from celery import current_task
-from IPython.utils.io import stdout
+
 
 
 
@@ -687,7 +687,7 @@ class UploadFileTask(iRODSTask):
      
     def rollback(self, file_path, irods_coll):
         result = dict()
-        fname = os.path.split(file_path)
+        (_, fname) = os.path.split(file_path)
         irods_file_path = os.path.join(irods_coll, fname)
         
         child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -789,7 +789,10 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
-        result_rollb = self.rollback(file_path, irods_coll)
+        try:
+            result_rollb = self.rollback(file_path, irods_coll)
+        except Exception as e:
+            errors_list.append(str(e))
         if result_rollb['status'] == FAILURE_STATUS:
             errors_list.append(result_rollb['errors'])
         if index_file_path:
@@ -799,6 +802,7 @@ class UploadFileTask(iRODSTask):
 
         # SEND RESULT BACK:
         result = {}
+        result['task_id'] = current_task.request.id
         result['errors'] = errors_list
         result['status'] = FAILURE_STATUS
         send_http_PUT_req(result, submission_id, file_id)
@@ -1474,6 +1478,16 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         irods_dest_coll_path    = kwargs['irods_dest_path']
         irods_index_file_path   = kwargs['irods_index_file_path']
               
+        child_proc = subprocess.Popen(["ils", "-l", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = child_proc.pid
+        (out, err) = child_proc.communicate()
+        if err:
+            child_proc = subprocess.Popen(["imkdir", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = child_proc.pid
+            (out, err) = child_proc.communicate()
+            if err:
+                raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_dest_coll_path, out)
+        
         child_proc = subprocess.Popen(["imv", irods_src_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (_, err) = child_proc.communicate()
         if err:

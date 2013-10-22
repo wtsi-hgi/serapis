@@ -107,6 +107,7 @@ MAIN_FILE = 'MAIN_FILE'
 FILE_TYPES = (INDEX_FILE, MAIN_FILE)
 
 # -------------- NEW STATUSES ---------------------------
+
 FINISHED_STATUS = ("SUCCESS", "FAILURE")
 NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
 
@@ -187,6 +188,15 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
                      READY_FOR_IRODS_SUBMISSION_STATUS)  
 
 
+# STATUS HIERARCHY DICT:
+TASK_STATUS_HIERARCHY = {
+                        0 : "PENDING",
+                        1 : PENDING_ON_WORKER_STATUS,
+                        2 : "RUNNING",
+                        3 : SUCCESS_STATUS,
+                        4 : FAILURE_STATUS,
+                        5 : PENDING_ON_USER_STATUS 
+                        }
 
 UPDATE_JOBS = 'UPDATE_JOBS'
 IRODS_JOBS  = 'IRODS_JOBS'       # This corresponds with the AddMdata task. The name might be misleading, as it excludes the upload task
