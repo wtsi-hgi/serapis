@@ -1344,15 +1344,6 @@ def update_file_error_log(error_log, file_id=None, submitted_file=None):
     upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
     return models.SubmittedFile.objects(id=submitted_file.id, version__0=get_file_version(None, submitted_file)).update_one(**upd_dict)
     
-#
-#def update_index_file_path_client(file_id, index_file_path, nr_retries=constants.MAX_DBUPDATE_RETRIES):
-#    upd_dict = {'set__index_file_path_client' : index_file_path, 'inc__version__0' : 1}
-#    upd = 0
-#    while nr_retries > 0 and upd == 0:
-#        upd = models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-#        logging.info("UPDATING INDEX FILE PATH --------- UPDATED????? %s", upd)
-#        nr_retries -= 1
-#    return upd
 
 
 def add_task_to_file(file_id, task_id, task_type, task_status, nr_retries=constants.MAX_DBUPDATE_RETRIES):

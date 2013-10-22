@@ -207,7 +207,7 @@ def launch_submit2irods_job(file_id, submission_id):
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
     index_mdata = None
-    if 'index_file_path_client' in file_to_submit:
+    if file_to_submit.index_file and 'file_path_client' in file_to_submit.index_file:
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
     else:
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
@@ -260,7 +260,7 @@ def submit_jobs_for_file(file_id, user_id, file_obj=None, as_serapis=True):
         task_id = launch_upload_job(file_obj.id, 
                           file_obj.submission_id, 
                           file_obj.file_path_client, 
-                          file_obj.index_file_path_client, 
+                          file_obj.index_file.file_path_client, 
                           dest_irods_coll, 
                           queue=UPLOAD_Q+"."+user_id)
         tasks_dict[task_id] = {'type' : upload_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
@@ -1668,10 +1668,10 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
     if not f_md5_correct:
         error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
 
-    if subm_file.index_file_path_client:
-        index_md5_correct = check_file_md5_eq(subm_file.index_file_path_client, subm_file.index_file_md5)
+    if subm_file.index_file.file_path_client:
+        index_md5_correct = check_file_md5_eq(subm_file.index_file.file_path_client, subm_file.index_file.md5)
         if not  index_md5_correct:
-            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path_client+".md5")
+            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file.file_path_client+".md5")
     
     if len(error_list) == 0:
         task_id = launch_submit2irods_job(file_id, submission_id)
