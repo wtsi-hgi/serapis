@@ -81,7 +81,7 @@ STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor'
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'library_selection', 'coverage'}
 SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'cohort'} # 'country_of_origin', , 'ethnicity', 'gender', 
 FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
-INDEX_MANDATORY_FIELDS = {'file_path_irods', 'file_path_client', 'md5'}
+INDEX_MANDATORY_FIELDS = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 
@@ -107,6 +107,7 @@ MAIN_FILE = 'MAIN_FILE'
 FILE_TYPES = (INDEX_FILE, MAIN_FILE)
 
 # -------------- NEW STATUSES ---------------------------
+
 FINISHED_STATUS = ("SUCCESS", "FAILURE")
 NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
 
@@ -187,6 +188,15 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
                      READY_FOR_IRODS_SUBMISSION_STATUS)  
 
 
+# STATUS HIERARCHY DICT:
+TASK_STATUS_HIERARCHY = {
+                        "PENDING" : 0,
+                        PENDING_ON_WORKER_STATUS : 1,
+                        "RUNNING" : 2,
+                        SUCCESS_STATUS : 3,
+                        FAILURE_STATUS : 4,
+                        PENDING_ON_USER_STATUS : 5 
+                        }
 
 UPDATE_JOBS = 'UPDATE_JOBS'
 IRODS_JOBS  = 'IRODS_JOBS'       # This corresponds with the AddMdata task. The name might be misleading, as it excludes the upload task

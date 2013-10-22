@@ -794,7 +794,10 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
-        result_rollb = self.rollback(file_path, irods_coll)
+        try:
+            result_rollb = self.rollback(file_path, irods_coll)
+        except Exception as e:
+            errors_list.append(str(e))
         if result_rollb['status'] == FAILURE_STATUS:
             errors_list.append(result_rollb['errors'])
         if index_file_path:
@@ -1481,6 +1484,16 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         irods_dest_coll_path    = kwargs['irods_dest_path']
         irods_index_file_path   = kwargs['irods_index_file_path']
               
+        child_proc = subprocess.Popen(["ils", "-l", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = child_proc.pid
+        (out, err) = child_proc.communicate()
+        if err:
+            child_proc = subprocess.Popen(["imkdir", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = child_proc.pid
+            (out, err) = child_proc.communicate()
+            if err:
+                raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_dest_coll_path, out)
+        
         child_proc = subprocess.Popen(["imv", irods_src_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (_, err) = child_proc.communicate()
         if err:

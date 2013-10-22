@@ -815,14 +815,23 @@ def get_submitted_file_status(file_id, file_obj=None):
         async = AsyncResult(task_id)
         #print "TASK STATUS FROM DB: ", task_info_dict['status']
         if async:
-            state = async.state
-        if state and state != 'PENDING':
-            tasks_status_dict[task_type] = state
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
-        else:
-            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
-            tasks_status_dict[task_type] = task_info_dict['status']
+            state = str(async.state)
+            task_state_grade = constants.TASK_STATUS_HIERARCHY[state]
+            db_state_grade = constants.TASK_STATUS_HIERARCHY[task_info_dict['status']]
+            if task_state_grade > db_state_grade:
+                tasks_status_dict[task_type] = state
+            else:
+                tasks_status_dict[task_type] = task_info_dict['status']
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+        
+#        if state and state != 'PENDING':
+#            tasks_status_dict[task_type] = state
+#            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
+#        else:
+#            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
+#            tasks_status_dict[task_type] = task_info_dict['status']
     result['tasks'] = tasks_status_dict
+    result['file_submission_status'] = file_obj.file_submission_status
     return result
 
 
@@ -1161,6 +1170,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
         update_dict = {'set__tasks_dict' : new_tasks_dict, 'set__file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
         db_model_operations.update_file_from_dict(file_id, update_dict)
     
+    db_model_operations.check_and_update_all_file_statuses(file_id)
     print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(new_tasks_dict)
     print "RESULT: ", has_resubmitted
     return models.Result(has_resubmitted)
