@@ -135,7 +135,7 @@ READY_FOR_IRODS_SUBMISSION_STATUS       = "READY_FOR_IRODS_SUBMISSION"
 IN_PROGRESS                             = "IN_PROGRESS"
 
 # File metadata statuses:
-IN_PROGRESS_STATUS          = "IN_PROGRESS_STATUS"
+IN_PROGRESS_STATUS          = "IN_PROGRESS"
 COMPLETE_MDATA_STATUS       = "COMPLETE_MDATA"
 INCOMPLETE_MDATA_STATUS     = "INCOMPLETE_MDATA"
 HAS_MINIMAL_MDATA_STATUS    = "HAS_MINIMAL_MDATA"
@@ -176,7 +176,7 @@ FILE_SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
                           FAILURE_SUBMISSION_TO_IRODS_STATUS, 
                           PENDING_ON_USER_STATUS, 
                           PENDING_ON_WORKER_STATUS,
-                          IN_PROGRESS_STATUS, 
+                          SUBMISSION_IN_PREPARATION_STATUS,     #IN_PROGRESS_STATUS, 
                           SUBMISSION_IN_PROGRESS_STATUS,
                           READY_FOR_IRODS_SUBMISSION_STATUS)
 
@@ -190,12 +190,12 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
 
 # STATUS HIERARCHY DICT:
 TASK_STATUS_HIERARCHY = {
-                        0 : "PENDING",
-                        1 : PENDING_ON_WORKER_STATUS,
-                        2 : "RUNNING",
-                        3 : SUCCESS_STATUS,
-                        4 : FAILURE_STATUS,
-                        5 : PENDING_ON_USER_STATUS 
+                        "PENDING" : 0,
+                        PENDING_ON_WORKER_STATUS : 1,
+                        "RUNNING" : 2,
+                        SUCCESS_STATUS : 3,
+                        FAILURE_STATUS : 4,
+                        PENDING_ON_USER_STATUS : 5 
                         }
 
 UPDATE_JOBS = 'UPDATE_JOBS'
