@@ -1167,6 +1167,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
         update_dict = {'set__tasks_dict' : new_tasks_dict, 'set__file_submission_status' : constants.PENDING_ON_WORKER_STATUS}
         db_model_operations.update_file_from_dict(file_id, update_dict)
     
+    db_model_operations.check_and_update_all_file_statuses(file_id)
     print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(new_tasks_dict)
     print "RESULT: ", has_resubmitted
     return models.Result(has_resubmitted)
