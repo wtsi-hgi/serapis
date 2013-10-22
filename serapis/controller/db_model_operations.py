@@ -1870,6 +1870,11 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
             upd_dict['inc__version__0'] = 1
             return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+    else:
+        upd_dict = {}
+        upd_dict['set__file_submission_status'] = constants.SUBMISSION_IN_PREPARATION_STATUS
+        upd_dict['inc__version__0'] = 1
+        return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     return 0
         
     
@@ -1983,7 +1988,7 @@ def compute_file_status_statistics(submission_id, submission=None):
             status_dict["nr_fail"] += 1
         elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
             status_dict["nr_pending"] += 1
-        elif subm_file.file_submission_status == constants.RUNNING:
+        elif subm_file.file_submission_status == constants.IN_PROGRESS:
             status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1
