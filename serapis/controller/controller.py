@@ -200,16 +200,21 @@ def launch_move_to_permanent_coll_job(file_id, submission_id, file_path_irods, i
     return task.id
 
 
-
-
 def launch_submit2irods_job(file_id, submission_id):
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
-    index_mdata = None
+    # Inferring the file's location in iRODS staging area: 
+    (_, file_name) = os.path.split(file_to_submit.file_path_client)
+    file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, submission_id, file_name)
+    
+    # If there is an index => putting together the metadata for it
+    index_file_path_irods, index_mdata = None, None
     if file_to_submit.index_file and 'file_path_client' in file_to_submit.index_file:
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+        (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
+        index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, submission_id, index_file_name) 
     else:
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
 
@@ -219,8 +224,8 @@ def launch_submit2irods_job(file_id, submission_id):
                                                   'submission_id' : submission_id,
                                                   'file_mdata_irods' : irods_mdata_dict,
                                                   'index_file_mdata_irods': index_mdata,
-                                                  'file_path_irods' : file_to_submit.file_path_irods,
-                                                  'index_file_path_irods' : file_to_submit.index.file_path_irods,
+                                                  'file_path_irods' : file_path_irods,
+                                                  'index_file_path_irods' : index_file_path_irods,
                                                   'permanent_coll_irods' : permanent_coll_irods
                                                  },
                                              queue=IRODS_Q)
