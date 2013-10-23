@@ -1086,18 +1086,22 @@ class StudyRequestHandler(APIView):
 # ------------------------------- IRODS -----------------------------
 
 
+# submissions/<submission_id>/irods/
 # Submit Submission to iRODS:
 class SubmissionIRODSRequestHandler(APIView):
     def post(self, request, submission_id, format=None):
         ''' Makes the submission to IRODS of all the files 
-            contained in this submission. (Probably only the metadata?!?!?!)'''
+            contained in this submission in 2 steps hidden
+            from the user: first the metadata is attached to
+            the files while they are still in the staging area,
+            then the files are all moved to the permanent collection.'''
         try:
             data = None
             if hasattr(request, 'DATA'):
                 data = request.DATA
                 data = utils.unicode2string(data)
             result = dict()
-            irods_submission_status = controller.submit_all_to_irods(submission_id, data)
+            irods_submission_result = controller.submit_all_to_irods(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
             result['result'] = False
@@ -1115,18 +1119,20 @@ class SubmissionIRODSRequestHandler(APIView):
             result['result'] = False
             return Response(result, status=304)
         else:
-            result['result'] = irods_submission_status
-            return Response(result, status=200)
+            result['result'] = irods_submission_result.result
+            return Response(result, status=202)
 
 
-
-# Submit File to iRODS:
+# submissions/<submission_id>/files/<file_id>/irods/
+# Submit ONE File to iRODS:
 class SubmittedFileIRODSRequestHandler(APIView):
     def post(self, request, submission_id, file_id, format=None):
-        ''' Submits the file to iRODS. (Probably only the metadata?!?!?!)'''
+        ''' Submits the file to iRODS in 2 steps (hidden from the user):
+            first the metadata is attached to the file while it is still
+            in the staging area, then it is moved to the permanent iRODS coll.'''
         try:
             result = dict()
-            irods_submission_status = controller.submit_file_to_irods(file_id, submission_id)
+            submission_result = controller.submit_file_to_irods(file_id)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=404)
@@ -1140,9 +1146,135 @@ class SubmittedFileIRODSRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=424)
         else:
-            result['result'] = irods_submission_status
+            result['result'] = submission_result.result
+            if 'error_dict' in submission_result:
+                result['errors'] = submission_result.error_dict
+                return Response(result, status=424)
             return Response(result, status=200)
             
+       
+# submissions/<submission_id>/irods/meta/'
+# Manipulating metadata in iRODS:
+class SubmissionIRODSMetaRequestHandler(APIView):
+    def post(self, request, submission_id, format=None):
+        ''' Attaches the metadata to all the files in the submission, 
+            while they are still in the staging area'''
+        try:
+            data = None
+            if hasattr(request, 'DATA'):
+                data = request.DATA
+                data = utils.unicode2string(data)
+            result = dict()
+            added_meta = controller.add_meta_to_all_staged_files(submission_id, data)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = added_meta.result
+            if added_meta.result == False:
+                return Response(result, status=424)
+            return Response(result, status=202) 
+
+    
+    def delete(self, request, submission_id, format=None):
+        ''' Deletes all the metadata from the files together 
+            with the associated tasks from the task dict'''
+        pass
+    
+    
+# submissions/<submission_id>/files/<file_id>/irods/meta/
+class SubmittedFileIRODSMetaRequestHandler(APIView):
+    def post(self, request, submission_id, file_id, format=None):
+        ''' Attaches the metadata to the file, while it's still in the staging area'''
+        try:
+            result = dict()
+            added_meta = controller.add_meta_to_staged_file(file_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = added_meta.result
+            if added_meta.result:
+                return Response(result, status=202)
+            return Response(result, status=424) 
+
+       
+
+# submissions/<submission_id>/irods/irods-files/
+class SubmissionToiRODSPermanentRequestHandler(APIView):
+       
+    def post(self, request, submission_id, format=None):
+        ''' Moves all the files in a submission from the staging area to the
+            iRODS permanent and non-modifyable collection. '''
+        try:
+            result = dict()
+            added_meta = controller.move_all_to_iRODS_permanent_coll(submission_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = added_meta.result
+            return Response(result, status=202) 
+
+       
+       
+# submissions/<submission_id>/files/<file_id>/irods/irods-files
+class SubmittedFileToiRODSPermanentRequestHandler(APIView):
+    
+    def post(self, request, submission_id, file_id, format=None):
+        ''' Moves a staged file from the staging area to the
+            iRODS permanent and non-modifyable collection. '''
+        try:
+            result = dict()
+            moved_file = controller.move_file_to_iRODS_permanent_coll(file_id)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=404)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=404)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = moved_file.result
+            if moved_file.result == True:
+                return Response(result, status=202)
+            else:
+                if moved_file.message:
+                    result['errors'] = moved_file.message
+                return Response(result, status=424) 
+       
        
 # ------------------------------ NOT USED ---------------------------
 

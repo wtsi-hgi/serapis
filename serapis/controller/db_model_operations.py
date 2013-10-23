@@ -435,6 +435,15 @@ def retrieve_submission_upload_as_serapis_flag(submission_id):
         return None
     return models.Submission.objects(id=submission_id).only('upload_as_serapis').get().upload_as_serapis
  
+def retrieve_only_submission_fields(submission_id, fields_list):
+    if not submission_id:
+        return None
+    for field in fields_list:
+        if not field in models.Submission._fields:
+            raise ValueError(message="Not all fields given as parameter exist as fields of a Submission type.") 
+    return models.Submission.objects(id=ObjectId(submission_id)).only(*fields_list).get()
+    
+    
 def get_file_version(file_id, submitted_file=None):
     if submitted_file == None:
         version = retrieve_version(file_id)
@@ -1136,21 +1145,24 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                          'file_mdata_status',
                          'file_submission_status']:
                 pass
-            elif field_name == 'library_list' and len(field_val) > 0:
-                was_updated = update_library_list(field_val, update_source, submitted_file)
-                update_db_dict['set__library_list'] = submitted_file.library_list
-                update_db_dict['inc__version__2'] = 1
-                logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-            elif field_name == 'sample_list' and len(field_val) > 0:
-                was_updated = update_sample_list(field_val, update_source, submitted_file)
-                update_db_dict['set__sample_list'] = submitted_file.sample_list
-                update_db_dict['inc__version__1'] = 1
-                logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
-            elif field_name == 'study_list' and len(field_val) > 0:
-                was_updated = update_study_list(field_val, update_source, submitted_file)
-                update_db_dict['set__study_list'] = submitted_file.study_list
-                update_db_dict['inc__version__3'] = 1
-                logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
+            elif field_name == 'library_list': 
+                if len(field_val) > 0:
+                    was_updated = update_library_list(field_val, update_source, submitted_file)
+                    update_db_dict['set__library_list'] = submitted_file.library_list
+                    update_db_dict['inc__version__2'] = 1
+                    logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
+            elif field_name == 'sample_list':
+                if len(field_val) > 0:
+                    was_updated = update_sample_list(field_val, update_source, submitted_file)
+                    update_db_dict['set__sample_list'] = submitted_file.sample_list
+                    update_db_dict['inc__version__1'] = 1
+                    logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
+            elif field_name == 'study_list':
+                if len(field_val) > 0:
+                    was_updated = update_study_list(field_val, update_source, submitted_file)
+                    update_db_dict['set__study_list'] = submitted_file.study_list
+                    update_db_dict['inc__version__3'] = 1
+                    logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
             elif field_name == 'seq_centers':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
@@ -1182,15 +1194,17 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     update_db_dict['set__multiplex_lib_list'] = updated_list
                     update_db_dict['inc__version__0'] = 1
             # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
-            elif field_name == 'missing_entities_error_dict' and field_val:
-                for entity_categ, entities in field_val.iteritems():
-                    update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                update_db_dict['inc__version__0'] = 1
-            elif field_name == 'not_unique_entity_error_dict' and field_val:
-                for entity_categ, entities in field_val.iteritems():
-                    #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
-                    update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-                update_db_dict['inc__version__0'] = 1
+            elif field_name == 'missing_entities_error_dict':
+                if field_val:
+                    for entity_categ, entities in field_val.iteritems():
+                        update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
+                    update_db_dict['inc__version__0'] = 1
+            elif field_name == 'not_unique_entity_error_dict':
+                if field_val:
+                    for entity_categ, entities in field_val.iteritems():
+                        #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
+                        update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
+                    update_db_dict['inc__version__0'] = 1
             elif field_name == 'header_has_mdata':
                 if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                     update_db_dict['set__header_has_mdata'] = field_val
@@ -1817,6 +1831,22 @@ def check_all_tasks_finished(tasks_dict, task_categ):
             return False
     return True
 
+def check_all_tasks_have_status(tasks_dict, task_categ, status):
+    for task_info in tasks_dict.values():
+        if task_info['type'] in task_categ and not task_info['status'] == status:
+            return False
+    return True
+
+def check_task_type_status(tasks_dict, task_type, status):
+    #tasks_dict_str = utils.unicode2string(tasks_dict)
+    #tasks_dict = utils.unicode2string(tasks_dict)
+    #logging.error("CHECK TASK TYPE STATUS: -- upload task name=%s and task dict=%s", task_type, tasks_dict_str)
+    for task_info in tasks_dict.values():
+        if task_info['type'] == task_type and task_info['status'] == status:
+            return True
+    return False
+
+
 def exists_tasks_of_type(tasks_dict, task_categ):
     for task_info in tasks_dict.values():
         if task_info['type'] in task_categ:
@@ -1825,116 +1855,65 @@ def exists_tasks_of_type(tasks_dict, task_categ):
 
 
 def check_and_update_all_file_statuses(file_id, file_to_submit=None):
-    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS
+    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS, UPLOAD_TASK_NAME
     
     if file_to_submit == None:
         file_to_submit = retrieve_submitted_file(file_id)
-        
+    
+    upd_dict = {}
     submission_tasks_running = check_any_task_has_status(file_to_submit.tasks_dict, constants.RUNNING_STATUS, SUBMISSION_TASKS)
-    if exists_tasks_of_type(file_to_submit.tasks_dict, SUBMISSION_TASKS) and submission_tasks_running == False:
-        print "ENTERS IN IFFFFFFFF"
-        return 0    
+    if exists_tasks_of_type(file_to_submit.tasks_dict, SUBMISSION_TASKS): 
+        if submission_tasks_running == True:
+            print "ENTERS IN IFFFFFFFF => a task is still running for submission"
+            return 0
+        elif check_any_task_has_status(file_to_submit.tasks_dict, constants.FAILURE_STATUS, SUBMISSION_TASKS):
+            upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+            upd_dict['inc__version__0'] = 1
+            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+        elif check_all_tasks_have_status(file_to_submit.tasks_dict, SUBMISSION_TASKS, constants.SUCCESS_STATUS):
+            upd_dict['set__file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
+            upd_dict['inc__version__0'] = 1
+            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     
     presubmission_tasks_finished = check_all_tasks_finished(file_to_submit.tasks_dict, PRESUBMISSION_TASKS)
     if presubmission_tasks_finished:
         if check_update_file_obj_if_has_min_mdata(file_to_submit) == True:
             logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
-            upd_dict = {}
             upd_dict['set__has_minimal'] = True
             upd_dict['set__library_list'] = file_to_submit.library_list
             upd_dict['set__sample_list'] = file_to_submit.sample_list
             upd_dict['set__study_list'] = file_to_submit.study_list
             upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
-            upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
             upd_dict['inc__version__0'] = 1
             upd_dict['inc__version__1'] = 1
             upd_dict['inc__version__2'] = 1
             upd_dict['inc__version__3'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+
+            #logging.error("CHECK TASK TYPE STATUS: -- upload task name=%s and task dict=%s", UPLOAD_TASK_NAME, file_to_submit.tasks_dict)
+            if check_task_type_status(file_to_submit.tasks_dict, UPLOAD_TASK_NAME, constants.SUCCESS_STATUS):
+                upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+                upd_dict['inc__version__0'] = 1
+            else:       # if Upload failed:
+                upd_dict['set__file_submission_status'] = constants.FAILURE_SUBMISSION_TO_IRODS_STATUS
+                upd_dict['inc__version__0'] = 1
+            #return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
         else:
             logging.info("FILE DOES NOT NOTTTTT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!")
-            upd_dict = {}
             upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
             upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
             upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
             upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+            #return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+            #return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     else:
-        upd_dict = {}
         upd_dict['set__file_submission_status'] = constants.SUBMISSION_IN_PREPARATION_STATUS
         upd_dict['inc__version__0'] = 1
+    if upd_dict:
         return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     return 0
         
     
-#    if file_to_submit.file_upload_job_status == constants.FAILURE_STATUS:
-#        if file_to_submit.index_file_path_client and file_to_submit.index_file_upload_job_status == constants.FAILURE_STATUS:
-#        #TODO: DELETE the FILE that has failed from the staging area
-#            pass
-#        pass
-    
-
-
-
-# !!!!!!!!!!!!!!!!!!!
-# TODO: this is incomplete
-def check_and_update_all_file_statuses_old(file_id, file_to_submit=None):
-    if file_to_submit == None:
-        file_to_submit = retrieve_submitted_file(file_id)
-    if file_to_submit.file_upload_job_status == constants.FAILURE_STATUS:
-        if file_to_submit.index_file_path_client and file_to_submit.index_file_upload_job_status == constants.FAILURE_STATUS:
-        #TODO: DELETE the FILE that has failed from the staging area
-            pass
-        pass
-    
-    if file_to_submit.irods_jobs_dict and not check_any_task_has_status(file_to_submit.irods_jobs_dict, constants.RUNNING_STATUS):
-        return 0
-    
-    tasks_finished = False
-    if (file_to_submit.file_upload_job_status == constants.SUCCESS_STATUS and
-        file_to_submit.file_header_parsing_job_status in constants.FINISHED_STATUS and
-        file_to_submit.calc_file_md5_job_status in constants.FINISHED_STATUS and
-        check_all_task_statuses_in_coll(file_to_submit.file_update_jobs_dict, constants.FINISHED_STATUS)):
-        
-        if file_to_submit.index_file_path_client:
-            if (file_to_submit.index_file_upload_job_status == constants.SUCCESS_STATUS and
-                file_to_submit.calc_index_file_md5_job_status == constants.SUCCESS_STATUS): 
-                tasks_finished = True
-            else:
-                tasks_finished = False
-        else:
-            tasks_finished = True
-        
-    if tasks_finished:
-        if check_update_file_obj_if_has_min_mdata(file_to_submit) == True:
-            logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
-            upd_dict = {}
-            upd_dict['set__has_minimal'] = True
-            upd_dict['set__library_list'] = file_to_submit.library_list
-            upd_dict['set__sample_list'] = file_to_submit.sample_list
-            upd_dict['set__study_list'] = file_to_submit.study_list
-            upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
-            upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
-            upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
-            upd_dict['inc__version__0'] = 1
-            upd_dict['inc__version__1'] = 1
-            upd_dict['inc__version__2'] = 1
-            upd_dict['inc__version__3'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
-        else:
-            logging.info("FILE DOES NOT NOTTTTT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!")
-
-            upd_dict = {}
-            upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
-            upd_dict['set__file_submission_status'] = constants.PENDING_ON_USER_STATUS
-            upd_dict['set__file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
-            upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
-    return 0
-    
-  
-
 # This is incomplete!!! TO DO: re-check and re-think how this should be, depending what its usage is
 
 def check_and_update_file_submission_status(file_id, submitted_file=None):
@@ -1959,7 +1938,7 @@ def decide_submission_status(nr_files, status_dict):
     elif status_dict["nr_ready"] == nr_files:
         return constants.READY_FOR_IRODS_SUBMISSION_STATUS
     elif status_dict["nr_progress"] > 0:
-        return constants.RUNNING_STATUS
+        return constants.SUBMISSION_IN_PROGRESS_STATUS
     elif status_dict["nr_pending"] > 0:
         return constants.SUBMISSION_IN_PREPARATION_STATUS
     
@@ -1978,10 +1957,10 @@ def compute_file_status_statistics(submission_id, submission=None):
             status_dict["nr_fail"] += 1
         elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
             status_dict["nr_pending"] += 1
-        elif subm_file.file_submission_status == constants.IN_PROGRESS:
-            status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1
+        elif subm_file.file_submission_status == constants.SUBMISSION_IN_PROGRESS_STATUS:
+            status_dict["nr_progress"] += 1
 #        elif subm_file.file_submission_status == constants.SUBMISSION_IN_PROGRESS_STATUS:
 #            status_dict["nr_subm_in_progress"] +=1
     return status_dict

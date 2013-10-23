@@ -20,6 +20,13 @@ urlpatterns = patterns('',
     url(r'^submissions/(?P<submission_id>\w+)/irods/$', view_classes.SubmissionIRODSRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods/$', view_classes.SubmittedFileIRODSRequestHandler.as_view()),
     
+    url(r'^submissions/(?P<submission_id>\w+)/irods/meta/$', view_classes.SubmissionIRODSMetaRequestHandler.as_view()),
+    url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods/meta/$', view_classes.SubmittedFileIRODSMetaRequestHandler.as_view()),
+    
+    url(r'^submissions/(?P<submission_id>\w+)/irods/irods-files/$', view_classes.SubmissionToiRODSPermanentRequestHandler.as_view()),
+    url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods/irods-files/$', view_classes.SubmittedFileToiRODSPermanentRequestHandler.as_view()),
+    
+    
     url(r'^submissions/(?P<submission_id>\w+)/status/$', view_classes.SubmissionStatusRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/$', view_classes.SubmittedFilesMainPageRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/status/$', view_classes.AllSubmittedFilesStatusesHandler.as_view()),
