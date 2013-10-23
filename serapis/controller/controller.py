@@ -1684,8 +1684,9 @@ def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=N
     if len(error_list) == 0:
         task_id = launch_submit2irods_job(file_id, submission_id)
         if task_id:
+            tasks_dict = {'type' : submit_to_permanent_iRODS_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
             update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
-                           'set__tasks_dict__'+task_id : constants.PENDING_ON_WORKER_STATUS
+                           'set__tasks_dict__'+task_id : tasks_dict
                            }
             db_model_operations.update_file_from_dict(file_id, update_dict)
             return {"result" : "success"}        
@@ -1718,7 +1719,7 @@ def submit_all_to_irods_atomic(submission_id):
             all_submitted = all_submitted and was_submitted
         return all_submitted
     db_model_operations.compute_file_status_statistics(None, submission)
-    return {"error" : "not all the files are ready for irods submission, status="+submission_status}
+    return {"error" : "not all the files are ready for irods submission, status="+str(submission_status)}
 
 
 

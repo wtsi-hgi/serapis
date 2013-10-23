@@ -1960,7 +1960,7 @@ def decide_submission_status(nr_files, status_dict):
     elif status_dict["nr_ready"] == nr_files:
         return constants.READY_FOR_IRODS_SUBMISSION_STATUS
     elif status_dict["nr_progress"] > 0:
-        return constants.RUNNING_STATUS
+        return constants.SUBMISSION_IN_PROGRESS_STATUS
     elif status_dict["nr_pending"] > 0:
         return constants.SUBMISSION_IN_PREPARATION_STATUS
     
@@ -1979,10 +1979,10 @@ def compute_file_status_statistics(submission_id, submission=None):
             status_dict["nr_fail"] += 1
         elif subm_file.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS]:
             status_dict["nr_pending"] += 1
-        elif subm_file.file_submission_status == constants.IN_PROGRESS:
-            status_dict["nr_progress"] += 1
         elif subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
             status_dict["nr_ready"] += 1
+        elif subm_file.file_submission_status == constants.SUBMISSION_IN_PROGRESS_STATUS:
+            status_dict["nr_progress"] += 1
 #        elif subm_file.file_submission_status == constants.SUBMISSION_IN_PROGRESS_STATUS:
 #            status_dict["nr_subm_in_progress"] +=1
     return status_dict

@@ -1292,7 +1292,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
         
-        print "ADDING MDATA TO IRODS................."
+        print "ADDING MDATA TO IRODS.................irods_file_path=", file_path_irods, " and irods_coll=", permanent_coll_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
@@ -1304,8 +1304,10 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             if err:
                 raise exceptions.iMetaException(err, out)
 
+        print "ADDED metadata for file. Starting add mdata for index. Index file path irods: ", index_file_path_irods
+
         # Adding mdata to the index file:
-        if index_file_path_irods:
+        if index_file_path_irods and index_file_mdata_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
@@ -1314,14 +1316,22 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 (out, err) = child_proc.communicate()
                 if err:
                     raise exceptions.iMetaException(err, out)
+        print "Added metadata for index, starting moving..."
 
         # Moving from staging area to the permanent collection:
         child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
             raise exceptions.iMVException(err, out)
-        
+
+        # TESTING:
         if index_file_path_irods:
+            print "Apparently index file path irods returns true....", index_file_path_irods, str(index_file_path_irods)
+        if index_file_mdata_irods:
+            print "Apparently also index file mdata returns true....", index_file_mdata_irods
+        
+        print "finished moving the file, starting to move the index...."
+        if index_file_path_irods and index_file_mdata_irods:
             child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
@@ -1341,8 +1351,8 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
         errors = []
-        for attr, val in file_mdata_irods.iteritems():
-            child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        for attr_name_val in file_mdata_irods:
+            child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr_name_val[0], attr_name_val[1]], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (_, err) = child_proc.communicate()
             if err:
                 errors.append(err)
@@ -1365,12 +1375,15 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         
+        print "ON FAILURE -- error received: ", str(exc)
+        errors = []
         if type(exc) == exceptions.iMetaException:      # You can only rollback an iMeta exception
-            errors = self.rollback(kwargs)
+            result_rollback = self.rollback(kwargs)
+            errors.append(result_rollback['errors'])
         if isinstance(exc, exceptions.iRODSException):
             str_exc = exc.error
         else:

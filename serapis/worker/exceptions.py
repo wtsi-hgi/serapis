@@ -26,7 +26,7 @@ class iPutException(iRODSException):
         super(iPutException, self).__init__(*args)
         
     def __str__(self):
-        super(iPutException, self).__init__()
+        super(iPutException, self).__str__()
         
 class iMetaException(iRODSException):
     ''' Exception raised when running imeta on a file in iRODS.
@@ -35,7 +35,7 @@ class iMetaException(iRODSException):
         super(iMetaException, self).__init__(*args)
         
     def __str__(self):
-        super(iMetaException, self).__init__()
+        super(iMetaException, self).__str__()
         
 class iMVException(iRODSException):
     ''' Exception raised when running imv on a file in iRODS. '''
@@ -43,5 +43,5 @@ class iMVException(iRODSException):
         super(iMVException, self).__init__(*args)
         
     def __str__(self):
-        super(iMVException, self).__init__()
+        super(iMVException, self).__str__()
         
