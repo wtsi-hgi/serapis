@@ -1838,9 +1838,6 @@ def check_all_tasks_have_status(tasks_dict, task_categ, status):
     return True
 
 def check_task_type_status(tasks_dict, task_type, status):
-    #tasks_dict_str = utils.unicode2string(tasks_dict)
-    #tasks_dict = utils.unicode2string(tasks_dict)
-    #logging.error("CHECK TASK TYPE STATUS: -- upload task name=%s and task dict=%s", task_type, tasks_dict_str)
     for task_info in tasks_dict.values():
         if task_info['type'] == task_type and task_info['status'] == status:
             return True

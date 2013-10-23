@@ -930,7 +930,8 @@ def update_file_submitted(submission_id, file_id, data):
             update_source = constants.UPDATE_MDATA_MSG_SOURCE
         elif task_type == calculate_md5_task.name:
             update_source = constants.CALC_MD5_MSG_SOURCE
-        elif task_type in [upload_task.name, submit_to_permanent_iRODS_coll_task.name]:
+        elif task_type in [upload_task.name, submit_to_permanent_iRODS_coll_task.name, 
+                           add_mdata_to_IRODS_file_task.name, move_to_permanent_coll_task.name]:
             update_source = constants.IRODS_JOB_MSG_SOURCE
 
         errors = None
