@@ -1822,7 +1822,7 @@ def add_meta_to_staged_file(file_id, file_obj=None):
                            }
             db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             return models.Result(True)
-    return models.Result(False)
+    return file_check_result
 
 
 def add_meta_to_all_staged_files_nonatomic(submission_id):
