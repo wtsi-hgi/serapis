@@ -1181,6 +1181,8 @@ class SubmissionIRODSMetaRequestHandler(APIView):
         else:
             result['result'] = added_meta.result
             if added_meta.result == False:
+                if added_meta.error_dict:
+                    result['errors'] = added_meta.error_dict
                 return Response(result, status=424)
             return Response(result, status=202) 
 
@@ -1214,6 +1216,8 @@ class SubmittedFileIRODSMetaRequestHandler(APIView):
             result['result'] = added_meta.result
             if added_meta.result:
                 return Response(result, status=202)
+            if added_meta.error_dict:
+                result['errors'] = added_meta.error_dict
             return Response(result, status=424) 
 
        
@@ -1226,7 +1230,7 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
             iRODS permanent and non-modifyable collection. '''
         try:
             result = dict()
-            added_meta = controller.move_all_to_iRODS_permanent_coll(submission_id)
+            moved_files = controller.move_all_to_iRODS_permanent_coll(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=404)
@@ -1240,8 +1244,12 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
             result['errors'] = e.message
             return Response(result, status=424)
         else:
-            result['result'] = added_meta.result
-            return Response(result, status=202) 
+            result['result'] = moved_files.result
+            if moved_files.result:
+                return Response(result, status=202)
+            if moved_files.error_dict:
+                result['errors'] = moved_files.error_dict
+            return Response(result, status=424) 
 
        
        
