@@ -35,7 +35,10 @@ submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
 PRESUBMISSION_TASKS = [upload_task.name, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
 SUBMISSION_TASKS = [submit_to_permanent_iRODS_coll_task.name, add_mdata_to_IRODS_file_task.name, move_to_permanent_coll_task.name]
 
-UPLOAD_TASK_NAME = upload_task.name
+UPLOAD_TASK_NAME        = upload_task.name
+ADD_META_TO_STAGED_FILE = add_mdata_to_IRODS_file_task.name
+MOVE_TO_PERMANENT_COLL  = move_to_permanent_coll_task.name
+SUBMIT_TO_PERMANENT_COLL= submit_to_permanent_iRODS_coll_task.name
 
 
 #UPLOAD_EXCHANGE = 'UploadExchange'
@@ -1876,13 +1879,13 @@ def add_meta_to_all_staged_files(submission_id, data):
 def move_file_to_iRODS_permanent_coll(file_id, file_obj=None):
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
-    meta_added = db_model_operations.check_task_type_status(file_obj.tasks_dict, add_mdata_to_IRODS_file_task.name, constants.SUCCESS_STATUS)
-    if not meta_added:
+    #meta_added = db_model_operations.check_task_type_status(file_obj.tasks_dict, add_mdata_to_IRODS_file_task.name, constants.SUCCESS_STATUS)
+    if not file_obj.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
         return models.Result(False, message="The metadata must be added before moving the file to the iRODS permanent coll.")
     task_id = launch_move_to_permanent_coll_job(file_id)
     if task_id:
         tasks_dict = {'type' : move_to_permanent_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
-        update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PREPARATION_STATUS,
+        update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
                        'set__tasks_dict__'+task_id : tasks_dict
                        }
         db_model_operations.update_file_from_dict(file_obj.id, update_dict)
