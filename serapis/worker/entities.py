@@ -221,7 +221,6 @@ class SubmittedFile():
         self.id = file_id
         self.file_type = file_type
         self.file_path_client = None
-        self.file_path_irods = None
         self.md5 = None
         self.data_type = None
         

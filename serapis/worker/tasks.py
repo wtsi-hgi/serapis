@@ -751,14 +751,15 @@ class UploadFileTask(iRODSTask):
             child_pid = imkdir_proc.pid
             (out, err) = imkdir_proc.communicate()
             if err:
-                raise subprocess.CalledProcessError(imkdir_proc.returncode, "imkdir"+irods_coll, out)
+                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
         
         iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         child_pid = iput_proc.pid
         (out, err) = iput_proc.communicate()
         print "IPUT the file resulted in: out = ", out, " err = ", err
         if err:
-            raise subprocess.CalledProcessError(iput_proc.returncode, "iput -K"+file_path, out)
+            raise exceptions.iPutException(err, out, cmd="iput -K "+file_path, msg="Return code="+str(child_proc.returncode))
 
         
         if index_file_path:
@@ -767,9 +768,10 @@ class UploadFileTask(iRODSTask):
             (out, err) = iiput_proc.communicate()
             print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
             if err:
-                raise subprocess.CalledProcessError(iiput_proc.returncode, "iput -K"+index_file_path, out)
+                raise exceptions.iPutException(err, out, cmd="iput -K "+index_file_path, 
+                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
              
-        print "SENDING THE RESULT BACK...."
+    
         result = {}
         result['task_id'] = current_task.request.id
         result['status'] = SUCCESS_STATUS
@@ -794,17 +796,21 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
-        try:
-            result_rollb = self.rollback(file_path, irods_coll)
-        except Exception as e:
-            errors_list.append(str(e))
-        if result_rollb['status'] == FAILURE_STATUS:
-            errors_list.append(result_rollb['errors'])
-        if index_file_path:
-            result_rollb = self.rollback(index_file_path, irods_coll)
+        if type(exc) == exceptions.iPutException:
+            if index_file_path and exc.extra_info == "index":
+                try:
+                    result_rollb = self.rollback(index_file_path, irods_coll)
+                except Exception as e:
+                    errors_list.append(str(e))
+                if result_rollb['status'] == FAILURE_STATUS:
+                    errors_list.append(result_rollb['errors'])
+            try:
+                result_rollb = self.rollback(file_path, irods_coll)
+            except Exception as e:
+                errors_list.append(str(e))
             if result_rollb['status'] == FAILURE_STATUS:
                 errors_list.append(result_rollb['errors'])
-
+            
         # SEND RESULT BACK:
         result = {}
         result['task_id'] = current_task.request.id
@@ -1485,6 +1491,12 @@ class AddMdataToIRODSFileTask(iRODSTask):
         current_task.update_state(state=constants.FAILURE_STATUS)
 
 
+#        'file_id' : file_id,
+#       'submission_id' : submission_id,
+#       'file_path_irods' : file_path_irods,
+#       'permanent_coll_irods' : permanent_coll_irods,
+#       'irods_index_file_path' : index_file_path_ir
+
 class MoveFileToPermanentIRODSCollTask(iRODSTask):
     time_limit = 1200           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
@@ -1493,9 +1505,9 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
-        irods_src_file_path     = kwargs['irods_src_path']
+        file_path_irods     = kwargs['file_path_irods']
         irods_dest_coll_path    = kwargs['irods_dest_path']
-        irods_index_file_path   = kwargs['irods_index_file_path']
+        index_file_path_irods   = kwargs['index_file_path_irods']
               
         child_proc = subprocess.Popen(["ils", "-l", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         child_pid = child_proc.pid
@@ -1507,16 +1519,16 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
             if err:
                 raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_dest_coll_path, out)
         
-        child_proc = subprocess.Popen(["imv", irods_src_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_proc = subprocess.Popen(["imv", file_path_irods, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (_, err) = child_proc.communicate()
         if err:
-            raise subprocess.CalledProcessError(child_proc.pid, "imv"+irods_src_file_path+" "+irods_dest_coll_path, err)
+            raise subprocess.CalledProcessError(child_proc.pid, "imv"+file_path_irods+" "+irods_dest_coll_path, err)
         
-        if irods_index_file_path:
-            child_proc = subprocess.Popen(["imv", irods_index_file_path, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        if index_file_path_irods:
+            child_proc = subprocess.Popen(["imv", index_file_path_irods, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (_, err) = child_proc.communicate()
             if err:
-                raise subprocess.CalledProcessError(child_proc.pid, "imv"+irods_src_file_path+" "+irods_dest_coll_path, err)
+                raise subprocess.CalledProcessError(child_proc.pid, "imv"+index_file_path_irods+" "+irods_dest_coll_path, err)
             
         result = {}
         result['task_id'] = current_task.request.id
@@ -1533,11 +1545,11 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         
-        errors = self.rollback(kwargs)
+        #errors = self.rollback(kwargs)
         result = dict()
         result['task_id']   = current_task.request.id
         result['status']    = FAILURE_STATUS
-        result['errors'] =  [str_exc].extend(errors)
+        result['errors'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
         current_task.update_state(state=constants.FAILURE_STATUS)
