@@ -169,7 +169,7 @@ schema_date = Schema(Date())
 # POST /submissions/
 study_post_submission_validator = Schema({
         Required('name'): All(str, Length(min=1)),
-        Required('study_visibility') : All(str, Length(min=1)),
+#        Required('study_visibility') : All(str, Length(min=1)),
         Required('pi_list') : All([str], Length(min=1)),
 })
 

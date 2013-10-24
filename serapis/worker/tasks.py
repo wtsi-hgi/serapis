@@ -440,8 +440,8 @@ class iRODSTask(Task):
 
 class UploadFileTask(iRODSTask):
     #name='serapis.worker.UploadFileTask'
-    time_limit = 5400           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 3600      # an exception is raised => can be used for cleanup
+    time_limit = 10000          # hard time limit => restarts the worker process when exceeded
+    soft_time_limit = 7200      # an exception is raised => can be used for cleanup
     rate_limit = "200/h"        # limits the nr of tasks that can be run per h, 
                                 # so that irods doesn't get overwhelmed
     

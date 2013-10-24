@@ -1854,25 +1854,25 @@ def exists_tasks_of_type(tasks_dict, task_categ):
 
 
 def check_and_update_all_file_statuses(file_id, file_to_submit=None):
-    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS, UPLOAD_TASK_NAME
+    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
     
     if file_to_submit == None:
         file_to_submit = retrieve_submitted_file(file_id)
     
     upd_dict = {}
-    submission_tasks_running = check_any_task_has_status(file_to_submit.tasks_dict, constants.RUNNING_STATUS, SUBMISSION_TASKS)
-    if exists_tasks_of_type(file_to_submit.tasks_dict, SUBMISSION_TASKS): 
-        if submission_tasks_running == True:
-            print "ENTERS IN IFFFFFFFF => a task is still running for submission"
-            return 0
-        elif check_any_task_has_status(file_to_submit.tasks_dict, constants.FAILURE_STATUS, SUBMISSION_TASKS):
-            upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
-            upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
-        elif check_all_tasks_have_status(file_to_submit.tasks_dict, SUBMISSION_TASKS, constants.SUCCESS_STATUS):
-            upd_dict['set__file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
-            upd_dict['inc__version__0'] = 1
-            return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+    # submission_tasks_running = check_any_task_has_status(file_to_submit.tasks_dict, constants.RUNNING_STATUS, SUBMISSION_TASKS)
+    # if exists_tasks_of_type(file_to_submit.tasks_dict, SUBMISSION_TASKS): 
+    #     if submission_tasks_running == True:
+    #         print "ENTERS IN IFFFFFFFF => a task is still running for submission"
+    #         return 0
+    #     elif check_any_task_has_status(file_to_submit.tasks_dict, constants.FAILURE_STATUS, SUBMISSION_TASKS):
+    #         upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
+    #         upd_dict['inc__version__0'] = 1
+    #         return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
+    #     elif check_all_tasks_have_status(file_to_submit.tasks_dict, SUBMISSION_TASKS, constants.SUCCESS_STATUS):
+    #         upd_dict['set__file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
+    #         upd_dict['inc__version__0'] = 1
+    #         return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     
     presubmission_tasks_finished = check_all_tasks_finished(file_to_submit.tasks_dict, PRESUBMISSION_TASKS)
     if presubmission_tasks_finished:
@@ -1908,6 +1908,12 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
     else:
         upd_dict['set__file_submission_status'] = constants.SUBMISSION_IN_PREPARATION_STATUS
         upd_dict['inc__version__0'] = 1
+        
+    if check_task_type_status(file_to_submit.tasks_dict, ADD_META_TO_STAGED_FILE, constants.SUCCESS_STATUS) == True:
+        upd_dict['set__file_submission_status'] = constants.METADATA_ADDED_TO_STAGED_FILE
+    if (check_task_type_status(file_to_submit.tasks_dict, MOVE_TO_PERMANENT_COLL, constants.SUCCESS_STATUS) or
+        check_task_type_status(file_to_submit.tasks_dict, SUBMIT_TO_PERMANENT_COLL, constants.SUCCESS_STATUS)):
+            upd_dict['set__file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
     if upd_dict:
         return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
     return 0
