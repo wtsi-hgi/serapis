@@ -1816,7 +1816,7 @@ def add_meta_to_staged_file(file_id, file_obj=None):
             update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PREPARATION_STATUS,
                            'set__tasks_dict__'+task_id : tasks_dict
                            }
-            db_model_operations.update_file_from_dict(file_to_submit, update_dict)
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             return models.Result(True)
     return models.Result(False)
 
