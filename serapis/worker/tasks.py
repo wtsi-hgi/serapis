@@ -1245,6 +1245,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
         print "ADD MDATA TO IRODS JOB...works!"
+        print "params received: index file path: ",index_file_path_irods, " index meta: ",index_file_mdata_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
         for attr_val in file_mdata_irods:

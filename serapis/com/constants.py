@@ -87,7 +87,7 @@ BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 # ----------------- DATA TYPES --------------------------
 
-DATA_TYPES = ('single sample merged improved')
+DATA_TYPES = ('single-sample-merged-improved')
 
 # ----------------- FILE TYPES --------------------------
 BAM_FILE = "bam"
@@ -301,19 +301,19 @@ CURRENT_SAMPLES = "current_samples"
 #----------------------------------- ENTITIES SPECIFICS ----------------
 
 STUDY_TYPES = {"Whole Genome Sequencing",
-    "Metagenomics",
-    "Transcriptome Analysis",
-    "Resequencing",
-    "Epigenetics",
-    "Synthetic Genomics",
-    "Forensic or Paleo-genomics",
-    "Gene Regulation Study",
-    "Cancer Genomics",
-    "Population Genomics",
-    "RNASeq",
-    "Exome Sequencing",
-    "Pooled Clone Sequencing"
-    }
+                "Metagenomics",
+                "Transcriptome Analysis",
+                "Resequencing",
+                "Epigenetics",
+                "Synthetic Genomics",
+                "Forensic or Paleo-genomics",
+                "Gene Regulation Study",
+                "Cancer Genomics",
+                "Population Genomics",
+                "RNASeq",
+                "Exome Sequencing",
+                "Pooled Clone Sequencing"
+                }
 
 STUDY_VISIBILITY = {"Hold",
                     "Add",

@@ -170,7 +170,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
     index_mdata, index_file_path_irods = None, None
-    if 'index_file_path_client' in file_to_submit:
+    if file_to_submit.index_file:
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 

@@ -68,7 +68,7 @@ class Entity(DynamicEmbeddedDocument):
 
 class Study(Entity):
     accession_number = StringField()
-    study_type = StringField()
+    study_type = StringField(choices=STUDY_TYPES)
     study_title = StringField()
     faculty_sponsor = StringField()
     ena_project_id = StringField()
@@ -79,7 +79,7 @@ class Study(Entity):
     
 class AbstractLibrary(DynamicEmbeddedDocument):
     library_source = StringField(choices=LIBRARY_SOURCES.keys())
-    library_selection = StringField(default="unspecified")
+#    library_selection = StringField(default="unspecified")
     library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
     instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
     coverage = StringField()
