@@ -414,4 +414,8 @@ SAMPLE_NORMALIZATION_MAP = {'common_name' : 'Homo Sapiens',
 SEQSC_FIELDS = {'organism' : ['Homo sapiens', 'human']
                 }
 
+########################## iRODS ERRORS #########################
+
+CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME = "CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME"
+
 

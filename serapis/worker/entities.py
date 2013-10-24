@@ -222,20 +222,19 @@ class SubmittedFile():
         self.file_type = file_type
         self.file_path_client = None
         self.md5 = None
-        self.data_type = None
+#        self.data_type = None
         
         # Initializing entity lists:
         self.study_list = []                            #ListField(EmbeddedDocumentField(Study))
         self.library_list = []                          #ListField(EmbeddedDocumentField(Library))
         self.sample_list = []                           #ListField(EmbeddedDocumentField(Sample))
-        self.seq_centers = []                           # List of sequencing centres where the data has been sequenced
         
         ######## STATUSES #########
         # UPLOAD JOB STATUS:
-        self.file_upload_job_status = None                  # #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
+#        self.file_upload_job_status = None                  # #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
         
         # HEADER PARSING JOB:
-        self.file_header_parsing_job_status = None          # ("SUCCESS", "FAILURE") StringField(choices=HEADER_PARSING_STATUS)
+#        self.file_header_parsing_job_status = None          # ("SUCCESS", "FAILURE") StringField(choices=HEADER_PARSING_STATUS)
         self.header_has_mdata = False                   #BooleanField()
         
         # UPDATE MDATA JOB STATUS:
@@ -243,11 +242,11 @@ class SubmittedFile():
         #file_update_jobs_dict = dict()                      # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
                                                             # This dictionary on the worker side MUST contain ONLY one entry - for the crt job
         #GENERAL STATUSES
-        self.file_mdata_status = None                   # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL") StringField(choices=FILE_MDATA_STATUS) 
-        self.file_submission_status = None              # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")  StringField(choices=FILE_SUBMISSION_STATUS)
+#        self.file_mdata_status = None                   # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL") StringField(choices=FILE_MDATA_STATUS) 
+#        self.file_submission_status = None              # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")  StringField(choices=FILE_SUBMISSION_STATUS)
         
         # Initialize the list of errors for this file
-        self.file_error_log = []                         #ListField(StringField())
+#        self.file_error_log = []                         #ListField(StringField())
             
         # Initializing the dictionary of missing resources
         self.missing_entities_error_dict = dict()        #DictField()         # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]}
@@ -484,8 +483,8 @@ class SubmittedFile():
 class BAMFile(SubmittedFile):
     bam_type = None
     seq_centers = []          # List of sequencing centres
-    lane_list = []
-    tag_list = []
+#    lane_list = []
+#    tag_list = []
     run_list = []
     platform_list = []
     seq_date_list = []

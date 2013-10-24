@@ -1144,7 +1144,8 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                          'file_path_client', 
                          'last_updates_source', 
                          'file_mdata_status',
-                         'file_submission_status']:
+                         'file_submission_status',
+                         'missing_mandatory_fields_dict']:
                 pass
             elif field_name == 'library_list': 
                 if len(field_val) > 0:
