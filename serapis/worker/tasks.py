@@ -1261,25 +1261,33 @@ class AddMdataToIRODSFileTask(iRODSTask):
         submission_id           = str(kwargs['submission_id'])
         file_mdata_irods        = kwargs['file_mdata_irods']
         index_file_mdata_irods  = kwargs['index_file_mdata_irods']
-        dest_file_path_irods    = str(kwargs['file_path_irods'])
+        file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
         print "ADD MDATA TO IRODS JOB...works!"
         file_mdata_irods = deserialize(file_mdata_irods)
         
-        # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
         for attr_val in file_mdata_irods:
             attr = str(attr_val[0])
             val = str(attr_val[1])
-            subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr, val], stderr=subprocess.STDOUT)
+            child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = child_proc.communicate()
+            if err:
+                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
 
-        # Hack for adding mdata to the index file:
-        if index_file_path_irods:
+        # Adding mdata to the index file:
+        if index_file_path_irods and index_file_mdata_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
-                subprocess.check_output(["imeta", "add","-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.STDOUT)
+                child_proc = subprocess.check_output(["imeta", "add","-d", file_path_irods, attr_name, attr_val], stderr=subprocess.STDOUT)
                 print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
+                (out, err) = child_proc.communicate()
+                if err:
+                    if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                        raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
+
 
         result = {}
         result['task_id'] = current_task.request.id
