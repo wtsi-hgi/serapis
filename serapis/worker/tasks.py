@@ -1141,10 +1141,10 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
-                raise exceptions.iMetaException(err, out)
+                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
 
         # Adding mdata to the index file:
-        if index_file_path_irods:
+        if index_file_path_irods and index_file_mdata_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
@@ -1152,19 +1152,19 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
                 (out, err) = child_proc.communicate()
                 if err:
-                    raise exceptions.iMetaException(err, out)
+                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
 
         # Moving from staging area to the permanent collection:
         child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            raise exceptions.iMVException(err, out)
+            raise exceptions.iMVException(err, out, cmd="imv "+file_path_irods+" "+permanent_coll_irods, msg=child_proc.returncode)
         
         if index_file_path_irods:
             child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
-                raise exceptions.iMVException(out, err)
+                raise exceptions.iMVException(out, err, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg=child_proc.returncode)
 
         result = {}
         result['task_id'] = current_task.request.id
@@ -1182,19 +1182,21 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         errors = []
         for attr, val in file_mdata_irods.iteritems():
             child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (_, err) = child_proc.communicate()
+            (out, err) = child_proc.communicate()
             if err:
-                errors.append(err)
+                err_msg = "Error imeta rm -d "+file_path_irods+" "+attr+" "+val+", output: ",out 
+                errors.append(err_msg)
             print "ROLLING BACK THE ADD MDATA FOR FILE..."
         
-        if index_file_path_irods:
+        if index_file_path_irods and index_file_mdata_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
-                subprocess.Popen(["imeta", "rm","-d", file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 (_, err) = child_proc.communicate()
                 if err:
-                    errors.append(err)
+                    err_msg = "Error imeta rm -d "+index_file_path_irods+" "+attr+" "+val+", output: ",out 
+                    errors.append(err_msg)
                 print "ROLLING BACK THE ADD MDATA INDEX ..."
         if errors:
             print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
@@ -1323,34 +1325,37 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
     time_limit = 1200           # hard time limit => restarts the worker process when exceeded
     soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
+
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
-        file_path_irods     = kwargs['file_path_irods']
-        irods_dest_coll_path    = kwargs['irods_dest_path']
+        file_path_irods         = kwargs['file_path_irods']
+        permanent_coll_irods    = kwargs['permanent_coll_irods']
         index_file_path_irods   = kwargs['index_file_path_irods']
               
-        child_proc = subprocess.Popen(["ils", "-l", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_proc = subprocess.Popen(["ils", "-l", permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         child_pid = child_proc.pid
         (out, err) = child_proc.communicate()
         if err:
-            child_proc = subprocess.Popen(["imkdir", irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_proc = subprocess.Popen(["imkdir", permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             child_pid = child_proc.pid
             (out, err) = child_proc.communicate()
             if err:
-                raise subprocess.CalledProcessError(child_proc.returncode, "imkdir"+irods_dest_coll_path, out)
+                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                    print "imkdir ", permanent_coll_irods, " error: ", err, " and output: ", out
+                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+permanent_coll_irods, msg="Return code="+str(child_proc.returncode))       
         
-        child_proc = subprocess.Popen(["imv", file_path_irods, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (_, err) = child_proc.communicate()
+        child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
         if err:
-            raise subprocess.CalledProcessError(child_proc.pid, "imv"+file_path_irods+" "+irods_dest_coll_path, err)
-        
+            raise exceptions.iMVException(err, out, cmd="imv "+file_path_irods+" "+permanent_coll_irods, msg="Return code: "+str(child_proc.returncode))
+
         if index_file_path_irods:
-            child_proc = subprocess.Popen(["imv", index_file_path_irods, irods_dest_coll_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (_, err) = child_proc.communicate()
+            child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = child_proc.communicate()
             if err:
-                raise subprocess.CalledProcessError(child_proc.pid, "imv"+index_file_path_irods+" "+irods_dest_coll_path, err)
+                raise exceptions.iMVException(err, out, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg="Return code: "+str(child_proc.returncode))
             
         result = {}
         result['task_id'] = current_task.request.id

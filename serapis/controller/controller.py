@@ -858,14 +858,9 @@ def get_submitted_file_status(file_id, file_obj=None):
                 tasks_status_dict[task_type] = state
             else:
                 tasks_status_dict[task_type] = task_info_dict['status']
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
-        
-#        if state and state != 'PENDING':
-#            tasks_status_dict[task_type] = state
-#            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " TYPE: ", task_type
-#        else:
-#            print "TASK STATE :::::::::::::::::::::::", task_info_dict['status']
-#            tasks_status_dict[task_type] = task_info_dict['status']
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+        else:
+            tasks_status_dict[task_type] = task_info_dict['status']
     result['tasks'] = tasks_status_dict
     result['file_submission_status'] = file_obj.file_submission_status
     return result
@@ -943,18 +938,18 @@ def update_file_submitted(submission_id, file_id, data):
         errors = None
         if 'errors' in data:
             errors = data['errors']
-        
-        if data['status'] == constants.FAILURE_STATUS:
-            db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
             
         if update_source == constants.IRODS_JOB_MSG_SOURCE:
             db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
         else:
-            db_model_operations.update_file_mdata(file_id, data['result'], 
-                                                  update_source, 
-                                                  task_id=data['task_id'], 
-                                                  task_status=data['status'], 
-                                                  errors=errors)
+            if data['status'] == constants.FAILURE_STATUS:
+                db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
+            else:
+                db_model_operations.update_file_mdata(file_id, data['result'], 
+                                                      update_source, 
+                                                      task_id=data['task_id'], 
+                                                      task_status=data['status'], 
+                                                      errors=errors)
 #        if task_type == 
             #task_id = launch_move_to_permanent_coll_task(file_id, submission_id)
 #            if task_id:
@@ -1886,7 +1881,7 @@ def move_file_to_iRODS_permanent_coll(file_id, file_obj=None):
         return models.Result(False, message="The metadata must be added before moving the file to the iRODS permanent coll.")
     task_id = launch_move_to_permanent_coll_job(file_id)
     if task_id:
-        tasks_dict = {'type' : add_mdata_to_IRODS_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+        tasks_dict = {'type' : move_to_permanent_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
         update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PREPARATION_STATUS,
                        'set__tasks_dict__'+task_id : tasks_dict
                        }
