@@ -942,18 +942,18 @@ def update_file_submitted(submission_id, file_id, data):
         errors = None
         if 'errors' in data:
             errors = data['errors']
-        
-        if data['status'] == constants.FAILURE_STATUS:
-            db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
             
         if update_source == constants.IRODS_JOB_MSG_SOURCE:
             db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
         else:
-            db_model_operations.update_file_mdata(file_id, data['result'], 
-                                                  update_source, 
-                                                  task_id=data['task_id'], 
-                                                  task_status=data['status'], 
-                                                  errors=errors)
+            if data['status'] == constants.FAILURE_STATUS:
+                db_model_operations.update_task_status(file_id, task_id=data['task_id'], task_status=data['status'], errors=errors)
+            else:
+                db_model_operations.update_file_mdata(file_id, data['result'], 
+                                                      update_source, 
+                                                      task_id=data['task_id'], 
+                                                      task_status=data['status'], 
+                                                      errors=errors)
 #        if task_type == 
             #task_id = launch_move_to_permanent_coll_task(file_id, submission_id)
 #            if task_id:
@@ -1820,7 +1820,7 @@ def add_meta_to_staged_file(file_id, file_obj=None):
             update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PREPARATION_STATUS,
                            'set__tasks_dict__'+task_id : tasks_dict
                            }
-            db_model_operations.update_file_from_dict(file_to_submit, update_dict)
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             return models.Result(True)
     return models.Result(False)
 
