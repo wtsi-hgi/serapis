@@ -193,7 +193,7 @@ class SubmittedFile(DynamicDocument):
     #calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
     
     # FIELDS FOR FILE MDATA:
-    has_minimal = BooleanField(default=False)
+    #has_minimal = BooleanField(default=False)
     
     # HEADER PARSING JOB:
     #file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")
@@ -228,8 +228,8 @@ class SubmittedFile(DynamicDocument):
 class BAMFile(SubmittedFile):
     #bam_type = StringField()    # ??? Do we still need this one, since we have data_type field now?
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
-    lane_list = ListField()             # list of strings
-    tag_list = ListField()              # list of strings
+#    lane_list = ListField()             # list of strings
+#    tag_list = ListField()              # list of strings
     run_list = ListField()              # list of strings
     platform_list = ListField()         # list of strings
     seq_date_list = ListField()             # list of strings

@@ -162,22 +162,28 @@ def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path
 def launch_add_mdata2irods_job(file_id, submission_id):
     logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
     file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
+    
     irods_mdata_dict = serapis2irods_logic.gather_mdata(file_to_submit)
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
-    index_mdata = None
+    index_mdata, index_file_path_irods = None, None
     if 'index_file_path_client' in file_to_submit:
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+        (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
+        index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
     else:
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
 
+    (_, file_name) = os.path.split(file_to_submit.file_path_client)
+    file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, file_name)
+    
     task = add_mdata_to_IRODS_file_task.apply_async(kwargs={
                                                   'file_id' : file_id, 
                                                   'submission_id' : submission_id,
                                                   'file_mdata_irods' : irods_mdata_dict,
                                                   'index_file_mdata_irods': index_mdata,
-                                                  'file_path_irods' : file_to_submit.file_path_irods,
-                                                  'index_file_path_irods' : file_to_submit.index.file_path_irods,
+                                                  'file_path_irods' : file_path_irods,
+                                                  'index_file_path_irods' : index_file_path_irods,
                                                  },
                                              queue=IRODS_Q)
     return task.id

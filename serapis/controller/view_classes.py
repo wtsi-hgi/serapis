@@ -1147,7 +1147,7 @@ class SubmittedFileIRODSRequestHandler(APIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            if 'error_dict' in submission_result:
+            if hasattr(submission_result, 'error_dict'):
                 result['errors'] = submission_result.error_dict
                 return Response(result, status=424)
             return Response(result, status=200)
