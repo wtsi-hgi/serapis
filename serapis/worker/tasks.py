@@ -1,31 +1,34 @@
-from celery import Task
-from celery.exceptions import MaxRetriesExceededError
-#from mysql.connector.errors import OperationalError
-#from celery.utils.log import get_task_logger
+from MySQLdb import Error as mysqlError, connect, cursors
+from celery import Task, current_task
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from collections import defaultdict
+from entities import *
+from serapis.com.constants import *
+from serapis.worker import exceptions
+from subprocess import call, check_output
+import atexit
+import errno
+import hashlib
+import logging
+import os
+import sys
 import pysam
-import os, sys
 import re
 import requests
-import errno
-import logging
-import time
-import hashlib
+import signal
 import subprocess
-from collections import defaultdict
-from subprocess import call, check_output
+import time
+import signal
+
+#from mysql.connector.errors import OperationalError
+#from celery.utils.log import get_task_logger
 #import MySQLdb
 
 
-from MySQLdb import connect, cursors
-from MySQLdb import Error as mysqlError
 #from MySQLdb import OperationalError
 
 #import serializers
-from serapis.com.constants import *
-from entities import *
-from serapis.worker import exceptions
 
-from celery import current_task
 
 
 
@@ -38,14 +41,12 @@ MD5 = "md5"
 
 child_pid = None
 
-import signal
 def kill_child():
     if child_pid is None:
         pass
     else:
         os.kill(child_pid, signal.SIGTERM)
 
-import atexit
 atexit.register(kill_child)
 
 #---------- Auxiliary functions - used by all tasks ------------
@@ -679,8 +680,9 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
-        if type(exc) == exceptions.iPutException:
-            if index_file_path and exc.extra_info == "index":
+        if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
+            if index_file_path:
+                os.kill(child_pid, signal.SIGKILL)
                 try:
                     result_rollb = self.rollback(index_file_path, irods_coll)
                 except Exception as e:

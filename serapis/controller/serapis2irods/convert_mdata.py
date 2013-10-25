@@ -238,6 +238,7 @@ def convert_index_file_mdata(file_md5, indexed_file_md5):
     irods_file_mdata = []
     irods_file_mdata.append(('file_md5', file_md5))
     irods_file_mdata.append(('indexed_file_md5', indexed_file_md5))
+    return irods_file_mdata
 
 
 

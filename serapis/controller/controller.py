@@ -170,8 +170,8 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
     index_mdata, index_file_path_irods = None, None
-    if file_to_submit.index_file:
-        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+    if hasattr(file_to_submit.index_file, 'file_path_client'):
+        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index_file.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
     else:
@@ -192,20 +192,6 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     return task.id
 
 
-#        file_id                 = str(kwargs['file_id'])
-#        submission_id           = str(kwargs['submission_id'])
-#        irods_src_file_path     = kwargs['irods_src_path']
-#        irods_dest_coll_path    = kwargs['irods_dest_path']
-#        irods_index_file_path   = kwargs['irods_index_file_path']
-
-#                'file_id' : file_id, 
-#              'submission_id' : submission_id,
-#              'file_mdata_irods' : irods_mdata_dict,
-#              'index_file_mdata_irods': index_mdata,
-#              'file_path_irods' : file_path_irods,
-#              'index_file_path_irods' : index_file_path_irods,
-#              'permanent_coll_irods' : permanent_coll_irods
-#             },
 
 
 def launch_move_to_permanent_coll_job(file_id):
@@ -216,7 +202,7 @@ def launch_move_to_permanent_coll_job(file_id):
     
     # If there is an index => putting together the metadata for it
     index_file_path_irods = None
-    if file_to_submit.index_file and 'file_path_client' in file_to_submit.index_file:
+    if hasattr(file_to_submit.index_file, 'file_path_client'):
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
     else:
@@ -246,7 +232,7 @@ def launch_submit2irods_job(file_id):
     
     # If there is an index => putting together the metadata for it
     index_file_path_irods, index_mdata = None, None
-    if file_to_submit.index_file and 'file_path_client' in file_to_submit.index_file:
+    if hasattr(file_to_submit.index_file,  'file_path_client'):
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
@@ -1222,107 +1208,6 @@ def resubmit_jobs_for_submission(submission_id):
         
         
         
-
-def resubmit_jobs_for_file_old(submission_id, file_id):
-    ''' Function called for resubmitting the jobs for a file, as a result
-        of a POST request on a specific file. It checks for permission and 
-        resubmits the jobs in the corresponding queue, depending on permissions.
-    Throws:
-        InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
-        DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
-        '''
-    user_id = 'yl2'
-    file_to_resubmit = db_model_operations.retrieve_submitted_file(file_id) 
-    
-    # TODO: success and fail -statuses...
-    # TODO: submit different jobs depending on each one's status => if upload was successfully, then dont resubmit this one
-    
-    #TODo - to rewrite this taking into account the fact that serapis needs access to the files for PARSE HEADER as well, not only for upload
-    permissions = check_file_permissions(file_to_resubmit.file_path_client)
-    upld_as_srp_flag = db_model_operations.retrieve_submission_upload_as_serapis_flag(submission_id)
-    if permissions == constants.NOACCESS:
-        if upld_as_srp_flag == True:
-            result = models.Result(False, error_dict={constants.PERMISSION_DENIED : [file_id]})
-            result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
-            result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
-            result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
-            return result
-    
-    
-    # Checking on statuses and modifying them:
-    if file_to_resubmit.file_submission_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-        
-    if file_to_resubmit.file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        db_model_operations.update_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-    
-    if file_to_resubmit.index_file_upload_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        db_model_operations.update_index_file_upload_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-        
-    if file_to_resubmit.file_header_parsing_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]: 
-        db_model_operations.update_file_parse_header_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-
-    if file_to_resubmit.calc_file_md5_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        db_model_operations.update_calc_file_md5_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-    
-    if file_to_resubmit.calc_index_file_md5_job_status in [constants.PENDING_ON_USER_STATUS, constants.FAILURE_STATUS]:
-        db_model_operations.update_calc_index_file_md5_job_status(file_id, constants.PENDING_ON_WORKER_STATUS)
-                            
-    resubm_jobs_dict = {}
-    any_update_fail = db_model_operations.check_any_task_has_status_in_coll(file_to_resubmit.file_update_jobs_dict, 
-                                                                            [constants.FAILURE_STATUS, constants.PENDING_ON_WORKER_STATUS])         
-    if any_update_fail:
-        file_to_resubmit.reload()
-        models.SubmittedFile.objects(id=file_to_resubmit.id).update(set__file_update_jobs_dict={}, inc__version__0=1)
-        launch_update_file_job(file_to_resubmit)
-        resubm_jobs_dict['UDATE_JOB'] = True
-    file_to_resubmit.reload()
-    
-    dest_irods_coll = os.path.dirname(file_to_resubmit.file_path_irods)
-    if permissions == constants.NOACCESS:
-        upload_resubmitted = launch_upload_job(user_id, 
-                                               file_id, 
-                                               submission_id, 
-                                               file_to_resubmit.file_path_client, 
-                                               file_to_resubmit.index_file.file_path_client,
-                                               dest_irods_coll, 
-                                               queue=user_id+"_"+UPLOAD_Q)
-        if upload_resubmitted:
-            resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
-    elif permissions == constants.READ_ACCESS:
-        upload_resubmitted = launch_upload_job(user_id, 
-                                               file_id, 
-                                               submission_id, 
-                                               file_to_resubmit.file_path_client, 
-                                               file_to_resubmit.index_file.file_path_client,
-                                               dest_irods_coll) 
-                             
-        if upload_resubmitted:
-            resubm_jobs_dict['UPLOAD_JOB'] = upload_resubmitted
-    else:
-        raise IOError()
-    
-    
-    if file_to_resubmit.file_header_parsing_job_status == constants.PENDING_ON_WORKER_STATUS:
-        launch_parse_BAM_header_job(file_to_resubmit)   # to be moved down - in the different cases
-        resubm_jobs_dict['PARSE_HEADER'] = True
-        
-    if file_to_resubmit.calc_file_md5_job_status == constants.PENDING_ON_WORKER_STATUS:
-        launch_calculate_md5_task(file_to_resubmit.file_path_client, file_id, submission_id, 'calc_file_md5_job_status')
-        
-    if file_to_resubmit.calc_index_file_md5_job_status == constants.PENDING_ON_WORKER_STATUS:
-        launch_calculate_md5_task(file_to_resubmit.index_file_path_client, file_id, submission_id, 'calc_index_file_md5_job_status')
-
-    print "BEFORE RETURNING THE RESUBMIT STATUS: ", str(resubm_jobs_dict)
-    res = (len(resubm_jobs_dict) > 0)
-    print "RESULT: ", res
-    return models.Result(res, message=resubm_jobs_dict)
-
-
-
-
-
 def delete_submitted_file(submission_id, file_id):
     ''' Deletes a file from the files of this submission.
     Params:
@@ -1649,76 +1534,6 @@ def check_file_md5_eq(file_path, calculated_md5):
     return True
     
 
-#def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=None):
-#    error_list = []
-#    subm_file = db_model_operations.retrieve_submitted_file(file_id)
-#    if subm_file.file_submission_status == constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS:
-#        return {"result" : True, "message" : "already successfully submitted to irods"}
-#    if subm_file.file_submission_status == constants.FAILURE_SUBMISSION_TO_IRODS_STATUS:
-#        return {"result" : False, "message" : "already failed submission to irods"}
-#    if not subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-#        error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
-#        error_list.append(error_msg)
-#        return {"result" : False, "message" : "failure", "errors" : error_list}
-#
-#    f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
-#    if not f_md5_correct:
-#        error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
-#
-#    if subm_file.index_file_path_client:
-#        index_md5_correct = check_file_md5_eq(subm_file.index_file_path_client, subm_file.index_file_md5)
-#        if not  index_md5_correct:
-#            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file_path_client+".md5")
-#    
-#    if len(error_list) == 0:
-#        mdata_dict = serapis2irods.serapis2irods_logic.gather_mdata(subm_file, user_id, submission_date)
-#        was_launched = launch_add_mdata2irods_job(file_id, submission_id, mdata_dict)
-#        if was_launched == 1:
-#            db_model_operations.update_file_submission_status(file_id, constants.SUBMISSION_IN_PROGRESS_STATUS)
-#            return {"result" : True, "message" : "success"}        
-#    else:
-#        #error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
-#        #error_list.append(error_msg)
-#        return {"result" : False, "message" : "failure", "errors" : error_list}
-
-
-
-        
-
-#def submit_file_to_irods(file_id, submission_id):
-#    error_list = []
-#    subm_file = db_model_operations.retrieve_submitted_file(file_id)
-#    if not subm_file.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-#        if subm_file.file_submission_status:
-#            error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
-#        else:
-#            error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is None"
-#        error_list.append(error_msg)
-#        return {"result" : "failure", "errors" : error_list}
-#
-#    f_md5_correct = check_file_md5_eq(subm_file.file_path_client, subm_file.md5)
-#    if not f_md5_correct:
-#        error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.file_path_client+".md5")
-#
-#    if subm_file.index_file.file_path_client:
-#        index_md5_correct = check_file_md5_eq(subm_file.index_file.file_path_client, subm_file.index_file.md5)
-#        if not  index_md5_correct:
-#            error_list.append("Unequal md5: calculated file's md5 is different than the contents of "+subm_file.index_file.file_path_client+".md5")
-#    
-#    if len(error_list) == 0:
-#        task_id = launch_submit2irods_job(file_id, submission_id)
-#        if task_id:
-#            tasks_dict = {'type' : submit_to_permanent_iRODS_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
-#            update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
-#                           'set__tasks_dict__'+task_id : tasks_dict
-#                           }
-#            db_model_operations.update_file_from_dict(file_id, update_dict)
-#            return {"result" : "success"}        
-#    else:
-#        #error_msg = "file status must be READY_FOR_IRODS_SUBMISSION_STATUS, and it currently is "+subm_file.file_submission_status
-#        #error_list.append(error_msg)
-#        return {"result" : "failure", "errors" : error_list}
-
 def check_file(file_id, file_obj=None):
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
@@ -1800,7 +1615,7 @@ def submit_all_to_irods_atomic(submission_id):
 
 
 def submit_all_to_irods(submission_id, data):
-    if data and 'atomic' in data and data['atomic'].lower() == 'false':
+    if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
         return submit_all_to_irods_nonatomic(submission_id)
     return submit_all_to_irods_atomic(submission_id)
     
@@ -1821,6 +1636,7 @@ def add_meta_to_staged_file(file_id, file_obj=None):
                            }
             db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             return models.Result(True)
+    logging.error("File check for adding metadata FAILED: %s", str(file_check_result.error_dict))
     return file_check_result
 
 
@@ -1830,6 +1646,8 @@ def add_meta_to_all_staged_files_nonatomic(submission_id):
     for file_to_submit in files:
         add_meta_result = add_meta_to_staged_file(file_to_submit.id, file_to_submit)
         results[str(file_to_submit.id)] = add_meta_result.result
+        if add_meta_result.error_dict:
+            logging.error("ERRORs dict: %s",str(add_meta_result.error_dict))
     return models.Result(results)
                 
     
@@ -1899,7 +1717,15 @@ def move_all_to_iRODS_permanent_coll(submission_id):
     for file_to_submit in files:
         subm_result = move_file_to_iRODS_permanent_coll(file_to_submit.id, file_to_submit)
         result[str(file_to_submit.id)] = subm_result.result
+        if subm_result.error_dict:
+            logging.error("MOVE file from staging area to permanent coll - FAILED: %s", str(subm_result.error_dict))
     return models.Result(result)
+
+
+
+
+
+
 
 # ---------------------------------- NOT USED ------------------
 

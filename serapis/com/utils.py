@@ -115,7 +115,7 @@ def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
         return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
 
 def build_irods_staging_path(submission_id):
-    return os.path.join(constants.STAGING_IRODS, submission_id)
+    return os.path.join(constants.IRODS_STAGING_AREA, submission_id)
 
 #def build_file_path_irods(client_file_path, irods_coll_path):
 #    (_, src_file_name) = os.path.split(client_file_path)  
