@@ -193,7 +193,7 @@ class SubmittedFile(DynamicDocument):
     #calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
     
     # FIELDS FOR FILE MDATA:
-    #has_minimal = BooleanField(default=False)
+    has_minimal = BooleanField(default=False)
     
     # HEADER PARSING JOB:
     #file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")

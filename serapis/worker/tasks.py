@@ -12,6 +12,7 @@ import hashlib
 import logging
 import os
 import sys
+#from celery.utils.log import get_task_logger
 import pysam
 import re
 import requests
@@ -28,7 +29,6 @@ import signal
 #from MySQLdb import OperationalError
 
 #import serializers
-
 
 
 
@@ -443,8 +443,8 @@ class iRODSTask(Task):
 
 class UploadFileTask(iRODSTask):
     #name='serapis.worker.UploadFileTask'
-    time_limit = 5400           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 3600      # an exception is raised => can be used for cleanup
+#    time_limit = 10000          # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 7200      # an exception is raised => can be used for cleanup
     rate_limit = "200/h"        # limits the nr of tasks that can be run per h, 
                                 # so that irods doesn't get overwhelmed
     
@@ -473,7 +473,7 @@ class UploadFileTask(iRODSTask):
 #        return md5.hexdigest()
     
 
-
+    # WORKING TEST_VERSION, does not upload to irods, just skips
     def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
         result = {}
@@ -512,6 +512,7 @@ class UploadFileTask(iRODSTask):
         return allparts
 
         
+
     # the current version for serapis
     def run_serapis_yang(self, **kwargs):
         file_id = kwargs['file_id']
@@ -553,7 +554,8 @@ class UploadFileTask(iRODSTask):
             # result[response_status] = SUCCESS_STATUS
             # send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
 
-
+            t2 = time.time()
+            print "TIME TAKEN: ", t2-t1
             _, fname = os.path.split(src_file_path)
             dest_file_path = os.path.join(dest_coll_path, fname)
             ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
@@ -577,6 +579,7 @@ class UploadFileTask(iRODSTask):
     def rollback(self, file_path, irods_coll):
         result = dict()
         (_, fname) = os.path.split(file_path)
+        print "IN ROLLBACK --- here it throws an exception, irods_coll = ", irods_coll, " and fname = ", fname
         irods_file_path = os.path.join(irods_coll, fname)
         
         child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -636,27 +639,31 @@ class UploadFileTask(iRODSTask):
         child_pid = child_proc.pid
         (out, err) = child_proc.communicate()
         if err:
-            child_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = child_proc.pid
-            (out, err) = child_proc.communicate()
+            imkdir_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = imkdir_proc.pid
+            (out, err) = imkdir_proc.communicate()
             if err:
                 if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                     raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
         
-        child_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = child_proc.pid
-        (out, err) = child_proc.communicate()
+        iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_pid = iput_proc.pid
+        (out, err) = iput_proc.communicate()
+        print "IPUT the file resulted in: out = ", out, " err = ", err
         if err:
             raise exceptions.iPutException(err, out, cmd="iput -K "+file_path, msg="Return code="+str(child_proc.returncode))
+
         
         if index_file_path:
-            child_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = child_proc.pid
-            (out, err) = child_proc.communicate()
+            iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            child_pid = iiput_proc.pid
+            (out, err) = iiput_proc.communicate()
+            print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
             if err:
                 raise exceptions.iPutException(err, out, cmd="iput -K "+index_file_path, 
-                                               msg="Return code="+str(child_proc.returncode), extra_info="index")
-         
+                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
+             
+  
         result = {}
         result['task_id'] = current_task.request.id
         result['status'] = SUCCESS_STATUS
@@ -664,14 +671,15 @@ class UploadFileTask(iRODSTask):
         current_task.update_state(state=result['status'])
 
         
-    def on_failure_to_be_decommented(self, exc, task_id, args, kwargs, einfo):
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
         file_id         = kwargs['file_id']
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
         submission_id   = str(kwargs['submission_id'])
-        irods_coll      = str(kwargs['dest_irods_path'])
+        irods_coll      = str(kwargs['irods_coll'])
         
-        print "ON FAILURE EXECUTED----------------------------irm file..."
+        print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
         errors_list = []
         if type(exc) == subprocess.CalledProcessError:
             exc = exc.output 
@@ -733,7 +741,6 @@ class CalculateMD5Task(GatherMetadataTask):
         index_file_path = kwargs['index_file_path']
         
         print "Calculate MD5 sum job started!"
-       
         
 #        # Calculate file md5:
         if index_file_path:
@@ -743,9 +750,9 @@ class CalculateMD5Task(GatherMetadataTask):
 #        file_md5 = self.calculate_md5(file_path)
 #        delta = time.time() - t1
 #        print "TIME TAKEN TO CALCULATE md5 = ", delta
-        
+#        
         file_md5 = "123456789"
-        index_md5 = "987654321"
+#        index_md5 = "987654321"
         
         # Report the results:
         result = {}
@@ -987,6 +994,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, SAMPLE_TYPE, file_mdata)
         
         print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
+
 #        try:
         processSeqsc = ProcessSeqScapeData()
 #        except mysqlError:
@@ -1032,6 +1040,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         file_mdata = BAMFile.build_from_json(file_mdata)
         file_mdata.file_submission_status = IN_PROGRESS_STATUS
         file_path = file_mdata.file_path_client
+
         # try:
         header_json = self.get_header_mdata(file_path)              # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
         header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
@@ -1133,7 +1142,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
         
-        print "ADDING MDATA TO IRODS................."
+        print "ADDING MDATA TO IRODS.................irods_file_path=", file_path_irods, " and irods_coll=", permanent_coll_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
         # Add metadata to the file - the mdata list looks like: [(k1, v1), (k2,v2), ...] -> it was the only way to keep more keys
@@ -1143,7 +1152,10 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
+                print "ERROR WHILE ADDING MDATA: ", err, " AND OUTPUT : ", out
                 raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
+
+        print "ADDED metadata for file. Starting add mdata for index. Index file path irods: ", index_file_path_irods
 
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
@@ -1154,18 +1166,27 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
                 (out, err) = child_proc.communicate()
                 if err:
+                    print "ERROR WHILE ADDING MDATA: ", err, " AND OUTPUT : ", out
                     raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
+        print "Added metadata for index, starting moving..."
 
         # Moving from staging area to the permanent collection:
         child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
+            print "ERROR WHILE MOVING FILE: ", err, " AND OUTPUT : ", out
             raise exceptions.iMVException(err, out, cmd="imv "+file_path_irods+" "+permanent_coll_irods, msg=child_proc.returncode)
-        
         if index_file_path_irods:
+            print "Apparently index file path irods returns true....", index_file_path_irods, str(index_file_path_irods)
+        if index_file_mdata_irods:
+            print "Apparently also index file mdata returns true....", index_file_mdata_irods
+        
+        print "finished moving the file, starting to move the index...."
+        if index_file_path_irods and index_file_mdata_irods:
             child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
+                print "ERROR WHILE MOVING FILE: ", err, " AND OUTPUT : ", out
                 raise exceptions.iMVException(out, err, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg=child_proc.returncode)
 
         result = {}
@@ -1182,11 +1203,11 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
         errors = []
-        for attr, val in file_mdata_irods.iteritems():
-            child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        for attr_name_val in file_mdata_irods:
+            child_proc = subprocess.Popen(["imeta", "rm", "-d", file_path_irods, attr_name_val[0], attr_name_val[1]], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
-                err_msg = "Error imeta rm -d "+file_path_irods+" "+attr+" "+val+", output: ",out 
+                err_msg = "Error imeta rm -d "+file_path_irods+" "+attr_name_val[0]+" "+attr_name_val[1]+", output: ",out 
                 errors.append(err_msg)
             print "ROLLING BACK THE ADD MDATA FOR FILE..."
         
@@ -1197,7 +1218,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 (_, err) = child_proc.communicate()
                 if err:
-                    err_msg = "Error imeta rm -d "+index_file_path_irods+" "+attr+" "+val+", output: ",out 
+                    err_msg = "Error imeta rm -d "+index_file_path_irods+" "+attr_name_val[0]+" "+attr_name_val[1]+", output: ",out 
                     errors.append(err_msg)
                 print "ROLLING BACK THE ADD MDATA INDEX ..."
         if errors:
@@ -1208,10 +1229,11 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", vars(exc)
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         
+        print "ON FAILURE -- error received: ", str(exc)
         errors = []
         if type(exc) == exceptions.iMetaException:      # You can only rollback an iMeta exception
             result_rollback = self.rollback(kwargs)
@@ -1259,12 +1281,13 @@ class AddMdataToIRODSFileTask(iRODSTask):
                 if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                     raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
 
+        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
-                child_proc = subprocess.check_output(["imeta", "add","-d", file_path_irods, attr_name, attr_val], stderr=subprocess.STDOUT)
+                child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
                 (out, err) = child_proc.communicate()
                 if err:
@@ -1282,25 +1305,27 @@ class AddMdataToIRODSFileTask(iRODSTask):
     def rollback(self, kwargs):
         file_mdata_irods        = kwargs['file_mdata_irods']
         index_file_mdata_irods  = kwargs['index_file_mdata_irods']
-        dest_file_path_irods    = str(kwargs['dest_file_path_irods'])
+        dest_file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
         errors = []
-        for attr, val in file_mdata_irods.iteritems():
-            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (_, err) = child_proc.communicate()
+        for attr_name_val in file_mdata_irods:
+            attr_name = str(attr_name_val[0])
+            attr_val = str(attr_name_val[1])
+            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            (out, err) = child_proc.communicate()
             if err:
-                errors.append(err)
+                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
             print "ROLLING BACK THE ADD MDATA FOR FILE..."
         
         if index_file_path_irods:
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
-                subprocess.Popen(["imeta", "rm","-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                (_, err) = child_proc.communicate()
+                subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                (out, err) = child_proc.communicate()
                 if err:
-                    errors.append(err)
+                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
                 print "ROLLING BACK THE ADD MDATA INDEX ..."
         if errors:
             print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
@@ -1310,7 +1335,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!"
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", vars(exc)
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         
@@ -1326,11 +1351,6 @@ class AddMdataToIRODSFileTask(iRODSTask):
         current_task.update_state(state=constants.FAILURE_STATUS)
 
 
-#        'file_id' : file_id,
-#       'submission_id' : submission_id,
-#       'file_path_irods' : file_path_irods,
-#       'permanent_coll_irods' : permanent_coll_irods,
-#       'irods_index_file_path' : index_file_path_ir
 
 class MoveFileToPermanentIRODSCollTask(iRODSTask):
     time_limit = 1200           # hard time limit => restarts the worker process when exceeded

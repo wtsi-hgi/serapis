@@ -89,6 +89,7 @@ def retrieve_reference_genome(ref_gen_dict):
     return None
 
 
+
 # I plan not to use this. Out of use for now.
 def retrieve_reference_genome2(md5=None, name=None, path=None):
     if md5 == None and name == None and path == None:
@@ -1034,7 +1035,7 @@ def update_submitted_file_old(file_id, update_dict, update_source, statuses_dict
                 i += 1
                 continue
             except exceptions.UpdateMustBeDismissed as e:
-                logging.error("UPDATE HAS BEEN DISMISSED -- %s", e.reason)
+                logging.error("UPDATE HAS BEEN DISMISSED: reason=  %s", e.reason)
                 return 0
             else:
                 if field_update_dict:
@@ -1859,6 +1860,7 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
         file_to_submit = retrieve_submitted_file(file_id)
     
     upd_dict = {}
+
 #    submission_tasks_running = check_any_task_has_status(file_to_submit.tasks_dict, constants.RUNNING_STATUS, SUBMISSION_TASKS)
 #    if exists_tasks_of_type(file_to_submit.tasks_dict, SUBMISSION_TASKS): 
 #        if submission_tasks_running == True:

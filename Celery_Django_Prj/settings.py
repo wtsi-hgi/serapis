@@ -64,7 +64,7 @@ CELERY_IMPORTS = ('serapis.worker.tasks',)
 ####
 CELERY_RESULT_BACKEND = "amqp"
 
-CELERY_TASK_RESULT_EXPIRES = 60             # The results will expire after 1s.(not using it!)
+CELERY_TASK_RESULT_EXPIRES = 3600             # The results will expire after 1h
 
 
 #CELERY_RESULT_BACKEND = "mongodb"
@@ -96,6 +96,10 @@ connect('MetadataDB')
 # WORKING ON SERAPIS - to be decommented:
 #connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
+# WORKING ON SERAPIS - to be decommented - when submitting to the actual archive:
+#connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
+
+# WORKING - to be used for irods dev zone (testing)
 #connect('MetadataDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
 
 

@@ -57,4 +57,3 @@ class iMkDirException(iRODSException):
         super(iMkDirException, self).__str__()
         
         
-        

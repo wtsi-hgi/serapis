@@ -29,7 +29,7 @@ from serapis.com import constants, utils
 
 def convert_reference_genome_mdata(ref_genome):
     #REF_PREFIXED_FIELDS = ['md5', 'name']    => Josh required to take the name out
-    REF_PREFIXED_FIELDS = ['md5']
+    REF_PREFIXED_FIELDS = ['md5', 'name']
     irods_ref_mdata = []
     for field_name in REF_PREFIXED_FIELDS:
         if hasattr(ref_genome, field_name):
@@ -176,9 +176,10 @@ def convert_specific_file_mdata(file_type, file_mdata):
 #    sample_list = ListField(EmbeddedDocumentField(Sample))
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'index_file_md5', 'data_type', 'data_subtype_tags','hgi_project']
+    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
+    
     for field_name in FILE_PREFIXED_FIELDS_LIST:
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
             field_val = getattr(subm_file, field_name)
@@ -225,6 +226,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
+    if hasattr(subm_file.index_file, 'file_path_client'):
+        irods_file_mdata.append(('index_file_md5', utils.unicode2string(subm_file.index_file.md5)))
     irods_file_mdata.append(('submitter_user_id', utils.unicode2string(sanger_user_id)))
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     result_list = list(set(irods_file_mdata))
@@ -236,8 +239,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
 ## For index files:
 def convert_index_file_mdata(file_md5, indexed_file_md5):
     irods_file_mdata = []
-    irods_file_mdata.append(('file_md5', file_md5))
-    irods_file_mdata.append(('indexed_file_md5', indexed_file_md5))
+    irods_file_mdata.append(('file_md5', utils.unicode2string(file_md5)))
+    irods_file_mdata.append(('indexed_file_md5', utils.unicode2string(indexed_file_md5)))
     return irods_file_mdata
 
 

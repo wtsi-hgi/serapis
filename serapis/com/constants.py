@@ -221,8 +221,12 @@ JOB_TYPES = (UPDATE_JOBS,
 #DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
+#DEST_DIR_IRODS = "/humgen/projects"
+IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
+
+#DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/staging_area" #serapis_staging
-IRODS_STAGING_AREA = "/home/ic4/tmp/serapis_staging_area/"
+#IRODS_STAGING_AREA = "/home/ic4/tmp/serapis_staging_area/"
 
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'

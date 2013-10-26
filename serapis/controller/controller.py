@@ -96,6 +96,7 @@ def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_i
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
+    logging.info("Dest irods collection: %s", dest_irods_path)
     #print "I AM UPLOADING...putting the task in the queue!"
     task = upload_task.apply_async(kwargs={ 'file_id' : file_id, 
                                             'file_path' : file_path, 
@@ -161,6 +162,12 @@ def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path
 #    db_model_operations.add_task_to_file(file_id, task.id, calculate_md5_task.name, status)
     return task.id
     
+        # file_id                 = str(kwargs['file_id'])
+        # submission_id           = str(kwargs['submission_id'])
+        # file_mdata_irods        = kwargs['file_mdata_irods']
+        # index_file_mdata_irods  = kwargs['index_file_mdata_irods']
+        # file_path_irods    = str(kwargs['file_path_irods'])
+        # index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
 def launch_add_mdata2irods_job(file_id, submission_id):
     logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
@@ -171,9 +178,11 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     
     index_mdata, index_file_path_irods = None, None
     if hasattr(file_to_submit.index_file, 'file_path_client'):
+        print "APPARENTLY we have an index: ", vars(file_to_submit.index_file)
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index_file.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
+        print "The index metadata to be added: ", str(index_mdata), " and index file path: ", index_file_path_irods
     else:
         logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
 
@@ -261,6 +270,7 @@ def submit_jobs_for_file(file_id, user_id, file_obj=None, as_serapis=True):
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
     dest_irods_coll = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id)
     tasks_dict = {}
+    print "AS SERAPIS????????????????????????", as_serapis
     if as_serapis:
         task_id = launch_update_file_job(file_obj)
         tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
@@ -833,6 +843,7 @@ def get_submitted_file_status(file_id, file_obj=None):
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
     result = {'file_path' : file_obj.file_path_client}
     # !!! PROBLEM: If there are more tasks of the same type - this should be a list (DIct just for testing! 
+    i = 0
     tasks_status_dict = {}
     task_dict = file_obj.tasks_dict
     for task_id, task_info_dict in task_dict.iteritems():
@@ -840,16 +851,17 @@ def get_submitted_file_status(file_id, file_obj=None):
         async = AsyncResult(task_id)
         #print "TASK STATUS FROM DB: ", task_info_dict['status']
         if async:
-            state = async.state
+            state = str(async.state)
             task_state_grade = constants.TASK_STATUS_HIERARCHY[state]
             db_state_grade = constants.TASK_STATUS_HIERARCHY[task_info_dict['status']]
             if task_state_grade > db_state_grade:
-                tasks_status_dict[task_type] = state
+                tasks_status_dict[str(i)+task_type] = state
             else:
-                tasks_status_dict[task_type] = task_info_dict['status']
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+                tasks_status_dict[str(i)+task_type] = task_info_dict['status']
+            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
         else:
-            tasks_status_dict[task_type] = task_info_dict['status']
+            tasks_status_dict[str(i)+task_type] = task_info_dict['status']
+        i +=1
     result['tasks'] = tasks_status_dict
     result['file_submission_status'] = file_obj.file_submission_status
     return result
@@ -1600,14 +1612,14 @@ def submit_all_to_irods_atomic(submission_id):
     
     results = {}
     # Submit all files to iRODS if they are ok:
-    for file_obj in files:
-        task_id = launch_submit2irods_job(file_obj.id)
+    for file_to_submit in files:
+        task_id = launch_submit2irods_job(file_to_submit.id)
         if task_id:
             tasks_dict = {'type' : submit_to_permanent_iRODS_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
             update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
                            'set__tasks_dict__'+task_id : tasks_dict
                            }
-            db_model_operations.update_file_from_dict(file_obj.id, update_dict)
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             results[str(file_to_submit.id)] = True
         else:
             results[str(file_to_submit.id)] = False
@@ -1623,8 +1635,8 @@ def submit_all_to_irods(submission_id, data):
 
 ################ Submitting to iRODS in 2 steps: ##############################
 
-def add_meta_to_staged_file(file_id, file_obj=None):
-    if not file_obj:
+def add_meta_to_staged_file(file_id, file_to_submit=None):
+    if not file_to_submit:
         file_to_submit = db_model_operations.retrieve_submitted_file(file_id)
     file_check_result = check_file(file_to_submit.id, file_to_submit)
     if file_check_result.result == True:
@@ -1662,7 +1674,7 @@ def add_meta_to_all_staged_files_atomic(submission_id):
         file_check_result = check_file(file_to_submit.id, file_to_submit)
         if file_check_result.result == False:
             ready_to_submit = False
-            error_dict.extend(file_check_result.error_dict)
+            error_dict.update(file_check_result.error_dict)
             results[str(file_to_submit.id)] = False
         else:
             results[str(file_to_submit.id)] = True
@@ -1672,14 +1684,14 @@ def add_meta_to_all_staged_files_atomic(submission_id):
 
     # Submit all files to iRODS if they are ok:
     results = {}
-    for file_obj in files:
-        task_id = launch_add_mdata2irods_job(file_obj.id, submission_id)
+    for file_to_submit in files:
+        task_id = launch_add_mdata2irods_job(file_to_submit.id, submission_id)
         if task_id:
             tasks_dict = {'type' : add_mdata_to_IRODS_file_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
             update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PREPARATION_STATUS,
                            'set__tasks_dict__'+task_id : tasks_dict
                            }
-            db_model_operations.update_file_from_dict(file_obj.id, update_dict)
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
             results[str(file_to_submit.id)] = True
         else:
             results[str(file_to_submit.id)] = False
@@ -1687,8 +1699,10 @@ def add_meta_to_all_staged_files_atomic(submission_id):
 
 
 def add_meta_to_all_staged_files(submission_id, data):
-    if data and 'atomic' in data and data['atomic'].lower() == 'false':
+    if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
+        print "NON ATOMIC called...."
         return add_meta_to_all_staged_files_nonatomic(submission_id)
+    print "ATOMIC one called......"
     return add_meta_to_all_staged_files_atomic(submission_id)
     
 
@@ -1697,7 +1711,6 @@ def add_meta_to_all_staged_files(submission_id, data):
 def move_file_to_iRODS_permanent_coll(file_id, file_obj=None):
     if not file_obj:
         file_obj = db_model_operations.retrieve_submitted_file(file_id)
-    #meta_added = db_model_operations.check_task_type_status(file_obj.tasks_dict, add_mdata_to_IRODS_file_task.name, constants.SUCCESS_STATUS)
     if not file_obj.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
         return models.Result(False, message="The metadata must be added before moving the file to the iRODS permanent coll.")
     task_id = launch_move_to_permanent_coll_job(file_id)
