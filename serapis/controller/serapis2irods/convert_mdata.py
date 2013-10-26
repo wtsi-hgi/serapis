@@ -29,13 +29,16 @@ from serapis.com import constants, utils
 
 def convert_reference_genome_mdata(ref_genome):
     #REF_PREFIXED_FIELDS = ['md5', 'name']    => Josh required to take the name out
-    REF_PREFIXED_FIELDS = ['md5']
+    REF_PREFIXED_FIELDS = ['md5', 'name']
     irods_ref_mdata = []
     for field_name in REF_PREFIXED_FIELDS:
         if hasattr(ref_genome, field_name):
             field_val = getattr(ref_genome, field_name)
             field_val = utils.unicode2string(field_val)
-            irods_ref_mdata.append(('ref_file_'+field_name, field_val))
+            if field_name == 'name':
+                irods_ref_mdata.append(('ref_'+field_name, field_val))
+            else:
+                irods_ref_mdata.append(('ref_file_'+field_name, field_val))
     return irods_ref_mdata
     
     
@@ -225,6 +228,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
+    if hasattr(subm_file.index_file, 'file_path_client'):
+        irods_file_mdata.append(('index_file_md5', utils.unicode2string(subm_file.index_file.md5)))
     irods_file_mdata.append(('submitter_user_id', utils.unicode2string(sanger_user_id)))
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     result_list = list(set(irods_file_mdata))

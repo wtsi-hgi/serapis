@@ -1432,7 +1432,7 @@ def update_submission(update_dict, submission_id, submission=None, nr_retries=co
                 update_db_dict['set__data_type'] = field_val
             # TODO: put here the logic around inserting a ref genome
             elif field_name == 'file_reference_genome_id':
-                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
+                models.ReferenceGenome.objects(id=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
                 update_db_dict['set__file_reference_genome_id'] = field_val
             # This should be tested if it's ok...
             elif field_name == 'library_metadata':

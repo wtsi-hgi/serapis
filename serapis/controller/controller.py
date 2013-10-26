@@ -256,7 +256,7 @@ def launch_submit2irods_job(file_id):
     # If there is an index => putting together the metadata for it
     index_file_path_irods, index_mdata = None, None
     if file_to_submit.index_file and 'file_path_client' in file_to_submit.index_file:
-        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index_file.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
     else:
@@ -1789,7 +1789,7 @@ def submit_all_to_irods_atomic(submission_id):
         file_check_result = check_file(file_to_submit.id, file_to_submit)
         if file_check_result.result == False:
             ready_to_submit = False
-            error_dict.extend(file_check_result.error_dict)
+            error_dict.update(file_check_result.error_dict)
         results[str(file_to_submit.id)] = file_check_result.result
             
     if not ready_to_submit:
