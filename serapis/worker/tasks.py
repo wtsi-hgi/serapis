@@ -716,8 +716,8 @@ class CalculateMD5Task(GatherMetadataTask):
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = True        # the task will NOT report its status as STARTED when it starts
-    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
 
     def calculate_md5(self, file_path, block_size=2**20):
@@ -769,8 +769,8 @@ class ParseBAMHeaderTask(GatherMetadataTask):
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
-    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     
@@ -1060,8 +1060,8 @@ class UpdateFileMdataTask(GatherMetadataTask):
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
-    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
     def __filter_fields__(self, fields_dict):
         filtered_dict = dict()
@@ -1125,8 +1125,8 @@ class UpdateFileMdataTask(GatherMetadataTask):
 #################### iRODS TASKS: ##############################
 
 class SubmitToIRODSPermanentCollTask(iRODSTask):
-    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
@@ -1266,8 +1266,8 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
     
 
 class AddMdataToIRODSFileTask(iRODSTask):
-    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
@@ -1367,8 +1367,8 @@ class AddMdataToIRODSFileTask(iRODSTask):
 
 
 class MoveFileToPermanentIRODSCollTask(iRODSTask):
-    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
-    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
+#    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
+#    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
 
     def run(self, **kwargs):

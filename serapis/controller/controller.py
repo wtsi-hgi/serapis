@@ -878,6 +878,7 @@ def get_submitted_file_status(file_id, file_obj=None):
         i +=1
     result['tasks'] = tasks_status_dict
     result['file_submission_status'] = file_obj.file_submission_status
+    result['file_metadata_status'] = file_obj.file_mdata_status
     return result
 
 
