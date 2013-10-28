@@ -1657,9 +1657,10 @@ def check_file_md5_eq(file_path, calculated_md5):
         print "COMPARING md5!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
         equal_md5 = (official_md5 == calculated_md5)
         print "MD5 WERE EQUAL?????????????????????????????????????????????????????????????////", equal_md5
+        return equal_md5
     else:
         print "MD5 hasn't been cheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeckedddddddddddddddddddddddddddddddddd!!!!"
-    return True
+        return True
     
 
 #def submit_file_to_irods(file_id, submission_id, user_id=None, submission_date=None):
