@@ -914,6 +914,7 @@ def get_submitted_file_status(file_id, file_obj=None):
         i +=1
     result['tasks'] = tasks_status_dict
     result['file_submission_status'] = file_obj.file_submission_status
+    result['file_metadata_status'] = file_obj.file_mdata_status
     return result
 
 
@@ -1591,9 +1592,10 @@ def check_file_md5_eq(file_path, calculated_md5):
         print "COMPARING md5!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
         equal_md5 = (official_md5 == calculated_md5)
         print "MD5 WERE EQUAL?????????????????????????????????????????????????????????????////", equal_md5
+        return equal_md5
     else:
         print "MD5 hasn't been cheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeckedddddddddddddddddddddddddddddddddd!!!!"
-    return True
+        return True
     
 
 def check_file(file_id, file_obj=None):
@@ -1811,7 +1813,6 @@ def move_all_to_iRODS_permanent_coll(submission_id, data=None):
         return move_all_to_iRODS_permanent_coll_nonatomic(submission_id)
     print "ATOMIC one called......"
     return move_all_to_iRODS_permanent_coll_atomic(submission_id)
-
 
 
 

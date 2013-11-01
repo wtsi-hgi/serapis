@@ -1432,7 +1432,7 @@ def update_submission(update_dict, submission_id, submission=None, nr_retries=co
                 update_db_dict['set__data_type'] = field_val
             # TODO: put here the logic around inserting a ref genome
             elif field_name == 'file_reference_genome_id':
-                models.ReferenceGenome.objects(id=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
+                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
                 update_db_dict['set__file_reference_genome_id'] = field_val
             # This should be tested if it's ok...
             elif field_name == 'library_metadata':
@@ -1655,6 +1655,16 @@ def check_if_sample_has_minimal_mdata(sample, file_to_submit):
                     has_min_mdata = False
                 else:
                     __find_and_delete_missing_field_from_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+
+            has_optional_fields = False
+            for field in constants.SAMPLE_OPTIONAL_FIELDS:
+                if hasattr(sample, field) and getattr(sample, field):
+                    __find_and_delete_missing_field_from_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                    has_optional_fields = True
+                else:
+                    __add_missing_field_to_dict__(field, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
+            if not has_optional_fields:
+                has_min_mdata = False
             sample.has_minimal = has_min_mdata
     return has_min_mdata
 
@@ -1854,7 +1864,7 @@ def exists_tasks_of_type(tasks_dict, task_categ):
 
 
 def check_and_update_all_file_statuses(file_id, file_to_submit=None):
-    from serapis.controller.controller import PRESUBMISSION_TASKS, SUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
+    from serapis.controller.controller import PRESUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
     
     if file_to_submit == None:
         file_to_submit = retrieve_submitted_file(file_id)
