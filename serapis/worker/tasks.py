@@ -643,7 +643,8 @@ class UploadFileTask(iRODSTask):
                 if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                     raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
         
-        iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         child_pid = iput_proc.pid
         (out, err) = iput_proc.communicate()
         print "IPUT the file resulted in: out = ", out, " err = ", err
@@ -653,7 +654,8 @@ class UploadFileTask(iRODSTask):
 
         
         if index_file_path:
-            iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            iiput_proc = subprocess.Popen(["iput", "-R","red", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            #iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             child_pid = iiput_proc.pid
             (out, err) = iiput_proc.communicate()
             print "IPUT the INDEX file resulted in: out = ", out, " err = ", err

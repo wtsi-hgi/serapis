@@ -1229,8 +1229,12 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
         ''' Moves all the files in a submission from the staging area to the
             iRODS permanent and non-modifyable collection. '''
         try:
+            data = None
+            if hasattr(request, 'DATA'):
+                data = request.DATA
+                data = utils.unicode2string(data)
             result = dict()
-            moved_files = controller.move_all_to_iRODS_permanent_coll(submission_id)
+            moved_files = controller.move_all_to_iRODS_permanent_coll(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=404)

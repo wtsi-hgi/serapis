@@ -1909,13 +1909,43 @@ def move_file_to_iRODS_permanent_coll(file_id, file_obj=None):
     return models.Result(False, message="No task id returned.")
 
 
-def move_all_to_iRODS_permanent_coll(submission_id):
+def move_all_to_iRODS_permanent_coll_nonatomic(submission_id):
     result = {}
     files = db_model_operations.retrieve_all_files_for_submission(submission_id)
     for file_to_submit in files:
         subm_result = move_file_to_iRODS_permanent_coll(file_to_submit.id, file_to_submit)
         result[str(file_to_submit.id)] = subm_result.result
+        if subm_result.error_dict:
+            logging.error("MOVE file from staging area to permanent coll - FAILED: %s", str(subm_result.error_dict))
     return models.Result(result)
+
+
+def move_all_to_iRODS_permanent_coll_atomic(submission_id):
+    result = {}
+    files = db_model_operations.retrieve_all_files_for_submission(submission_id)
+    for file_to_submit in files:
+        if not file_to_submit.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
+            return models.Result(False, message="The metadata must be added before moving the file to the iRODS permanent coll.")
+    
+    for file_to_submit in files:
+        task_id = launch_move_to_permanent_coll_job(file_to_submit.id)
+        if task_id:
+            tasks_dict = {'type' : move_to_permanent_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+            update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
+                           'set__tasks_dict__'+task_id : tasks_dict
+                           }
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
+            result[str(file_to_submit.id)] = True
+        else:
+            result[str(file_to_submit.id)] = False
+    return models.Result(result)
+
+def move_all_to_iRODS_permanent_coll(submission_id, data):
+    if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
+        print "NON ATOMIC called...."
+        return move_all_to_iRODS_permanent_coll_nonatomic(submission_id)
+    print "ATOMIC one called......"
+    return move_all_to_iRODS_permanent_coll_atomic(submission_id)
 
 # ---------------------------------- NOT USED ------------------
 
