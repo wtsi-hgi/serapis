@@ -242,7 +242,7 @@ def launch_submit2irods_job(file_id):
     # If there is an index => putting together the metadata for it
     index_file_path_irods, index_mdata = None, None
     if hasattr(file_to_submit.index_file,  'file_path_client'):
-        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index.md5, file_to_submit.md5)
+        index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index_file.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
         index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_to_submit.submission_id, index_file_name) 
     else:
@@ -377,16 +377,20 @@ def check_for_invalid_paths(file_paths_list):
 
 
 def detect_file_type(file_path):
-    file_extension = utils.extract_extension(file_path)
-    if file_extension == 'bam':
+    #file_extension = utils.extract_extension(file_path)
+    fname, f_ext = utils.extract_fname_and_ext(file_path)
+    if f_ext == 'bam':
         return constants.BAM_FILE
-    elif file_extension == 'bai':
+    elif f_ext == 'bai':
         return constants.BAI_FILE
-    elif file_extension == 'vcf':
+    #### VCF: 
+    elif f_ext == 'gz':
+        return detect_file_type(fname)
+    elif f_ext == 'vcf':
         return constants.VCF_FILE
     else:
         logging.error("NOT SUPPORTED FILE TYPE!")
-        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+file_extension)
+        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+f_ext)
         
         
 def check_for_invalid_file_types(file_path_list):
@@ -487,7 +491,7 @@ def search_for_index_file(file_path, indexes):
                 raise exceptions.IndexOlderThanFileError(faulty_expression=index_file_path)
     return None
 
-def associate_files_with_indexes(file_paths):
+def associate_files_with_indexes_old(file_paths):
     ''' This function gets a list of file paths and separates them
         in 2 categories: files and index files, then it associates 
         each file with an index if there is one present in the files
@@ -522,6 +526,49 @@ def associate_files_with_indexes(file_paths):
     if indexes:
         extend_errors_dict(indexes,  constants.UNMATCHED_INDEX_FILES, errors_dict)
     return models.Result(file_tuples, error_dict=errors_dict, warning_dict=warnings_dict)
+
+
+
+def associate_files_with_indexes(file_paths):
+    file_index_map = {}
+    indexes = []
+    error_dict = {}
+    
+    # Iterate over the files and init the file-idx map.
+    # When finding an index, add it to the index list.
+    for file_path in file_paths:
+        file_type = detect_file_type(file_path)
+        if file_type in constants.FILE2IDX_MAP:
+            file_index_map[file_path] = ''
+        elif file_type in constants.FILE2IDX_MAP.values():
+            indexes.append(file_path)
+        else:
+            append_to_errors_dict(file_path, constants.NOT_SUPPORTED_FILE_TYPE, error_dict)
+        
+    # Iterate over the indexes list and add them to the files:
+    for idx in indexes:
+        try:
+            f_path = utils.infer_filename_from_idxfilename(idx, file_type)
+            if file_index_map[f_path]:
+                append_to_errors_dict((f_path, idx, file_index_map[f_path]), constants.TOO_MANY_INDEX_FILES, error_dict)
+                print "TOO MANY INDEX FILES!!!", idx, file_index_map[f_path]
+#                raise exceptions.MoreThanOneIndexForAFile(faulty_expression=fname, 
+#                                                          msg="Indexes found: "+str(fname)+" and "+str(file_index_map[fname]))
+            file_index_map[f_path] = idx
+            if utils.cmp_timestamp_files(f_path, idx) > 0:         # compare file and index timestamp
+                logging.error("TIMESTAMPS OF FILE > TIMESTAMP OF INDEX ---- PROBLEM!!!!!!!!!!!!")
+                #raise exceptions.IndexOlderThanFileError(faulty_expression=idx)
+                append_to_errors_dict((f_path, idx), constants.INDEX_OLDER_THAN_FILE, error_dict)
+                print "INDEX OLDER APPARENTLY :file= ", os.path.getmtime(f_path), " IDX timestamp = ", os.path.getmtime(idx)
+            print "F PATH: ", f_path, "INDEX: ", idx
+        except KeyError:
+            #raise exceptions.NoFileFoundForIndex(faulty_expression=idx)
+            append_to_errors_dict(idx, constants.UNMATCHED_INDEX_FILES, error_dict)
+            print "DICT DOESN'T HAVE AN ENTRY FOR THIS FILE: ", f_path
+            print "DICT IS: ", vars(file_index_map)
+    # OPTIONAL - to be considered -- add extra check if all values != '' 
+    return models.Result(file_index_map.items(), error_dict=error_dict)
+
 
 
 
@@ -641,8 +688,8 @@ def create_submission(user_id, data):
         ref_gen = submission_data.pop('reference_genome')
         ref_gen = get_or_insert_reference_genome(ref_gen)
         submission_data['file_reference_genome_id'] = ref_gen.id
-    else:
-        raise exceptions.NotEnoughInformationProvided(msg="There was no information regarding the reference genome provided")
+#    else:
+#        raise exceptions.NotEnoughInformationProvided(msg="There was no information regarding the reference genome provided")
     
     # Build the submission:
     submission_id = db_model_operations.insert_submission(submission_data, user_id)
@@ -667,6 +714,9 @@ def create_submission(user_id, data):
             index_file.file_path_client=index_file_path
             file_submitted.index_file = index_file
         elif file_type == constants.VCF_FILE:
+            file_submitted = models.VCFFile(submission_id=str(submission.id), 
+                                            file_path_client=file_path)
+            
             continue
         
         # Checking that the file has the information necessary to infer hgi_project:
@@ -1604,7 +1654,7 @@ def submit_all_to_irods_atomic(submission_id):
         file_check_result = check_file(file_to_submit.id, file_to_submit)
         if file_check_result.result == False:
             ready_to_submit = False
-            error_dict.extend(file_check_result.error_dict)
+            error_dict.update(file_check_result.error_dict)
         results[str(file_to_submit.id)] = file_check_result.result
             
     if not ready_to_submit:
@@ -1724,7 +1774,7 @@ def move_file_to_iRODS_permanent_coll(file_id, file_obj=None):
     return models.Result(False, message="No task id returned.")
 
 
-def move_all_to_iRODS_permanent_coll(submission_id):
+def move_all_to_iRODS_permanent_coll_nonatomic(submission_id):
     result = {}
     files = db_model_operations.retrieve_all_files_for_submission(submission_id)
     for file_to_submit in files:
@@ -1734,6 +1784,33 @@ def move_all_to_iRODS_permanent_coll(submission_id):
             logging.error("MOVE file from staging area to permanent coll - FAILED: %s", str(subm_result.error_dict))
     return models.Result(result)
 
+
+def move_all_to_iRODS_permanent_coll_atomic(submission_id):
+    result = {}
+    files = db_model_operations.retrieve_all_files_for_submission(submission_id)
+    for file_to_submit in files:
+        if not file_to_submit.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
+            return models.Result(False, message="The metadata must be added before moving the file to the iRODS permanent coll.")
+    
+    for file_to_submit in files:
+        task_id = launch_move_to_permanent_coll_job(file_to_submit.id)
+        if task_id:
+            tasks_dict = {'type' : move_to_permanent_coll_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
+            update_dict = {'set__file_submission_status' : constants.SUBMISSION_IN_PROGRESS_STATUS,
+                           'set__tasks_dict__'+task_id : tasks_dict
+                           }
+            db_model_operations.update_file_from_dict(file_to_submit.id, update_dict)
+            result[str(file_to_submit.id)] = True
+        else:
+            result[str(file_to_submit.id)] = False
+    return models.Result(result)
+
+def move_all_to_iRODS_permanent_coll(submission_id, data=None):
+    if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
+        print "NON ATOMIC called...."
+        return move_all_to_iRODS_permanent_coll_nonatomic(submission_id)
+    print "ATOMIC one called......"
+    return move_all_to_iRODS_permanent_coll_atomic(submission_id)
 
 
 

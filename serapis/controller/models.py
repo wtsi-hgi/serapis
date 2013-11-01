@@ -1,5 +1,5 @@
 
-import exceptions
+#import exceptions
 from mongoengine import *
 from serapis.com.constants import *
 from bson.objectid import ObjectId
@@ -99,10 +99,12 @@ class Library(AbstractLibrary, Entity):
 #    name = StringField(unique_with='md5')
 
 class ReferenceGenome(Document):
+#    md5 = StringField(primary_key=True)
     md5 = StringField()
     paths = ListField()
     name = StringField()
-     
+
+
 
 class Sample(Entity):          # one sample can be member of many studies
     accession_number = StringField()         # each sample relates to EXACTLY 1 individual
@@ -226,17 +228,12 @@ class SubmittedFile(DynamicDocument):
     
 
 class BAMFile(SubmittedFile):
-    #bam_type = StringField()    # ??? Do we still need this one, since we have data_type field now?
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
 #    lane_list = ListField()             # list of strings
 #    tag_list = ListField()              # list of strings
     run_list = ListField()              # list of strings
     platform_list = ListField()         # list of strings
     seq_date_list = ListField()             # list of strings
-    #header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
-    
-#    bai_file_path = StringField()
-#    bai_md5 = StringField()
     
     # optional:
     library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
@@ -311,6 +308,8 @@ class TestDoc2(Document):
     friends = ListField(StringField())
     address_book = DictField()
     version = IntField()
+    
+    
 
   
 #  OPTIONAL FIELDS AFTER ELIMINATED FOR CLEANING PURPOSES:

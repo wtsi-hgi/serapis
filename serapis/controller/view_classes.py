@@ -122,8 +122,14 @@ class SubmissionsMainPageRequestHandler(APIView):
             data = utils.unicode2string(data)
             #validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
             validator.submission_post_validator(data)
-     
+            
+            import time #, ipdb
+            t1 = time.time()
+            
+            #ipdb.set_trace()
             subm_result = controller.create_submission(user_id, data)
+            t2 = time.time() - t1
+            print "TIME TAKEN TO RUN create_subm: ", t2 
             submission_id = subm_result.result
             if subm_result.error_dict:
                 req_result['errors'] = subm_result.error_dict
@@ -1229,8 +1235,12 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
         ''' Moves all the files in a submission from the staging area to the
             iRODS permanent and non-modifyable collection. '''
         try:
+            data = None
+            if hasattr(request, 'DATA'):
+                data = request.DATA
+                data = utils.unicode2string(data)
             result = dict()
-            moved_files = controller.move_all_to_iRODS_permanent_coll(submission_id)
+            moved_files = controller.move_all_to_iRODS_permanent_coll(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=404)

@@ -1,30 +1,6 @@
-
-
-#    accession_number = StringField()         # each sample relates to EXACTLY 1 individual
-#    sanger_sample_id = StringField()
-#    public_name = StringField()
-#    sample_tissue_type = StringField() 
-#    reference_genome = StringField()
-#    taxon_id = StringField()
-#    gender = StringField()
-#    cohort = StringField()
-#    ethnicity = StringField()
-#    country_of_origin = StringField()
-#    geographical_region = StringField()
-#    organism = StringField()
-#    common_name = StringField()          # This is the field name given for mdata in iRODS /seq
-
-#library_type = StringField()
-#public_name = StringField() 
-
 from serapis.com import constants, utils
-#import unicodedata
-#unicodedata.normalize('NFKD', title).encode('ascii','ignore')
-#
-#def unicode2string(ucode):
-#    if type(ucode) == unicode:
-#        return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
-#    return ucode
+from collections import Counter
+from collections import defaultdict
 
 
 def convert_reference_genome_mdata(ref_genome):
@@ -35,7 +11,10 @@ def convert_reference_genome_mdata(ref_genome):
         if hasattr(ref_genome, field_name):
             field_val = getattr(ref_genome, field_name)
             field_val = utils.unicode2string(field_val)
-            irods_ref_mdata.append(('ref_file_'+field_name, field_val))
+            if field_name == 'name':
+                irods_ref_mdata.append(('ref_'+field_name, field_val))
+            else:
+                irods_ref_mdata.append(('ref_file_'+field_name, field_val))
     return irods_ref_mdata
     
     
@@ -49,7 +28,7 @@ def convert_sample_mdata(sample):
         of (key, value) from all the object's fields, and adds the
         tuples to a list. Adjusts the naming of the fields where it's
         necessary and returns the list of tuples.'''
-    SAMPLE_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'public_name', 'common_name']
+    SAMPLE_PREFIXED_FIELDS_LIST = ['internal_id', 'name', 'accession_number', 'public_name'] #, 'common_name'
     SAMPLE_NONPREFIXED_FIELDS_LIST = ['sanger_sample_id', 'sample_tissue_type',  'taxon_id', 
                                       'gender', 'cohort', 'ethnicity', 'country_of_origin', 'geographical_region',
                                       'organism']
@@ -232,6 +211,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     result_list = list(set(irods_file_mdata))
     result_list.sort(key=lambda tup: tup[0])
+    test_file_meta_pairs(result_list)
     return result_list
 
 #data.sort(key=lambda tup: tup[1])
@@ -244,7 +224,19 @@ def convert_index_file_mdata(file_md5, indexed_file_md5):
     return irods_file_mdata
 
 
+def test_file_meta_pairs(tuple_list):
+    key_occ_dict = defaultdict(int)
+    for item in tuple_list:
+        print "ITEM: ", item[0], item[1]
+        key_occ_dict[item[0]] += 1
+        #key_count = Counter(tuple_list)
+    for k, v in key_occ_dict.iteritems():
+        print k+" : "+str(v)+"\n"
+    #print key_occ_dict
+    
+#test_file_meta_pairs([('cohort', 'ef'), ('sample_id', '123')])
 
+        
 
     
     

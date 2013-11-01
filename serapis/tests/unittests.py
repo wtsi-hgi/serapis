@@ -8,6 +8,94 @@ import json
 from bson.objectid import ObjectId
 
 
+
+import os, subprocess
+from collections import defaultdict
+
+def test_file_meta_pairs(tuple_list):
+    key_occ_dict = defaultdict(int)
+    for item in tuple_list:
+        key_occ_dict[item[0]] += 1
+#    for k, v in key_occ_dict.iteritems():
+#        print k+" : "+str(v)+"\n"
+    UNIQUE_FIELDS = ['study_titly', 'study_internal_id', 'study_accession_number', 
+                     'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
+                     'study_type', 'study_visibility', 'submission_date', 'submission_id',
+                     'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id',
+                     'hgi_project', 'data_type', 'seq_center']
+    AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
+                    'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date']
+    
+    for attr in UNIQUE_FIELDS:
+        if attr in key_occ_dict:
+            if key_occ_dict[attr] != 1:
+                print "ERROR -- field freq != 1!!!" + attr+" freq = ", key_occ_dict[attr]
+                return -1
+        else:
+            print "ERROR -- field entirely missing!!! attr="+attr
+            return -1    
+    
+    for attr in AT_LEAST_ONE:
+        if attr in key_occ_dict:
+            if key_occ_dict[attr] < 1:
+                print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+key_occ_dict[attr]
+                return -1
+        else:
+            print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+key_occ_dict[attr]
+            return -1
+            
+    
+#    for attr_name, freq in key_occ_dict.iteritems():
+#        if attr_name in UNIQUE_FIELDS:
+#            print freq, "and type : ", type(freq)
+#            if freq != 1:
+#                print "ERROR: attribute: "+attr_name+" should be UNIQUE, but appears "+str(freq)+" times"
+#                return -1
+#        elif attr_name in AT_LEAST_ONE:
+#            if freq < 1:
+#                print "ERROR: attribute: "+attr_name+" should appear at least 1 time, but appears "+str(freq)+" times"
+#                return -1
+    return 0
+
+class TestFileMeta(unittest.TestCase):
+    def test_file_meta(self):
+        tuple_list = [('study_titly', 'asd'), ('hgi_project', 'cro')]
+        res = test_file_meta_pairs(tuple_list)
+        self.assertEqual(-1, res)
+        
+        tuple_list = [('study_title', 'asd'), ('hgi_project', 'cro'),
+                      ('organism', 'asd'), ('sanger_sample_id', 'asd'), ('pi_user_id', 'ca'), 
+                      ('coverage', 'erea'), ('sample_name','asdad') , ('taxon_id', 'dadsa'),
+                    ('data_subtype_tag', 'werw'), ('platform', 'wer'), ('sample_internal_id', 'werw'), 
+                    ('sex', 'asdas'), ('run_id', 'wer'), ('seq_date', 'gfs')]
+        res = test_file_meta_pairs(tuple_list)
+        self.assertEqual(-1, res)
+        
+
+def get_tuples_from_imeta_output(imeta_out):
+    tuple_list = []
+    lines = imeta_out.split('\n')
+    attr_name, attr_val = None, None
+    for line in lines:
+        if line.startswith('attribute'):
+            index = line.index('attribute: ')
+            attr_name = line[index:]
+            attr_name = attr_name.strip()
+        elif line.startswith('value: '):
+            index = line.index('value: ')
+            attr_val = line[index:]
+            attr_val = attr_val.strip()
+            if not attr_val:
+                print "Attribute's value is NONE!!! "+attr_name
+        
+        if attr_name and attr_val:
+            tuple_list.append((attr_name, attr_val))
+            attr_name, attr_val = None, None
+    return tuple_list
+
+
+
+
 class TestWorkerEntitiesOperations(unittest.TestCase):
     def test_seqsc2serapis(self):
         seqsc_dict = {"gender": "Male", 
@@ -60,12 +148,13 @@ class TestController(unittest.TestCase):
 
     maxDiff = None
     def test_associate_files_with_indexes(self):
-        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
-                 '/home/ic4/data-test/unit-tests/bamfile2.bam', 
-                 '/home/ic4/data-test/unit-tests/bamfile1.bai']
-        res = controller.associate_files_with_indexes(paths)
-        should_be = [('/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai'), ('/home/ic4/data-test/unit-tests/bamfile2.bam', None)]
-        self.assertListEqual(res.result, should_be)
+#        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+#                 '/home/ic4/data-test/unit-tests/bamfile2.bam', 
+#                 '/home/ic4/data-test/unit-tests/bamfile1.bai']
+#        res = controller.associate_files_with_indexes(paths)
+#        should_be = [('/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai'), 
+#                     ('/home/ic4/data-test/unit-tests/bamfile2.bam', None)]
+#        self.assertListEqual(res.result, should_be)
         
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
@@ -73,17 +162,20 @@ class TestController(unittest.TestCase):
                  '/home/ic4/data-test/unit-tests/bamfile3.bai']
         res = controller.associate_files_with_indexes(paths)
         self.assertDictEqual(res.error_dict, {constants.UNMATCHED_INDEX_FILES : ['/home/ic4/data-test/unit-tests/bamfile3.bai']})
+
         
         paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai']
         res = controller.associate_files_with_indexes(paths)
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')]})
 
+
         paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam5.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
         res = controller.associate_files_with_indexes(paths)
+        print "ERROR DICT: ", res.error_dict
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
                                                [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                                                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')],
@@ -91,9 +183,9 @@ class TestController(unittest.TestCase):
                                               ['/home/ic4/data-test/unit-tests/err_bams/bam5.bai']
                                               })
         
-        paths = ["/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam"]
-        res = controller.associate_files_with_indexes(paths)
-        self.assertListEqual(res.result, [("/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam", None)])
+#        paths = ["/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam"]
+#        res = controller.associate_files_with_indexes(paths)
+#        self.assertListEqual(res.result, [("/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam", None)])
                 
 
     def test_get_files_list_from_request(self):
@@ -206,6 +298,10 @@ class TestController(unittest.TestCase):
         
         path = "/home/ic4/media-tmp/bams/8887_8#94.bai"
         self.assertEqual(controller.detect_file_type(path), 'bai')
+        
+        path = "/home/ic4/media-tmp/bams/8887_8#94.bam.bai"
+        self.assertEqual(controller.detect_file_type(path), 'bai')
+        
         
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam.asd"
         self.assertRaises(exceptions.NotSupportedFileType, controller.detect_file_type, path)
@@ -340,4 +436,26 @@ class TestUtils(unittest.TestCase):
         fname, ext = utils.extract_index_fname(path)
         self.assertEqual(fname, 'UC749211')
         self.assertEqual(ext, 'bai')
+        
+#    def infer_filename_from_idxfilename(idx_file_path):
+#    possible_fnames = []
+#    fname, _ = os.path.splitext(idx_file_path)
+#    possible_fnames.append(fname)
+#    
+#    fname = extract_index_fname(idx_file_path)
+#    possible_fnames.append(fname)
+#    return possible_fnames
+#    
+        
+    def test_infer_fname_from_idx(self):
+        idx_path = '/lustre/scratch113/projects/crohns/IBD_1.bam.bai'
+        fname = utils.infer_filename_from_idxfilename(idx_path, constants.BAI_FILE)
+        self.assertEqual(fname, '/lustre/scratch113/projects/crohns/IBD_1.bam')
+        
+        idx_path = '/lustre/scratch113/projects/crohns/IBD_1.bai'
+        fname = utils.infer_filename_from_idxfilename(idx_path, constants.BAI_FILE)
+        self.assertEqual(fname, '/lustre/scratch113/projects/crohns/IBD_1.bam')
+        
+        
+        
         

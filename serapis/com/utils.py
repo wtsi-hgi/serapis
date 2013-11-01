@@ -107,6 +107,15 @@ def list_all_files(dir_path):
 
 ########### PROJECT SPECIFIC UTILITY FUNCTIONS #######
 
+
+def infer_filename_from_idxfilename(idx_file_path, file_type):
+    fname, ext = idx_file_path, file_type
+    while ext in constants.SFILE_EXTENSIONS:
+        fname, ext = os.path.splitext(fname)
+        ext = ext[1:]
+    fname = fname+'.'+constants.IDX2FILE_MAP[file_type]
+    return fname
+    
     
 def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
     if not hgi_subprj:

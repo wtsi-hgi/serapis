@@ -93,11 +93,19 @@ DATA_TYPES = ('single-sample-merged-improved')
 BAM_FILE = "bam"
 BAI_FILE = "bai"
 VCF_FILE = "vcf"
+TBI_FILE = "tbi"
 
 FILE_TYPES = (BAM_FILE, VCF_FILE)
-SFILE_EXTENSIONS = ['bam', 'bai', 'vcf']
+SFILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'tbi']
 ALL_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'md5']
 
+FILE2IDX_MAP = {BAM_FILE : BAI_FILE,
+                VCF_FILE : TBI_FILE 
+                }
+
+IDX2FILE_MAP = {BAI_FILE : BAM_FILE,
+                TBI_FILE : VCF_FILE
+                }
 VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
 
 FILE_TO_INDEX_DICT = {BAM_FILE : BAI_FILE}
@@ -254,6 +262,8 @@ NOT_SUPPORTED_FILE_TYPE                     = "NOT_SUPPORTED_FILE_TYPE"
 NON_EXISTING_FILE                           = "NON_EXISTING_FILE"
 INDEX_OLDER_THAN_FILE                       = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES                       = "UNMATCHED_INDEX_FILES"
+FILE_WITHOUT_INDEX                          = "FILE_WITHOUT_INDEX"
+TOO_MANY_INDEX_FILES                        = "TOO_MANY_INDEX_FILES" 
 SEQSCAPE_DB_CONNECTION_ERROR                = "SEQSCAPE_DB_CONNECTION_ERROR"
 MISSING_MANDATORY_FIELDS                    = "MISSING_MANDATORY_FIELDS"
 COLLECTION_DOES_NOT_EXIST                   = "COLLECTION_DOES_NOT_EXIST"

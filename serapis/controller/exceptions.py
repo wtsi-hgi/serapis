@@ -259,6 +259,61 @@ class IndexOlderThanFileError(Exception):
             text += self.message
         return text
     
+class MoreThanOneIndexForAFile(Exception):
+    ''' This exception is raised because the there are
+        more index files that correspond to a file in the
+        files list given. Normally there should be 1 idx to 1 file.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'More than one index for this file!'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+class NoIndexFound(Exception):
+    ''' This exception is raised because there hasn't been found
+        any index file for one or more files in the input list.
+        Each file to be submitted MUST have exactly 1 corresponding index.
+    '''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Index file not found.'
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+
+class NoFileFoundForIndex(Exception):
+    ''' This exception is raised because there hasn't been found
+        a file for an index in the input list.
+        Each file to be submitted MUST have exactly 1 corresponding index.
+    '''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = "Index file doesn't have a corresponding file in the list."
+        if self.faulty_expression != None:
+            text += self.faulty_expression
+            text += ' - '
+        if self.message != None:
+            text += self.message
+        return text
+    
+    
 ######### Exceptions specific to Serapis implementation -- logic######
 
 class TaskNotRegisteredError(Exception):
