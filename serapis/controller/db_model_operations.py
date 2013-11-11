@@ -1169,68 +1169,68 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
                     update_db_dict['set__seq_centers'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'run_list':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
                     update_db_dict['set__run_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'platform_list':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
                     update_db_dict['set__platform_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'seq_date_list':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.seq_date_list, field_val)
                     update_db_dict['set__seq_date_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'library_well_list':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
                     update_db_dict['set__library_well_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'multiplex_lib_list':
                 if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
                     updated_list = __upd_list_of_primary_types__(submitted_file.multiplex_lib_list, field_val)
                     update_db_dict['set__multiplex_lib_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
             elif field_name == 'missing_entities_error_dict':
                 if field_val:
                     for entity_categ, entities in field_val.iteritems():
                         update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'not_unique_entity_error_dict':
                 if field_val:
                     for entity_categ, entities in field_val.iteritems():
                         #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                         update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'header_has_mdata':
                 if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                     update_db_dict['set__header_has_mdata'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'md5':
                 if update_source == constants.CALC_MD5_MSG_SOURCE:
                     update_db_dict['set__md5'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
                     logging.debug("UPDATING md5")
             elif field_name == 'index_file':
                 if update_source == constants.CALC_MD5_MSG_SOURCE: 
                     if 'md5' in field_val:
                         update_db_dict['set__index_file__md5'] = field_val['md5']
-                        update_db_dict['inc__version__0'] = 1
+                        #update_db_dict['inc__version__0'] = 1
                     else:
                         raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
             elif field_name == 'hgi_project':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__hgi_project'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'data_type':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__data_type'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'data_subtype_tags':
                 if update_source == constants.EXTERNAL_SOURCE:
                     if getattr(submitted_file, 'data_subtype_tags') != None:
@@ -1239,16 +1239,16 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     else:
                         subtypes_dict = field_val
                     update_db_dict['set__data_subtype_tags'] = subtypes_dict
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'abstract_library':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__abstract_library'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'file_reference_genome_id':
                 if update_source == constants.EXTERNAL_SOURCE:
                     models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
                     update_db_dict['set__file_reference_genome_id'] = str(field_val)
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name != None and field_name != "null":
                 logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
         else:
@@ -1269,6 +1269,7 @@ def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_s
         field_updates = build_file_update_dict(file_updates, update_source, file_id, submitted_file)
         if field_updates:
             db_update_dict.update(field_updates)
+            db_update_dict['inc__version__0'] = 1
         if len(db_update_dict) > 0:
             logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s and UPD DICT: %s", str(file_id),str(db_update_dict))
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)

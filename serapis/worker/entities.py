@@ -11,6 +11,12 @@ from serapis.com import constants, utils
 
 class Entity(object):
 
+    def __init__(self):
+        self.internal_id = None
+        self.name = None
+        self.is_complete = False        # Fields used for implementing the application's logic
+        self.has_minimal = False        #
+
     def __eq__(self, other):
         if other == None:
             return False

@@ -14,10 +14,13 @@ Replace this with more appropriate tests for your application.
 #        """
 #        self.assertEqual(1 + 1, 2)
 
-from serapis.controller import models, controller, db_model_operations
-from serapis.com import utils, constants
-from serapis.constants import *
-import unittest
+import sys
+sys.path.append('/nfs/users/nfs_i/ic4/Projects/serapis-web/serapis-web')
+
+from serapis.controller import models, db_model_operations
+#from serapis.com import utils, constants
+#from serapis.constants import *
+#import unittest
 import requests
 import json
 
@@ -26,7 +29,33 @@ from bson.objectid import ObjectId
 
 import os
 
+# ref = ReferenceGenome()
+# ref.md5 =  "12a0bed94078e2d9e8c00da793bbc84e"
+# ref.paths = ["/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa"]
+# ref.save()
+#{ "_id" : "12a0bed94078e2d9e8c00da793bbc84e", "name" : "hs37d5", "paths" : [  "/lustre/scratch110/srpipe/references/Homo_sapiens/1000Genomes_hs37d5/all/fasta/hs37d5.fa" ] }
 
+from mongoengine import connect
+connect('SerapisDB', host='hgi-serapis-dev.internal.sanger.ac.uk', port=27017)
+
+
+def delete_files_from_submission():
+    submission_id = '5272d16f0cfd5f6d42c3fd9e'
+    #submission_id = '52739b2ad836197d36f0ffff'
+    submission = db_model_operations.retrieve_submission(submission_id) 
+    files = db_model_operations.retrieve_all_files_for_submission(submission_id)
+    for file_to_del in files:
+        if not file_to_del.file_submission_status == "SUCCESS_SUBMISSION_TO_IRODS":
+            if file_to_del.id in submission.files_list:
+                submission.files_list.remove(file_to_del.id)
+                if len(submission.files_list) == 0:
+                    #submission.delete()
+                    print "DELETED ALL FILES!!!"
+                else:
+                    db_model_operations.update_submission_file_list(submission_id, submission.files_list)
+            file_to_del.delete()
+    
+#delete_files_from_submission()
 
 
 class TestLibraryFctControllerNEW(unittest.TestCase):
@@ -534,5 +563,5 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(len(db_model_operations.retrieve_sample_list(self.file_id)), list_len - 1)
         
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()

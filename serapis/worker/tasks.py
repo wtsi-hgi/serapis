@@ -260,8 +260,8 @@ class ProcessSeqScapeData():
             if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
                 new_lib = Library.build_from_seqscape(lib_mdata)
-                new_lib.check_if_has_minimal_mdata()
-                new_lib.check_if_complete_mdata()
+                #new_lib.check_if_has_minimal_mdata()
+                #new_lib.check_if_complete_mdata()
                 file_submitted.add_or_update_lib(new_lib)
             else:               # Faulty cases:
                 #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list

@@ -939,7 +939,7 @@ def update_file_submitted(submission_id, file_id, data):
             task_type = tasks_dict[data['task_id']]['type']
             print "TASK TYPE:::::::::::::::::", task_type
         except KeyError:
-            raise exceptions.TaskNotRegisteredError
+            raise exceptions.TaskNotRegisteredError(faulty_expression=data['task_id'])
         
         if task_type == parse_BAM_header_task.name:
             update_source = constants.PARSE_HEADER_MSG_SOURCE
@@ -985,7 +985,11 @@ def update_file_submitted(submission_id, file_id, data):
         db_model_operations.update_file_mdata(file_id, data['result'], update_source)
         if has_new_entities == True:
             file_to_update.reload()
-            launch_update_file_job(file_to_update)
+            task_id = launch_update_file_job(file_to_update)
+            upd_dict = {'set__tasks_dict__'+task_id+'__status' : constants.PENDING_ON_WORKER_STATUS,
+                        'set__tasks_dict__'+task_id+'__type' : update_file_task.name
+                        }
+            db_model_operations.update_file_from_dict(file_id, upd_dict)
         
     db_model_operations.check_and_update_all_file_statuses(file_id)
         
@@ -1419,7 +1423,12 @@ def add_library_to_file_mdata(submission_id, file_id, data):
         db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
         db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
         submitted_file.reload()
-        launch_update_file_job(submitted_file)
+        #launch_update_file_job(submitted_file)
+        task_id = launch_update_file_job(submitted_file)
+        upd_dict = {'set__tasks_dict__'+task_id+'__status' : constants.PENDING_ON_WORKER_STATUS,
+                    'set__tasks_dict__'+task_id+'__type' : update_file_task.name
+                    }
+        db_model_operations.update_file_from_dict(file_id, upd_dict)
     else:
         raise exceptions.EditConflictError("Library couldn't be inserted.")
     
@@ -1514,7 +1523,12 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
         db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
         db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
         submitted_file.reload()
-        launch_update_file_job(submitted_file)
+        #launch_update_file_job(submitted_file)
+        task_id = launch_update_file_job(submitted_file)
+        upd_dict = {'set__tasks_dict__'+task_id+'__status' : constants.PENDING_ON_WORKER_STATUS,
+                    'set__tasks_dict__'+task_id+'__type' : update_file_task.name
+                    }
+        db_model_operations.update_file_from_dict(file_id, upd_dict)
     else:
         raise exceptions.EditConflictError("Sample couldn't be added.")
 
@@ -1606,7 +1620,12 @@ def add_study_to_file_mdata(submission_id, file_id, data):
         db_model_operations.update_file_mdata_status(file_id, constants.IN_PROGRESS_STATUS)
         db_model_operations.update_file_submission_status(file_id, constants.PENDING_ON_WORKER_STATUS)
         submitted_file.reload()
-        launch_update_file_job(submitted_file)
+        #launch_update_file_job(submitted_file)
+        task_id = launch_update_file_job(submitted_file)
+        upd_dict = {'set__tasks_dict__'+task_id+'__status' : constants.PENDING_ON_WORKER_STATUS,
+                    'set__tasks_dict__'+task_id+'__type' : update_file_task.name
+                    }
+        db_model_operations.update_file_from_dict(file_id, upd_dict)
     else:
         raise exceptions.EditConflictError("Study couldn't be added.")
     
