@@ -483,8 +483,6 @@ class SubmittedFile():
 class BAMFile(SubmittedFile):
     bam_type = None
     seq_centers = []          # List of sequencing centres
-#    lane_list = []
-#    tag_list = []
     run_list = []
     platform_list = []
     seq_date_list = []
@@ -493,6 +491,13 @@ class BAMFile(SubmittedFile):
     library_well_list = []
     multiplex_lib_list = []
 
+
+class VCFFile(SubmittedFile):
+    file_format = None
+    used_samtools = False
+    used_unified_genotyper = False
+    reference = None
+    
 
 class Submission():
     def __init__(self, user_id, status=None, files_list=None):

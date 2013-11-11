@@ -15,8 +15,8 @@ Replace this with more appropriate tests for your application.
 #        self.assertEqual(1 + 1, 2)
 
 from serapis.controller import models, controller, db_model_operations
-from serapis.com import utils, constants
-from serapis.constants import *
+#from serapis.com import utils, constants
+from serapis.com.constants import *
 import unittest
 import requests
 import json
@@ -32,17 +32,20 @@ import os
 class TestLibraryFctControllerNEW(unittest.TestCase):
     
     def test_insert_lib(self):
-        file_id = ObjectId("519ce663d836192526bf50c1")
-        subm_file = db_model_operations.retrieve_submitted_file(file_id)
+        #file_id = ObjectId("519ce663d836192526bf50c1")
+        #file_id = ObjectId()
+        subm_file = models.SubmittedFile()
+        subm_file.save()
+        subm_file = db_model_operations.retrieve_submitted_file(subm_file.id)
         print [str(lib) for lib in subm_file.library_list]
         subm_file.library_list = []
         subm_file.save()
         
-        print db_model_operations.insert_library_in_db({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", file_id)
+        print db_model_operations.insert_library_in_db({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", subm_file.id)
         subm_file.reload()
         print [lib.name for lib in subm_file.library_list]
         
-        print db_model_operations.update_library_in_db({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", file_id)
+        print db_model_operations.update_library_in_db({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", subm_file.id)
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
         subm_file.reload()
         print [(lib.name, lib.library_type) for lib in subm_file.library_list]
@@ -100,56 +103,56 @@ class TestLibraryFctControllerNEW(unittest.TestCase):
 #        
         
 
-from serapis import entities
+from serapis.worker import entities
 
 # TESTS FOR WORKER CODE
-class TestSamplesFunctionsWoker(unittest.TestCase):
-   
-    def setUp(self):
-        self.sample = entities.Sample()
-        self.sample.name = "SampleName"
-        self.sample.accession_number = "AccNr123"
+#class TestSamplesFunctionsWoker(unittest.TestCase):
+#   
+#    def setUp(self):
+#        self.sample = entities.Sample()
+#        self.sample.name = "SampleName"
+#        self.sample.accession_number = "AccNr123"
+#        
+#        self.otherSample = entities.Sample()
+#        self.otherSample.name = "OtherSampleName"
+#        self.otherSample.accession_number = "ACCNr456"
+#        
+#    def test_has_minimal(self):
+#        has_min = self.sample.check_if_has_minimal_mdata()
+#        is_complete = self.sample.check_if_complete_mdata()
+#        is_eq = (self.sample == self.otherSample)
+#        self.assertTrue(has_min)
+#        self.assertFalse(is_complete)
+#        self.assertFalse(is_eq)
+#        
         
-        self.otherSample = entities.Sample()
-        self.otherSample.name = "OtherSampleName"
-        self.otherSample.accession_number = "ACCNr456"
-        
-    def test_has_minimal(self):
-        has_min = self.sample.check_if_has_minimal_mdata()
-        is_complete = self.sample.check_if_complete_mdata()
-        is_eq = (self.sample == self.otherSample)
-        self.assertTrue(has_min)
-        self.assertFalse(is_complete)
-        self.assertFalse(is_eq)
-        
-        
-class TestLibrariesFunctionsWorker(unittest.TestCase):
-    def setUp(self):
-        self.lib = entities.Library()
-        self.lib.internal_id = "MyLibID"
-        self.lib.name = "LibraryName"
-        self.lib.library_type = "LibType"
-        
-        self.otherLib = entities.Library()
-        self.otherLib.name = "OtherLibName"
-        self.lib.library_type = "OtherLibType"
-        
-        self.eqLib = entities.Library()
-        self.eqLib.internal_id = "MyLibID"
-        self.eqLib.name = "LibraryName"
-        
-        
-    def test_fcts(self):
-        has_min = self.lib.check_if_has_minimal_mdata()
-        is_complete = self.lib.check_if_complete_mdata()
-        is_eq = (self.lib == self.otherLib)
-        self.assertTrue(has_min)
-        self.assertFalse(is_complete)
-        self.assertFalse(is_eq)
-        
-    def test_eq(self):
-        is_eq = (self.lib == self.eqLib)
-        self.assertTrue(is_eq)
+#class TestLibrariesFunctionsWorker(unittest.TestCase):
+#    def setUp(self):
+#        self.lib = entities.Library()
+#        self.lib.internal_id = "MyLibID"
+#        self.lib.name = "LibraryName"
+#        self.lib.library_type = "LibType"
+#        
+#        self.otherLib = entities.Library()
+#        self.otherLib.name = "OtherLibName"
+#        self.lib.library_type = "OtherLibType"
+#        
+#        self.eqLib = entities.Library()
+#        self.eqLib.internal_id = "MyLibID"
+#        self.eqLib.name = "LibraryName"
+#        
+#        
+#    def test_fcts(self):
+#        has_min = self.lib.check_if_has_minimal_mdata()
+#        is_complete = self.lib.check_if_complete_mdata()
+#        is_eq = (self.lib == self.otherLib)
+#        self.assertTrue(has_min)
+#        self.assertFalse(is_complete)
+#        self.assertFalse(is_eq)
+#        
+#    def test_eq(self):
+#        is_eq = (self.lib == self.eqLib)
+#        self.assertTrue(is_eq)
         
         
 class TestSubmittedFileWorker(unittest.TestCase):
@@ -259,27 +262,27 @@ class TestSubmittedFileWorker(unittest.TestCase):
             self.assertEqual(s.geographical_region, sample.geographical_region)
         
         
-        
-    def test_mdata_status_fcts(self):
-        self.assertEqual(self.subfile.library_list, [])
-        self.assertEqual(len(self.subfile.library_list), 0)
-        
-        self.subfile.library_list.append(self.lib)
-        self.assertEqual(len(self.subfile.library_list), 1)
-        
-        self.subfile.sample_list.append(self.sample)
-        self.assertEqual(len(self.subfile.sample_list), 1)
-        
-        has_min = self.subfile.check_if_has_minimal_mdata()
-        is_complete = self.subfile.check_if_complete_mdata()
-        self.assertFalse(has_min)
-        self.assertFalse(is_complete)
-        
-        self.assertTrue(self.lib.has_minimal)
-        self.assertTrue(self.sample.has_minimal)
-        
-        self.subfile.update_file_mdata_status()
-        self.assertEqual(self.subfile.file_mdata_status, NOT_ENOUGH_METADATA_STATUS)
+#        
+#    def test_mdata_status_fcts(self):
+#        self.assertEqual(self.subfile.library_list, [])
+#        self.assertEqual(len(self.subfile.library_list), 0)
+#        
+#        self.subfile.library_list.append(self.lib)
+#        self.assertEqual(len(self.subfile.library_list), 1)
+#        
+#        self.subfile.sample_list.append(self.sample)
+#        self.assertEqual(len(self.subfile.sample_list), 1)
+#        
+#        has_min = self.subfile.check_if_has_minimal_mdata()
+#        is_complete = self.subfile.check_if_complete_mdata()
+#        self.assertFalse(has_min)
+#        self.assertFalse(is_complete)
+#        
+#        self.assertTrue(self.lib.has_minimal)
+#        self.assertTrue(self.sample.has_minimal)
+#        
+#        self.subfile.update_file_mdata_status()
+#        self.assertEqual(self.subfile.file_mdata_status, NOT_ENOUGH_METADATA_STATUS)
     
 #    def test_contains_fct(self):
 #        lib = entities.Library()
@@ -321,13 +324,22 @@ class TestAddEntityAndDBModelRequests(unittest.TestCase):
     
     def setUp(self):
         headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
-        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"], 'sanger_user_id' : 'yl2',
+                    "data_type" : "single sample merged improved", "data_subtype_tags" : {"align" : "sequence-alignment-map", 
+                                                                                         "sample_multiplicity" : "single-sample", 
+                                                                                         "individual_multiplicity" : "single-individual", 
+                                                                                         "lanelets" : "merged-lanelets", 
+                                                                                         "sort order" : "sorted-chromosomal-coordinates", 
+                                                                                         "regions" : "all-genomic-regions"},
+                   "library_metadata" : {"coverage" : "2x", "library_source" : "GENOMIC", "library_selection" : "WGS", "instrument_model" : "Illumina MiSeq"},
+                   "upload_as_serapis" : True, "irods_collection" : "/humgen/projects/crohns/20130000", "hgi_project" : "crohns",
+                   "study" : {"name" : "SEQCAP_Whole_Genome_Sequencing_of_Crohns_Disease_Patients", "pi_list" : ["ca3", "jb26"]}}
         self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = headers)
         print "POST REQ made -- response:", self.post_req.text
         submission_info = self.post_req.text
         #print "AND TEXT: ", submission_info
         submission_info = json.loads(submission_info)
-        self.submission = submission_info['submission_id']
+        self.submission = submission_info['result']
         self.file_id = submission_info['testing'][0]
         print "SUBMISSION ID: ",self.submission, " AND FILE ID: ", self.file_id
     
@@ -395,13 +407,23 @@ class TestRequests(unittest.TestCase):
     
     def setUp(self):
         self.headers = {'Accept' : 'application/json', 'Content-type': 'application/json'}
-        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        #payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"]}
+        payload = {"files_list" : ["/home/ic4/data-test/bams/8888_1#1.bam"], 'sanger_user_id' : 'yl2',
+                    "data_type" : "single sample merged improved", "data_subtype_tags" : {"align" : "sequence-alignment-map", 
+                                                                                         "sample_multiplicity" : "single-sample", 
+                                                                                         "individual_multiplicity" : "single-individual", 
+                                                                                         "lanelets" : "merged-lanelets", 
+                                                                                         "sort order" : "sorted-chromosomal-coordinates", 
+                                                                                         "regions" : "all-genomic-regions"},
+                   "library_metadata" : {"coverage" : "2x", "library_source" : "GENOMIC", "library_selection" : "WGS", "instrument_model" : "Illumina MiSeq"},
+                   "upload_as_serapis" : True, "irods_collection" : "/humgen/projects/crohns/20130000", "hgi_project" : "crohns",
+                   "study" : {"name" : "SEQCAP_Whole_Genome_Sequencing_of_Crohns_Disease_Patients", "pi_list" : ["ca3", "jb26"]}}
         self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = self.headers)
         print "POST REQ made -- response:", self.post_req.text
         submission_info = self.post_req.text
         #print "AND TEXT: ", submission_info
         submission_info = json.loads(submission_info)
-        self.submission = submission_info['submission_id']
+        self.submission = submission_info['result']
         self.file_id = submission_info['testing'][0]
         
     def test_delete_submission(self):
@@ -466,11 +488,11 @@ class TestRequests(unittest.TestCase):
         db_file = controller.get_submitted_file(self.file_id)
         print "2. DB FILE: ", [s.name for s in db_file.sample_list]
         
-        if db_file.file_upload_job_status == SUCCESS_STATUS:
-            self.assertEqual(len(db_file.sample_list), 1)
-            self.assertIsNotNone(db_file.sample_list[0].internal_id)
-        else:
-            print "UPLOAD NOT FINISHED YET!!!!", vars(db_file)
+        #if db_file.file_upload_job_status == SUCCESS_STATUS:
+        self.assertEqual(len(db_file.sample_list), 1)
+        self.assertIsNotNone(db_file.sample_list[0].internal_id)
+#        else:
+#            print "UPLOAD NOT FINISHED YET!!!!", vars(db_file)
         
     
     #def test_POST_sample(self):

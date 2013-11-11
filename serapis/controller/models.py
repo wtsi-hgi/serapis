@@ -162,8 +162,8 @@ class SubmittedFile(DynamicDocument):
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
-    library_list = ListField(EmbeddedDocumentField(Library))
     sample_list = ListField(EmbeddedDocumentField(Sample))
+    library_list = ListField(EmbeddedDocumentField(Library))
     
     
     ############### APPLICATION - LEVEL METADATA #######################
@@ -229,8 +229,6 @@ class SubmittedFile(DynamicDocument):
 
 class BAMFile(SubmittedFile):
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
-#    lane_list = ListField()             # list of strings
-#    tag_list = ListField()              # list of strings
     run_list = ListField()              # list of strings
     platform_list = ListField()         # list of strings
     seq_date_list = ListField()             # list of strings
@@ -238,13 +236,16 @@ class BAMFile(SubmittedFile):
     # optional:
     library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
     multiplex_lib_list = ListField()    # List of multiplexed library ids
+
+#    lane_list = ListField()             # list of strings
+#    tag_list = ListField()              # list of strings
     
     
 class VCFFile(SubmittedFile):
     file_format = StringField(choices=VCF_FORMATS)
     used_samtools = BooleanField()
     used_unified_genotyper = BooleanField()
-    reference = StringField()
+#    reference = StringField()
      
         
 #    library_source = StringField(choices=LIBRARY_SOURCES.keys())

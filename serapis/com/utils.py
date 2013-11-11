@@ -116,6 +116,7 @@ def infer_filename_from_idxfilename(idx_file_path, file_type):
     fname = fname+'.'+constants.IDX2FILE_MAP[file_type]
     return fname
     
+print infer_filename_from_idxfilename("/home/ic4/data-test/unit-tests/err_bams/bam3.bai", 'bai')
     
 def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
     if not hgi_subprj:
@@ -192,4 +193,24 @@ def levenshtein(a,b):
             current[j] = min(add, delete, change)
             
     return current[n]
+
+
+def is_accession_nr(field):
+    ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
+    if field.startswith('ER') or field.startswith('SR') or field.startswith('DR') or field.startswith('EGA'):
+        return True
+    return False
+
+def is_internal_id(field):
+    pattern = re.compile('[0-9]{4,9}')
+    if pattern.match(field) == None:
+        return False
+    return True
+
+def is_name(field):
+    is_match = re.search('[a-zA-Z]', field)
+    if is_match != None:
+        return True
+    return False
+
 

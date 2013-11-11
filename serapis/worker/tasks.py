@@ -2,9 +2,10 @@ from MySQLdb import Error as mysqlError, connect, cursors
 from celery import Task, current_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from collections import defaultdict
-from entities import *
-from serapis.com.constants import *
+import entities
+from serapis.com import constants
 from serapis.worker import exceptions
+from serapis.com import utils
 from subprocess import call, check_output
 import atexit
 import errno
@@ -20,6 +21,8 @@ import signal
 import subprocess
 import time
 import signal
+import gzip
+import simplejson
 
 #from mysql.connector.errors import OperationalError
 #from celery.utils.log import get_task_logger
@@ -100,7 +103,7 @@ def send_http_PUT_req(msg, submission_id, file_id):
     #msg['sender'] = sender
     if type(msg) == dict:
         msg = filter_none_fields(msg)
-        msg = SubmittedFile.to_json(msg)
+        msg = entities.SubmittedFile.to_json(msg)
     print "REQUEST DATA TO SEND================================", msg  
     url_str = build_url(submission_id, file_id)
     #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
@@ -168,7 +171,7 @@ class QuerySeqScape():
         data = None
         try:
             cursor = connection.cursor()
-            query = "select internal_id, name, library_type, public_name, sample_internal_id from "+ CURRENT_LIBRARY_TUBES+" where "
+            query = "select internal_id, name, library_type, public_name, sample_internal_id from "+ constants.CURRENT_LIBRARY_TUBES+" where "
             for (key, val) in library_fields_dict.iteritems():
                 if val != None:
                     if type(val) == str:
@@ -238,7 +241,7 @@ class ProcessSeqScapeData():
     def __init__(self):
         # TODO: retry to connect 
         # TODO: try: catch: OperationalError (2003) - can't connect to MySQL, to deal with this error!!!
-        self.connection = QuerySeqScape.connect(SEQSC_HOST, SEQSC_PORT, SEQSC_USER, SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
+        self.connection = QuerySeqScape.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
 
     # TODO: wrong name, actually it should be called UPDATE, cause it updates. Or it should be split
@@ -262,20 +265,20 @@ class ProcessSeqScapeData():
                 lib_mdata = QuerySeqScape.get_library_data(self.connection, {'name' : lib_dict['name']})
             if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
-                new_lib = Library.build_from_seqscape(lib_mdata)
-                new_lib.check_if_has_minimal_mdata()
-                new_lib.check_if_complete_mdata()
+                new_lib = entities.Library.build_from_seqscape(lib_mdata)
+                #new_lib.check_if_has_minimal_mdata()
+                #new_lib.check_if_complete_mdata()
                 file_submitted.add_or_update_lib(new_lib)
             else:               # Faulty cases:
                 #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
-                new_lib = Library()
+                new_lib = entities.Library()
                 for field_name in lib_dict:
                     setattr(new_lib, field_name, lib_dict[field_name])
                 if lib_mdata == None or len(lib_mdata) == 0:
-                    file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
+                    file_submitted.append_to_missing_entities_list(new_lib, constants.LIBRARY_TYPE)
                 #    file_submitted.add_or_update_lib(new_lib)
                 elif len(lib_mdata) > 1:
-                    file_submitted.append_to_not_unique_entity_list(new_lib, LIBRARY_TYPE)
+                    file_submitted.append_to_not_unique_entity_list(new_lib, constants.LIBRARY_TYPE)
                 
         print "LIBRARY LIST: ", file_submitted.library_list
         
@@ -309,18 +312,18 @@ class ProcessSeqScapeData():
         for lib_dict in incomplete_libs_list:
             # TRY to search for lib in default table:
             lib_mdata = QuerySeqScape.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-            print "Libraries not found -- print answer--------------------------:", lib_mdata, "and type of it is: ", type(lib_mdata)
+            print "Libraries found? -- print answer--------------------------:", lib_mdata, "and type of it is: ", type(lib_mdata)
             if lib_mdata != None and len(lib_mdata) == 1:
                 lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
-                new_lib = Library.build_from_seqscape(lib_mdata)
+                new_lib = entities.Library.build_from_seqscape(lib_mdata)
                 file_submitted.add_or_update_lib(new_lib)
             elif 'internal_id' in lib_dict and self.search_lib_in_wells_table(lib_dict['internal_id']) == True:
                 file_submitted.library_well_list.append(lib_dict['internal_id'])
             elif 'internal_id' in lib_dict and self.search_lib_in_multiplex_libs_table(lib_dict['internal_id']) == True:
                 file_submitted.library_well_list.append(lib_dict['internal_id'])
             else:
-                new_lib = Library.build_from_json(lib_dict)
-                file_submitted.append_to_missing_entities_list(new_lib, LIBRARY_TYPE)
+                new_lib = entities.Library.build_from_json(lib_dict)
+                file_submitted.append_to_missing_entities_list(new_lib, constants.LIBRARY_TYPE)
                 file_submitted.add_or_update_lib(new_lib)
             
         print "LIBRARY LIST: ", file_submitted.library_list
@@ -340,17 +343,17 @@ class ProcessSeqScapeData():
         print "SAMPLE DATA FROM SEQSCAPE:------- ",sampl_mdata
         if sampl_mdata != None and len(sampl_mdata) == 1:           # Ideal case
             sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
-            new_sample = Sample.build_from_seqscape(sampl_mdata)
+            new_sample = entities.Sample.build_from_seqscape(sampl_mdata)
             file_submitted.add_or_update_sample(new_sample)
         else:                           # Problematic - error cases:
-            new_sample = Sample()
+            new_sample = entities.Sample()
             for field_name in sample_dict:
                 setattr(new_sample, field_name, sample_dict[field_name])
             if sampl_mdata == None or len(sampl_mdata) == 0:
-                file_submitted.append_to_missing_entities_list(new_sample, SAMPLE_TYPE)
+                file_submitted.append_to_missing_entities_list(new_sample, constants.SAMPLE_TYPE)
                 file_submitted.add_or_update_sample(new_sample)
             elif len(sampl_mdata) > 1:
-                file_submitted.append_to_not_unique_entity_list(new_sample, SAMPLE_TYPE)
+                file_submitted.append_to_not_unique_entity_list(new_sample, constants.SAMPLE_TYPE)
                     
  
     
@@ -367,16 +370,16 @@ class ProcessSeqScapeData():
             study_mdata = QuerySeqScape.get_study_data(self.connection, study_dict)
             if study_mdata != None and len(study_mdata) == 1:                 # Ideal case
                 study_mdata = study_mdata[0]            # get_study_data returns a tuple in which each element is a row in seqscDB
-                new_study = Study.build_from_seqscape(study_mdata)
+                new_study = entities.Study.build_from_seqscape(study_mdata)
                 file_submitted.add_or_update_study(new_study)
             else:               # Faulty cases:
-                new_study = Study.build_from_json(study_dict)
+                new_study = entities.Study.build_from_json(study_dict)
                 if study_mdata == None or len(study_mdata) == 0:
-                    file_submitted.append_to_missing_entities_list(new_study, STUDY_TYPE)
+                    file_submitted.append_to_missing_entities_list(new_study, constants.STUDY_TYPE)
                     print "NO ENTITY found in SEQSCAPE. List of Missing entities: ", file_submitted.missing_entities_error_dict
                     file_submitted.add_or_update_study(new_study)
                 elif len(study_mdata) > 1:
-                    file_submitted.append_to_not_unique_entity_list(new_study, STUDY_TYPE)
+                    file_submitted.append_to_not_unique_entity_list(new_study, constants.STUDY_TYPE)
                     print "STUDY IS ITERABLE....LENGTH: ", len(study_mdata), " this is the TOO MANY LIST: ", file_submitted.not_unique_entity_error_dict
                 
                 #    file_submitted.add_or_update_study(new_study)
@@ -386,6 +389,18 @@ class ProcessSeqScapeData():
 ############################################
 # --------------------- ABSTRACT TASKS --------------
 ############################################
+
+
+class iRODSTask(Task):
+    abstract = True
+    ignore_result = True
+    acks_late = False           # ACK as soon as one worker got the task
+    max_retries = 0             # NO RETRIES!
+    track_started = True        # the task will report its status as STARTED when it starts
+
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        print "TASK: %s returned with STATUS: %s", task_id, status
+
 
 
 class GatherMetadataTask(Task):
@@ -416,24 +431,15 @@ class GatherMetadataTask(Task):
         
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = FAILURE_STATUS
+        result['status'] = constants.FAILURE_STATUS
         result['errors'] = [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
         current_task.update_state(state=constants.FAILURE_STATUS)
 
-
-
-class iRODSTask(Task):
+class ParseFileHeaderTask(GatherMetadataTask):
     abstract = True
-    ignore_result = True
-    acks_late = False           # ACK as soon as one worker got the task
-    max_retries = 0             # NO RETRIES!
-    track_started = True        # the task will report its status as STARTED when it starts
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        print "TASK: %s returned with STATUS: %s", task_id, status
-
+    
 
 ############################################
 # --------------------- TASKS --------------
@@ -483,7 +489,7 @@ class UploadFileTask(iRODSTask):
         submission_id    = str(kwargs['submission_id'])
         result['result'] = {'md5' :"123"}
         result['task_id']= current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         time.sleep(5)
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
@@ -528,7 +534,7 @@ class UploadFileTask(iRODSTask):
 
         result = dict()
         result[response_status] = constants.IN_PROGRESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+        send_http_PUT_req(result, submission_id, file_id)
  
         result = dict()
         errors_list = []
@@ -540,9 +546,9 @@ class UploadFileTask(iRODSTask):
             error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
             errors_list.append(error_msg)
             print error_msg
-            result[response_status] = FAILURE_STATUS
-            result[FILE_ERROR_LOG] = errors_list
-            send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+            result[response_status] = constants.FAILURE_STATUS
+            result[constants.FILE_ERROR_LOG] = errors_list
+            send_http_PUT_req(result, submission_id, file_id)
         else:
             # All goes well:
             # t2 = time.time()
@@ -564,14 +570,14 @@ class UploadFileTask(iRODSTask):
                 error_msg = "IRODS ichksum error - ", err
                 errors_list.append(error_msg)
                 print error_msg
-                result[response_status] = FAILURE_STATUS
+                result[response_status] = constants.FAILURE_STATUS
                 result[FILE_ERROR_LOG] = errors_list
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+                send_http_PUT_req(result, submission_id, file_id)
             else:
                 result[MD5] = out.split()[1]
                 print "CHECKSUM: ", result[MD5]
-                result[response_status] = SUCCESS_STATUS
-                send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
+                result[response_status] = constants.SUCCESS_STATUS
+                send_http_PUT_req(result, submission_id, file_id)
 
         print "ENDED UPLOAD TASK--------------------------------"
         
@@ -585,7 +591,7 @@ class UploadFileTask(iRODSTask):
         child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (_, err) = child_proc.communicate()
         if err:
-            result['status'] = SUCCESS_STATUS
+            result['status'] = constants.SUCCESS_STATUS
             return result
             
         irm_child_proc = subprocess.Popen(["irm", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -593,11 +599,11 @@ class UploadFileTask(iRODSTask):
         if err_irm:
             print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", err_irm
             error_msg = "IRODS irm error - return code="+str(irm_child_proc.returncode)+" message: "+err_irm
-            result['status'] = FAILURE_STATUS
+            result['status'] = constants.FAILURE_STATUS
             result['errors'] = error_msg
         else:
             print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
-            result['status'] = SUCCESS_STATUS
+            result['status'] = constants.SUCCESS_STATUS
         return result
 
     # run - running using process call - WORKING VERSION - used currently 11.oct2013
@@ -617,7 +623,7 @@ class UploadFileTask(iRODSTask):
             
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=result['status'])
         
@@ -669,7 +675,7 @@ class UploadFileTask(iRODSTask):
   
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=result['status'])
 
@@ -698,20 +704,20 @@ class UploadFileTask(iRODSTask):
                     result_rollb = self.rollback(index_file_path, irods_coll)
                 except Exception as e:
                     errors_list.append(str(e))
-                if result_rollb['status'] == FAILURE_STATUS:
+                if result_rollb['status'] == constants.FAILURE_STATUS:
                     errors_list.append(result_rollb['errors'])
             try:
                 result_rollb = self.rollback(file_path, irods_coll)
             except Exception as e:
                 errors_list.append(str(e))
-            if result_rollb['status'] == FAILURE_STATUS:
+            if result_rollb['status'] == constants.FAILURE_STATUS:
                 errors_list.append(result_rollb['errors'])
             
         # SEND RESULT BACK:
         result = {}
         result['task_id'] = current_task.request.id
         result['errors'] = errors_list
-        result['status'] = FAILURE_STATUS
+        result['status'] = constants.FAILURE_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.FAILURE_STATUS)
 
@@ -760,7 +766,7 @@ class CalculateMD5Task(GatherMetadataTask):
         # Report the results:
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         result['result'] = {'md5' : file_md5}
         if index_file_path:
             result['result']['index_file'] = {'md5' : index_md5}
@@ -769,8 +775,73 @@ class CalculateMD5Task(GatherMetadataTask):
         current_task.update_state(state=constants.SUCCESS_STATUS)
 
         
+class ParseVCFHeaderTask(ParseFileHeaderTask):
+    
+    def build_search_dict(self, entity_list, entity_type):
+        list_of_entities = []
+        for entity in entity_list:
+            if entity_type == constants.LIBRARY_TYPE:
+                if utils.is_name(entity):
+                    search_field_name = 'name'
+                elif utils.is_internal_id(entity):
+                    search_field_name = 'internal_id'
+            elif entity_type == constants.SAMPLE_TYPE:
+                if utils.is_accession_nr(entity):
+                    search_field_name = 'accession_number'
+                else:
+                    search_field_name = 'name'
+            else:
+                print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
+                #entity_dict = {UNKNOWN_FIELD : ent_name_h}
+   
+            if search_field_name != None:
+                entity_dict = {search_field_name : entity}
+                list_of_entities.append(entity_dict)
+        return list_of_entities
+    
+
+    def run(self, *args, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_path       = kwargs['file_path']
+        file_id         = kwargs['file_id']
+        submission_id   = kwargs['submission_id']
         
-class ParseBAMHeaderTask(GatherMetadataTask):
+        samples = []
+        if file_path.endswith('.gz'):
+            infile = gzip.open(file_path, 'rb')
+        else:
+            infile = open(file_path)
+        for line in infile:
+            if line.startswith("#CHROM"):
+                columns = line.split()
+                for col in columns:
+                    if col not in ['#CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO', 'FORMAT']:
+                        samples.append(col)
+                break
+        infile.close()
+        print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
+        print samples
+        
+        vcf_file = entities.VCFFile()
+        incomplete_entities = self.build_search_dict(samples, constants.SAMPLE_TYPE)
+        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
+        
+        processSeqsc = ProcessSeqScapeData()
+        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
+        print vars(vcf_file)
+        
+        result = {}
+        result['result'] = filter_none_fields(vars(vcf_file))
+        result['status'] = constants.SUCCESS_STATUS
+        result['task_id'] = current_task.request.id
+        resp = send_http_PUT_req(result, submission_id, file_id)
+        print "RESPONSE FROM SERVER -- parse: ", resp
+#        if (resp.status_code == requests.codes.ok):
+#            print "OK"
+
+
+        
+class ParseBAMHeaderTask(ParseFileHeaderTask):
     #name = 'serapis.worker.ParseBAMHeaderTask'
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
@@ -876,24 +947,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         
     ######### ENTITIES IN HEADER LOOKUP ########################
      
-    def is_accession_nr(self, sample_field):
-        ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
-        if sample_field.startswith('ER') or sample_field.startswith('SR') or sample_field.startswith('DR') or sample_field.startswith('EGA'):
-            return True
-        return False
- 
-    def is_internal_id(self, field):
-        pattern = re.compile('[0-9]{4,9}')
-        if pattern.match(field) == None:
-            return False
-        return True
-    
-    def is_name(self, field):
-        is_match = re.search('[a-zA-Z]', field)
-        if is_match != None:
-            return True
-        return False
- 
+
     def select_new_incomplete_entities(self, header_entity_list, entity_type, file_submitted):
         ''' Searches in the list of samples for each sample identifier (string) from header_library_name_list. 
             If the sample exists already, nothing happens. 
@@ -909,13 +963,13 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         incomplete_ent_list = []
         for ent_name_h in header_entity_list:
             if not file_submitted.fuzzy_contains_entity(ent_name_h, entity_type):
-                if entity_type == LIBRARY_TYPE:
-                    if self.is_name(ent_name_h):
+                if entity_type == constants.LIBRARY_TYPE:
+                    if utils.is_name(ent_name_h):
                         search_field_name = 'name'
-                    elif self.is_internal_id(ent_name_h):
+                    elif utils.is_internal_id(ent_name_h):
                         search_field_name = 'internal_id'
-                elif entity_type == SAMPLE_TYPE:
-                    if self.is_accession_nr(ent_name_h):
+                elif entity_type == constants.SAMPLE_TYPE:
+                    if utils.is_accession_nr(ent_name_h):
                         search_field_name = 'accession_number'
                     else:
                         search_field_name = 'name'
@@ -948,30 +1002,33 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         #    'PU': '7947_1#53',
         if 'PU' in header_processed:
             # PU can have different forms - try to match each of them:
+            
+            print "PU HEADER::::::::::::::::::::::::::::::::", header_processed['PU']
             # First possible PU HEADER:
             for pu_entry in header_processed['PU']:
-                pattern = re.compile(REGEX_PU_1)
+                print "PUT ENTRY::::::::::", pu_entry
+                pattern = re.compile(constants.REGEX_PU_1)
                 if pattern.match(pu_entry) != None:
                     file_mdata.run_list.append(pu_entry)
+                    "Matched pattern!"
                 else:
-                    for pu_entry in header_processed['PU']:
-                        run = self.extract_run_from_PUHeader(pu_entry)
-                        lane = self.extract_lane_from_PUHeader(pu_entry)
-                        tag = self.extract_tag_from_PUHeader(pu_entry)
-                        if run and lane:
-                            if tag:
-                                run_id = str(run) + '_' + str(lane) + '#' + str(tag)
-                                file_mdata.run_list.append(run_id)
-                            else:
-                                run_id = str(run) + '_' + str(lane)
-                                file_mdata.run_list.append(run_id)
-                        seq_machine = self.extract_platform_from_PUHeader(pu_entry)
-                        if seq_machine and seq_machine in constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING:
-                            platform = constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING[seq_machine]
-                            file_mdata.platform_list.append(platform)
-                        elif 'PL' in header_processed:
-                            file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
-                            
+                    run = self.extract_run_from_PUHeader(pu_entry)
+                    lane = self.extract_lane_from_PUHeader(pu_entry)
+                    tag = self.extract_tag_from_PUHeader(pu_entry)
+                    if run and lane:
+                        if tag:
+                            run_id = str(run) + '_' + str(lane) + '#' + str(tag)
+                            file_mdata.run_list.append(run_id)
+                        else:
+                            run_id = str(run) + '_' + str(lane)
+                            file_mdata.run_list.append(run_id)
+                    seq_machine = self.extract_platform_from_PUHeader(pu_entry)
+                    if seq_machine and seq_machine in constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING:
+                        platform = constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING[seq_machine]
+                        file_mdata.platform_list.append(platform)
+                    elif 'PL' in header_processed:
+                        file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
+        print "RUN LISTTTTTTTTTTTTTTTT: ", file_mdata.run_list
                             
         #    runs = [self.extract_run_from_PUHeader(pu_entry) for pu_entry in header_processed['PU']]
         #   file_mdata.run_list = list(set(runs))
@@ -993,8 +1050,8 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         #new_libs_list = self.select_new_incomplete_libs(header_library_name_list, file_mdata)  # List of incomplete libs
         #new_sampl_list = self.select_new_incomplete_samples(header_sample_name_list, file_mdata)
         
-        new_libs_list = self.select_new_incomplete_entities(header_library_name_list, LIBRARY_TYPE, file_mdata)  # List of incomplete libs
-        new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, SAMPLE_TYPE, file_mdata)
+        new_libs_list = self.select_new_incomplete_entities(header_library_name_list, constants.LIBRARY_TYPE, file_mdata)  # List of incomplete libs
+        new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, constants.SAMPLE_TYPE, file_mdata)
         
         print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
 
@@ -1023,7 +1080,7 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         if errors:
             result['errors'] = errors
         result['result'] = filter_none_fields(vars(file_mdata))
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         result['task_id'] = current_task.request.id
         resp = send_http_PUT_req(result, file_mdata.submission_id, file_mdata.id)
         print "RESPONSE FROM SERVER -- parse: ", resp
@@ -1040,8 +1097,8 @@ class ParseBAMHeaderTask(GatherMetadataTask):
         #file_id             = kwargs['file_id']
         #file_mdata['id']    = str(file_id)
 
-        file_mdata = BAMFile.build_from_json(file_mdata)
-        file_mdata.file_submission_status = IN_PROGRESS_STATUS
+        file_mdata = entities.BAMFile.build_from_json(file_mdata)
+        file_mdata.file_submission_status = constants.IN_PROGRESS_STATUS
         file_path = file_mdata.file_path_client
 
         # try:
@@ -1087,7 +1144,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
             if entity != None:# and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
                 print "IS IT COMPLETE??? IT ENTERED IF NOT COMPLETE => INCOMPLETE"
                 has_id_field = False
-                for id_field in ENTITY_IDENTITYING_FIELDS:
+                for id_field in constants.ENTITY_IDENTITYING_FIELDS:
                     if hasattr(entity, id_field) and getattr(entity, id_field) != None:
                         incomplete_entities.append({id_field : getattr(entity, id_field)})
                         has_id_field = True
@@ -1106,7 +1163,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
         file_mdata          = deserialize(file_serialized)
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
-        file_submitted = SubmittedFile.build_from_json(file_mdata)
+        file_submitted = entities.SubmittedFile.build_from_json(file_mdata)
         incomplete_libs_list    = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
@@ -1121,7 +1178,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
         result = {}
         result['task_id']   = current_task.request.id
         result['result']    = vars(file_submitted) 
-        result['status']    = SUCCESS_STATUS
+        result['status']    = constants.SUCCESS_STATUS
         response = send_http_PUT_req(result, file_submitted.submission_id, file_submitted.id)
         print "RESPONSE FROM SERVER: ", response
         current_task.update_state(state=constants.SUCCESS_STATUS)
@@ -1207,7 +1264,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
         
@@ -1239,9 +1296,9 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 print "ROLLING BACK THE ADD MDATA INDEX ..."
         if errors:
             print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
-            return {'status' : FAILURE_STATUS, 'errors' : errors}
+            return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
         print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
-        return {'status' : SUCCESS_STATUS, 'errors' : errors}
+        return {'status' : constants.SUCCESS_STATUS, 'errors' : errors}
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -1262,7 +1319,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
         str_exc = str_exc.replace("\'", "")
         result = dict()
         result['task_id']   = current_task.request.id
-        result['status']    = FAILURE_STATUS
+        result['status']    = constants.FAILURE_STATUS
         result['errors'] =  [str_exc].extend(errors)
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
@@ -1275,6 +1332,83 @@ class AddMdataToIRODSFileTask(iRODSTask):
 #    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
+    def test_file_meta_pairs(self, tuple_list, file_path_irods):
+        key_occ_dict = defaultdict(int)
+        for item in tuple_list:
+            key_occ_dict[item[0]] += 1
+    #    for k, v in key_occ_dict.iteritems():
+    #        print k+" : "+str(v)+"\n"
+        UNIQUE_FIELDS = ['study_title', 'study_internal_id', 'study_accession_number', 
+                         'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
+                         'study_type', 'study_visibility', 'submission_date', 'submission_id',
+                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id',
+                         'hgi_project', 'data_type', 'seq_center']
+        AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
+                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date']
+        
+        #print key_occ_dict
+        for attr in UNIQUE_FIELDS:
+            if attr in key_occ_dict:
+                if key_occ_dict[attr] != 1:
+                    print "ERROR -- field freq != 1!!!" + attr+" freq = ", str(key_occ_dict[attr])
+                    return -1
+            else:
+                print "ERROR -- field entirely missing!!! attr="+attr+ " in file: "+file_path_irods
+        
+        for attr in AT_LEAST_ONE:
+            if attr in key_occ_dict:
+                if key_occ_dict[attr] < 1:
+                    print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+str(key_occ_dict[attr])
+                    return -1
+            else:
+                print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+str(key_occ_dict[attr]) + " file: "+file_path_irods
+                return -1
+        return 0
+        
+    
+    def get_tuples_from_imeta_output(self, imeta_out):
+        tuple_list = []
+        lines = imeta_out.split('\n')
+        attr_name, attr_val = None, None
+        for line in lines:
+            if line.startswith('attribute'):
+                index = len('attribute: ')
+                attr_name = line[index:]
+                attr_name = attr_name.strip()
+            elif line.startswith('value: '):
+                index = len('value: ')
+                attr_val = line[index:]
+                attr_val = attr_val.strip()
+                if not attr_val:
+                    print "Attribute's value is NONE!!! "+attr_name
+            
+            if attr_name and attr_val:
+                tuple_list.append((attr_name, attr_val))
+                attr_name, attr_val = None, None
+        return tuple_list
+    
+    
+    def test_file_meta_irods(self, file_path_irods):
+        child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
+        tuple_list = self.get_tuples_from_imeta_output(out)        
+        self.test_file_meta_pairs(tuple_list, file_path_irods)
+        
+    
+    def test_index_meta_irods(self, index_file_path_irods):
+        child_proc = subprocess.Popen(["imeta", "ls","-d", index_file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            print "ERROR IMETA of file: ", index_file_path_irods, " err=",err," out=", out
+        tuple_list = self.get_tuples_from_imeta_output(out)        
+        if len(tuple_list) != 2:
+            print "ERROR -- index file "
+            return -1
+        return 0
+       
+        
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
@@ -1284,7 +1418,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
-        print "ADD MDATA TO IRODS JOB...works!"
+        print "ADD MDATA TO IRODS JOB...works! File metadata received: ", file_mdata_irods
         print "params received: index file path: ",index_file_path_irods, " index meta: ",index_file_mdata_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
@@ -1297,7 +1431,10 @@ class AddMdataToIRODSFileTask(iRODSTask):
                 print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
                 if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                     raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
-
+        test_result = self.test_file_meta_irods(file_path_irods)
+        if test_result < 0 :
+            print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", file_mdata_irods
+            
         print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
@@ -1311,11 +1448,14 @@ class AddMdataToIRODSFileTask(iRODSTask):
                     print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
                     if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                         raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
-
+        test_result = self.test_index_meta_irods(index_file_path_irods)
+        if test_result < 0 :
+            print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
+        
 
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
     
@@ -1333,7 +1473,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             (out, err) = child_proc.communicate()
             if err:
-                print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path, " error: ", err, " output: ",out
+                print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path_irods, " error: ", err, " output: ",out
                 raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
             print "ROLLING BACK THE ADD MDATA FOR FILE..."
         
@@ -1349,9 +1489,9 @@ class AddMdataToIRODSFileTask(iRODSTask):
                 print "ROLLING BACK THE ADD MDATA INDEX ..."
         if errors:
             print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
-            return {'status' : FAILURE_STATUS, 'errors' : errors}
+            return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
         print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
-        return {'status' : SUCCESS_STATUS, 'errors' : errors}
+        return {'status' : constants.SUCCESS_STATUS, 'errors' : errors}
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -1364,7 +1504,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         errors = self.rollback(kwargs)
         result = dict()
         result['task_id']   = current_task.request.id
-        result['status']    = FAILURE_STATUS
+        result['status']    = constants.FAILURE_STATUS
         result['errors'] =  [str_exc].extend(errors)
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
@@ -1414,7 +1554,7 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
             
         result = {}
         result['task_id'] = current_task.request.id
-        result['status'] = SUCCESS_STATUS
+        result['status'] = constants.SUCCESS_STATUS
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
         
@@ -1430,7 +1570,7 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         #errors = self.rollback(kwargs)
         result = dict()
         result['task_id']   = current_task.request.id
-        result['status']    = FAILURE_STATUS
+        result['status']    = constants.FAILURE_STATUS
         result['errors'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp

@@ -126,7 +126,9 @@ class SubmissionsMainPageRequestHandler(APIView):
             import time #, ipdb
             t1 = time.time()
             
-            #ipdb.set_trace()
+#            import ipdb
+#            ipdb.set_trace()
+
             subm_result = controller.create_submission(user_id, data)
             t2 = time.time() - t1
             print "TIME TAKEN TO RUN create_subm: ", t2 
@@ -134,7 +136,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             if subm_result.error_dict:
                 req_result['errors'] = subm_result.error_dict
             if not submission_id:
-                req_result['message'] = "Submission not created"
+                req_result['message'] = "Submission not created."
                 if subm_result.message:
                     req_result['message'] = req_result['message'] + subm_result.message
                 if subm_result.warning_dict:

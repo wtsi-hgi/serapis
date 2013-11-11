@@ -1152,85 +1152,58 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     was_updated = update_library_list(field_val, update_source, submitted_file)
                     update_db_dict['set__library_list'] = submitted_file.library_list
                     update_db_dict['inc__version__2'] = 1
+                    #update_db_dict['inc__version__0'] = 1
                     logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
             elif field_name == 'sample_list':
                 if len(field_val) > 0:
                     was_updated = update_sample_list(field_val, update_source, submitted_file)
                     update_db_dict['set__sample_list'] = submitted_file.sample_list
                     update_db_dict['inc__version__1'] = 1
+                    #update_db_dict['inc__version__0'] = 1
                     logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
             elif field_name == 'study_list':
                 if len(field_val) > 0:
                     was_updated = update_study_list(field_val, update_source, submitted_file)
                     update_db_dict['set__study_list'] = submitted_file.study_list
                     update_db_dict['inc__version__3'] = 1
+                    #update_db_dict['inc__version__0'] = 1
                     logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
-            elif field_name == 'seq_centers':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
-                    update_db_dict['set__seq_centers'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
-            elif field_name == 'run_list':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
-                    update_db_dict['set__run_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
-            elif field_name == 'platform_list':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
-                    update_db_dict['set__platform_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
-            elif field_name == 'seq_date_list':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.seq_date_list, field_val)
-                    update_db_dict['set__seq_date_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
-            elif field_name == 'library_well_list':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
-                    update_db_dict['set__library_well_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
-            elif field_name == 'multiplex_lib_list':
-                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                    updated_list = __upd_list_of_primary_types__(submitted_file.multiplex_lib_list, field_val)
-                    update_db_dict['set__multiplex_lib_list'] = updated_list
-                    update_db_dict['inc__version__0'] = 1
             # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
             elif field_name == 'missing_entities_error_dict':
                 if field_val:
                     for entity_categ, entities in field_val.iteritems():
                         update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'not_unique_entity_error_dict':
                 if field_val:
                     for entity_categ, entities in field_val.iteritems():
                         #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                         update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'header_has_mdata':
                 if update_source == constants.PARSE_HEADER_MSG_SOURCE:
                     update_db_dict['set__header_has_mdata'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'md5':
                 if update_source == constants.CALC_MD5_MSG_SOURCE:
                     update_db_dict['set__md5'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
                     logging.debug("UPDATING md5")
             elif field_name == 'index_file':
                 if update_source == constants.CALC_MD5_MSG_SOURCE: 
                     if 'md5' in field_val:
                         update_db_dict['set__index_file__md5'] = field_val['md5']
-                        update_db_dict['inc__version__0'] = 1
+                        #update_db_dict['inc__version__0'] = 1
                     else:
                         raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
             elif field_name == 'hgi_project':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__hgi_project'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'data_type':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__data_type'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'data_subtype_tags':
                 if update_source == constants.EXTERNAL_SOURCE:
                     if getattr(submitted_file, 'data_subtype_tags') != None:
@@ -1239,22 +1212,86 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     else:
                         subtypes_dict = field_val
                     update_db_dict['set__data_subtype_tags'] = subtypes_dict
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'abstract_library':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__abstract_library'] = field_val
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name == 'file_reference_genome_id':
                 if update_source == constants.EXTERNAL_SOURCE:
                     models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
                     update_db_dict['set__file_reference_genome_id'] = str(field_val)
-                    update_db_dict['inc__version__0'] = 1
+                    #update_db_dict['inc__version__0'] = 1
             elif field_name != None and field_name != "null":
                 logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
         else:
             logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
+            
+    file_specific_upd_dict = None
+    if submitted_file.file_type == constants.BAM_FILE:
+        file_specific_upd_dict = build_bam_file_update_dict(file_updates, update_source, file_id, submitted_file)
+    elif submitted_file.file_type == constants.VCF_FILE:
+        file_specific_upd_dict = build_vcf_file_update_dict(file_updates, update_source, file_id, submitted_file)
+    if file_specific_upd_dict:
+        update_db_dict.update(file_specific_upd_dict)
     return update_db_dict
 
+
+#    seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
+#    run_list = ListField()              # list of strings
+#    platform_list = ListField()         # list of strings
+#    seq_date_list = ListField()             # list of strings
+#    library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
+#    multiplex_lib_list = ListField()    # List of multiplexed library ids
+
+def build_bam_file_update_dict(file_updates, update_source, file_id, submitted_file):
+    update_db_dict = {}
+    for (field_name, field_val) in file_updates.iteritems():
+        if field_val == 'null' or not field_val:
+            pass
+        if field_name in submitted_file._fields:        
+            if field_name in ['submission_id', 
+                         'id',
+                         '_id',
+                         'version',
+                         'file_type', 
+                         'irods_coll',      # TODO: make it updateble by user, if file not yet submitted to permanent irods coll 
+                         'file_path_client', 
+                         'last_updates_source', 
+                         'file_mdata_status',
+                         'file_submission_status',
+                         'missing_mandatory_fields_dict']:
+                pass
+            elif field_name == 'seq_centers':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
+                    update_db_dict['set__seq_centers'] = updated_list
+                    #update_db_dict['inc__version__0'] = 1
+            elif field_name == 'run_list':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
+                    update_db_dict['set__run_list'] = updated_list
+                    #update_db_dict['inc__version__0'] = 1
+            elif field_name == 'platform_list':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
+                    update_db_dict['set__platform_list'] = updated_list
+            elif field_name == 'seq_date_list':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.seq_date_list, field_val)
+                    update_db_dict['set__seq_date_list'] = updated_list
+            elif field_name == 'library_well_list':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
+                    update_db_dict['set__library_well_list'] = updated_list
+            elif field_name == 'multiplex_lib_list':
+                if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
+                    updated_list = __upd_list_of_primary_types__(submitted_file.multiplex_lib_list, field_val)
+                    update_db_dict['set__multiplex_lib_list'] = updated_list
+    return update_db_dict
+
+def build_vcf_file_update_dict(file_updates, update_source, file_id, submitted_file):
+    pass
                       
 def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd, i = 0, 0
@@ -1269,6 +1306,7 @@ def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_s
         field_updates = build_file_update_dict(file_updates, update_source, file_id, submitted_file)
         if field_updates:
             db_update_dict.update(field_updates)
+            db_update_dict['inc__version__0'] = 1
         if len(db_update_dict) > 0:
             logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s and UPD DICT: %s", str(file_id),str(db_update_dict))
             upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
@@ -1672,7 +1710,25 @@ def check_if_sample_has_minimal_mdata(sample, file_to_submit):
 def check_bam_file_mdata(file_to_submit):
     if file_to_submit.file_type != constants.BAM_FILE:
         pass    # TODO: raise an exception if this fct has been called for a diff type of file!!!!
-    has_min_mdata = True
+    has_min_mdata = True    
+    if len(file_to_submit.library_list) == 0:
+        if len(file_to_submit.library_well_list) == 0:
+            if len(file_to_submit.multiplex_lib_list) == 0:
+                __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+                has_min_mdata = False
+            
+            else:
+                __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+        else:
+            __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+    else:
+        for lib in file_to_submit.library_list:
+            if check_if_library_has_minimal_mdata(lib, file_to_submit) == False:
+                has_min_mdata = False
+                #print "NOT ENOUGH LIB MDATA................................."
+        __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
+
+
     for field in constants.BAM_FILE_MANDATORY_FIELDS:
         if not hasattr(file_to_submit, field):
             __add_missing_field_to_dict__(field, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
@@ -1752,24 +1808,7 @@ def check_update_file_obj_if_has_min_mdata(file_to_submit):
     else:
         __find_and_delete_missing_field_from_dict__('no study', constants.STUDY_TYPE, file_to_submit.missing_mandatory_fields_dict)
 
-
-    if len(file_to_submit.library_list) == 0:
-        if len(file_to_submit.library_well_list) == 0:
-            if len(file_to_submit.multiplex_lib_list) == 0:
-                __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-                has_min_mdata = False
-            
-            else:
-                __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-        else:
-            __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-    else:
-        for lib in file_to_submit.library_list:
-            if check_if_library_has_minimal_mdata(lib, file_to_submit) == False:
-                has_min_mdata = False
-                #print "NOT ENOUGH LIB MDATA................................."
-        __find_and_delete_missing_field_from_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-            
+                
 #    if len(file_to_submit.library_list) == 0 and len(file_to_submit.library_well_list) == 0:
 #        __add_missing_field_to_dict__('no specific library', constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
 #        has_min_mdata = False

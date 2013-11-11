@@ -36,6 +36,7 @@ NOACCESS = "NOACCESS"
 INIT_SOURCE = "INIT"
 EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
 
+################## TASKS REGISTRY: ##################
 # Presubmission tasks:
 PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
 UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
@@ -44,7 +45,14 @@ CALC_MD5_MSG_SOURCE     = "CALC_MD5_MSG_SOURCE"
 # iRODS tasks:
 IRODS_JOB_MSG_SOURCE    = "IRODS_JOB_MSG_SOURCE"
 # UPLOAD_FILE_MSG_SOURCE  = "UPLOAD_FILE_MSG_SOURCE"
- 
+
+#PARSE_HEADER_TASK = "PARSE_HEADER_TASK"
+#UPDATE_MDATA_TASK = "UPDATE_MDATA_TASK"
+#CALC_MD5_TASK     = "CALC_MD5_TASK"
+#UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
+#
+## iRODS tasks:
+#IRODS_TASK    = "IRODS_TASK" 
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
@@ -78,12 +86,16 @@ FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 #--------------- MODEL MANDATORY FIELDS -----------------
 
 STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
-LIBRARY_MANDATORY_FIELDS = {'library_source', 'coverage'} #'library_selection',
-SAMPLE_MANDATORY_FIELDS = {'taxon_id', 'cohort'} # 'country_of_origin', , 'ethnicity', 'gender', 
+LIBRARY_MANDATORY_FIELDS = {'library_source', 'coverage'} #'library_selection', 
+SAMPLE_MANDATORY_FIELDS = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
 FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
 INDEX_MANDATORY_FIELDS = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
+
+#--------------- MODEL OPTIONAL FIELDS -----------------
+
+SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 'geographical_region', 'organism', 'common_name'}
 
 # ----------------- DATA TYPES --------------------------
 
@@ -110,9 +122,9 @@ VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
 
 FILE_TO_INDEX_DICT = {BAM_FILE : BAI_FILE}
 
-INDEX_FILE = 'INDEX_FILE'
-MAIN_FILE = 'MAIN_FILE'
-FILE_TYPES = (INDEX_FILE, MAIN_FILE)
+#INDEX_FILE = 'INDEX_FILE'
+#MAIN_FILE = 'MAIN_FILE'
+#FILE_TYPES = (INDEX_FILE, MAIN_FILE)
 
 # -------------- NEW STATUSES ---------------------------
 
@@ -228,9 +240,13 @@ JOB_TYPES = (UPDATE_JOBS,
 #DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
 #DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
+
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #DEST_DIR_IRODS = "/humgen/projects"
-IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
+
+#IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
+
+IRODS_STAGING_AREA = "/humgen/projects/serapis_staging"
 
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/staging_area" #serapis_staging

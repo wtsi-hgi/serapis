@@ -1,7 +1,7 @@
 from serapis.com import constants, utils
 from collections import Counter
 from collections import defaultdict
-
+import logging
 
 def convert_reference_genome_mdata(ref_genome):
     #REF_PREFIXED_FIELDS = ['md5', 'name']    => Josh required to take the name out
@@ -83,6 +83,8 @@ def convert_study_mdata(study):
             field_val = getattr(study, field_name)
             field_val = utils.unicode2string(field_val)
             irods_study_mdata.append(('study_'+field_name, field_val))
+        else:
+            logging.warning("This field is NONE! field-name: %s", field_name)
     for field_name in STUDY_NONPREFIXED_FIELDS_LIST:
         if hasattr(study, field_name) and getattr(study, field_name) != None:
             field_val = getattr(study, field_name)
@@ -133,6 +135,7 @@ def convert_BAMFile(bamfile):
                 field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((irods_field_name, field_val))
     # print "BAM FIELDS: ", vars(irods_file_mdata)
+    
     return irods_file_mdata
     
 
@@ -188,7 +191,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
             elif field_name == 'file_type':
                 field_val = utils.unicode2string(field_val)
                 file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
-                irods_file_mdata.extend(file_specific_mdata)
+                if file_specific_mdata:
+                    irods_file_mdata.extend(file_specific_mdata)
                 irods_file_mdata.append((field_name, field_val))
             elif field_name == 'data_subtype_tags':
                 field_val = utils.unicode2string(field_val)
@@ -202,7 +206,8 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 irods_file_mdata.append((field_name, field_val))
     if ref_genome != None:
         irods_file_mdata.extend(convert_reference_genome_mdata(ref_genome))
-    if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
+    #if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
+    if subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)
     if hasattr(subm_file.index_file, 'file_path_client'):
@@ -211,7 +216,6 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
     result_list = list(set(irods_file_mdata))
     result_list.sort(key=lambda tup: tup[0])
-    test_file_meta_pairs(result_list)
     return result_list
 
 #data.sort(key=lambda tup: tup[1])
@@ -224,14 +228,14 @@ def convert_index_file_mdata(file_md5, indexed_file_md5):
     return irods_file_mdata
 
 
-def test_file_meta_pairs(tuple_list):
-    key_occ_dict = defaultdict(int)
-    for item in tuple_list:
-        print "ITEM: ", item[0], item[1]
-        key_occ_dict[item[0]] += 1
-        #key_count = Counter(tuple_list)
-    for k, v in key_occ_dict.iteritems():
-        print k+" : "+str(v)+"\n"
+#def test_file_meta_pairs(tuple_list):
+#    key_occ_dict = defaultdict(int)
+#    for item in tuple_list:
+#        print "ITEM: ", item[0], item[1]
+#        key_occ_dict[item[0]] += 1
+#        #key_count = Counter(tuple_list)
+#    for k, v in key_occ_dict.iteritems():
+#        print k+" : "+str(v)+"\n"
     #print key_occ_dict
     
 #test_file_meta_pairs([('cohort', 'ef'), ('sample_id', '123')])

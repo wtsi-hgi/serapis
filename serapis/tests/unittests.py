@@ -141,20 +141,84 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
 #        res = db_model_operations.check_any_task_has_status({"123" : "FAILURE"}, constants.SUCCESS_STATUS)
 #        self.assertFalse(res)
 #        
+
+#
+#def check_any_task_has_status(tasks_dict, status, task_categ):
+#    for task_info in tasks_dict.values():
+#        if task_info['type'] in task_categ and task_info['status'] == status:
+#            return True
+#    return False
+#
+#def check_all_tasks_finished(tasks_dict, task_categ):
+#    for task_info in tasks_dict.values():
+#        if task_info['type'] in task_categ and not task_info['status'] in constants.FINISHED_STATUS:
+#            return False
+#    return True
+
+
+class TestDBFct(unittest.TestCase):
+    maxDiff = None
+    
+    
+    def test_task_dict_fcts(self):
+        from serapis.controller.controller import PRESUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
+    
+        tasks_dict = {
+        "8c054e89-ee3b-4eee-a79e-e8f5dbc1b901" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.CalculateMD5Task"
+        },
+        "a35cedf6-b07d-4880-a01a-556a1d69f7d6" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.UpdateFileMdataTask"
+        },
+        "cb002bba-0417-4e0d-b8c4-64fdc2ba8f89" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.ParseBAMHeaderTask"
+        },
+        "d899d283-1b93-49c3-ad37-13438fbe1ce7" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.UploadFileTask"
+        }}
+        res = db_model_operations.check_all_tasks_finished(tasks_dict, PRESUBMISSION_TASKS)
+        self.assertTrue(res)
         
+        
+        tasks_dict = {
+        "8c054e89-ee3b-4eee-a79e-e8f5dbc1b901" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.CalculateMD5Task"
+        },
+        "a35cedf6-b07d-4880-a01a-556a1d69f7d6" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.UpdateFileMdataTask"
+        },
+        "cb002bba-0417-4e0d-b8c4-64fdc2ba8f89" : {
+            "status" : "SUCCESS",
+            "type" : "serapis.worker.tasks.ParseBAMHeaderTask"
+        },
+        "d899d283-1b93-49c3-ad37-13438fbe1ce7" : {
+            "status" : "PENDING_ON_WORKER",
+            "type" : "serapis.worker.tasks.UploadFileTask"
+        }}
+        res = db_model_operations.check_all_tasks_finished(tasks_dict, PRESUBMISSION_TASKS)
+        self.assertFalse(res)
+        
+         
+         
 
 
 class TestController(unittest.TestCase):
 
     maxDiff = None
     def test_associate_files_with_indexes(self):
-#        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
-#                 '/home/ic4/data-test/unit-tests/bamfile2.bam', 
-#                 '/home/ic4/data-test/unit-tests/bamfile1.bai']
-#        res = controller.associate_files_with_indexes(paths)
-#        should_be = [('/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai'), 
-#                     ('/home/ic4/data-test/unit-tests/bamfile2.bam', None)]
-#        self.assertListEqual(res.result, should_be)
+        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile2.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile1.bai']
+        res = controller.associate_files_with_indexes(paths)
+        should_be = [('/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai'), 
+                     ('/home/ic4/data-test/unit-tests/bamfile2.bam', '')]
+        self.assertListEqual(res.result, should_be)
         
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
@@ -169,7 +233,6 @@ class TestController(unittest.TestCase):
         res = controller.associate_files_with_indexes(paths)
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')]})
 
-
         paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam5.bai',
@@ -181,6 +244,21 @@ class TestController(unittest.TestCase):
                                                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')],
                                               constants.UNMATCHED_INDEX_FILES : 
                                               ['/home/ic4/data-test/unit-tests/err_bams/bam5.bai']
+                                              })
+        
+        paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
+                 '/home/ic4/data-test/unit-tests/err_bams/bam3.bai',
+                 '/home/ic4/data-test/unit-tests/err_bams/bam3.bam.bai',
+                 '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
+        res = controller.associate_files_with_indexes(paths)
+        print "ERROR DICT: ", res.error_dict
+        self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
+                                               [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
+                                                 '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')],
+                                              constants.TOO_MANY_INDEX_FILES : 
+                                              [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam',
+                                                '/home/ic4/data-test/unit-tests/err_bams/bam3.bam.bai',
+                                                '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')]
                                               })
         
 #        paths = ["/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam"]
