@@ -398,6 +398,8 @@ def check_for_invalid_paths(file_paths_list):
             invalid_paths.append(file_path)
     return invalid_paths
 
+def check_file_extension(file_path):
+    pass
 
 def detect_file_type(file_path):
     #file_extension = utils.extract_extension(file_path)
@@ -419,8 +421,19 @@ def detect_file_type(file_path):
 def check_for_invalid_file_types(file_path_list):
     invalid_files = []
     for file_path in file_path_list:
+        is_compressed = False
+        print "FILE: ",file_path
         ext = utils.extract_extension(file_path)
-        if ext and not ext in constants.SFILE_EXTENSIONS:
+        print "EXT: ", ext
+        if ext in constants.COMPRESSION_FORMAT_EXTENSIONS:
+            fname, ext = utils.extract_fname_and_ext(file_path)
+            ext = utils.extract_extension(fname)
+            is_compressed = True
+            print "EXT ------: ", ext, " and is compressed: ", is_compressed
+        if ext and not ext in constants.ACCEPTED_FILE_EXTENSIONS:
+            invalid_files.append(file_path)
+        print "EXT: ", ext, " and is compressed: ",is_compressed
+        if ext in constants.FILE_TYPES_ONLY_COMPRESSED and not is_compressed:
             invalid_files.append(file_path)
     return invalid_files
 
@@ -505,7 +518,7 @@ def search_for_index_file(file_path, indexes):
     file_name, file_ext = utils.extract_fname_and_ext(file_path)
     for index_file_path in indexes:
         index_fname, index_ext = utils.extract_index_fname(index_file_path)
-        if index_fname == file_name and constants.FILE_TO_INDEX_DICT[file_ext] == index_ext:
+        if index_fname == file_name and constants.FILE2IDX_MAP[file_ext] == index_ext:
             if utils.cmp_timestamp_files(file_path, index_file_path) <= 0:         # compare file and index timestamp
                 return index_file_path
             else:
@@ -626,37 +639,7 @@ def verify_file_paths(file_paths_list):
     return models.Result(result, errors_dict, warnings_dict)
     
 
-def get_or_insert_reference_genome(data):
-    ''' This function receives a path identifying 
-        a reference file and retrieves it from the data base 
-        or inserts it if it's not there.
-    Parameters: a path(string)
-    Throws:
-        - TooMuchInformationProvided exception - when the dict has more than a field
-        - NotEnoughInformationProvided - when the dict is empty
-    '''
-    if not data:
-        raise exceptions.NotEnoughInformationProvided(msg="ERROR: the path of the reference genome must be provided.")        
-    ref_gen = db_model_operations.retrieve_reference_by_path(data)
-    if ref_gen:
-        return ref_gen
-    return db_model_operations.insert_reference_genome({'path' : data})
-    
-    
-def get_or_insert_reference_genome_path_and_name(data):
-    ''' This function receives a dictionary with data identifying 
-        a reference genome and retrieves it from the data base.
-    Parameters: a dictionary
-    Throws:
-        - TooMuchInformationProvided exception - when the dict has more than a field
-        - NotEnoughInformationProvided - when the dict is empty
-    '''
-    if not 'name' in data and not 'path' in data:
-        raise exceptions.NotEnoughInformationProvided(msg="ERROR: either the name or the path of the reference genome must be provided.")        
-    ref_gen = db_model_operations.retrieve_reference_genome(data)
-    if ref_gen:
-        return ref_gen
-    return db_model_operations.insert_reference_genome(data)
+
     
 
 # PROBLEM: if I don't have a submission, I won't have a list of io errors associated with each file,
@@ -708,7 +691,7 @@ def create_submission(user_id, data):
     # Should ref genome be smth mandatory?????
     if 'reference_genome' in submission_data:
         ref_gen = submission_data.pop('reference_genome')
-        ref_gen = get_or_insert_reference_genome(ref_gen)
+        ref_gen = db_model_operations.get_or_insert_reference_genome(ref_gen)
         submission_data['file_reference_genome_id'] = ref_gen.id
     else:
         logging.warning("NO reference provided!")
@@ -1050,6 +1033,7 @@ def update_file_submitted(submission_id, file_id, data):
                         'set__tasks_dict__'+task_id+'__type' : update_file_task.name
                         }
             db_model_operations.update_file_from_dict(file_id, upd_dict)
+
     db_model_operations.check_and_update_all_file_statuses(file_id)
         
 

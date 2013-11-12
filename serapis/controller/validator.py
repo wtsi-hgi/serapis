@@ -104,6 +104,7 @@ submitted_file_schema = Schema({
     #'header_associations' : list,   # List of maps, as they are extracted from the header: [{}, {}, {}]
     'library_well_list' : list,
     'file_reference_genome_id' : str,
+    IsFile('reference_genome') : str,
     'data_type' : str,
     'multiplex_lib_list' : list,
     
@@ -124,7 +125,10 @@ submitted_file_schema = Schema({
     'task_id' : str,
     'result' : dict,
     'status' : str,
-    'errors' : list
+    'errors' : list,
+    
+    # VCF file specific fields:
+    'used_samtools': bool
     
 })
 

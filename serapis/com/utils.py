@@ -74,7 +74,7 @@ def extract_index_fname(path):
     '''
     fname, ext = extract_fname_and_ext(path)
     real_ext = ext
-    while ext in constants.SFILE_EXTENSIONS:
+    while ext in constants.ACCEPTED_FILE_EXTENSIONS:
         fname, ext = extract_fname_and_ext(fname)
     return (fname, real_ext)
 
@@ -96,7 +96,7 @@ def get_files_from_dir(dir_path):
         f_path = join(dir_path, f_name)
         if isfile(f_path):
             _, f_extension = os.path.splitext(f_path)
-            if f_extension[1:] in constants.SFILE_EXTENSIONS:
+            if f_extension[1:] in constants.ACCEPTED_FILE_EXTENSIONS:
                 files_list.append(f_path)
     print files_list
     return files_list
@@ -110,7 +110,7 @@ def list_all_files(dir_path):
 
 def infer_filename_from_idxfilename(idx_file_path, file_type):
     fname, ext = idx_file_path, file_type
-    while ext in constants.SFILE_EXTENSIONS:
+    while ext in constants.ACCEPTED_FILE_EXTENSIONS:
         fname, ext = os.path.splitext(fname)
         ext = ext[1:]
     fname = fname+'.'+constants.IDX2FILE_MAP[file_type]

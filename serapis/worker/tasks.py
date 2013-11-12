@@ -799,13 +799,7 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
                 list_of_entities.append(entity_dict)
         return list_of_entities
     
-
-    def run(self, *args, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
-        file_path       = kwargs['file_path']
-        file_id         = kwargs['file_id']
-        submission_id   = kwargs['submission_id']
-        
+    def get_samples_from_file_header(self, file_path):
         samples = []
         if file_path.endswith('.gz'):
             infile = gzip.open(file_path, 'rb')
@@ -819,6 +813,37 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
                         samples.append(col)
                 break
         infile.close()
+        return samples
+    
+    
+    def get_reference_from_file_header(self, file_path):
+        if file_path.endswith('.gz'):
+            infile = gzip.open(file_path, 'rb')
+        else:
+            infile = open(file_path)
+        for line in infile:
+            if line.startswith('##reference'):
+                items = line.split('=')
+                return items[1]
+        return None
+                
+    def used_samtools(self, file_path):
+        if file_path.endswith('.gz'):
+            infile = gzip.open(file_path, 'rb')
+        else:
+            infile = open(file_path)
+        for line in infile:
+            if line.startswith('##samtools'):
+                return True
+        return None
+
+    def run(self, *args, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_path       = kwargs['file_path']
+        file_id         = kwargs['file_id']
+        submission_id   = kwargs['submission_id']
+        
+        samples = self.get_samples_from_file_header(file_path)
         print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
         print samples
         
@@ -830,6 +855,14 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
         print vars(vcf_file)
         
+        reference = self.get_reference_from_file_header(file_path)
+        if reference:
+            vcf_file.reference_genome = reference
+        
+        used_samtools = self.used_samtools(file_path)
+        if used_samtools:
+            vcf_file.used_samtools = used_samtools
+            
         result = {}
         result['result'] = filter_none_fields(vars(vcf_file))
         result['status'] = constants.SUCCESS_STATUS

@@ -456,7 +456,7 @@ class SubmittedFileRequestHandler(APIView):
             result = {}
             print "What type is the data coming in????", type(data)
             data = utils.unicode2string(data)
-            print "After converting to string: -------", str(data)
+            #print "After converting to string: -------", str(data)
             validator.submitted_file_schema(data)
             controller.update_file_submitted(submission_id, file_id, data)
         except MultipleInvalid as e:

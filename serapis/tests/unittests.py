@@ -4,9 +4,9 @@ from serapis.com import utils, constants
 from serapis.worker import entities
 import unittest
 import requests
-import json
+import json, gzip
 from bson.objectid import ObjectId
-
+from serapis.worker import tasks
 
 
 import os, subprocess
@@ -108,6 +108,8 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
                       "common_name": "Homo Sapiens", 
                       "taxon_id": "9606", 
                       "organism": "Homo Sapiens"}
+        print "SERAPIS DICT: ", serapis_dict
+        print "Seqscape dict: ", seqsc_dict
         self.assertDictEqual(serapis_dict, vars(sample))
 
 
@@ -121,6 +123,57 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
         serapis_dict = {"common_name" : "Homo Sapiens"}
         self.assertDictEqual(serapis_dict, vars(sample))
+        
+    
+    
+        
+class TestTasks(unittest.TestCase):
+ 
+    def test_parse_vcf_file_header(self):
+        vcf_parse_task = tasks.ParseVCFHeaderTask()
+        
+        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/7-helic.vqsr.vcf.gz'
+        samples = vcf_parse_task.get_samples_from_file_header(file_path)
+        self.assertEqual(len(samples), 941)
+        
+        
+        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/kaz-21.vqsr.vcf.gz'
+        samples = vcf_parse_task.get_samples_from_file_header(file_path)
+        self.assertEqual(len(samples), 100)
+        
+        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/X.vqsr.vcf.gz'
+        samples = vcf_parse_task.get_samples_from_file_header(file_path)
+        self.assertEqual(len(samples), 970)
+        
+        
+        
+        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
+        samples = vcf_parse_task.get_samples_from_file_header(file_path)
+        self.assertEqual(len(samples), 5)
+    
+        # Test the run fct:
+        true_samples = [{'accession_number' : 'EGAN00001089419'}, {'accession_number' : 'EGAN00001094533'}, {'accession_number' : 'EGAN00001094534'}, 
+                            {'accession_number' : 'EGAN00001097231'}, {'accession_number' : 'EGAN00001097232'}] 
+        incomplete_entities = vcf_parse_task.build_search_dict(samples, constants.SAMPLE_TYPE)
+        self.assertListEqual(true_samples, incomplete_entities)
+        
+        vcf_file = entities.VCFFile()
+        processSeqsc = tasks.ProcessSeqScapeData()
+        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
+        self.assertEqual(len(vcf_file.sample_list), len(samples))
+        
+        for sample in vcf_file.sample_list:
+            if sample.accession_number == 'EGAN00001089419':
+                self.assertEqual(sample.internal_id, 1504427)
+                self.assertEqual(sample.name,'SC_PSC5414004')
+                self.assertEqual(sample.cohort, 'SC_PSC')
+            elif sample.accession_number == 'EGAN00001094533':
+                self.assertEqual(sample.internal_id, 1557862)
+                self.assertEqual(sample.name, 'SC_PSC5465266')
+                self.assertEqual(sample.common_name, 'Homo Sapiens')
+                self.assertEqual(sample.country_of_origin, 'Canada')
+                self.assertEqual(sample.ethnicity, 'White')    
+            
         
 
 # NOT up to date - it's before I restructured to tasks dict
@@ -329,7 +382,7 @@ class TestController(unittest.TestCase):
     
     
     def test_verify_files_validity(self):
-        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf", "/dupl/dupl.bam", "", ""]
+        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf.gz", "/dupl/dupl.bam", "", ""]
         errors = controller.verify_files_validity(paths)
         self.assertDictEqual({constants.FILE_DUPLICATES : ["", "/dupl/dupl.bam"], constants.NON_EXISTING_FILE : paths}, errors)
         
@@ -368,6 +421,17 @@ class TestController(unittest.TestCase):
 
         paths = [""]
         self.assertFalse(controller.check_for_invalid_file_types(paths))
+        
+        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf.gz']
+        invalid_paths = controller.check_for_invalid_file_types(paths)
+        self.assertListEqual([], invalid_paths)
+        
+        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf']
+        invalid_paths = controller.check_for_invalid_file_types(paths)
+        self.assertListEqual(paths, invalid_paths)
+        
+        
+        
         
     
     def test_detect_file_type(self):

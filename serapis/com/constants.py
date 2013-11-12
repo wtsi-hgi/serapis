@@ -107,20 +107,38 @@ BAI_FILE = "bai"
 VCF_FILE = "vcf"
 TBI_FILE = "tbi"
 
+# File types accepted:
 FILE_TYPES = (BAM_FILE, VCF_FILE)
-SFILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'tbi']
-ALL_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'md5']
 
+# File types and indexes accepted:
+ACCEPTED_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'tbi']
+
+# All file extensions that can be possibly met:
+ALL_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'md5', 'tbi']
+
+# The compression formats:
+COMPRESSION_FORMAT_EXTENSIONS = ['gz']
+
+# File types that are submitted uncompressed
+FILE_TYPES_NO_COMPRESSION = ['bam', 'bai', 'tbi'] 
+
+# File types accepted only compressed:
+FILE_TYPES_ONLY_COMPRESSED = ['vcf']      
+
+# Mapping from the file type to its index type:
 FILE2IDX_MAP = {BAM_FILE : BAI_FILE,
                 VCF_FILE : TBI_FILE 
                 }
 
+# Mapping from an index type to the indexed file type:
 IDX2FILE_MAP = {BAI_FILE : BAM_FILE,
                 TBI_FILE : VCF_FILE
                 }
+
+# VCF format versions:
 VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
 
-FILE_TO_INDEX_DICT = {BAM_FILE : BAI_FILE}
+#FILE_TO_INDEX_DICT = {BAM_FILE : BAI_FILE}
 
 #INDEX_FILE = 'INDEX_FILE'
 #MAIN_FILE = 'MAIN_FILE'

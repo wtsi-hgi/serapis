@@ -29,6 +29,8 @@ def calculate_md5(file_path):
     return md5_sum.hexdigest()
 
 
+
+
 def insert_reference_genome(ref_dict):
     ref_name, path_list = None, []
     if 'name' in ref_dict:
@@ -130,6 +132,42 @@ def retrieve_reference_genome2(md5=None, name=None, path=None):
                 return None
     elif path != None:    # This branch is executed only if md5=None and name=None
         return retrieve_reference_by_path(path)
+
+
+
+
+def get_or_insert_reference_genome(file_path):
+    ''' This function receives a path identifying 
+        a reference file and retrieves it from the database 
+        or inserts it if it's not there.
+    Parameters: a path(string)
+    Throws:
+        - TooMuchInformationProvided exception - when the dict has more than a field
+        - NotEnoughInformationProvided - when the dict is empty
+    '''
+    if not file_path:
+        raise exceptions.NotEnoughInformationProvided(msg="ERROR: the path of the reference genome must be provided.")        
+    ref_gen = retrieve_reference_by_path(file_path)
+    if ref_gen:
+        return ref_gen
+    return insert_reference_genome({'path' : file_path})
+    
+    
+def get_or_insert_reference_genome_path_and_name(data):
+    ''' This function receives a dictionary with data identifying 
+        a reference genome and retrieves it from the data base.
+    Parameters: a dictionary
+    Throws:
+        - TooMuchInformationProvided exception - when the dict has more than a field
+        - NotEnoughInformationProvided - when the dict is empty
+    '''
+    if not 'name' in data and not 'path' in data:
+        raise exceptions.NotEnoughInformationProvided(msg="ERROR: either the name or the path of the reference genome must be provided.")        
+    ref_gen = retrieve_reference_genome(data)
+    if ref_gen:
+        return ref_gen
+    return insert_reference_genome(data)
+
 
 
 #---------------------- AUXILIARY (HELPER) FUNCTIONS -------------------------
@@ -1168,6 +1206,7 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     update_db_dict['inc__version__3'] = 1
                     #update_db_dict['inc__version__0'] = 1
                     logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
+
             # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
             elif field_name == 'missing_entities_error_dict':
                 if field_val:
@@ -1222,6 +1261,9 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
                     update_db_dict['set__file_reference_genome_id'] = str(field_val)
                     #update_db_dict['inc__version__0'] = 1
+            elif field_name == 'reference_genome':
+                ref_gen = get_or_insert_reference_genome(field_val)     # field_val should be a path
+                update_db_dict['set__file_reference_genome_id'] = ref_gen.id
             elif field_name != None and field_name != "null":
                 logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
         else:
@@ -1291,7 +1333,13 @@ def build_bam_file_update_dict(file_updates, update_source, file_id, submitted_f
     return update_db_dict
 
 def build_vcf_file_update_dict(file_updates, update_source, file_id, submitted_file):
-    pass
+    update_db_dict = {}
+    for (field_name, field_val) in file_updates.iteritems():
+        if field_val == 'null' or not field_val:
+            pass
+        elif field_name == 'used_samtools':
+            update_db_dict['set__used_samtools'] = field_val
+    return update_db_dict
                       
 def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
     upd, i = 0, 0
