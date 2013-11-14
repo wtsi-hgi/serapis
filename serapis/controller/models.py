@@ -99,11 +99,14 @@ class Library(AbstractLibrary, Entity):
 #    name = StringField(unique_with='md5')
 
 class ReferenceGenome(Document):
-#    md5 = StringField(primary_key=True)
-    md5 = StringField()
+    md5 = StringField(primary_key=True)
+#    md5 = StringField(unique=True)
     paths = ListField()
     name = StringField()
 
+    meta = {
+               'indexes': ['paths']
+           }
 
 
 class Sample(Entity):          # one sample can be member of many studies

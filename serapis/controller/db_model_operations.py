@@ -30,32 +30,45 @@ def calculate_md5(file_path):
 
 
 
-
 def insert_reference_genome(ref_dict):
-    ref_name, path_list = None, []
-    if 'name' in ref_dict:
-        ref_name = ref_dict['name']
-    if 'path' in ref_dict:
-        if not type(ref_dict['path']) == list:
-            path_list = [ref_dict['path']]
-        else:
-            path_list = ref_dict['path']
     ref_genome = models.ReferenceGenome()
-    if not path_list or not ref_name:
+    if 'name' in ref_dict:
+        #ref_name = ref_dict['name']
+        ref_genome.name = ref_dict['name']
+    if 'path' in ref_dict:
+        ref_genome.paths = [ref_dict['path']]
+    else:
         raise exceptions.NotEnoughInformationProvided(msg="You must provide both the name and the path for the reference genome.") 
-    ref_genome.name = ref_name
-    ref_genome.paths = path_list
-    
-    for path in path_list:
-        md5 = calculate_md5(path)
+    md5 = calculate_md5(ref_dict['path'])
     ref_genome.md5 = md5
     ref_genome.save()
     return ref_genome
+
+#def insert_reference_genome(ref_dict):
+#    ref_genome = models.ReferenceGenome()
+#    if 'name' in ref_dict:
+#        #ref_name = ref_dict['name']
+#        ref_genome.name = ref_dict['name']
+#    if 'path' in ref_dict:
+#        if not type(ref_dict['path']) == list:
+#            ref_genome.paths = [ref_dict['path']]
+#        else:
+#            ref_genome.paths = ref_dict
+#    else:
+#        raise exceptions.NotEnoughInformationProvided(msg="You must provide both the name and the path for the reference genome.") 
+##    ref_genome.name = ref_name
+##    ref_genome.paths = path_list
+##    
+#    for path in ref_genome.paths:
+#        md5 = calculate_md5(path)
+#    ref_genome.md5 = md5
+#    ref_genome.save()
+#    return ref_genome
     
 
 def retrieve_reference_by_path(path):
     try:
-        return models.ReferenceGenome.objects(paths__in=[path]).get()
+        return models.ReferenceGenome.objects(paths__in=[path]).hint([('paths', 1)]).get()
     except DoesNotExist:
         return None
     
@@ -1258,14 +1271,15 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                     #update_db_dict['inc__version__0'] = 1
             elif field_name == 'file_reference_genome_id':
                 if update_source == constants.EXTERNAL_SOURCE:
-                    models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
+                    models.ReferenceGenome.objects(md5=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
                     update_db_dict['set__file_reference_genome_id'] = str(field_val)
                     #update_db_dict['inc__version__0'] = 1
-            elif field_name == 'reference_genome':
-                ref_gen = get_or_insert_reference_genome(field_val)     # field_val should be a path
-                update_db_dict['set__file_reference_genome_id'] = ref_gen.id
+            
             elif field_name != None and field_name != "null":
                 logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
+        elif field_name == 'reference_genome':
+                ref_gen = get_or_insert_reference_genome(field_val)     # field_val should be a path
+                update_db_dict['set__file_reference_genome_id'] = ref_gen.md5
         else:
             logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
             
@@ -1518,7 +1532,7 @@ def update_submission(update_dict, submission_id, submission=None, nr_retries=co
                 update_db_dict['set__data_type'] = field_val
             # TODO: put here the logic around inserting a ref genome
             elif field_name == 'file_reference_genome_id':
-                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
+                models.ReferenceGenome.objects(md5=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
                 update_db_dict['set__file_reference_genome_id'] = field_val
             # This should be tested if it's ok...
             elif field_name == 'library_metadata':

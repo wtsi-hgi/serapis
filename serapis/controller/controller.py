@@ -1021,6 +1021,10 @@ def update_file_submitted(submission_id, file_id, data):
         if task_type == upload_task.name:
             file_to_update = db_model_operations.retrieve_submitted_file(file_id)
             serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+            
+        file_to_update = db_model_operations.retrieve_submitted_file(file_id)
+        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+    
     else:
         update_source = constants.EXTERNAL_SOURCE
         file_to_update = db_model_operations.retrieve_submitted_file(file_id)

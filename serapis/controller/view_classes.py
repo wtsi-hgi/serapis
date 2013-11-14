@@ -451,7 +451,7 @@ class SubmittedFileRequestHandler(APIView):
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
         data = request.DATA
-        logging.info("FROM submitted-file's PUT request :-------------"+str(data))
+        #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
             result = {}
             print "What type is the data coming in????", type(data)

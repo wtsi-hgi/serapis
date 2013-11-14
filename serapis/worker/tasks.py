@@ -93,8 +93,8 @@ def filter_none_fields(data_dict):
 
 
 def send_http_PUT_req(msg, submission_id, file_id):
-    logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
+#    logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
+#    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
 
     if 'submission_id' in msg:
         msg.pop('submission_id')
@@ -824,6 +824,9 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         for line in infile:
             if line.startswith('##reference'):
                 items = line.split('=')
+                ref_path = items[1]
+                if ref_path.startswith('file://'):
+                    ref_path = ref_path[6:]
                 return items[1]
         return None
                 
@@ -845,19 +848,21 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         
         samples = self.get_samples_from_file_header(file_path)
         print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
-        print samples
+#        print samples
         
         vcf_file = entities.VCFFile()
         incomplete_entities = self.build_search_dict(samples, constants.SAMPLE_TYPE)
-        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
+#        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
         
         processSeqsc = ProcessSeqScapeData()
         processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
-        print vars(vcf_file)
+#        print vars(vcf_file)
         
-        reference = self.get_reference_from_file_header(file_path)
-        if reference:
-            vcf_file.reference_genome = reference
+#        reference = self.get_reference_from_file_header(file_path)
+#        if reference:
+#            if reference.startswith('file://'):
+#                reference = reference[7:]
+#            vcf_file.reference_genome = reference
         
         used_samtools = self.used_samtools(file_path)
         if used_samtools:
@@ -867,6 +872,7 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         result['result'] = filter_none_fields(vars(vcf_file))
         result['status'] = constants.SUCCESS_STATUS
         result['task_id'] = current_task.request.id
+        print "TSK IDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD ", result['task_id']
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER -- parse: ", resp
 #        if (resp.status_code == requests.codes.ok):
