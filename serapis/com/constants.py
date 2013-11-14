@@ -1,3 +1,27 @@
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
+
 SOFTWARE_PYTHON_PACKAGES = '/software/python-2.7.3/lib/python2.7/site-packages'
 
 MDATA_ROUTING_KEY = 'mdata'
@@ -69,6 +93,7 @@ DATE_FORMAT = "%Y%m%d"
 MIN_SUBMISSION_YEAR = 2013
 
 
+#########################################################
 # ----------------- VERSION INCREMENT -------------------
 FILE_VERSION_INCREMENT = 1000
 SAMPLES_VERSION_INCREMENT = 100
@@ -76,6 +101,7 @@ LIBRARIES_VERSION_INCREMENT = 10
 STUDIES_VERSION_INCREMENT = 1
 
 
+#########################################################
 # ----------------- UPDATE TYPE -------------------------
 LIBRARY_UPDATE = 'LIBRARY_UPDATE'
 SAMPLE_UPDATE = 'SAMPLE_UPDATE'
@@ -83,7 +109,8 @@ STUDY_UPDATE = 'STUDY_UPDATE'
 FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
 
 
-#--------------- MODEL MANDATORY FIELDS -----------------
+##########################################################
+#--------------- MODEL MANDATORY FIELDS ------------------
 
 STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS = {'library_source', 'coverage'} #'library_selection', 
@@ -93,14 +120,17 @@ INDEX_MANDATORY_FIELDS = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
 
 
+########################################################
 #--------------- MODEL OPTIONAL FIELDS -----------------
 
 SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 'geographical_region', 'organism', 'common_name'}
 
+#########################################################
 # ----------------- DATA TYPES --------------------------
 
 DATA_TYPES = ('single-sample-merged-improved')
 
+#########################################################
 # ----------------- FILE TYPES --------------------------
 BAM_FILE = "bam"
 BAI_FILE = "bai"
@@ -284,7 +314,7 @@ STUDY_TYPE      = 'study'
 #OTHER TYPES:
 SUBMISSION_TYPE = 'submission'
 
-#----------------------- ERROR CODES: ----------------------
+#----------------------- ERRORS : ----------------------
 IO_ERROR                                    = "IO_ERROR"
 UNEQUAL_MD5                                 = "UNEQUAL_MD5"
 FILE_ALREADY_EXISTS                         = "FILE_ALREADY_EXISTS"

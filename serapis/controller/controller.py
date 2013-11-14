@@ -1,3 +1,26 @@
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+#################################################################################
+
+
 #import ipdb
 import json
 import os
@@ -20,8 +43,10 @@ import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='controller.log',level=logging.DEBUG)
 
 
+###################################################################
 
-# TASKS:
+
+#################### TASK INSTANCES ###############################
 
 upload_task = tasks.UploadFileTask()
 parse_BAM_header_task = tasks.ParseBAMHeaderTask()
@@ -33,6 +58,9 @@ add_mdata_to_IRODS_file_task = tasks.AddMdataToIRODSFileTask()
 move_to_permanent_coll_task = tasks.MoveFileToPermanentIRODSCollTask()
 
 submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
+
+
+##################### CONSTANTS ####################################
 
 PRESUBMISSION_TASKS = [upload_task.name, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
 SUBMISSION_TASKS = [submit_to_permanent_iRODS_coll_task.name, add_mdata_to_IRODS_file_task.name, move_to_permanent_coll_task.name]
@@ -173,13 +201,7 @@ def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path
 #    status = AsyncResult(task.id).state
 #    db_model_operations.add_task_to_file(file_id, task.id, calculate_md5_task.name, status)
     return task.id
-    
-        # file_id                 = str(kwargs['file_id'])
-        # submission_id           = str(kwargs['submission_id'])
-        # file_mdata_irods        = kwargs['file_mdata_irods']
-        # index_file_mdata_irods  = kwargs['index_file_mdata_irods']
-        # file_path_irods    = str(kwargs['file_path_irods'])
-        # index_file_path_irods   = str(kwargs['index_file_path_irods'])
+
 
 def launch_add_mdata2irods_job(file_id, submission_id):
     logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
@@ -1100,7 +1122,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
         status = task_info['status']
         task_type = task_info['type']
         if status in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]:
-            if task_type == parse_BAM_header_task.name:
+            if task_type == parse_BAM_header_task.name or task_type == parse_VCF_header_task.name:
                 task_id = launch_parse_file_header_job(file_to_resubmit)
                 new_tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS}
             elif task_type == update_file_task.name:

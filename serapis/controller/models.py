@@ -1,19 +1,36 @@
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
 
-#import exceptions
+
+
 from mongoengine import *
-from serapis.com.constants import *
+from serapis.com import constants
 from bson.objectid import ObjectId
 from collections import namedtuple
 #from mongoengine.base import ObjectIdField
 
-#import re
-#import simplejson
-#import logging
 
 
 
-
-
+########################################################################
 # ------------------- Model classes ----------------------------------
     
 
@@ -59,7 +76,7 @@ class Entity(DynamicEmbeddedDocument):
     def __eq__(self, other):
         if other == None:
             return False
-        for id_field in ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
         return False
@@ -68,22 +85,22 @@ class Entity(DynamicEmbeddedDocument):
 
 class Study(Entity):
     accession_number = StringField()
-    study_type = StringField(choices=STUDY_TYPES)
+    study_type = StringField(choices=constants.STUDY_TYPES)
     study_title = StringField()
     faculty_sponsor = StringField()
     ena_project_id = StringField()
-    study_visibility = StringField(choices=STUDY_VISIBILITY)
+    study_visibility = StringField(choices=constants.STUDY_VISIBILITY)
     description = StringField()
     pi_list = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
-#    reference_genome = StringField()
+
     
 class AbstractLibrary(DynamicEmbeddedDocument):
-    library_source = StringField(choices=LIBRARY_SOURCES.keys())
+    library_source = StringField(choices=constants.LIBRARY_SOURCES.keys())
 #    library_selection = StringField(default="unspecified")
-    library_strategy = StringField(choices=LIBRARY_STRATEGY.keys())
-    instrument_model = StringField(choices=INSTRUMENT_MODEL, default="unspecified")
+    library_strategy = StringField(choices=constants.LIBRARY_STRATEGY.keys())
+    instrument_model = StringField(choices=constants.INSTRUMENT_MODEL, default="unspecified")
     coverage = StringField()
-    
+
     meta = {'allow_inheritance': True}
     
 
@@ -103,7 +120,6 @@ class ReferenceGenome(Document):
 #    md5 = StringField(unique=True)
     paths = ListField()
     name = StringField()
-
     meta = {
                'indexes': ['paths']
            }
@@ -131,7 +147,7 @@ class Sample(Entity):          # one sample can be member of many studies
 class GeneralFileMdata:
     #hgi_project = StringField()
     #DATA-RELATED FIELDS:
-    data_type = StringField(choices=DATA_TYPES)
+    data_type = StringField(choices=constants.DATA_TYPES)
     data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
@@ -145,10 +161,9 @@ class IndexFile(EmbeddedDocument):
 
     
 class SubmittedFile(DynamicDocument):
-    #submission_id = StringField(required=True)
     submission_id = StringField()
     id = ObjectId()
-    file_type = StringField(choices=FILE_TYPES)
+    file_type = StringField(choices=constants.FILE_TYPES)
     file_path_client = StringField()
     irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
@@ -159,7 +174,7 @@ class SubmittedFile(DynamicDocument):
     # SUBMISSION MDATA
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
-    data_type = StringField(choices=DATA_TYPES)
+    data_type = StringField(choices=constants.DATA_TYPES)
     data_subtype_tags = DictField()
     hgi_project = StringField()
     
@@ -213,8 +228,8 @@ class SubmittedFile(DynamicDocument):
     
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
-    file_mdata_status = StringField(choices=FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
-    file_submission_status = StringField(choices=FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
+    file_mdata_status = StringField(choices=constants.FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
+    file_submission_status = StringField(choices=constants.FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
     #file_error_log = DictField()                        # dict containing: key = sender, value = List of errors
     file_error_log = ListField()
@@ -245,7 +260,7 @@ class BAMFile(SubmittedFile):
     
     
 class VCFFile(SubmittedFile):
-    file_format = StringField(choices=VCF_FORMATS)
+    file_format = StringField(choices=constants.VCF_FORMATS)
     used_samtools = BooleanField()
     used_unified_genotyper = BooleanField()
 #    reference = StringField()
@@ -260,7 +275,7 @@ class VCFFile(SubmittedFile):
         
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
-    submission_status = StringField(choices=SUBMISSION_STATUS)
+    submission_status = StringField(choices=constants.SUBMISSION_STATUS)
     hgi_project = StringField()
     submission_date = StringField()
 
@@ -268,7 +283,7 @@ class Submission(DynamicDocument):
 #    dir_path = StringField()
     
     # Files metadata:
-    data_type = StringField(choices=DATA_TYPES)
+    data_type = StringField(choices=constants.DATA_TYPES)
     data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
