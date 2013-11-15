@@ -19,18 +19,24 @@
 # 
 #################################################################################
 
-
-
-import unicodedata
-import datetime
-import time
 import re
 import os
+import unicodedata
+import datetime
 from os import listdir
 from os.path import isfile, join, exists
-import constants
+from serapis.com import constants
 
-############ UNICODE processing ############
+
+#################################################################################
+#
+# This class contains small utils functions, for general purpose and not specific
+# to the controller side or the workers side.
+#
+#################################################################################
+
+
+######################### UNICODE processing ####################################
 
 def __ucode2str__(ucode):
     if type(ucode) == unicode:
@@ -43,7 +49,6 @@ def __ucode2str_list__(ucode_list):
         elem = unicode2string(elem)
         str_list.append(elem)
     return str_list
-
     
 
 def __ucode2str_dict__(ucode_dict):
@@ -128,7 +133,7 @@ def list_all_files(dir_path):
     return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
 
 
-########### PROJECT SPECIFIC UTILITY FUNCTIONS #######
+#################### PROJECT SPECIFIC UTILITY FUNCTIONS #####################
 
 
 def infer_filename_from_idxfilename(idx_file_path, file_type):

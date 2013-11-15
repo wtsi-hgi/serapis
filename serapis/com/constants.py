@@ -21,14 +21,20 @@
 
 
 
+#################################################################################
+#
+# This class contains all the constants used in this applications.
+#
+#################################################################################
+
 
 SOFTWARE_PYTHON_PACKAGES = '/software/python-2.7.3/lib/python2.7/site-packages'
 
-MDATA_ROUTING_KEY = 'mdata'
-UPLOAD_EXCHANGE = 'UploadExchange'
-MDATA_EXCHANGE = 'MdataExchange'
-UPLOAD_QUEUE_GENERAL = 'GeneralUploadQueue'
-MDATA_QUEUE = 'MdataQueue'
+#MDATA_ROUTING_KEY   = 'mdata'
+#UPLOAD_EXCHANGE     = 'UploadExchange'
+#MDATA_EXCHANGE      = 'MdataExchange'
+#UPLOAD_QUEUE_GENERAL = 'GeneralUploadQueue'
+#MDATA_QUEUE         = 'MdataQueue'
 
 
 # For a run from hgi-serapis-dev:
@@ -46,18 +52,43 @@ SEQSC_PORT = 3307
 SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
 
-# FILE PERMISSIONS
-READ_ACCESS = "READ_ACCESS"
-WRITE_ACCESS = "WRITE_ACCESS"
-EXECUTE_ACCESS = "EXECUTE_ACCESS"
-NOACCESS = "NOACCESS"
+
+########################## QUEUES ##############################################
+
+# This queue was only for testing purposes
+DEFAULT_Q = "MyDefaultQ"
+
+# This queue is for the upload tasks
+UPLOAD_Q = "UploadQ"
+
+# This queue is for all the process and handling metadata related tasks
+# => ParseHeader task and Update task and AddMdata to iRODS tasks
+# Note: maybe in the future will separate the AddMdata from this general mdata queue
+PROCESS_MDATA_Q = "ProcessMdataQ"
+
+# Index files queue:
+INDEX_UPLOAD_Q = "IndexUploadQ"
+
+# Calculate md5 queue:
+CALCULATE_MD5_Q = "CalculateMD5Q"
+
+# IRODS queue:
+IRODS_Q = "IRODSQ"
+
+
+######################## FILE PERMISSIONS #######################################
+
+READ_ACCESS     = "READ_ACCESS"
+WRITE_ACCESS    = "WRITE_ACCESS"
+EXECUTE_ACCESS  = "EXECUTE_ACCESS"
+NOACCESS        = "NOACCESS"
 
 
 
 
 #------------------- MSG SOURCE -------------------------
 
-INIT_SOURCE = "INIT"
+INIT_SOURCE             = "INIT"
 EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
 
 ################## TASKS REGISTRY: ##################
@@ -84,10 +115,10 @@ MAX_DBUPDATE_RETRIES = 5
 
 # HEADER constants:
 # PU header:
-REGEX_PU_1 = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
-REGEX_HGI_PROJECT = "[a-zA-Z0-9_-]{3,17}" 
-REGEX_HGI_PROJECT_PATH = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*"
-REGEX_IRODS_PROJECT_PATH = "/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/"
+REGEX_PU_1                  = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
+REGEX_HGI_PROJECT           = "[a-zA-Z0-9_-]{3,17}" 
+REGEX_HGI_PROJECT_PATH      = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*"
+REGEX_IRODS_PROJECT_PATH    = "/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/"
 
 DATE_FORMAT = "%Y%m%d"
 MIN_SUBMISSION_YEAR = 2013
@@ -95,29 +126,29 @@ MIN_SUBMISSION_YEAR = 2013
 
 #########################################################
 # ----------------- VERSION INCREMENT -------------------
-FILE_VERSION_INCREMENT = 1000
-SAMPLES_VERSION_INCREMENT = 100
+FILE_VERSION_INCREMENT      = 1000
+SAMPLES_VERSION_INCREMENT   = 100
 LIBRARIES_VERSION_INCREMENT = 10
-STUDIES_VERSION_INCREMENT = 1
+STUDIES_VERSION_INCREMENT   = 1
 
 
 #########################################################
 # ----------------- UPDATE TYPE -------------------------
-LIBRARY_UPDATE = 'LIBRARY_UPDATE'
-SAMPLE_UPDATE = 'SAMPLE_UPDATE'
-STUDY_UPDATE = 'STUDY_UPDATE'
-FILE_FIELDS_UPDATE = 'FILE_FIELDS_UPDATE'
+LIBRARY_UPDATE      = 'LIBRARY_UPDATE'
+SAMPLE_UPDATE       = 'SAMPLE_UPDATE'
+STUDY_UPDATE        = 'STUDY_UPDATE'
+FILE_FIELDS_UPDATE  = 'FILE_FIELDS_UPDATE'
 
 
 ##########################################################
 #--------------- MODEL MANDATORY FIELDS ------------------
 
-STUDY_MANDATORY_FIELDS = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
-LIBRARY_MANDATORY_FIELDS = {'library_source', 'coverage'} #'library_selection', 
-SAMPLE_MANDATORY_FIELDS = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
-FILE_MANDATORY_FIELDS = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
-INDEX_MANDATORY_FIELDS = {'irods_coll', 'file_path_client', 'md5'}
-BAM_FILE_MANDATORY_FIELDS = {'seq_centers', 'run_list', 'platform_list'}
+STUDY_MANDATORY_FIELDS      = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
+LIBRARY_MANDATORY_FIELDS    = {'library_source', 'coverage'} #'library_selection', 
+SAMPLE_MANDATORY_FIELDS     = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
+FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
+INDEX_MANDATORY_FIELDS      = {'irods_coll', 'file_path_client', 'md5'}
+BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list'}
 
 
 ########################################################
@@ -176,7 +207,7 @@ VCF_FORMATS = ("VCFv4.1", "VCFv4.0")
 
 # -------------- NEW STATUSES ---------------------------
 
-FINISHED_STATUS = ("SUCCESS", "FAILURE")
+FINISHED_STATUS     = ("SUCCESS", "FAILURE")
 NOT_FINISHED_STATUS = ("PENDING", "IN_PROGRESS")
 
 # TASKS' STATUSES
@@ -314,7 +345,9 @@ STUDY_TYPE      = 'study'
 #OTHER TYPES:
 SUBMISSION_TYPE = 'submission'
 
-#----------------------- ERRORS : ----------------------
+
+################################ ERRORS #############################################
+
 IO_ERROR                                    = "IO_ERROR"
 UNEQUAL_MD5                                 = "UNEQUAL_MD5"
 FILE_ALREADY_EXISTS                         = "FILE_ALREADY_EXISTS"
@@ -336,8 +369,8 @@ PATH_IS_NOT_A_DIRECTORY                     = "PATH_IS_NOT_A_DIRECTORY"
 EMPTY_DIRECTORY                             = "EMPTY_DIRECTORY"
 FILE_DUPLICATES                             = "FILE_DUPLICATES"
 NO_IRODS_PATH_SPECIFIED                     = "NO_IRODS_PATH_SPECIFIED"
-
 FILE_NOT_READY_FOR_SUBMISSION               = "FILE_NOT_READY_FOR_SUBMISSION" 
+
 
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      IO_ERROR, 

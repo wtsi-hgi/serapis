@@ -74,7 +74,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 
 #CELERY_RESULT_PERSISTENT = True
 
-CELERY_DISABLE_RATE_LIMITS = True
+# Just changed this - I think I need it if I want to use the rate limits...
+CELERY_DISABLE_RATE_LIMITS = False
 ####
 
 # Determines how many messages does each worker prefetch from the queue. For long tasks - recommended to be 1

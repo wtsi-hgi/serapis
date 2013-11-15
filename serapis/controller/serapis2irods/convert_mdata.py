@@ -20,14 +20,21 @@
 #################################################################################
 
 
-
-from serapis.com import constants, utils
-from collections import Counter
-from collections import defaultdict
 import logging
+from serapis.com import constants, utils
 
 
 ##################################################################################
+
+# This class is meant to convert the metadata from the document format - as it is 
+# stored in the database, into the key-value pairs - suitable to be added as 
+# metadata for the corresponding irods data object.
+#
+# This class has a function for each type of document that exists in the DB.
+#
+
+##################################################################################
+
 
 
 
@@ -46,11 +53,6 @@ def convert_reference_genome_mdata(ref_genome):
     return irods_ref_mdata
     
     
-    
-#    md5 = StringField(primary_key=True)
-#    paths = ListField()
-#    canonical_name = StringField(unique=True)
-
 def convert_sample_mdata(sample):
     ''' Method which takes a models.Sample object and makes a list
         of (key, value) from all the object's fields, and adds the
@@ -130,14 +132,6 @@ def convert_study_mdata(study):
     return irods_study_mdata
 
 
-#    bam_type = StringField()
-#    seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
-#    lane_list = ListField()             # list of strings
-#    tag_list = ListField()              # list of strings
-#    run_list = ListField()              # list of strings
-#    platform_list = ListField()         # list of strings
-#    date_list = ListField()             # list of strings
-#    header_associations = ListField()   # List of maps, as they are extracted from the header: [{}, {}, {}]
 
 def convert_BAMFile(bamfile):
     BAMFILE_FIELDS_MAPPING = {'seq_centers' : "seq_center",
@@ -174,16 +168,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
     elif file_type == constants.VCF_FILE:
         pass
     return irods_specific_mdata
-#    submission_id = StringField()
-#    id = ObjectId()
-#    file_type = StringField(choices=FILE_TYPES)
-#    file_path_client = StringField()
-#    file_path_irods = StringField()    
-#    md5 = StringField()
-#    
-#    study_list = ListField(EmbeddedDocumentField(Study))
-#    library_list = ListField(EmbeddedDocumentField(Library))
-#    sample_list = ListField(EmbeddedDocumentField(Sample))
+
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
     FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']

@@ -24,6 +24,14 @@
 
 from voluptuous import  Schema, Any, All, Length, Required, IsDir, IsFile, Match  #MultipleInvalid
 
+#################################################################################
+#
+# This class is meant to validate the data coming on the requests against the
+# predefined schemas for each type of document in the database, and each type
+# of request may have also its particularities.
+#
+#################################################################################
+
 
 
 abstract_library_schema =Schema({

@@ -24,13 +24,7 @@
 
 
 from MySQLdb import Error as mysqlError, connect, cursors
-from celery import Task, current_task
-from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from collections import defaultdict
-import entities
-from serapis.com import constants
-from serapis.worker import exceptions
-from serapis.com import utils
 from subprocess import call, check_output
 import atexit
 import errno
@@ -38,26 +32,40 @@ import hashlib
 import logging
 import os
 import sys
-#from celery.utils.log import get_task_logger
 import pysam
 import re
 import requests
 import signal
 import subprocess
 import time
-import signal
 import gzip
 import simplejson
 
+# Serapis imports:
+from serapis.worker import entities
+from serapis.com import constants
+from serapis.worker import exceptions
+from serapis.com import utils
+
+# Celery imports:
+from celery import Task, current_task
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+
+#################################################################################
+#
+# This class contains all the tasks to be executed on the workers.
+# Each tasks has its own class.
+#
+#################################################################################
+
+
+#from celery.utils.log import get_task_logger
 #from mysql.connector.errors import OperationalError
 #from celery.utils.log import get_task_logger
 #import MySQLdb
-
-
 #from MySQLdb import OperationalError
-
 #import serializers
-
+#logger = get_task_logger(__name__)
 
 
 
@@ -65,10 +73,14 @@ import simplejson
 BASE_URL = "http://localhost:8000/api-rest/submissions/"
 MD5 = "md5"
 
-#logger = get_task_logger(__name__)
 
+#################################################################################
+
+#from celery.utils.log import get_task_logger
+# Function executed at exit - when a task/worker is killed.
+# It kills the child process with the child_pid - any task
+# can have only maximum 1 child process at a time.
 child_pid = None
-
 def kill_child():
     if child_pid is None:
         pass
@@ -77,7 +89,9 @@ def kill_child():
 
 atexit.register(kill_child)
 
-#---------- Auxiliary functions - used by all tasks ------------
+
+#################################################################################
+###################### Auxiliary functions - used by all tasks ##################
 
 def serialize(data):
     return simplejson.dumps(data)
@@ -125,7 +139,6 @@ def send_http_PUT_req(msg, submission_id, file_id):
         msg.pop('submission_id')
     if 'file_id' in msg:
         msg.pop('file_id')
-    #msg['sender'] = sender
     if type(msg) == dict:
         msg = filter_none_fields(msg)
         msg = entities.SubmittedFile.to_json(msg)
@@ -142,7 +155,7 @@ def send_http_PUT_req(msg, submission_id, file_id):
 
 
 
-####### CLASS THAT ONLY DEALS WITH SEQSCAPE DB ######
+######################### CLASS THAT ONLY DEALS WITH SEQSCAPE DB OPERATIONS ####################
 class QuerySeqScape():
     
     @staticmethod
@@ -169,7 +182,7 @@ class QuerySeqScape():
     # def get_sample_data(connection, sample_field_name, sample_field_val):
     @staticmethod
     def get_sample_data(connection, sample_fields_dict):
-        '''This method queries SeqScape for a given name.'''
+        '''This method queries SeqScape for a sample, given a certain identifier.'''
         data = None     # result to be returned
         try:
             cursor = connection.cursor()
@@ -193,6 +206,7 @@ class QuerySeqScape():
     
     @staticmethod
     def get_library_data(connection, library_fields_dict):
+        '''This method queries SeqScape for a library, given a certain identifier.'''
         data = None
         try:
             cursor = connection.cursor()
@@ -259,7 +273,7 @@ class QuerySeqScape():
 
     
 #############################################################################
-#--------------------- PROCESSING SEQSCAPE DATA ---------
+##################### PROCESSING SEQSCAPE DATA ############################## 
 ############ DEALING WITH SEQSCAPE DATA - AUXILIARY FCT  ####################
 class ProcessSeqScapeData():
     
@@ -411,9 +425,9 @@ class ProcessSeqScapeData():
         print "STUDY LIST: ", file_submitted.study_list
         
      
-############################################
+#########################################################################
 # --------------------- ABSTRACT TASKS --------------
-############################################
+#########################################################################
 
 
 class iRODSTask(Task):
@@ -852,7 +866,8 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
                 ref_path = items[1]
                 if ref_path.startswith('file://'):
                     ref_path = ref_path[6:]
-                return items[1]
+                    infile.close()
+                return ref_path
         return None
                 
     def used_samtools(self, file_path):
@@ -862,8 +877,24 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
             infile = open(file_path)
         for line in infile:
             if line.startswith('##samtools'):
+                infile.close()
                 return True
         return None
+
+    def get_file_format(self, file_path):
+        if file_path.endswith('.gz'):
+            infile = gzip.open(file_path, 'rb')
+        else:
+            infile = open(file_path)
+        for line in infile:
+            if line.startswith('##fileformat'):
+                items = line.split('=')
+                infile.close()
+                return items[1]
+        return None
+                
+                
+        
 
     def run(self, *args, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
@@ -892,6 +923,11 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         used_samtools = self.used_samtools(file_path)
         if used_samtools:
             vcf_file.used_samtools = used_samtools
+            
+        file_format = self.get_file_format(file_path)
+        if file_format:
+            vcf_file.file_format = file_format
+        
             
         result = {}
         result['result'] = filter_none_fields(vars(vcf_file))
@@ -1512,10 +1548,10 @@ class AddMdataToIRODSFileTask(iRODSTask):
                     print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
                     if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                         raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
-        test_result = self.test_index_meta_irods(index_file_path_irods)
-        if test_result < 0 :
-            print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
-        
+            test_result = self.test_index_meta_irods(index_file_path_irods)
+            if test_result < 0 :
+                print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
+            
 
         result = {}
         result['task_id'] = current_task.request.id

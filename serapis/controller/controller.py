@@ -30,14 +30,14 @@ import errno
 import datetime
 import collections
 from bson.objectid import ObjectId
-import serapis2irods
-from serapis.controller import exceptions, models, db_model_operations
+from celery.result import AsyncResult
+
+from serapis.controller import exceptions, models, db_model_operations, serapis2irods
 from serapis.com import constants, utils
 from serapis import serializers
 from serapis.worker import tasks
-
-from celery.result import AsyncResult
 from serapis2irods import serapis2irods_logic
+
 
 import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='controller.log',level=logging.DEBUG)
@@ -74,31 +74,12 @@ SUBMIT_TO_PERMANENT_COLL= submit_to_permanent_iRODS_coll_task.name
 #UPLOAD_EXCHANGE = 'UploadExchange'
 #MDATA_EXCHANGE = 'MdataExchange'
 
-# This queue was only for testing purposes
-DEFAULT_Q = "MyDefaultQ"
-
-# This queue is for the upload tasks
-UPLOAD_Q = "UploadQ"
-
-# This queue is for all the process and handling metadata related tasks
-# => ParseHeader task and Update task and AddMdata to iRODS tasks
-# Note: maybe in the future will separate the AddMdata from this general mdata queue
-PROCESS_MDATA_Q = "ProcessMdataQ"
-
-# Index files queue:
-INDEX_UPLOAD_Q = "IndexUploadQ"
-
-# Calculate md5 queue:
-CALCULATE_MD5_Q = "CalculateMD5Q"
-
-# IRODS queue:
-IRODS_Q = "IRODSQ"
 
     
     
 # ------------------------ SUBMITTING TASKS ----------------------------------
 
-def launch_parse_file_header_job(file_submitted, queue=PROCESS_MDATA_Q):
+def launch_parse_file_header_job(file_submitted, queue=constants.PROCESS_MDATA_Q):
     
     logging.info("PUTTING THE PARSE HEADER TASK IN THE QUEUE")
     # previously working:
@@ -132,7 +113,7 @@ def launch_parse_file_header_job(file_submitted, queue=PROCESS_MDATA_Q):
 
     
     
-def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_irods_path, queue=UPLOAD_Q):
+def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_irods_path, queue=constants.UPLOAD_Q):
     ''' Launches the job to a specific queue. If queue=None, the job
         will be placed in the normal upload queue.'''
     logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
@@ -161,7 +142,7 @@ def launch_upload_job(file_id, submission_id, file_path, index_file_path, dest_i
 #                                              })
 #    
     
-def launch_update_file_job(file_submitted, queue=PROCESS_MDATA_Q):
+def launch_update_file_job(file_submitted, queue=constants.PROCESS_MDATA_Q):
     logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
     file_serialized = serializers.serialize(file_submitted)
     task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
@@ -185,7 +166,7 @@ def launch_update_file_job(file_submitted, queue=PROCESS_MDATA_Q):
     
 
 
-def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path, queue=CALCULATE_MD5_Q):
+def launch_calculate_md5_task(file_id, submission_id, file_path, index_file_path, queue=constants.CALCULATE_MD5_Q):
     logging.info("LAUNCHING CALCULATE MD5 TASK!")
     task = calculate_md5_task.apply_async(kwargs={ 'file_id' : file_id,
                                                    'submission_id' : submission_id,
@@ -231,7 +212,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
                                                   'file_path_irods' : file_path_irods,
                                                   'index_file_path_irods' : index_file_path_irods,
                                                  },
-                                             queue=IRODS_Q)
+                                             queue=constants.IRODS_Q)
     return task.id
 
 
@@ -259,7 +240,7 @@ def launch_move_to_permanent_coll_job(file_id):
                                                            'index_file_path_irods' : index_file_path_irods,
                                                            'permanent_coll_irods' : permanent_coll_irods
                                                            },
-                                                   queue=IRODS_Q
+                                                   queue=constants.IRODS_Q
                                                    )
     return task.id
 
@@ -292,7 +273,7 @@ def launch_submit2irods_job(file_id):
                                                   'index_file_path_irods' : index_file_path_irods,
                                                   'permanent_coll_irods' : permanent_coll_irods
                                                  },
-                                             queue=IRODS_Q)
+                                             queue=constants.IRODS_Q)
     return task.id
 
 
@@ -329,7 +310,7 @@ def submit_jobs_for_file(file_id, user_id, file_obj=None, as_serapis=True):
                       file_obj.index_file.file_path_client)
         tasks_dict[task_id] = {'type' : calculate_md5_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
     else:
-        task_id = launch_update_file_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+        task_id = launch_update_file_job(file_obj, queue=constants.PROCESS_MDATA_Q+"."+user_id)
         tasks_dict[task_id] = {'type' : update_file_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
         
         task_id = launch_upload_job(file_obj.id, 
@@ -337,24 +318,24 @@ def submit_jobs_for_file(file_id, user_id, file_obj=None, as_serapis=True):
                           file_obj.file_path_client, 
                           file_obj.index_file.file_path_client, 
                           dest_irods_coll, 
-                          queue=UPLOAD_Q+"."+user_id)
+                          queue=constants.UPLOAD_Q+"."+user_id)
         tasks_dict[task_id] = {'type' : upload_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
 
         if file_obj.file_type == constants.BAM_FILE:
-            task_id = launch_parse_file_header_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+            task_id = launch_parse_file_header_job(file_obj, queue=constants.PROCESS_MDATA_Q+"."+user_id)
             tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS }
         elif file_obj.file_type == constants.VCF_FILE:
-            task_id = launch_parse_file_header_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+            task_id = launch_parse_file_header_job(file_obj, queue=constants.PROCESS_MDATA_Q+"."+user_id)
             tasks_dict[task_id] = {'type' : parse_VCF_header_task.name, 'status' : constants.PENDING_ON_WORKER_STATUS}
         
-        task_id = launch_parse_file_header_job(file_obj, queue=PROCESS_MDATA_Q+"."+user_id)
+        task_id = launch_parse_file_header_job(file_obj, queue=constants.PROCESS_MDATA_Q+"."+user_id)
         tasks_dict[task_id] = {'type' : parse_BAM_header_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
         
         task_id = launch_calculate_md5_task(file_obj.id, 
                                   file_obj.submission_id, 
                                   file_obj.file_path_client, 
                                   file_obj.index_file.file_path_client,
-                                  queue=CALCULATE_MD5_Q+"."+user_id)
+                                  queue=constants.CALCULATE_MD5_Q+"."+user_id)
         tasks_dict[task_id] = {'type' : calculate_md5_task.name, 'status' : constants.PENDING_ON_USER_STATUS }
     return tasks_dict
     

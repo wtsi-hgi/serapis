@@ -1376,6 +1376,8 @@ def build_vcf_file_update_dict(file_updates, update_source, file_id, submitted_f
             pass
         elif field_name == 'used_samtools':
             update_db_dict['set__used_samtools'] = field_val
+        elif field_name == 'file_format':
+            update_db_dict['set__file_format'] = field_val
     return update_db_dict
                       
 def update_file_mdata(file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
