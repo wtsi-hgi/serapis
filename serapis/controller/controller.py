@@ -416,6 +416,8 @@ def detect_file_type(file_path):
         return detect_file_type(fname)
     elif f_ext == 'vcf':
         return constants.VCF_FILE
+    elif f_ext == 'tbi':
+        return constants.TBI_FILE
     else:
         logging.error("NOT SUPPORTED FILE TYPE!")
         raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+f_ext)
@@ -542,9 +544,13 @@ def associate_files_with_indexes_old(file_paths):
     indexes = []
     for file_path in file_paths:
         file_type = detect_file_type(file_path)
-        if file_type == constants.BAM_FILE:
+#        if file_type == constants.BAM_FILE:
+#            files.append(file_path)
+#        elif file_type == constants.BAI_FILE:
+#            indexes.append(file_path)
+        if file_type in constants.FILE2IDX_MAP.keys():
             files.append(file_path)
-        elif file_type == constants.BAI_FILE:
+        else:
             indexes.append(file_path)
 
     file_tuples = []
