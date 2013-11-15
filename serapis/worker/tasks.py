@@ -1525,12 +1525,13 @@ class AddMdataToIRODSFileTask(iRODSTask):
         for attr_val in file_mdata_irods:
             attr = str(attr_val[0])
             val = str(attr_val[1])
-            child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (out, err) = child_proc.communicate()
-            if err:
-                print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
-                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
+            if attr and val:
+                child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                (out, err) = child_proc.communicate()
+                if err:
+                    print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
+                    if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                        raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
         test_result = self.test_file_meta_irods(file_path_irods)
         if test_result < 0 :
             print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", file_mdata_irods
@@ -1541,13 +1542,14 @@ class AddMdataToIRODSFileTask(iRODSTask):
             for attr_name_val in index_file_mdata_irods:
                 attr_name = str(attr_name_val[0])
                 attr_val = str(attr_name_val[1])
-                child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
-                (out, err) = child_proc.communicate()
-                if err:
-                    print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
-                    if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                        raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
+                if attr_name and attr_val:
+                    child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                    print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
+                    (out, err) = child_proc.communicate()
+                    if err:
+                        print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
+                        if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+                            raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
             test_result = self.test_index_meta_irods(index_file_path_irods)
             if test_result < 0 :
                 print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
@@ -1568,6 +1570,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
 
         errors = []
         for attr_name_val in file_mdata_irods:
+            print "print --- in ROLLBACK -- attribute name and val tuple: =====================================", attr_name_val
             attr_name = str(attr_name_val[0])
             attr_val = str(attr_name_val[1])
             child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)

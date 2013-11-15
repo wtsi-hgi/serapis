@@ -217,7 +217,7 @@ def check_if_JSONEntity_has_identifying_fields(json_entity):
         that only have one insignificant field lying around and this could 
         lead to entities added multiple times in the DB.
     '''
-    for identifying_field in models.ENTITY_IDENTITYING_FIELDS:
+    for identifying_field in constants.ENTITY_IDENTITYING_FIELDS:
         if json_entity.has_key(identifying_field):
             return True
     return False

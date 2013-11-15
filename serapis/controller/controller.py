@@ -62,7 +62,7 @@ submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
 
 ##################### CONSTANTS ####################################
 
-PRESUBMISSION_TASKS = [upload_task.name, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
+PRESUBMISSION_TASKS = [upload_task.name, parse_VCF_header_task, parse_BAM_header_task.name, update_file_task.name, calculate_md5_task.name]
 SUBMISSION_TASKS = [submit_to_permanent_iRODS_coll_task.name, add_mdata_to_IRODS_file_task.name, move_to_permanent_coll_task.name]
 
 UPLOAD_TASK_NAME        = upload_task.name
@@ -192,7 +192,7 @@ def launch_add_mdata2irods_job(file_id, submission_id):
     irods_mdata_dict = serializers.serialize(irods_mdata_dict)
     
     index_mdata, index_file_path_irods = None, None
-    if hasattr(file_to_submit.index_file, 'file_path_client'):
+    if hasattr(file_to_submit.index_file, 'file_path_client') and getattr(file_to_submit.index_file, 'file_path_client'):
         print "APPARENTLY we have an index: ", vars(file_to_submit.index_file)
         index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_to_submit.index_file.md5, file_to_submit.md5)
         (_, index_file_name) = os.path.split(file_to_submit.index_file.file_path_client)
