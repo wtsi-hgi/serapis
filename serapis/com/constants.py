@@ -168,6 +168,8 @@ BAI_FILE = "bai"
 VCF_FILE = "vcf"
 TBI_FILE = "tbi"
 
+# Compression formats:
+GZ_COMPRESS_FORMAT = 'gz'
 # File types accepted:
 FILE_TYPES = (BAM_FILE, VCF_FILE)
 
@@ -179,6 +181,11 @@ ALL_FILE_EXTENSIONS = ['bam', 'bai', 'vcf', 'md5', 'tbi']
 
 # The compression formats:
 COMPRESSION_FORMAT_EXTENSIONS = ['gz']
+
+# 
+FILE_TYPE2COMPRESSION_FORMAT = {
+                                VCF_FILE : GZ_COMPRESS_FORMAT 
+                                }
 
 # File types that are submitted uncompressed
 FILE_TYPES_NO_COMPRESSION = ['bam', 'bai', 'tbi'] 
@@ -195,6 +202,11 @@ FILE2IDX_MAP = {BAM_FILE : BAI_FILE,
 IDX2FILE_MAP = {BAI_FILE : BAM_FILE,
                 TBI_FILE : VCF_FILE
                 }
+
+IDX2FILE_EXT_MAP = {
+                    BAI_FILE : BAM_FILE,
+                    TBI_FILE : 'vcf.gz'
+                    }
 
 # VCF format versions:
 VCF_FORMATS = ("VCFv4.1", "VCFv4.0")

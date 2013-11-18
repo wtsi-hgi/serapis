@@ -29,10 +29,10 @@ from serapis.com import constants
 
 
 #################################################################################
-#
-# This class contains small utils functions, for general purpose and not specific
-# to the controller side or the workers side.
-#
+'''
+ This class contains small utils functions, for general purpose and not specific
+ to the controller side or the workers side.
+'''
 #################################################################################
 
 
@@ -52,6 +52,9 @@ def __ucode2str_list__(ucode_list):
     
 
 def __ucode2str_dict__(ucode_dict):
+    ''' This function takes a dict of unicode characters
+        and returns a dict of strings.
+    '''
     str_dict = dict()
     for key, val in ucode_dict.items():
         key = unicode2string(key)
@@ -60,6 +63,9 @@ def __ucode2str_dict__(ucode_dict):
     return str_dict
 
 def unicode2string(ucode):
+    ''' This function converts a unicode type into string.
+        The input type can be a dict, list, or unicode characters.
+    '''
     if type(ucode) == dict:
         return __ucode2str_dict__(ucode)
     elif type(ucode) == list:
@@ -73,11 +79,17 @@ def unicode2string(ucode):
 
     
 def cmp_timestamp_files(file_path1, file_path2):
+    ''' This function receives 2 files and compares their
+        timestamp. 
+        Returns:
+            -1 if file1 is older than file2
+             0 if they have the same timestamp
+             1 if file1 is newer than files2.
+    '''
     tstamp1 = os.path.getmtime(file_path1)
     tstamp2 = os.path.getmtime(file_path2)
     tstamp1 = datetime.datetime.fromtimestamp(tstamp1)
     tstamp2 = datetime.datetime.fromtimestamp(tstamp2)
-    #print "Timestamp of file 1: ", tstamp1, " and file2: ", tstamp2
     return cmp(tstamp1, tstamp2)
 
 
@@ -119,6 +131,9 @@ def extract_extension(file_path):
     return ext[1:]
     
 def get_files_from_dir(dir_path):
+    ''' This function returns all the files of the types of interest 
+        (e.g.bam, vcf, and ignore .txt) from a directory given as parameter.
+    '''
     files_list = []
     for f_name in listdir(dir_path):
         f_path = join(dir_path, f_name)
@@ -130,6 +145,7 @@ def get_files_from_dir(dir_path):
     return files_list
 
 def list_all_files(dir_path):
+    ''' This function returns a list with all the files present in a directory.'''
     return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
 
 
@@ -137,22 +153,31 @@ def list_all_files(dir_path):
 
 
 def infer_filename_from_idxfilename(idx_file_path, file_type):
-    fname, ext = idx_file_path, file_type
-    while ext in constants.ACCEPTED_FILE_EXTENSIONS:
-        fname, ext = os.path.splitext(fname)
-        ext = ext[1:]
-    fname = fname+'.'+constants.IDX2FILE_MAP[file_type]
+    ''' This function infers the name of the file, given its index.
+        Usually the bams for example have an index like: 
+        WTG1.bam.bai => the file is: WTG1.bam.
+    '''
+    if file_type == constants.BAI_FILE:
+        fname, ext = idx_file_path, file_type
+        while ext in constants.ACCEPTED_FILE_EXTENSIONS:
+            fname, ext = os.path.splitext(fname)
+            ext = ext[1:]
+        fname = fname+'.'+constants.IDX2FILE_EXT_MAP[file_type]
+    elif file_type == constants.TBI_FILE:
+        fname, ext = os.path.splitext(idx_file_path)
     return fname
     
-print infer_filename_from_idxfilename("/home/ic4/data-test/unit-tests/err_bams/bam3.bai", 'bai')
     
-def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
-    if not hgi_subprj:
-        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date)
-    else:
-        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
+#def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
+#    if not hgi_subprj:
+#        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date)
+#    else:
+#        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
 
 def build_irods_staging_path(submission_id):
+    ''' This function returns the path to the corresponding staging area
+        collection, given the submission id. 
+    '''
     return os.path.join(constants.IRODS_STAGING_AREA, submission_id)
 
 #def build_file_path_irods(client_file_path, irods_coll_path):
@@ -236,7 +261,7 @@ def is_internal_id(field):
     return True
 
 def is_name(field):
-    is_match = re.search('[a-zA-Z]', field)
+    is_match = re.search('[0-9a-zA-Z]', field)
     if is_match != None:
         return True
     return False

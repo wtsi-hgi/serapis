@@ -235,6 +235,89 @@ class TestTasks(unittest.TestCase):
 class TestDBFct(unittest.TestCase):
     maxDiff = None
     
+    def test_add_to_missing_field(self):
+        #__add_missing_field_to_dict__(field, entity_id, categ, missing_fields_dict):
+        missing_field_dict = {}
+        db_model_operations.__add_missing_field_to_dict__('organism', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["organism"]
+                                        }
+                        }
+        self.assertDictEqual(dict_must_be, missing_field_dict)
+        
+        
+        
+        db_model_operations.__add_missing_field_to_dict__('geographical_region', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+                                        }
+                        }
+        self.assertDictEqual(dict_must_be, missing_field_dict)
+        
+        
+        db_model_operations.__add_missing_field_to_dict__('library_type', "LIB2", constants.LIBRARY_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+                                        },
+                            "library" : {"LIB2" : ["library_type"]}
+                        }
+        
+        
+        db_model_operations.__add_missing_field_to_dict__('library_type', "LIB3", constants.LIBRARY_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+                                        },
+                            "library" : {"LIB2" : ["library_type"], 
+                                         "LIB3" : ["library_type"]}
+                        }
+        self.assertDictEqual(dict_must_be, missing_field_dict)
+
+
+    def test_find_and_delete_field(self):
+        # Test 1 -- removing a sample:
+        missing_fields_dict = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+                                               },
+                                   "library" : {"LIB2" : ["library_type"], 
+                                                "LIB3" : ["library_type"]}
+                               }
+        db_model_operations.__find_and_delete_missing_field_from_dict__("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
+        must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
+                                       },
+                           "library" : {"LIB2" : ["library_type"], 
+                                        "LIB3" : ["library_type"]}
+                        }
+        print "CALLING FIND AND DELETE ----  ORganism should be missing...", missing_fields_dict
+        self.assertDictEqual(must_be_dict, missing_fields_dict)
+        
+        
+        
+        # Test 2 -- removing a library:
+        missing_fields_dict = {    "sample" : { "WGS11" : ["geographical_region"]
+                                               },
+                                   "library" : {"LIB2" : ["library_type"], 
+                                                "LIB3" : ["library_type"]}
+                               }
+        db_model_operations.__find_and_delete_missing_field_from_dict__("library_type", "LIB2", constants.LIBRARY_TYPE, missing_fields_dict)
+        must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
+                                       },
+                           "library" : {"LIB3" : ["library_type"]}
+                        }
+        print "CALLING FIND AND DELETE ----  lib2 should be missing...", missing_fields_dict
+        self.assertDictEqual(must_be_dict, missing_fields_dict)
+        
+        
+        # Test 3 -- removing an unexisting field:
+        missing_fields_dict = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+                                               },
+                                   "library" : {"LIB2" : ["library_type"], 
+                                                "LIB3" : ["library_type"]}
+                               }
+        db_model_operations.__find_and_delete_missing_field_from_dict__("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
+        must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
+                                       },
+                           "library" : {"LIB2" : ["library_type"], 
+                                        "LIB3" : ["library_type"]}
+                        }
+        print "CALLING FIND AND DELETE ----  ", missing_fields_dict
+        self.assertDictEqual(must_be_dict, missing_fields_dict)
+
+    
     
     def test_task_dict_fcts(self):
         from serapis.controller.controller import PRESUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
@@ -336,6 +419,11 @@ class TestController(unittest.TestCase):
                                                 '/home/ic4/data-test/unit-tests/err_bams/bam3.bam.bai',
                                                 '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')]
                                               })
+        
+        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz', '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi']
+        res = controller.associate_files_with_indexes(paths)
+        self.assertListEqual(res.result, [('/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz',
+                                            '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi')])
         
 #        paths = ["/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam"]
 #        res = controller.associate_files_with_indexes(paths)

@@ -80,6 +80,14 @@ class Entity(DynamicEmbeddedDocument):
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
         return False
+    
+    
+    def get_entity_identifying_field(self):
+        if self.internal_id:
+            return str(self.internal_id)
+        elif self.name:
+            return self.name
+        return None
 
     
 
