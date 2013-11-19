@@ -22,9 +22,9 @@
 
 
 #################################################################################
-#
-# This class contains all the constants used in this applications.
-#
+'''
+ This class contains all the constants used in this applications.
+'''
 #################################################################################
 
 
@@ -154,7 +154,7 @@ BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list'}
 ########################################################
 #--------------- MODEL OPTIONAL FIELDS -----------------
 
-SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 'geographical_region', 'organism', 'common_name'}
+SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 'geographical_region', 'organism'}  #, 'common_name'
 
 #########################################################
 # ----------------- DATA TYPES --------------------------

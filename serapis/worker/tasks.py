@@ -1002,8 +1002,9 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             return None
         beats_list = pu_header.split("_")
         if beats_list:
-            last_beat = beats_list[-1] 
-            return int(last_beat[0])
+            last_beat = beats_list[-1]
+            if last_beat.isdigit():
+                return int(last_beat[0])
         return None
 
     def extract_tag_from_PUHeader(self, pu_header):
@@ -1014,7 +1015,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             return None
         last_hash_index = pu_header.rfind("#", 0, len(pu_header))
         if last_hash_index != -1:
-            return int(pu_header[last_hash_index + 1 :])
+            if pu_header[last_hash_index + 1 :].isdigit():
+                return int(pu_header[last_hash_index + 1 :])
         return None
 
     def extract_run_from_PUHeader(self, pu_header):

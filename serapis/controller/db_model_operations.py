@@ -1713,6 +1713,7 @@ def __add_missing_field_to_dict__(field, entity_id, categ, missing_fields_dict):
     #field = utils.unicode2string(field)
     if not field or not entity_id or not categ:
         return
+    entity_id = str(entity_id)
     logging.info("Field missing: %s, from entity: %s, category: %s", field, entity_id, categ)
     try:
         missing_fields_categ = missing_fields_dict[categ]
@@ -1750,6 +1751,7 @@ def __find_and_delete_missing_field_from_dict__(field, entity_id, categ, missing
                             }
                 }
     '''
+    entity_id = str(entity_id)
     if categ in missing_fields_dict:
         if entity_id in missing_fields_dict[categ]:
             if field in missing_fields_dict[categ][entity_id]:

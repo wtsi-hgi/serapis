@@ -18,7 +18,13 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 # 
 #################################################################################
+''' 
+     This class contains the entity classes that are used by the workers, 
+     together with the logic needed on the workers' side.
+'''
 
+
+#################################################################################
 
 import simplejson
 import pycountry
@@ -238,6 +244,9 @@ class Sample(Entity):
             if field_val != None: 
                 norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
                 setattr(sample, field_name, norm_field_val)
+        if not hasattr(sample, 'organism') and hasattr(sample, 'common_name'):
+            sample.organism = sample.common_name
+            sample.common_name = None 
         return sample
     
 
@@ -304,13 +313,13 @@ class SubmittedFile():
     def add_or_update_study(self, new_study):
         self.__add_or_update_entity__(new_study, self.study_list)
 
-            
+    # Not used - might be buggy            
     def __remove_from_erors_dict__(self, entity, entity_type, problematic_entity_dict):
         ''' Private method!!!
             Removes the entity from the corresponding list of entities from problematic_entity_dict.
             This fct is meant to be used with missing_entities_error_dict and not_unique_entity_error_dict.
             Returns True if the entity has been removed and False if it not. '''
-        if problematic_entity_dict == None or len(problematic_entity_dict) == 0:
+        if not problematic_entity_dict or len(problematic_entity_dict) == 0:
             return False 
         if entity_type in problematic_entity_dict:
             missing_entities_list = problematic_entity_dict[entity_type]
@@ -323,22 +332,40 @@ class SubmittedFile():
         ''' Private method!!!
             Adds this entity to the missing_entities_list.
             Returns True if it has been added and False if not.'''
-        if not entity_type in problematic_entity_dict:
-            problematic_entity_dict[entity_type] = []
-        missing_entity_list = problematic_entity_dict[entity_type]        # List of missing entities of type entity_type  
+#        try:
+#            entity_type_dict = problematic_entity_dict[entity_type]
+#        except KeyError:
+#            entity_type_dict = {}
+#            problematic_entity_dict[entity_type] = entity_type_dict
+#            
+#        try:
+#            entity_missing_fields = entity_type_dict[entity_id]
+#        except KeyError:
+#            entity_missing_fields = []
+#            entity_type_dict[entity_id] = entity_missing_fields
+#
+        try:
+            missing_entity_list = problematic_entity_dict[entity_type]
+        except KeyError:
+            missing_entity_list = []            
+#        if not entity_type in problematic_entity_dict:
+#            problematic_entity_dict[entity_type] = []
+#        missing_entity_list = problematic_entity_dict[entity_type]        # List of missing entities of type entity_type  
         if not entity in missing_entity_list:
-            del entity.has_minimal      # deleting obvious and non-informative attributes from the entity. In this case
-            del entity.is_complete      # all we care about is actually the identifier of the entity.
+#            del entity.has_minimal      # deleting obvious and non-informative attributes from the entity. In this case
+#            del entity.is_complete      # all we care about is actually the identifier of the entity.
             missing_entity_list.append(entity)
             return True
         return False
     
+    # Not used
     def remove_from_missing_entities_list(self, entity, entity_type):
         return self.__remove_from_erors_dict__(entity, entity_type, self.missing_entities_error_dict)
 
     def append_to_missing_entities_list(self, entity, entity_type):
         return self.__append_to_errors_dict__(entity, entity_type, self.missing_entities_error_dict)
     
+    # Not used
     def remove_from_not_unique_entity_list(self, entity, entity_type):
         return self.__remove_from_erors_dict__(entity, entity_type, self.not_unique_entity_error_dict)
     
