@@ -246,7 +246,7 @@ class Sample(Entity):
                 setattr(sample, field_name, norm_field_val)
         if not hasattr(sample, 'organism') and hasattr(sample, 'common_name'):
             sample.organism = sample.common_name
-            sample.common_name = None 
+            del sample.common_name 
         return sample
     
 

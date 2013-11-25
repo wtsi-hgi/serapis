@@ -25,13 +25,13 @@ from serapis.com import constants, utils
 
 
 ##################################################################################
+'''
+ This class is meant to convert the metadata from the document format - as it is 
+ stored in the database, into the key-value pairs - suitable to be added as 
+ metadata for the corresponding irods data object.
 
-# This class is meant to convert the metadata from the document format - as it is 
-# stored in the database, into the key-value pairs - suitable to be added as 
-# metadata for the corresponding irods data object.
-#
-# This class has a function for each type of document that exists in the DB.
-#
+ This class has a function for each type of document that exists in the DB.
+'''
 
 ##################################################################################
 
@@ -171,7 +171,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']
+    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project_list']
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     
@@ -209,11 +209,12 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 irods_file_mdata.append((field_name, field_val))
             elif field_name == 'data_subtype_tags':
                 field_val = utils.unicode2string(field_val)
-                #file_specific_mdata = convert_specific_file_mdata(field_val, subm_file)
-                #irods_file_mdata.extend(file_specific_mdata)
                 for tag_val in field_val.values():
                     irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
-                    #irods_file_mdata.append((field_name, field_val))
+            elif field_name == 'hgi_project_list':
+                field_val = utils.unicode2string(field_val)
+                for tag_val in field_val:
+                    irods_file_mdata.append(('hgi_project', utils.unicode2string(tag_val)))                
             else:
                 field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))

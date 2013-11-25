@@ -638,6 +638,7 @@ def verify_file_paths(file_paths_list):
 
     for path in file_paths_list:
         status = check_file_permissions(path)
+        logging.warn("PATH PERMISSION DENIED ------------------- SHOULD OUTPUT STATUL == NO Access!!!!!!!!!!!!! %s", status)
         if status == constants.NOACCESS:
             append_to_errors_dict(path, constants.NOACCESS, warnings_dict)
     
@@ -735,12 +736,13 @@ def create_submission(user_id, data):
         file_submitted.index_file = index_file
     
         # Checking that the file has the information necessary to infer hgi_project:
-        if hasattr(submission, 'hgi_project') and getattr(submission, 'hgi_project'):
-            file_submitted.hgi_project = submission.hgi_project
+        if hasattr(submission, 'hgi_project_list') and getattr(submission, 'hgi_project_list'):
+            file_submitted.hgi_project_list.extend(submission.hgi_project_list)
         else:
-            file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
-            if not file_submitted.hgi_project:
-                return models.Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
+            return models.Result(False, message="ERROR: missing mandatory parameter: hgi_project_list.")
+#            file_submitted.hgi_project = utils.infer_hgi_project_from_path(file_path)
+#            if not file_submitted.hgi_project:
+#                return models.Result(False, message="ERROR: missing mandatory parameter: hgi_project.")
 
         # Initializing the path to irods for the uploaded files:
         irods_coll = getattr(submission, 'irods_collection')

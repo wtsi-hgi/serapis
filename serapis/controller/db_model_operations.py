@@ -904,304 +904,7 @@ def __upd_list_of_primary_types__(crt_list, update_list_json):
     crt_list = list(res)
     return crt_list
 
-# NOT USED!
-def update_submitted_file_field_old(field_name, field_val,update_source, file_id, submitted_file):
-    update_db_dict = dict()
-    if field_val == 'null' or not field_val:
-        return update_db_dict
-    if field_name in submitted_file._fields:        
-        if field_name in ['submission_id', 
-                     'id',
-                     '_id',
-                     'version',
-                     'file_type', 
-                     'irods_coll',      # TODO: make it so that this can be updated too but only by the user, and only if status < submitted2irods
-                     'file_path_client', 
-                     'last_updates_source', 
-                     'file_mdata_status',
-                     'file_submission_status']:
-            pass
-        elif field_name == 'library_list' and len(field_val) > 0:
-            was_updated = update_library_list(field_val, update_source, submitted_file)
-            update_db_dict['set__library_list'] = submitted_file.library_list
-            update_db_dict['inc__version__2'] = 1
-            logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-        elif field_name == 'sample_list' and len(field_val) > 0:
-            was_updated = update_sample_list(field_val, update_source, submitted_file)
-            update_db_dict['set__sample_list'] = submitted_file.sample_list
-            update_db_dict['inc__version__1'] = 1
-            logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
-        elif field_name == 'study_list' and len(field_val) > 0:
-            was_updated = update_study_list(field_val, update_source, submitted_file)
-            update_db_dict['set__study_list'] = submitted_file.study_list
-            update_db_dict['inc__version__3'] = 1
-            logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
-        elif field_name == 'seq_centers':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.seq_centers, field_val)
-                update_db_dict['set__seq_centers'] = updated_list
-        elif field_name == 'run_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.run_list, field_val)
-                update_db_dict['set__run_list'] = updated_list
-        elif field_name == 'platform_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.platform_list, field_val)
-                update_db_dict['set__platform_list'] = updated_list
-        elif field_name == 'seq_date_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.seq_date_list, field_val)
-                update_db_dict['set__seq_date_list'] = updated_list
-        elif field_name == 'lane_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.lane_list, field_val)
-                update_db_dict['set__lane_list'] = updated_list
-        elif field_name == 'tag_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.tag_list, field_val)
-                update_db_dict['set__tag_list'] = updated_list
-        elif field_name == 'library_well_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.library_well_list, field_val)
-                update_db_dict['set__library_well_list'] = updated_list
-        elif field_name == 'multiplex_lib_list':
-            if update_source in [constants.PARSE_HEADER_MSG_SOURCE, constants.EXTERNAL_SOURCE]:
-                updated_list = __upd_list_of_primary_types__(submitted_file.multiplex_lib_list, field_val)
-                update_db_dict['set__multiplex_lib_list'] = updated_list
-        # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
-        elif field_name == 'file_error_log':
-            # TODO: make file_error a map, instead of a list
-            comp_lists = cmp(submitted_file.file_error_log, field_val)
-            if comp_lists == -1:
-                for error in field_val:
-                    update_db_dict['add_to_set__file_error_log'] = error
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'missing_entities_error_dict' and field_val:
-            for entity_categ, entities in field_val.iteritems():
-                update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-            update_db_dict['inc__version__0'] = 1
-        elif field_name == 'not_unique_entity_error_dict' and field_val:
-            for entity_categ, entities in field_val.iteritems():
-                #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
-                update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-            update_db_dict['inc__version__0'] = 1
-        elif field_name == 'header_has_mdata':
-            if update_source == constants.PARSE_HEADER_MSG_SOURCE:
-                update_db_dict['set__header_has_mdata'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'md5':
-            if update_source == constants.CALC_MD5_MSG_SOURCE:
-                update_db_dict['set__md5'] = field_val
-                update_db_dict['inc__version__0'] = 1
-                logging.debug("UPDATING md5")
-        elif field_name == 'calc_file_md5_job_status':
-            if update_source == constants.CALC_MD5_MSG_SOURCE:
-                update_db_dict['set__calc_file_md5_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'file_upload_job_status':
-            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-                update_db_dict['set__file_upload_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'index_file_upload_job_status':
-            if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-                update_db_dict['set__index_file_upload_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'index_file_md5':
-            if update_source == constants.CALC_MD5_MSG_SOURCE:
-                update_db_dict['set__index_file_md5'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'calc_index_file_md5_job_status':
-            if update_source == constants.CALC_MD5_MSG_SOURCE:
-                update_db_dict['set__calc_index_file_md5_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'file_header_parsing_job_status':
-            if update_source == constants.PARSE_HEADER_MSG_SOURCE:
-                update_db_dict['set__file_header_parsing_job_status'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'hgi_project':
-            if update_source == constants.EXTERNAL_SOURCE:
-                update_db_dict['set__hgi_project'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'file_update_jobs_dict':
-            if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-                old_update_job_dict = submitted_file.file_update_jobs_dict
-                #print "UPDATE JOB DICT---------------- OLD ONE: --------------", str(old_update_job_dict)
-                if len(field_val) > 1:
-                    logging.critical("UPDATE DICT RECEIVED FROM A WORKER HAS MORE THAN 1 ENTRY!!!")
-                    raise exceptions.UpdateMustBeDismissed(" the worker has more than 1 entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-                elif len(field_val) == 0:
-                    logging.critical("UPDATE TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!!")
-                    raise exceptions.UpdateMustBeDismissed(" the worker has NO entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-                else:
-                    task_id, task_status = field_val.items()[0]
-                    if not task_id in old_update_job_dict:
-                        logging.error("NOT UPDATED!!!!ERRRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!! task_id = %s, source = %s", task_id,update_source)
-                        raise exceptions.TaskNotRegisteredError(task_id)
-                        # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
-                    #print "LET's SEE WHAT THE NEW STATUS IS: ", task_status
-                    logging.debug("TASK UPDATE STATUS IS: %s", task_status)
-                    old_update_job_dict[task_id] = task_status
-                    update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
-                    update_db_dict['inc__version__0'] = 1
-        elif field_name == 'irods_jobs_dict':
-            if update_source == constants.IRODS_JOB_MSG_SOURCE:
-                old_irods_jobs_dict = submitted_file.irods_jobs_dict
-                #print "IRODS JOB DICT---------------- OLD ONE: --------------", str(old_irods_jobs_dict)
-                if len(field_val) > 1:
-                    # TODO: BUG here - because it's only this field that will be ignored, the rest of the data will be updated
-                    logging.critical("UPDATE DICT RECEIVED FROM A WORKER HAS MORE THAN 1 ENTRY!!!")
-                    raise exceptions.UpdateMustBeDismissed(" the worker has more than 1 entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-                elif len(field_val) == 0:
-                    logging.error("ERROR: IRODS TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!! ")
-                    raise exceptions.UpdateMustBeDismissed(" the worker has NO entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-                else:
-                    task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
-                    if not task_id in old_irods_jobs_dict:
-                        logging.error("ERRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!! - field=irods jobs, task_id=%s, source=%s", task_id, update_source)
-                        raise exceptions.TaskNotRegisteredError(task_id)
-                        # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
-                        # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
-                    #print "In UPDATE submitted file, got this dict for updating: ", task_status
-                    logging.debug("UPDATE IRODS DICT -- GOT THIS task status: %s", task_status)
-                    old_irods_jobs_dict[task_id] = task_status
-                    update_db_dict['set__irods_jobs_dict'] = old_irods_jobs_dict
-                    update_db_dict['inc__version__0'] = 1
-                    if task_status == constants.SUCCESS_STATUS:
-                        update_db_dict['set__file_submission_status'] = constants.SUCCESS_STATUS
-        elif field_name == 'data_type':
-            if update_source == constants.EXTERNAL_SOURCE:
-                update_db_dict['set__data_type'] = field_val
-                update_db_dict['inc__version__0'] = 1
-        elif field_name == 'data_subtype_tags':
-            if update_source == constants.EXTERNAL_SOURCE:
-                if getattr(submitted_file, 'data_subtype_tags') != None:
-                    subtypes_dict = submitted_file.data_subtype_tags
-                    subtypes_dict.update(field_val)
-                else:
-                    subtypes_dict = field_val
-                update_db_dict['set__data_subtype_tags'] = subtypes_dict
-        elif field_name == 'abstract_library':
-            if update_source == constants.EXTERNAL_SOURCE:
-                update_db_dict['set__abstract_library'] = field_val
-        elif field_name == 'file_reference_genome_id':
-            if update_source == constants.EXTERNAL_SOURCE:
-                models.ReferenceGenome.objects(id=ObjectId(field_val)).get()    # Check that the id exists in the RefGenome coll, throw exc
-                update_db_dict['set__file_reference_genome_id'] = str(field_val)
-        elif field_name != None and field_name != "null":
-            logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
-    else:
-        logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val) 
-        upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-    return update_db_dict
-    
 
-# NOT USED!
-def update_submitted_file_old(file_id, update_dict, update_source, statuses_dict=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
-    upd = 0
-    i = 0
-    while i < nr_retries: 
-        submitted_file = retrieve_submitted_file(file_id)
-        update_db_dict = dict()
-        for (field_name, field_val) in update_dict.iteritems():
-            try:
-                field_update_dict = update_submitted_file_field(field_name, field_val, update_source, file_id, submitted_file) # atomic_update=True
-            except exceptions.TaskNotRegisteredError:
-                i += 1
-                continue
-            except exceptions.UpdateMustBeDismissed as e:
-                logging.error("UPDATE HAS BEEN DISMISSED: reason=  %s", e.reason)
-                return 0
-            else:
-                if field_update_dict:
-                    update_db_dict.update(field_update_dict)
-        if len(update_db_dict) > 0:
-            if statuses_dict:
-                update_db_dict.update(statuses_dict)
-            logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s", str(file_id))
-            logging.info("UPDATE DICT: %s", str(update_db_dict))
-            upd = models.SubmittedFile.objects(id=file_id, version__0=get_file_version(submitted_file.id, submitted_file)).update_one(**update_db_dict)
-            logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
-            #print "ATOMIC UPDATE RESULT from :", update_source," NR TRY: ", i,"=================================================================", upd
-#        print "AFTER UPDATE -- IN UPD from json -- THE UPDATE DICT WAS: ", update_db_dict
- #       print "zzzzzzzzzzzzzzz THis IS WHAT WAS ACTUALLY UPDATED:::::::::::::", vars(submitted_file.reload())
-        if upd == 1:
-            break
-        i+=1
-    return upd
-
-#def update_task_info_field():
-#    if field_name == 'file_update_jobs_dict':
-#        if update_source == constants.UPDATE_MDATA_MSG_SOURCE:
-#            old_update_job_dict = submitted_file.file_update_jobs_dict
-#            #print "UPDATE JOB DICT---------------- OLD ONE: --------------", str(old_update_job_dict)
-#            if len(field_val) > 1:
-#                logging.critical("UPDATE DICT RECEIVED FROM A WORKER HAS MORE THAN 1 ENTRY!!!")
-#                raise exceptions.UpdateMustBeDismissed(" the worker has more than 1 entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-#            elif len(field_val) == 0:
-#                logging.critical("UPDATE TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!!")
-#                raise exceptions.UpdateMustBeDismissed(" the worker has NO entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-#            else:
-#                task_id, task_status = field_val.items()[0]
-#                if not task_id in old_update_job_dict:
-#                    logging.error("NOT UPDATED!!!!ERRRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!!!!!! task_id = %s, source = %s", task_id,update_source)
-#                    raise exceptions.TaskNotRegisteredError(task_id)
-#                    # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!! 
-#                #print "LET's SEE WHAT THE NEW STATUS IS: ", task_status
-#                logging.debug("TASK UPDATE STATUS IS: %s", task_status)
-#                old_update_job_dict[task_id] = task_status
-#                update_db_dict['set__file_update_jobs_dict'] = old_update_job_dict
-#                update_db_dict['inc__version__0'] = 1
-#    elif field_name == 'irods_jobs_dict':
-#        if update_source == constants.IRODS_JOB_MSG_SOURCE:
-#            old_irods_jobs_dict = submitted_file.irods_jobs_dict
-#            #print "IRODS JOB DICT---------------- OLD ONE: --------------", str(old_irods_jobs_dict)
-#            if len(field_val) > 1:
-#                # TODO: BUG here - because it's only this field that will be ignored, the rest of the data will be updated
-#                logging.critical("UPDATE DICT RECEIVED FROM A WORKER HAS MORE THAN 1 ENTRY!!!")
-#                raise exceptions.UpdateMustBeDismissed(" the worker has more than 1 entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-#            elif len(field_val) == 0:
-#                logging.error("ERROR: IRODS TASK DOESN'T HAVE A TASK ID!!!!!!!!!!!!!!!! => TASK WILL BE IGNORED!!!! ")
-#                raise exceptions.UpdateMustBeDismissed(" the worker has NO entry in the update jobs dict - IT MUST HAVE EXACTLY 1!")
-#            else:
-#                task_id, task_status = field_val.items()[0]         # because we know the field_val must be a dict with 1 entry
-#                if not task_id in old_irods_jobs_dict:
-#                    logging.error("ERRRRRRRRORRRRRRRRRRRRRRRRRRR - TASK NOT REGISTERED!!!!!!!!!!!!!!!!!! - field=irods jobs, task_id=%s, source=%s", task_id, update_source)
-#                    raise exceptions.TaskNotRegisteredError(task_id)
-#                    # TODO: HERE IT SHOULD DISMISS THE WHOLE UPDATE IF IT COMES FROM AN UNREGISTERED TASK!!!!!!!!!!!!!!!!!!!
-#                    # But this applies to any of the jobs, not just update => FUTURE WORK: to keep track of all the jobs submitted? 
-#                #print "In UPDATE submitted file, got this dict for updating: ", task_status
-#                logging.debug("UPDATE IRODS DICT -- GOT THIS task status: %s", task_status)
-#                old_irods_jobs_dict[task_id] = task_status
-#                update_db_dict['set__irods_jobs_dict'] = old_irods_jobs_dict
-#                update_db_dict['inc__version__0'] = 1 
-
-#                if task_status == constants.SUCCESS_STATUS:
-#                    update_db_dict['set__file_submission_status'] = constants.SUCCESS_STATUS
-#
-#    elif field_name == 'calc_file_md5_job_status':
-#        if update_source == constants.CALC_MD5_MSG_SOURCE:
-#            update_db_dict['set__calc_file_md5_job_status'] = field_val
-#            update_db_dict['inc__version__0'] = 1
-#    elif field_name == 'file_upload_job_status':
-#        if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-#            update_db_dict['set__file_upload_job_status'] = field_val
-#            update_db_dict['inc__version__0'] = 1
-#    elif field_name == 'index_file_upload_job_status':
-#        if update_source == constants.UPLOAD_FILE_MSG_SOURCE:
-#            update_db_dict['set__index_file_upload_job_status'] = field_val
-#            update_db_dict['inc__version__0'] = 1
-#
-#    elif field_name == 'file_error_log':
-#    # TODO: make file_error a map, instead of a list
-#        comp_lists = cmp(submitted_file.file_error_log, field_val)
-#        if comp_lists == -1:
-#            for error in field_val:
-#                update_db_dict['add_to_set__file_error_log'] = error
-#            update_db_dict['inc__version__0'] = 1
-
-
-
- 
 
 def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
     update_db_dict = dict()
@@ -1271,16 +974,23 @@ def build_file_update_dict(file_updates,update_source, file_id, submitted_file):
                         #update_db_dict['inc__version__0'] = 1
                     else:
                         raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
-            elif field_name == 'hgi_project':
+            elif field_name == 'hgi_project_list':
                 if update_source == constants.EXTERNAL_SOURCE:
-                    update_db_dict['set__hgi_project'] = field_val
-                    #update_db_dict['inc__version__0'] = 1
+                    for prj in field_val:
+                        if not utils.is_hgi_project(prj):
+                            raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
+                    if getattr(submitted_file, 'hgi_project_list'):
+                        hgi_projects = submitted_file.hgi_project_list
+                        hgi_projects.extend(field_val)
+                    else:
+                        hgi_projects = field_val                    
+                    update_db_dict['set__hgi_project_list'] = hgi_projects
             elif field_name == 'data_type':
                 if update_source == constants.EXTERNAL_SOURCE:
                     update_db_dict['set__data_type'] = field_val
                     #update_db_dict['inc__version__0'] = 1
             elif field_name == 'data_subtype_tags':
-                if update_source == constants.EXTERNAL_SOURCE:
+                if update_source in [constants.EXTERNAL_SOURCE, constants.PARSE_HEADER_MSG_SOURCE]:
                     if getattr(submitted_file, 'data_subtype_tags') != None:
                         subtypes_dict = submitted_file.data_subtype_tags
                         subtypes_dict.update(field_val)
@@ -1517,7 +1227,7 @@ def update_file_from_dict(file_id, update_dict, nr_retries=constants.MAX_DBUPDAT
 # PB: I am not returning an error code/ Exception if the hgi-project name is incorrect!!!
 def insert_hgi_project(subm_id, project):
     if utils.is_hgi_project(project):
-        upd_dict = {'set__hgi_project' : project}
+        upd_dict = {'add_to_set__hgi_project_list' : project}
         return models.Submission.objects(id=subm_id).update_one(**upd_dict)
 
 
@@ -1538,11 +1248,16 @@ def update_submission(update_dict, submission_id, submission=None, nr_retries=co
         for (field_name, field_val) in update_dict.iteritems():
             if field_name == 'files_list':
                 pass
-            elif field_name == 'hgi_project' and field_val:
-                if utils.is_hgi_project(field_val):
-                    update_db_dict['set__hgi_project'] = field_val
+            elif field_name == 'hgi_project_list' and field_val:
+                for prj in field_val:
+                    if not utils.is_hgi_project(prj):
+                        raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
+                if getattr(submission, 'hgi_project_list'):
+                    hgi_projects = submission.hgi_project_list
+                    hgi_projects.extend(field_val)
                 else:
-                    raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT)) 
+                    hgi_projects = field_val
+                update_db_dict['set__hgi_project_list'] = hgi_projects
             elif field_name == 'upload_as_serapis' and field_val:
                 update_db_dict['set__upload_as_serapis'] = field_val
             # File-related metadata:

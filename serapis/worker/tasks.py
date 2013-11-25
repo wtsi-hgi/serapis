@@ -52,10 +52,10 @@ from celery import Task, current_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 
 #################################################################################
-#
-# This class contains all the tasks to be executed on the workers.
-# Each tasks has its own class.
-#
+'''
+ This class contains all the tasks to be executed on the workers.
+ Each tasks has its own class.
+'''
 #################################################################################
 
 
@@ -1177,6 +1177,24 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         print "LIBRARY UPDATED LIST: ", file_mdata.library_list
         print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
         print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
+        
+        # Decide the type of the file based on the info in the header:
+        #    - sample-multiplicity:
+#    - individual-multiplicity:
+#    - lanelets:
+#    - sort_order:
+#    - regions:
+
+    # For VCFs:
+#    - sample-multiplicity:
+#    - individual-multiplicity:
+
+        #data_subtype_tags = DictField()
+        if len(file_mdata.sample_list) == 1:
+            file_mdata.data_subtype_tags['sample-multiplicity'] = 'single-sample'
+            file_mdata.data_subtype_tags['individual-multiplicity'] = 'single-individual'
+        if len(file_mdata.run_list) > 1:
+            file_mdata.data_subtype_tags['lanelets'] = 'merged-lanelets'
     
         result = {}
         if errors:
@@ -1443,10 +1461,11 @@ class AddMdataToIRODSFileTask(iRODSTask):
         UNIQUE_FIELDS = ['study_title', 'study_internal_id', 'study_accession_number', 
                          'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
                          'study_type', 'study_visibility', 'submission_date', 'submission_id',
-                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id',
-                         'hgi_project', 'data_type', 'seq_center']
+                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
+                         'data_type', 'seq_center']
         AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
-                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date']
+                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date',
+                        'hgi_project']
         
         #print key_occ_dict
         for attr in UNIQUE_FIELDS:

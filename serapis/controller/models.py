@@ -183,8 +183,21 @@ class SubmittedFile(DynamicDocument):
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
     data_type = StringField(choices=constants.DATA_TYPES)
+    
+    # For BAMs: - data_subtype_tags:
+#    - align:
+#    - sample-multiplicity:
+#    - individual-multiplicity:
+#    - lanelets:
+#    - sort_order:
+#    - regions:
+
+    # For VCFs:
+#    - sample-multiplicity:
+#    - individual-multiplicity:
+
     data_subtype_tags = DictField()
-    hgi_project = StringField()
+    hgi_project_list = ListField(default=[])
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
@@ -284,7 +297,7 @@ class VCFFile(SubmittedFile):
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=constants.SUBMISSION_STATUS)
-    hgi_project = StringField()
+    hgi_project_list = StringField()
     submission_date = StringField()
 
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids

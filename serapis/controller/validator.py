@@ -104,7 +104,7 @@ submitted_file_schema = Schema({
     'file_path_client' : str,
     'file_path_irods' : str,    
     'md5' : str,
-    'hgi_project' : str,
+    'hgi_project_list' : str,
     'study_list' : list,               # = ListField(EmbeddedDocumentField(Study))
     'library_list' : list,             # = ListField(EmbeddedDocumentField(Library))
     'sample_list' : list,              # = ListField(EmbeddedDocumentField(Sample))
@@ -181,7 +181,7 @@ submission_schema = Schema({
     'submission_status' : str,
     'files_list' : list,
     'submission_date' : str,
-    'hgi_project' : str,
+    'hgi_project_list' : str,
     'dir_path' : str,
     'study' : study_schema,
     'reference_genome' : reference_genome_schema,
@@ -216,7 +216,7 @@ submission_post_validator = Schema({
     'files_list' : [str],
     IsDir('dir_path') : All(str, Length(min=1)),
     Required('sanger_user_id') :  All(str, Length(min=1)),
-    Required('hgi_project') : All(str, Length(min=1)),
+    Required('hgi_project_list') : [str],    #All(str, Length(min=1)),
     Required('study') : study_post_submission_validator,
 #    Required('reference_genome') : IsFile(str),
     'reference_genome' : IsFile(str),
