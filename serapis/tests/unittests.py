@@ -23,6 +23,7 @@
 
 import os
 from serapis.controller import models, controller, db_model_operations, exceptions
+from serapis.controller.logic import status_checker
 from serapis.com import utils, constants
 from serapis.worker import entities
 import unittest
@@ -123,12 +124,12 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
     def test_seqsc2serapis(self):
         seqsc_dict = {"gender": "Male", 
                       "common_name": "Homo sapien", 
-                      "taxon_id": "9606", 
-                      "organism": "Homo sapiens"}
+                      "taxon_id": "9606"} 
+                    #"organism": "Homo sapiens"}
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
         print "SAMPLE AFTER MAPPING: ", vars(sample)
         serapis_dict = {"gender": "Male", 
-                      "common_name": "Homo Sapiens", 
+                      #"common_name": "Homo Sapiens", 
                       "taxon_id": "9606", 
                       "organism": "Homo Sapiens"}
         print "SERAPIS DICT: ", serapis_dict
@@ -138,19 +139,62 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
 
         seqsc_dict = {"common_name" : "Homo Sapien"}
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
-        serapis_dict = {"common_name" : "Homo Sapiens"}
+        serapis_dict = {"organism" : "Homo Sapiens"}
         self.assertDictEqual(serapis_dict, vars(sample))
 
         
         seqsc_dict = {"common_name" : "homo_sapien"}
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
-        serapis_dict = {"common_name" : "Homo Sapiens"}
+        serapis_dict = {"organism" : "Homo Sapiens"}
         self.assertDictEqual(serapis_dict, vars(sample))
         
     
     
         
 class TestTasks(unittest.TestCase):
+    
+    
+    def test_build_run_id(self):
+        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
+        run_id = tasks.ParseBAMHeaderTask.build_run_id(pu_entry)
+        self.assertEqual(run_id, '7874_7#6')
+        
+        pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
+        run_id = tasks.ParseBAMHeaderTask.build_run_id(pu_entry)
+        self.assertEqual(run_id, '8271_2#88')
+        
+    def test_extract_run_from_PUHeader(self):
+        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
+        run = tasks.ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
+        self.assertEqual(run, 8276)
+        
+        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
+        run = tasks.ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
+        self.assertEqual(run, 7874)
+        
+    def test_extract_tag_from_PUHeader(self):
+        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
+        run = tasks.ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
+        self.assertEqual(run, 6)
+        
+        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
+        run = tasks.ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
+        self.assertEqual(run, 1)
+        
+    def test_extract_lane_from_PUHeader(self):
+        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
+        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
+        self.assertEqual(run, 4)
+        
+        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
+        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
+        self.assertEqual(run, 7)
+        
+        pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
+        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
+        self.assertEqual(run, 2)
+        
+     
  
     def test_parse_vcf_file_header(self):
         vcf_parse_task = tasks.ParseVCFHeaderTask()
@@ -193,11 +237,12 @@ class TestTasks(unittest.TestCase):
             elif sample.accession_number == 'EGAN00001094533':
                 self.assertEqual(sample.internal_id, 1557862)
                 self.assertEqual(sample.name, 'SC_PSC5465266')
-                self.assertEqual(sample.common_name, 'Homo Sapiens')
+                self.assertEqual(sample.organism, 'Homo Sapiens')
                 self.assertEqual(sample.country_of_origin, 'Canada')
                 self.assertEqual(sample.ethnicity, 'White')    
             
-        
+     
+
 
 # NOT up to date - it's before I restructured to tasks dict
 #class TestDBModelOperations(unittest.TestCase):
@@ -236,9 +281,10 @@ class TestDBFct(unittest.TestCase):
     maxDiff = None
     
     def test_add_to_missing_field(self):
+        
         #__add_missing_field_to_dict__(field, entity_id, categ, missing_fields_dict):
         missing_field_dict = {}
-        db_model_operations.__add_missing_field_to_dict__('organism', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
+        status_checker.MetadataStatusChecker._register_missing_field('organism', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
         dict_must_be = {    "sample" : { "WGS11" : ["organism"]
                                         }
                         }
@@ -246,22 +292,23 @@ class TestDBFct(unittest.TestCase):
         
         
         
-        db_model_operations.__add_missing_field_to_dict__('geographical_region', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
-        dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+        status_checker.MetadataStatusChecker._register_missing_field('geographical_region', "WGS11", constants.SAMPLE_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["geographical_region", "organism"]
                                         }
                         }
+        
         self.assertDictEqual(dict_must_be, missing_field_dict)
         
         
-        db_model_operations.__add_missing_field_to_dict__('library_type', "LIB2", constants.LIBRARY_TYPE, missing_field_dict)
+        status_checker.MetadataStatusChecker._register_missing_field('library_type', "LIB2", constants.LIBRARY_TYPE, missing_field_dict)
         dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
                                         },
                             "library" : {"LIB2" : ["library_type"]}
                         }
         
         
-        db_model_operations.__add_missing_field_to_dict__('library_type', "LIB3", constants.LIBRARY_TYPE, missing_field_dict)
-        dict_must_be = {    "sample" : { "WGS11" : ["organism", "geographical_region"]
+        status_checker.MetadataStatusChecker._register_missing_field('library_type', "LIB3", constants.LIBRARY_TYPE, missing_field_dict)
+        dict_must_be = {    "sample" : { "WGS11" : ["geographical_region", "organism"]
                                         },
                             "library" : {"LIB2" : ["library_type"], 
                                          "LIB3" : ["library_type"]}
@@ -276,7 +323,7 @@ class TestDBFct(unittest.TestCase):
                                    "library" : {"LIB2" : ["library_type"], 
                                                 "LIB3" : ["library_type"]}
                                }
-        db_model_operations.__find_and_delete_missing_field_from_dict__("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
+        status_checker.MetadataStatusChecker._unregister_missing_field("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
         must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
                                        },
                            "library" : {"LIB2" : ["library_type"], 
@@ -293,7 +340,7 @@ class TestDBFct(unittest.TestCase):
                                    "library" : {"LIB2" : ["library_type"], 
                                                 "LIB3" : ["library_type"]}
                                }
-        db_model_operations.__find_and_delete_missing_field_from_dict__("library_type", "LIB2", constants.LIBRARY_TYPE, missing_fields_dict)
+        status_checker.MetadataStatusChecker._unregister_missing_field("library_type", "LIB2", constants.LIBRARY_TYPE, missing_fields_dict)
         must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
                                        },
                            "library" : {"LIB3" : ["library_type"]}
@@ -308,7 +355,7 @@ class TestDBFct(unittest.TestCase):
                                    "library" : {"LIB2" : ["library_type"], 
                                                 "LIB3" : ["library_type"]}
                                }
-        db_model_operations.__find_and_delete_missing_field_from_dict__("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
+        status_checker.MetadataStatusChecker._unregister_missing_field("organism", "WGS11", constants.SAMPLE_TYPE, missing_fields_dict)
         must_be_dict = {   "sample" : { "WGS11" : ["geographical_region"]
                                        },
                            "library" : {"LIB2" : ["library_type"], 
@@ -320,64 +367,91 @@ class TestDBFct(unittest.TestCase):
     
     
     def test_task_dict_fcts(self):
-        from serapis.controller.controller import PRESUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
-    
+#        from serapis.controller.controller import PRESUBMISSION_TASKS, UPLOAD_TASK_NAME, ADD_META_TO_STAGED_FILE, MOVE_TO_PERMANENT_COLL, SUBMIT_TO_PERMANENT_COLL
+#    
         tasks_dict = {
         "8c054e89-ee3b-4eee-a79e-e8f5dbc1b901" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.CalculateMD5Task"
+            "type" : constants.CALC_MD5_TASK
         },
         "a35cedf6-b07d-4880-a01a-556a1d69f7d6" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.UpdateFileMdataTask"
+            "type" : constants.UPDATE_MDATA_TASK
         },
         "cb002bba-0417-4e0d-b8c4-64fdc2ba8f89" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.ParseBAMHeaderTask"
+            "type" : constants.PARSE_HEADER_TASK
         },
         "d899d283-1b93-49c3-ad37-13438fbe1ce7" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.UploadFileTask"
+            "type" : constants.UPLOAD_FILE_TASK
         }}
-        res = db_model_operations.check_all_tasks_finished(tasks_dict, PRESUBMISSION_TASKS)
+        res = db_model_operations.check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
         self.assertTrue(res)
         
         
         tasks_dict = {
         "8c054e89-ee3b-4eee-a79e-e8f5dbc1b901" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.CalculateMD5Task"
+            "type" : constants.CALC_MD5_TASK
         },
         "a35cedf6-b07d-4880-a01a-556a1d69f7d6" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.UpdateFileMdataTask"
+            "type" : constants.UPDATE_MDATA_TASK
         },
         "cb002bba-0417-4e0d-b8c4-64fdc2ba8f89" : {
             "status" : "SUCCESS",
-            "type" : "serapis.worker.tasks.ParseBAMHeaderTask"
+            "type" : constants.PARSE_HEADER_TASK
         },
         "d899d283-1b93-49c3-ad37-13438fbe1ce7" : {
             "status" : "PENDING_ON_WORKER",
-            "type" : "serapis.worker.tasks.UploadFileTask"
+            "type" : constants.UPLOAD_FILE_TASK
         }}
-        res = db_model_operations.check_all_tasks_finished(tasks_dict, PRESUBMISSION_TASKS)
+        res = db_model_operations.check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
         self.assertFalse(res)
         
          
          
-
+#def check_all_files_same_type(file_paths_list):
+#    file_type = None
+#    for file_path in file_paths_list:
+#        f_type = utils.detect_file_type(file_path)
+#        if not file_type:
+#            file_type = f_type
+#        elif f_type != file_type:
+#            return False
+#    return True 
 
 class TestController(unittest.TestCase):
 
     maxDiff = None
+    
+    def test_check_all_files_same_type(self):
+        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile2.bam']
+        res = controller.check_all_files_same_type(paths)
+        self.assertTrue(res)
+        
+        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile2.bam',
+                 '/home/ic4/data-test/vcfs/test.vcf']
+        res = controller.check_all_files_same_type(paths)
+        self.assertFalse(res)
+        
+        paths = ['/home/ic4/data-test/vcfs/hapmap_3.3.All-AFR.b37.sites.vcf.gz',
+                 '/home/ic4/data-test/vcfs/test.vcf']
+        res = controller.check_all_files_same_type(paths)
+        self.assertTrue(res)
+        
+    
     def test_associate_files_with_indexes(self):
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile1.bai']
         res = controller.associate_files_with_indexes(paths)
-        should_be = [('/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai'), 
-                     ('/home/ic4/data-test/unit-tests/bamfile2.bam', '')]
-        self.assertListEqual(res.result, should_be)
+        should_be = {'/home/ic4/data-test/unit-tests/bamfile1.bam' : '/home/ic4/data-test/unit-tests/bamfile1.bai', 
+                     '/home/ic4/data-test/unit-tests/bamfile2.bam' : ''}
+        self.assertDictEqual(res.result, should_be)
         
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
@@ -422,8 +496,8 @@ class TestController(unittest.TestCase):
         
         paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz', '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi']
         res = controller.associate_files_with_indexes(paths)
-        self.assertListEqual(res.result, [('/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz',
-                                            '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi')])
+        self.assertDictEqual(res.result, {'/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz' :
+                                            '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi'})
         
 #        paths = ["/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam"]
 #        res = controller.associate_files_with_indexes(paths)
@@ -472,6 +546,12 @@ class TestController(unittest.TestCase):
         path = '/home/ic4/data-test/unit-tests/bamfile3.bam'
         permission = controller.check_file_permissions(path)
         self.assertEqual(permission, constants.NON_EXISTING_FILE)
+        
+        
+        # Failing test:
+        path = '/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306042.bam'
+        permission = controller.check_file_permissions(path)
+        #self.assertEqual(permission, constants.NOACCESS)
         
         
          
@@ -547,20 +627,22 @@ class TestController(unittest.TestCase):
     
     def test_detect_file_type(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
-        self.assertEqual(controller.detect_file_type(path), 'bam')
+        self.assertEqual(utils.detect_file_type(path), 'bam')
         
         path = "/home/ic4/media-tmp/bams/8887_8#94.bai"
-        self.assertEqual(controller.detect_file_type(path), 'bai')
+        self.assertEqual(utils.detect_file_type(path), 'bai')
         
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam.bai"
-        self.assertEqual(controller.detect_file_type(path), 'bai')
+        self.assertEqual(utils.detect_file_type(path), 'bai')
         
         
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam.asd"
-        self.assertRaises(exceptions.NotSupportedFileType, controller.detect_file_type, path)
+        res = utils.detect_file_type(path)
+        self.assertEqual(None, res)
         
         path = ""
-        self.assertRaises(exceptions.NotSupportedFileType, controller.detect_file_type, path)
+        res = utils.detect_file_type(path)
+        self.assertEqual(None, res)
         
         
     

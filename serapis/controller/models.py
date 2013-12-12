@@ -101,6 +101,14 @@ class Study(Entity):
     description = StringField()
     pi_list = ListField()    # TODO: add CHOISES with the list of PIs from humgen - from a DB or smth
 
+    def get_entity_identifying_field(self):
+        if self.name:
+            return str(self.name)
+        elif self.internal_id:
+            return self.internal_id
+        return None
+
+
     
 class AbstractLibrary(DynamicEmbeddedDocument):
     library_source = StringField(choices=constants.LIBRARY_SOURCES.keys())
@@ -170,7 +178,7 @@ class IndexFile(EmbeddedDocument):
     
 class SubmittedFile(DynamicDocument):
     submission_id = StringField()
-    id = ObjectId()
+    #id = ObjectId()
     file_type = StringField(choices=constants.FILE_TYPES)
     file_path_client = StringField()
     irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
@@ -219,49 +227,47 @@ class SubmittedFile(DynamicDocument):
     '''
     version = ListField(default=lambda : [0,0,0,0])
     
-    ######################## STATUSES ##################################
+    ######################## STATUSES AND APP SPECIFIC METADATA ##################################
     
     tasks_dict = DictField()   # Dict of tasks: {task_id : {type : 'parse', status : 'RUNNING'}} for all the tasks submitted in PREPARATION phase
-    #submission_tasks_dict = DictField()      # Dict of tasks: --"-- - for all the submission tasks (add metadata and move from staging to iRODS coll
-    
-    
-    # UPLOAD JOB:
-    #file_upload_job_status = StringField(choices=TASK_STATUS)        #("SUCCESS", "FAILURE", "IN_PROGRESS", "PERMISSION_DENIED")
-    #index_file_upload_job_status = StringField(choices=TASK_STATUS)
-
-    # CALC MD5 job:
-    #calc_file_md5_job_status = StringField(choices=TASK_STATUS)
-    #calc_index_file_md5_job_status = StringField(choices=TASK_STATUS)
     
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
     
-    # HEADER PARSING JOB:
-    #file_header_parsing_job_status = StringField(choices=TASK_STATUS) # ("SUCCESS", "FAILURE")
+    # Flag telling if the file header has metadata or not:
     header_has_mdata = BooleanField()
-    
-    # UPDATE MDATA JOB:
-#    file_update_mdata_job_status = StringField(choices=UPDATE_MDATA_JOB_STATUS) #UPDATE_MDATA_JOB_STATUS = ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS")
-    #file_update_jobs_dict = DictField()                 # dictionary containing key = task_id, value = status from UPDATE_MDATA_JOB_STATUS
-    
-    # IRODS JOBS:
-    #irods_jobs_dict = DictField()          # Keeps track of the output of the jobs in iRODS
-    
+       
     
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
+    # Status of the metadata for this file:
     file_mdata_status = StringField(choices=constants.FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
+    
+    # Status of the file submission to iRODS:
     file_submission_status = StringField(choices=constants.FILE_SUBMISSION_STATUS)    # ("SUCCESS", "FAILURE", "PENDING", "IN_PROGRESS", "READY_FOR_SUBMISSION")    
     
-    #file_error_log = DictField()                        # dict containing: key = sender, value = List of errors
+    # Dict keeping the errors reported from the workers' side (but not only)
     file_error_log = ListField()
+    
+    # Dict keeping the fields from each entity that are mandatory and are missing:
     missing_mandatory_fields_dict = DictField()
-    missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]} 
+    
+    # Dict keeping the optional fields from each entity, that are missing:
+    missing_optional_fields_dict = DictField()
+    
+    # Dict that keeps the entities that were present in the header, but don't appear in SeqScape
+    missing_entities_error_dict = DictField()           # dictionary of missing mdata in the form of:{'study' : [ "name" : "Exome...", ]}
+    
+    # Dict that keeps the entities that have more corresponding lines in SeqScape: 
     not_unique_entity_error_dict = DictField()          # List of resources that aren't unique in seqscape: {field_name : [field_val,...]}
+    
+    # Dict that keeps the association between a field and the origin of the last update:
+    last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
+        
+    # Mongo - specific metadata fields:
     meta = {                                            # Mongoengine specific field for metadata.
             'allow_inheritance': True,
             'indexes' : ['_id', 'submission_id']
             }
-    last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
     
     
     
@@ -297,10 +303,12 @@ class VCFFile(SubmittedFile):
 class Submission(DynamicDocument):
     sanger_user_id = StringField()
     submission_status = StringField(choices=constants.SUBMISSION_STATUS)
-    hgi_project_list = StringField()
+    hgi_project_list = ListField(default=[])
     submission_date = StringField()
 
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
+    file_type = StringField()
+    
 #    dir_path = StringField()
     
     # Files metadata:

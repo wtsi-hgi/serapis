@@ -21,20 +21,21 @@
 
 
 
-from serapis.controller import db_model_operations
+#from serapis.controller import db_model_operations
+from serapis.controller.db import data_access
 import convert_mdata
 
 
 
 def gather_mdata(file_to_submit, user_id=None, submission_date=None):
     if user_id == None:
-        user_id = db_model_operations.retrieve_sanger_user_id(file_to_submit.id)
+        user_id = data_access.FileDataAccess.retrieve_sanger_user_id(file_to_submit.id)
     if submission_date == None:
-        submission_date = db_model_operations.retrieve_submission_date(file_to_submit.id)
+        submission_date = data_access.SubmissionDataAccess.retrieve_submission_date(file_to_submit.id)
     #print "SUBMISSION DATEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", submission_date
     
     if hasattr(file_to_submit, 'file_reference_genome_id') and getattr(file_to_submit, 'file_reference_genome_id') != None:
-        ref_genome = db_model_operations.retrieve_reference_by_md5(file_to_submit.file_reference_genome_id)
+        ref_genome = data_access.ReferenceGenomeDataAccess.retrieve_reference_by_md5(file_to_submit.file_reference_genome_id)
         irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission_date, ref_genome, user_id)
     else:
         irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission_date, sanger_user_id=user_id)

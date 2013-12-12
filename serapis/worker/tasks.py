@@ -992,8 +992,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             back_to_list[k] = list(v)
         return back_to_list
     
-    
-    def extract_lane_from_PUHeader(self, pu_header):
+    @staticmethod
+    def extract_lane_from_PUHeader(pu_header):
         ''' This method extracts the lane from the string found in
             the BAM header's RG section, under PU entry => between last _ and #. 
             A PU entry looks like: '120815_HS16_08276_A_C0NKKACXX_4#1'. 
@@ -1001,13 +1001,17 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         if not pu_header:
             return None
         beats_list = pu_header.split("_")
+        print "BEATS list: ", beats_list
         if beats_list:
             last_beat = beats_list[-1]
-            if last_beat.isdigit():
+            print "last beat: ", last_beat
+            if last_beat[0].isdigit():
+                print "HOW CAN THIS EVER BE A DIGIT?????", last_beat
                 return int(last_beat[0])
         return None
 
-    def extract_tag_from_PUHeader(self, pu_header):
+    @staticmethod
+    def extract_tag_from_PUHeader(pu_header):
         ''' This method extracts the tag nr from the string found in the 
             BAM header - section RG, under PU entry => the nr after last #
         '''
@@ -1019,7 +1023,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
                 return int(pu_header[last_hash_index + 1 :])
         return None
 
-    def extract_run_from_PUHeader(self, pu_header):
+    @staticmethod
+    def extract_run_from_PUHeader(pu_header):
         ''' This method extracts the run nr from the string found in
             the BAM header's RG section, under PU entry => between 2nd and 3rd _.
         '''
@@ -1031,7 +1036,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             return int(run_beat[1:])
         return int(run_beat)
     
-    def extract_platform_from_PUHeader(self, pu_header):
+    @staticmethod
+    def extract_platform_from_PUHeader(pu_header):
         ''' This method extracts the platform from the string found in 
             the BAM header's RG section, under PU entry: 
             e.g.'PU': '120815_HS16_08276_A_C0NKKACXX_4#1'
@@ -1046,6 +1052,19 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             return pat.match(platf_beat).groups()[0]
         return None
         
+       
+    @staticmethod
+    def build_run_id(pu_entry):
+        run = ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
+        lane = ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
+        tag = ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
+        if run and lane:
+            if tag:
+                return str(run) + '_' + str(lane) + '#' + str(tag)
+                #file_mdata.run_list.append(run_id)
+            else:
+                return str(run) + '_' + str(lane)
+        return None
         
     ######### ENTITIES IN HEADER LOOKUP ########################
      
@@ -1086,7 +1105,7 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
     
                 
     #----------------------- HELPER METHODS --------------------
-    
+ 
         
     def parse_header(self, header_processed, file_mdata):
         errors = []
@@ -1112,18 +1131,11 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
                 pattern = re.compile(constants.REGEX_PU_1)
                 if pattern.match(pu_entry) != None:
                     file_mdata.run_list.append(pu_entry)
-                    "Matched pattern!"
+                    print "Matched pattern!"
                 else:
-                    run = self.extract_run_from_PUHeader(pu_entry)
-                    lane = self.extract_lane_from_PUHeader(pu_entry)
-                    tag = self.extract_tag_from_PUHeader(pu_entry)
-                    if run and lane:
-                        if tag:
-                            run_id = str(run) + '_' + str(lane) + '#' + str(tag)
-                            file_mdata.run_list.append(run_id)
-                        else:
-                            run_id = str(run) + '_' + str(lane)
-                            file_mdata.run_list.append(run_id)
+                    run_id = self.build_run_id(pu_entry)
+                    if run_id:
+                        file_mdata.run_list.append(run_id)
                     seq_machine = self.extract_platform_from_PUHeader(pu_entry)
                     if seq_machine and seq_machine in constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING:
                         platform = constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING[seq_machine]

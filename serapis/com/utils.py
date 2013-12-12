@@ -23,9 +23,12 @@ import re
 import os
 import unicodedata
 import datetime
+import logging
+import hashlib
 from os import listdir
 from os.path import isfile, join, exists
 from serapis.com import constants
+
 
 
 #################################################################################
@@ -34,6 +37,24 @@ from serapis.com import constants
  to the controller side or the workers side.
 '''
 #################################################################################
+
+########################## GENERAL USE FUNCTIONS ################################
+
+
+BLOCK_SIZE = 1048576
+
+def calculate_md5(file_path):
+    fd = open(file_path, 'r')
+    file_obj = fd
+    md5_sum = hashlib.md5()
+    while True:
+        data = file_obj.read(BLOCK_SIZE/4)
+        if not data:
+            break
+        md5_sum.update(data)
+    return md5_sum.hexdigest()
+
+
 
 
 ######################### UNICODE processing ####################################
@@ -149,6 +170,7 @@ def list_all_files(dir_path):
     return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
 
 
+
 #################### PROJECT SPECIFIC UTILITY FUNCTIONS #####################
 
 
@@ -196,6 +218,25 @@ def is_hgi_project(project):
     if re.search(regex, project):
         return True
     return False
+
+
+def detect_file_type(file_path):
+    #file_extension = utils.extract_extension(file_path)
+    fname, f_ext = extract_fname_and_ext(file_path)
+    if f_ext == 'bam':
+        return constants.BAM_FILE
+    elif f_ext == 'bai':
+        return constants.BAI_FILE
+    #### VCF: 
+    elif f_ext == 'gz':
+        return detect_file_type(fname)
+    elif f_ext == 'vcf':
+        return constants.VCF_FILE
+    elif f_ext == 'tbi':
+        return constants.TBI_FILE
+    return None
+#        logging.error("NOT SUPPORTED FILE TYPE!")
+#        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+f_ext)
 
 #
 #def is_date_correct(date):
@@ -267,3 +308,28 @@ def is_name(field):
     return False
 
 
+#################### CONTROLLER SPECIFIC UTILS: ####################################
+
+def compare_sender_priority(source1, source2):
+    ''' Compares the priority of the sender taking into account 
+        the following criteria: ParseHeader < Update < User's input.
+        Returns:
+             -1 if they are in the correct order - meaning s1 > s2 priority wise
+              0 if they have equal priority 
+              1 if s1 <= s2 priority wise => in the 0 case it will be taken into account the newest,
+                  hence counts as 
+    '''
+    priority_dict = dict()
+    priority_dict[constants.INIT_SOURCE] = 0
+    priority_dict[constants.PARSE_HEADER_TASK] = 1
+    priority_dict[constants.UPDATE_MDATA_TASK] = 2
+    priority_dict[constants.EXTERNAL_SOURCE] = 3
+    #priority_dict[constants.UPLOAD_FILE_MSG_SOURCE] = 4
+    
+    prior_s1 = priority_dict[source1]
+    prior_s2 = priority_dict[source2]
+    diff = prior_s2 - prior_s1
+    if diff < 0:
+        return -1
+    elif diff >= 0:
+        return 1

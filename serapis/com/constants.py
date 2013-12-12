@@ -91,23 +91,50 @@ NOACCESS        = "NOACCESS"
 INIT_SOURCE             = "INIT"
 EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
 
-################## TASKS REGISTRY: ##################
+################## TASKS SOURCE NAME: ##################
 # Presubmission tasks:
-PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
-UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
-CALC_MD5_MSG_SOURCE     = "CALC_MD5_MSG_SOURCE"
-
-# iRODS tasks:
-IRODS_JOB_MSG_SOURCE    = "IRODS_JOB_MSG_SOURCE"
-# UPLOAD_FILE_MSG_SOURCE  = "UPLOAD_FILE_MSG_SOURCE"
-
-#PARSE_HEADER_TASK = "PARSE_HEADER_TASK"
-#UPDATE_MDATA_TASK = "UPDATE_MDATA_TASK"
-#CALC_MD5_TASK     = "CALC_MD5_TASK"
-#UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
+#PARSE_HEADER_MSG_SOURCE = "PARSE_HEADER_MSG_SOURCE"
+#UPDATE_MDATA_MSG_SOURCE = "UPDATE_MDATA_MSG_SOURCE"
+#CALC_MD5_MSG_SOURCE     = "CALC_MD5_MSG_SOURCE"
 #
 ## iRODS tasks:
-#IRODS_TASK    = "IRODS_TASK" 
+#IRODS_JOB_MSG_SOURCE    = "IRODS_JOB_MSG_SOURCE"
+# UPLOAD_FILE_MSG_SOURCE  = "UPLOAD_FILE_MSG_SOURCE"
+
+
+##################### TASKS REGISTRY: #####################
+
+PARSE_HEADER_TASK = "PARSE_HEADER_TASK"
+UPDATE_MDATA_TASK = "UPDATE_MDATA_TASK"
+CALC_MD5_TASK     = "CALC_MD5_TASK"
+UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
+#
+## iRODS tasks:
+
+# Category of tasks:
+#IRODS_TASK    = "IRODS_TASK"
+
+######## Individual iRODS tasks:####
+
+# Adding metadata to an iRODS file from the staging area:
+ADD_META_TO_IRODS_FILE_TASK = 'ADD_META_TO_IRODS_FILE_TASK'
+
+# Move the file from the staging area to the permanent collection:
+MOVE_TO_PERMANENT_COLL_TASK = 'MOVE_TO_PERMANENT_COLL_TASK'
+
+# Do the above 2 steps at once:
+SUBMIT_TO_PERMANENT_COLL_TASK = 'SUBMIT_TO_PERMANENT_COLL_TASK'
+ 
+################# Categories of tasks: #########################
+# Tasks to be executed in preparation for the submission of the file:
+PRESUBMISSION_TASKS = [UPLOAD_FILE_TASK, PARSE_HEADER_TASK, UPDATE_MDATA_TASK, CALCULATE_MD5_Q]
+
+# Tasks to be executed for the file submission to the permanent collection:
+SUBMISSION_TASKS    = [SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_TO_PERMANENT_COLL_TASK]
+
+IRODS_TASKS         = [UPLOAD_FILE_TASK, SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_TO_PERMANENT_COLL_TASK]
+
+METADATA_TASKS      = [PARSE_HEADER_TASK, UPDATE_MDATA_TASK, CALC_MD5_TASK]
 
 # ----------------- CONSTANTS USED IN TASKS -------------
 UNKNOWN_FIELD = 'unknown_field'
@@ -490,7 +517,7 @@ LIBRARY_STRATEGY = {
                 }
 
 
-INSTRUMENT_MODEL = {
+INSTRUMENT_MODEL = [
             "Illumina Genome Analyzer",
             "Illumina Genome Analyzer II",
             "Illumina Genome Analyzer IIx",
@@ -500,7 +527,7 @@ INSTRUMENT_MODEL = {
             "Illumina MiSeq",
             "Illumina HiScanSQ",
             "unspecified"                    
-                    }
+                    ]
 
 
 BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
@@ -515,7 +542,7 @@ BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
 MAX_STRING_DISIMILARITY_RATIO = 0.25
 
 ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
-FILE_META_FIELDS = ['last_updates_source', 'tasks_dict']
+FILE_META_FIELDS = ['last_updates_source', 'tasks_dict', 'missing_optional_fields_dict', 'missing_mandatory_fields_dict']
 
 #ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 

@@ -188,9 +188,14 @@ class SubmissionsMainPageRequestHandler(APIView):
             #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
             req_result['error'] = str(e)
             return Response(req_result, status=400)
-        except (exceptions.NotEnoughInformationProvided, exceptions.InformationConflict) as e:
+        except exceptions.NotEnoughInformationProvided as e:
             req_result['error'] = e.message
             logging.error("Not enough info %s", e)
+            logging.error(e.message)
+            return Response(req_result, status=424)
+        except exceptions.InformationConflict as e:
+            req_result['error'] = e.message
+            logging.error("Information conflict %s", e)
             logging.error(e.message)
             return Response(req_result, status=424)
         except ValueError as e:
@@ -414,6 +419,9 @@ class SubmittedFileRequestHandler(APIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.message
             return Response(result, status=404)
+        except InvalidId as e:
+            result['errors'] = "Invalid Id"
+            return Response(result, status=400)
         else:
             #file_serial = serializers.serialize(file_req)
             result["result"] = file_req
