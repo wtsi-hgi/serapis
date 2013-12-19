@@ -23,7 +23,25 @@
 
 # Custom Exceptions, for detailed problem-reporting
 
-class JSONError(Exception):
+class SerapisException(Exception):
+    
+    @property
+    def strerror(self):
+        """ Get the error message of this exception."""
+        return self.__str__()
+    
+    def __str__(self, text=None):
+        if not text:
+            text = ''
+        if self.faulty_expression != None:
+            text += str(self.faulty_expression)
+        if self.message != None:
+            text += ' - '
+            text += self.message
+        return text
+
+
+class JSONError(SerapisException):
     ''' Exception raised for errors cause by the structure or contents of a json message.
         
     Attributes:
@@ -37,8 +55,9 @@ class JSONError(Exception):
     def __str__(self):
         return 'Faulty expression: '+ self.faulty_expression + ' - ' + self.message
     
+    
 
-class ResourceNotFoundError(Exception):
+class ResourceNotFoundError(SerapisException):
     ''' Exception thrown any time the client requests a resource 
         or an operation on a resource that does not exist in the DB
         
@@ -52,15 +71,37 @@ class ResourceNotFoundError(Exception):
         
     def __str__(self):
         text = 'Resource not found: '
-        text += str(self.faulty_expression)
-        text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(ResourceNotFoundError, self).__str__(text)
+        
+#        text += str(self.faulty_expression)
+#        if self.message != None:
+#            text += ' - '
+#            text += self.message
+#        return text
         #return 'Missing resource: '+ self.faulty_expression + ' - ' + self.message
+        
+#    def __init__(self):
+#        self._voltage = 100000
+#
+#    @property
+#    def voltage(self):
+#        """Get the current voltage."""
+#        return self._voltage
+        
     
+class InvalidRequestData(SerapisException):
+    ''' This exception is thrown when there is a problem with the information
+        provided by the client on a request. '''
     
-class NoEntityCreated(Exception):
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Invalid request information'
+        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)
+    
+class NoEntityCreated(SerapisException):
     ''' Exception thrown when there the entity desired couldn't created. 
         Either the fields were not valid or they were all empty.
         An entity will no be created if it has no valid, non-empty fields.'''
@@ -72,9 +113,10 @@ class NoEntityCreated(Exception):
         if self.message != None:
             text += self.message
         return text
-  
+
+   
     
-class NoEntityIdentifyingFieldsProvided(Exception):
+class NoEntityIdentifyingFieldsProvided(SerapisException):
     ''' Exception thrown when a POST/PUT request comes in containing the information
         for creating/updating an entity, but the description of the entity does not contain
         any identifier for that entity.'''
@@ -84,15 +126,16 @@ class NoEntityIdentifyingFieldsProvided(Exception):
         
     def __str__(self):
         text = 'No identifying fields for this entity provided.'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text +=self.message
-        return text 
+        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text +=self.message
+#        return text 
 
 
-class NotSupportedFileType(Exception):
+class NotSupportedFileType(SerapisException):
     ''' Exception thrown when one of the files given for submission is not
         in the list of supported files.    
     '''
@@ -102,15 +145,16 @@ class NotSupportedFileType(Exception):
         
     def __str__(self):
         text = 'Not supported file type. '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text +=self.message
-        return text 
+        return super(NotSupportedFileType, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text +=self.message
+#        return text 
 
     
-class DeprecatedDocument(Exception):
+class DeprecatedDocument(SerapisException):
     ''' Exception thrown if there is an attempt to update a mongoDB document that 
         has been modified in the meantime, so the information is not up to date.
     '''
@@ -120,15 +164,16 @@ class DeprecatedDocument(Exception):
         
     def __str__(self):
         text = 'Deprecated document. Document has been modified since the last read. '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text +=self.message
-        return text 
+        return super(DeprecatedDocument, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text +=self.message
+#        return text 
 
     
-class EditConflictError(Exception):
+class EditConflictError(SerapisException):
     ''' This exception is thrown when an atomic update to a document fails 
         because another thread is in the process of modifying the data.'''
     def __init__(self, faulty_expression=None, msg=None):
@@ -137,15 +182,16 @@ class EditConflictError(Exception):
         
     def __str__(self):
         text = 'Editing conflict'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(EditConflictError, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text += self.message
+#        return text
     
 
-class InformationConflict(Exception):
+class InformationConflict(SerapisException):
     ''' This exception if thrown when the user has provided conflicting information
         which may lead to discrepancies if the information is further processed.'''
     
@@ -155,15 +201,16 @@ class InformationConflict(Exception):
         
     def __str__(self):
         text = 'Information conflict '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(InformationConflict, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text += self.message
+#        return text
     
     
-class NotEnoughInformationProvided(Exception):
+class NotEnoughInformationProvided(SerapisException):
     ''' This exception is raised when you attempt to insert an object in the
         db, but you haven't provided enough information to define the object.'''
     def __init__(self, faulty_expression=None, msg=None):
@@ -172,14 +219,15 @@ class NotEnoughInformationProvided(Exception):
         
     def __str__(self):
         text = 'Information conflict. '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(NotEnoughInformationProvided, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text += self.message
+#        return text
     
-class TooMuchInformationProvided(Exception):
+class TooMuchInformationProvided(SerapisException):
     ''' This exception is thrown when there have been given 
         too many fields/data for identifying an entity.'''
     def __init__(self, faulty_expression=None, msg=None):
@@ -188,15 +236,10 @@ class TooMuchInformationProvided(Exception):
         
     def __str__(self):
         text = 'Too many fields provided. '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(TooMuchInformationProvided, self).__str__(text)
     
     
-class OperationAlreadyPerformed(Exception):
+class OperationAlreadyPerformed(SerapisException):
     ''' This exception is raised whenever one tries to redo a one-time operation
         (operation that is only possible to be performed once)
         Examples of this category are: submit already submitted files to iRODS.'''
@@ -206,15 +249,10 @@ class OperationAlreadyPerformed(Exception):
         
     def __str__(self):
         text = 'Operation already performed. Nothing changed.'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(OperationAlreadyPerformed, self).__str__(text)
+   
     
-    
-class OperationNotAllowed(Exception):
+class OperationNotAllowed(SerapisException):
     ''' This exception is raised when the operation requested cannot be performed
         from business logic reasons (e.g. conditions not satisfied).
     '''
@@ -224,14 +262,10 @@ class OperationNotAllowed(Exception):
         
     def __str__(self):
         text = 'Operation not allowed'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(OperationNotAllowed, self).__str__(text)
+
     
-class IncorrectMetadataError(Exception):
+class IncorrectMetadataError(SerapisException):
     ''' This exception is raised when some incorrect metadata
         for a file or submission was provided.'''
     def __init__(self, faulty_expression=None, msg=None):
@@ -240,14 +274,10 @@ class IncorrectMetadataError(Exception):
         
     def __str__(self):
         text = 'Incorrect metadata.'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(IncorrectMetadataError, self).__str__(text)
+
     
-class RequestParamteresInvalid(Exception):
+class RequestParamteresInvalid(SerapisException):
     ''' This exception is raised when some of the data
         provided as parameters for a request is not valid.'''
     def __init__(self, faulty_expression=None, msg=None):
@@ -256,14 +286,10 @@ class RequestParamteresInvalid(Exception):
         
     def __str__(self):
         text = 'Request parameters invalid. '
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
-    
-class IndexOlderThanFileError(Exception):
+        return super(RequestParamteresInvalid, self).__str__(text)
+        
+        
+class IndexOlderThanFileError(SerapisException):
     ''' This exception is raised because the timestamp
         of a file to be submitted indicates that 
         this one is newer than its index.'''
@@ -273,14 +299,10 @@ class IndexOlderThanFileError(Exception):
         
     def __str__(self):
         text = 'Index file is older than the file.'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(IndexOlderThanFileError, self).__str__(text)
+        
     
-class MoreThanOneIndexForAFile(Exception):
+class MoreThanOneIndexForAFile(SerapisException):
     ''' This exception is raised because the there are
         more index files that correspond to a file in the
         files list given. Normally there should be 1 idx to 1 file.'''
@@ -290,14 +312,10 @@ class MoreThanOneIndexForAFile(Exception):
         
     def __str__(self):
         text = 'More than one index for this file!'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(MoreThanOneIndexForAFile, self).__str__(text)
+        
     
-class NoIndexFound(Exception):
+class NoIndexFound(SerapisException):
     ''' This exception is raised because there hasn't been found
         any index file for one or more files in the input list.
         Each file to be submitted MUST have exactly 1 corresponding index.
@@ -308,15 +326,10 @@ class NoIndexFound(Exception):
         
     def __str__(self):
         text = 'Index file not found.'
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(NoIndexFound, self).__str__(text)
     
 
-class NoFileFoundForIndex(Exception):
+class NoFileFoundForIndex(SerapisException):
     ''' This exception is raised because there hasn't been found
         a file for an index in the input list.
         Each file to be submitted MUST have exactly 1 corresponding index.
@@ -327,17 +340,12 @@ class NoFileFoundForIndex(Exception):
         
     def __str__(self):
         text = "Index file doesn't have a corresponding file in the list."
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return super(NoFileFoundForIndex, self).__str__(text)
     
     
 ######### Exceptions specific to Serapis implementation -- logic######
 
-class TaskNotRegisteredError(Exception):
+class TaskNotRegisteredError(SerapisException):
     ''' Thrown when a HTTP request comes to the controller 
         on behalf of a worker, but the task has not been
         registered before in the controller within the DB.
@@ -347,16 +355,12 @@ class TaskNotRegisteredError(Exception):
         self.message = msg
         
     def __str__(self):
-        text = 'Task not registered '+self.faulty_expression
-        if self.faulty_expression != None:
-            text += self.faulty_expression
-            text += ' - '
-        if self.message != None:
-            text += self.message
-        return text
+        return 'Task not registered '+self.faulty_expression
+        
+        
     
 
-class UpdateMustBeDismissed(Exception):
+class UpdateMustBeDismissed(SerapisException):
     ''' Thrown when an update to the DB MUST be dismissed,
         for some critical reason.
     '''
@@ -368,7 +372,7 @@ class UpdateMustBeDismissed(Exception):
         
     
     
-class MdataProblem(Exception):
+class MdataProblem(SerapisException):
     ''' For internal usage only!!!
     '''
     def __init__(self, reason):

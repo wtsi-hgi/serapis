@@ -21,10 +21,12 @@
 
 import re
 import os
+import errno
 import unicodedata
 import datetime
 import logging
 import hashlib
+import collections
 from os import listdir
 from os.path import isfile, join, exists
 from serapis.com import constants
@@ -165,14 +167,44 @@ def get_files_from_dir(dir_path):
     print files_list
     return files_list
 
-def list_all_files(dir_path):
-    ''' This function returns a list with all the files present in a directory.'''
-    return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
-
 
 
 #################### PROJECT SPECIFIC UTILITY FUNCTIONS #####################
 
+
+
+def append_to_errors_dict(error_source, error_type, error_dict):
+    ''' Appends to the submission_error_dict an error having as type error_type, 
+        which happened in error_source, where error_dict looks like:
+        error_dict = {ERROR_TYPE : [error_source1, error_src2]}
+        Note: the error can be a warning as well
+     '''
+    if not error_source or not error_type:
+        return
+    try:
+        error_list = error_dict[error_type]
+    except KeyError:
+        error_list = []
+    error_list.append(error_source)
+    error_dict[error_type] = error_list
+    
+    
+def extend_errors_dict(error_list, error_type, error_dict):
+    ''' Function that appends a list of error_sources which have the same
+        cause (same error_type) to the existing submission error dict, where
+        submission_error_dict looks like:
+        error_dict = {ERROR_TYPE : [error_source1, error_src2]}
+        Note: the error can be a warning as well
+        '''
+    if not error_list or not error_type:
+        return
+    try:
+        old_error_list = error_dict[error_type]
+    except KeyError:
+        old_error_list = []
+    old_error_list.extend(error_list)
+    error_dict[error_type] = old_error_list
+    
 
 def infer_filename_from_idxfilename(idx_file_path, file_type):
     ''' This function infers the name of the file, given its index.
@@ -189,6 +221,99 @@ def infer_filename_from_idxfilename(idx_file_path, file_type):
         fname, ext = os.path.splitext(idx_file_path)
     return fname
     
+
+
+
+def check_file_permissions(file_path):
+    ''' Checks if the file exists and file permissions. 
+        Returns a dictionary: {file_path : status}
+        where status can be: READ_ACCESS and NOACCESS.
+        Adds to the errors_dict the file paths that don't exist.
+    '''
+    if not os.path.isfile(file_path):
+        return constants.NON_EXISTING_FILE
+    try:
+        with open(file_path): pass
+    except IOError as e:
+        if e.errno == errno.EACCES:
+            return constants.NOACCESS
+    else:
+        return constants.READ_ACCESS
+    # Not working for network file sys => I've changed it...
+#    if not os.access(file_path, os.F_OK):
+#        return constants.NON_EXISTING_FILE
+#    if(os.access(file_path, os.R_OK)):
+#        return constants.READ_ACCESS 
+#    elif os.access(file_path, os.F_OK) and not (os.access(file_path,os.R_OK)):
+#        return constants.NOACCESS
+
+
+    
+def check_for_invalid_paths(file_paths_list):
+    invalid_paths = []
+    for file_path in file_paths_list:
+        if not file_path or file_path == ' ' or not os.access(file_path, os.F_OK):
+            invalid_paths.append(file_path)
+    return invalid_paths
+
+
+
+def check_for_invalid_file_types(file_path_list):
+    invalid_files = []
+    for file_path in file_path_list:
+        is_compressed = False
+        ext = extract_extension(file_path)
+        if ext in constants.COMPRESSION_FORMAT_EXTENSIONS:
+            fname, ext = extract_fname_and_ext(file_path)
+            ext = extract_extension(fname)
+            is_compressed = True
+        if ext and not ext in constants.ACCEPTED_FILE_EXTENSIONS:
+            invalid_files.append(file_path)
+        if ext in constants.FILE_TYPES_ONLY_COMPRESSED and not is_compressed:
+            invalid_files.append(file_path)
+    return invalid_files
+
+
+def get_file_duplicates(files_list):
+    if len(files_list)!=len(set(files_list)):
+        return [x for x, y in collections.Counter(files_list).items() if y > 1]
+    return None
+
+
+#def list_all_files(dir_path):
+#    ''' This function returns a list with all the files present in a directory.'''
+#    return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
+
+        
+
+def list_files_from_dir(dir_path):
+    ''' Verifies that the path provided as parameter is indeed
+        an existing directory path and check if the directory is empty.
+        Throws a ValueError if the dir doesn't exist or the path 
+        is not a dir or if the dir is empty. 
+        Returns the list of files from that dir.'''
+    #files_list = []
+    if not os.path.exists(dir_path):
+        logging.error("Error: directory path provided does not exist.")
+        raise ValueError("Error: directory path provided does not exist.")
+    elif not os.path.isdir(dir_path):
+        logging.error("This path: %s is not a directory.", dir_path)
+        raise ValueError("This path: "+dir_path+" is not a directory.")
+    return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
+    
+
+
+def check_all_files_same_type(file_paths_list):
+    file_type = None
+    for file_path in file_paths_list:
+        f_type = detect_file_type(file_path)
+        if not file_type:
+            file_type = f_type
+        elif f_type != file_type:
+            return None
+    return file_type
+
+
     
 #def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
 #    if not hgi_subprj:

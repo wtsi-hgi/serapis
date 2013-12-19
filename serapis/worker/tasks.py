@@ -1085,13 +1085,15 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         for ent_name_h in header_entity_list:
             if not file_submitted.fuzzy_contains_entity(ent_name_h, entity_type):
                 if entity_type == constants.LIBRARY_TYPE:
-                    if utils.is_name(ent_name_h):
-                        search_field_name = 'name'
-                    elif utils.is_internal_id(ent_name_h):
+                    if utils.is_internal_id(ent_name_h):
                         search_field_name = 'internal_id'
+                    elif utils.is_name(ent_name_h):
+                        search_field_name = 'name'
                 elif entity_type == constants.SAMPLE_TYPE:
                     if utils.is_accession_nr(ent_name_h):
                         search_field_name = 'accession_number'
+                    elif utils.is_internal_id(ent_name_h):
+                        search_field_name = 'internal_id'
                     else:
                         search_field_name = 'name'
                 else:

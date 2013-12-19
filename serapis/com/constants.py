@@ -176,8 +176,9 @@ SAMPLE_MANDATORY_FIELDS     = {'taxon_id'} # 'country_of_origin', 'cohort', 'eth
 FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project_list', 'data_subtype_tags', 'md5'}
 INDEX_MANDATORY_FIELDS      = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list'}
+VCF_FILE_MANDATORY_FIELDS   = {'file_format'}
 
-
+    
 ########################################################
 #--------------- MODEL OPTIONAL FIELDS -----------------
 
@@ -380,6 +381,9 @@ UPDATE_EVENT = 'task-update'
 LIBRARY_TYPE    = 'library'
 SAMPLE_TYPE     = 'sample'
 STUDY_TYPE      = 'study'
+
+
+LIST_OF_ENTITY_TYPES = [SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE]
 
 #OTHER TYPES:
 SUBMISSION_TYPE = 'submission'

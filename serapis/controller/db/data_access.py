@@ -4,129 +4,11 @@ import abc
 import logging
 from bson.objectid import ObjectId
 from serapis.com import constants, utils
-from serapis.controller import models, exceptions
+from serapis.controller import exceptions
+from serapis.controller.db import models
 from mongoengine.queryset import DoesNotExist
     
-class Builder:
-    __metaclass__ = abc.ABCMeta
-    
-    @abc.abstractmethod
-    def build(self, type):    
-        return
-    
 
-    
-class FileBuilder(object):
-    __metaclass__ = abc.ABCMeta
-    
-#    @abc.abstractproperty
-#    def model_class(self):
-#        ''' This property holds the class(type) of the actual file. 
-#            It must be one of the classes in models module.'''
-#        return
-
-    @classmethod
-    @abc.abstractmethod
-    def get_file_instance(cls, file_path):
-        return
-    
-    
-    @classmethod
-    def initialize(cls, file_obj, submission):
-        file_obj.submission_id = str(submission.id)
-        file_obj.hgi_project_list = submission.hgi_project_list
-        file_obj.irods_coll = submission.irods_collection
-        
-        
-        # NOTE:this implementation is a all-or-nothing => either all files are uploaded as serapis or all as other user...pb?
-#        if upld_as_serapis == True:
-#            file_status = constants.PENDING_ON_WORKER_STATUS
-#        else:
-#            file_status = constants.PENDING_ON_USER_STATUS
-#        
-#        # Instantiating the SubmittedFile object if the file is alright
-#        file_submitted.file_submission_status = file_status
-#        file_submitted.file_mdata_status = file_status
-        
-        file_obj.file_type = submission.file_type
-            
-        # Set mdata from submission:
-        if submission.study:
-            file_obj.study_list = [submission.study]
-        if submission.abstract_library:
-            file_obj.abstract_library = submission.abstract_library
-        if submission.file_reference_genome_id:
-            file_obj.file_reference_genome_id = submission.file_reference_genome_id
-        if submission.data_type:
-            file_obj.data_type = submission.data_type
-        if submission.data_subtype_tags:
-            file_obj.data_subtype_tags = submission.data_subtype_tags
-        
-    
-    @classmethod
-    def build_index(cls, index_file_path, irods_coll):
-        index_file = models.IndexFile()
-        index_file.file_path_client=index_file_path
-        index_file.irods_coll = irods_coll
-        return index_file
-    
-    @classmethod
-    def build(cls, file_path, index_file_path, submission):
-        new_file = cls.get_file_instance(file_path)
-        cls.initialize(new_file, submission)
-        new_file.index_file = cls.build_index(index_file_path, submission.irods_collection)
-        return new_file
-        
-        
-    
-class BAMFileBuilder(FileBuilder):
-  
-    @classmethod
-    def get_file_instance(cls, file_path):
-        return models.BAMFile(file_path_client=file_path)
-    
-    
-#    @classmethod
-#    def build(file_path, index_file_path, submission):
-#        bam_file = models.BAMFile(file_path_client=file_path)
-#        BAMFileBuilder.initialize(bam_file, submission)
-#        bam_file.index_file = BAMFileBuilder.build_index(index_file_path, submission.irods_collection)
-#        return bam_file
-    
-    
-        
-class VCFFileBuilder(FileBuilder):
-    @property
-    def model_class(self):
-        ''' This property holds a models.VCFFile class. It is a field holding a type.'''
-        return models.VCFFile
-#    
-#    @classmethod
-#    def build(file_path, index_file_path, submission):
-#        vcf_file = models.VCFFile(file_path_client=file_path)
-#        VCFFileBuilder.initialize(vcf_file, submission)
-#        vcf_file.index_file = VCFFileBuilder.build_index(index_file_path, submission.irods_collection)
-#        return vcf_file
-#    
-    
-class SubmissionBuilder(Builder):
-    
-    @classmethod
-    def initialize(cls, submission, user_id, submission_data):
-        submission.sanger_user_id = user_id
-        submission.submission_date = utils.get_today_date()
-        return submission
-    
-    @classmethod
-    def build_and_save(cls, submission_data, user_id):
-        submission = models.Submission()
-        cls.initialize(submission, user_id, submission_data)
-        submission.save()
-        print "submission id:::::::::::;", submission.id
-        if SubmissionDataAccess.update_submission(submission_data, submission.id, submission) == 1:
-            return submission.id
-        submission.delete()
-        return None
     
     
 class DataAccess(object):
@@ -321,20 +203,20 @@ class FileDataAccess(DataAccess):
         return False
     
     @classmethod
-    def json2entity(cls, json_obj, source, entity_type):
+    def json2entity(cls, json_obj, source, entity_class):
         ''' Makes an entity of one of the types (entity_type param): 
             models.Entity : Library, Study, Sample 
             from the json object received as a parameter. 
             Initializes the entity fields depending on the source's priority.'''
-        if not entity_type in [models.Library, models.Sample, models.Study]:
+        if not entity_class in [models.Library, models.Sample, models.Study]:
             return None
         has_identifying_fields = cls.check_if_JSONEntity_has_identifying_fields(json_obj)
         if not has_identifying_fields:
             raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
-        ent = entity_type()
+        ent = entity_class()
         has_new_field = False
         for key in json_obj:
-            if key in entity_type._fields  and key not in constants.ENTITY_META_FIELDS and key != None:
+            if key in entity_class._fields  and key not in constants.ENTITY_META_FIELDS and key != None:
                 setattr(ent, key, json_obj[key])
                 ent.last_updates_source[key] = source
                 has_new_field = True
@@ -443,37 +325,52 @@ class FileDataAccess(DataAccess):
     def retrieve_sample_by_name(cls, sample_name, file_id, submitted_file=None):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
+        else:
+            sample_list = submitted_file.sample_list
         return cls.get_entity_by_field('name', sample_name, sample_list)
     
     @classmethod
     def retrieve_library_by_name(cls, lib_name, file_id, submitted_file=None):
         if submitted_file == None:
             library_list = cls.retrieve_library_list(file_id)
+        else:
+            library_list = submitted_file.library_list
         return cls.get_entity_by_field('name', lib_name, library_list)
     
     @classmethod
     def retrieve_study_by_name(cls, study_name, file_id, submitted_file=None):
         if submitted_file == None:
             study_list = cls.retrieve_study_list(file_id)
+        else:
+            study_list = submitted_file.study_list
         return cls.get_entity_by_field('name', study_name, study_list)
+    
+    
     
     @classmethod    
     def retrieve_sample_by_id(cls, sample_id, file_id, submitted_file=None):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
+        else:
+            sample_list = submitted_file.sample_list
         return cls.get_entity_by_field('internal_id', int(sample_id), sample_list)
     
     @classmethod
     def retrieve_library_by_id(cls, lib_id, file_id, submitted_file=None):
         if submitted_file == None:
             library_list = cls.retrieve_library_list(file_id)
+        else:
+            library_list = submitted_file.library_list
         return cls.get_entity_by_field('internal_id', int(lib_id), library_list)
     
     @classmethod
     def retrieve_study_by_id(cls, study_id, file_id, submitted_file=None):
         if submitted_file == None:
             study_list = cls.retrieve_study_list(file_id)
-        return cls.get_entity_by_field('internal_id', study_id, study_list)
+            print "STUDY LIST: ", study_list
+        else:
+            study_list = submitted_file.study_list
+        return cls.get_entity_by_field('internal_id', int(study_id), study_list)
     
     @classmethod
     def retrieve_submission_id(cls, file_id):
@@ -533,8 +430,16 @@ class FileDataAccess(DataAccess):
             return version[3]
         return submitted_file.version[3]
     
-    
-    
+    @classmethod
+    def get_entity_list_version(cls, entity_type, file_id, submitted_file=None):
+        if entity_type not in constants.LIST_OF_ENTITY_TYPES:
+            return None
+        if entity_type == constants.SAMPLE_TYPE:
+            return cls.get_sample_version(file_id, submitted_file)
+        elif entity_type == constants.STUDY_TYPE:
+            return cls.get_study_version(file_id, submitted_file)
+        elif entity_type == constants.LIBRARY_TYPE:
+            return cls.get_library_version(file_id, submitted_file)
     
     #------------------------ SEARCH ENTITY ---------------------------------
     
@@ -589,7 +494,17 @@ class FileDataAccess(DataAccess):
             submitted_file = cls.retrieve_submitted_file(file_id)
         return cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
     
-    
+    @classmethod
+    def search_JSON_entity(cls, entity_json, entity_type, file_id, submitted_file=None):
+        if submitted_file == None:
+            submitted_file = cls.retrieve_submitted_file(file_id)
+        if entity_type == constants.STUDY_TYPE:
+            return cls.search_JSONEntity_in_list(entity_json, submitted_file.study_list)
+        elif entity_type == constants.LIBRARY_TYPE:
+            return cls.search_JSONEntity_in_list(entity_json, submitted_file.library_list)
+        elif entity_type == constants.SAMPLE_TYPE:
+            return cls.search_JSONEntity_in_list(entity_json, submitted_file.sample_list)
+        return None
     
     
     # ------------------------ INSERTS & UPDATES -----------------------------
@@ -605,6 +520,26 @@ class FileDataAccess(DataAccess):
                 setattr(library, field, getattr(abstract_lib, field))
         return library
         
+    @classmethod
+    def insert_JSONentity_in_filemeta(cls, entity_json, entity_type, sender, submitted_file):
+        if submitted_file == None or not entity_json or not entity_type:
+            return False
+        if entity_type not in constants.LIST_OF_ENTITY_TYPES:
+            return False
+        if cls.search_JSON_entity(entity_json, entity_type, submitted_file.id, submitted_file) == None:
+            #library = cls.json2library(library_json, sender)
+            entity = cls.json2entity(entity_json, sender, entity_type)
+            #library = cls.__update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
+            #submitted_file.library_list.append(library)
+            if entity_type == constants.LIBRARY_TYPE:
+                submitted_file.library_list.append(entity)
+            elif entity_type == constants.SAMPLE_TYPE:
+                submitted_file.sample_list.append(entity)
+            elif entity_type == constants.STUDY_TYPE:
+                submitted_file.study_list.append(entity)
+            return True
+        return False
+    
     @classmethod
     def insert_library_in_SFObj(cls, library_json, sender, submitted_file):
         if submitted_file == None or not library_json:
@@ -635,6 +570,24 @@ class FileDataAccess(DataAccess):
             submitted_file.study_list.append(study)
             return True
         return False
+    
+    
+    ##########################
+    
+        
+    @classmethod
+    def insert_JSONentity_in_db(cls, entity_json, entity_type, sender, file_id, submitted_file):
+        if entity_type not in constants.LIST_OF_ENTITY_TYPES:
+            return False
+        if entity_type == constants.SAMPLE_TYPE:
+            return cls.insert_sample_in_db(entity_json, sender, file_id)
+        elif entity_type == constants.LIBRARY_TYPE:
+            return cls.insert_library_in_db(entity_json, sender, file_id)
+        elif entity_type == constants.STUDY_TYPE:
+            return cls.insert_study_in_db(entity_json, sender, file_id)
+        return False
+    
+    
     
     @classmethod
     def insert_library_in_db(cls, library_json, sender, file_id):
@@ -1026,25 +979,6 @@ class FileDataAccess(DataAccess):
         return update_db_dict
     
     
-    #    seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
-    #    run_list = ListField()              # list of strings
-    #    platform_list = ListField()         # list of strings
-    #    seq_date_list = ListField()             # list of strings
-    #    library_well_list = ListField()     # List of strings containing internal_ids of libs found in wells table
-    #    multiplex_lib_list = ListField()    # List of multiplexed library ids
-    
-    
-    @classmethod
-    def build_vcf_file_update_dict(cls, file_updates, update_source, file_id, submitted_file):
-        update_db_dict = {}
-        for (field_name, field_val) in file_updates.iteritems():
-            if field_val == 'null' or not field_val:
-                pass
-            elif field_name == 'used_samtools':
-                update_db_dict['set__used_samtools'] = field_val
-            elif field_name == 'file_format':
-                update_db_dict['set__file_format'] = field_val
-        return update_db_dict
                           
     @classmethod
     def update_file_mdata(cls, file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
@@ -1179,48 +1113,55 @@ class FileDataAccess(DataAccess):
             upd_dict = {'add_to_set__hgi_project_list' : project}
             return models.Submission.objects(id=subm_id).update_one(**upd_dict)
     
+    
+    
+    
     @classmethod
-    def delete_library(cls, file_id, library_id):
-        submitted_file = cls.retrieve_SFile_fields_only(file_id, ['library_list', 'version'])
+    def delete_library(cls, library_id, file_id, file_obj=None):
+        if not file_obj:
+            file_obj = cls.retrieve_SFile_fields_only(file_id, ['library_list', 'version'])
         new_list = []
         found = False
-        for lib in submitted_file.library_list:
+        for lib in file_obj.library_list:
             if lib.internal_id != int(library_id):
                 new_list.append(lib)
             else:
                 found = True
         if found == True:
-            return models.SubmittedFile.objects(id=file_id, version__2=cls.get_library_version(submitted_file.id, submitted_file)).update_one(inc__version__2=1, inc__version__0=1, set__library_list=new_list)
+            return models.SubmittedFile.objects(id=file_id, version__2=cls.get_library_version(file_obj.id, file_obj)).update_one(inc__version__2=1, inc__version__0=1, set__library_list=new_list)
         else:
             raise exceptions.ResourceNotFoundError(library_id)
     
+    #sample_id,file_id, file_obj)
     @classmethod
-    def delete_sample(cls, file_id, sample_id):
-        submitted_file = cls.retrieve_SFile_fields_only(file_id, ['sample_list', 'version'])
+    def delete_sample(cls, sample_id, file_id, file_obj=None):
+        if not file_obj:
+            file_obj = cls.retrieve_SFile_fields_only(file_id, ['sample_list', 'version'])
         new_list = []
         found = False
-        for lib in submitted_file.sample_list:
-            if lib.internal_id != int(sample_id):
-                new_list.append(lib)
+        for sample in file_obj.sample_list:
+            if sample.internal_id != int(sample_id):
+                new_list.append(sample)
             else:
                 found = True
         if found == True:
-            return models.SubmittedFile.objects(id=file_id, version__1=cls.get_sample_version(submitted_file.id, submitted_file)).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=new_list)
+            return models.SubmittedFile.objects(id=file_id, version__1=cls.get_sample_version(file_obj.id, file_obj)).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=new_list)
         else:
             raise exceptions.ResourceNotFoundError(sample_id)
     
     @classmethod
-    def delete_study(cls, file_id, study_id):
-        submitted_file = cls.retrieve_SFile_fields_only(file_id, ['study_list', 'version'])
+    def delete_study(cls, study_id, file_id, file_obj=None):
+        if not file_obj:
+            file_obj = cls.retrieve_SFile_fields_only(file_id, ['study_list', 'version'])
         new_list = []
         found = False
-        for lib in submitted_file.study_list:
-            if lib.internal_id != int(study_id):
-                new_list.append(lib)
+        for study in file_obj.study_list:
+            if study.internal_id != int(study_id):
+                new_list.append(study)
             else:
                 found = True
         if found == True:
-            return models.SubmittedFile.objects(id=file_id, version__3=cls.get_study_version(submitted_file.id, submitted_file)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
+            return models.SubmittedFile.objects(id=file_id, version__3=cls.get_study_version(file_obj.id, file_obj)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
         else:
             raise exceptions.ResourceNotFoundError(study_id)
     
@@ -1294,7 +1235,20 @@ class BAMFileDataAccess(FileDataAccess):
 
 
 class VCFFileDataAccess(FileDataAccess):
-    pass
+    
+    
+    @classmethod
+    def build_file_update_dict(cls, file_updates, update_source, file_id, submitted_file):
+        update_db_dict = super(VCFFileDataAccess, cls).build_file_update_dict(file_updates, update_source, file_id, submitted_file)
+        for (field_name, field_val) in file_updates.iteritems():
+            if field_val == 'null' or not field_val:
+                pass
+            elif field_name == 'used_samtools':
+                update_db_dict['set__used_samtools'] = field_val
+            elif field_name == 'file_format':
+                update_db_dict['set__file_format'] = field_val
+        return update_db_dict
+    
 
 
 class ReferenceGenomeDataAccess(DataAccess):
@@ -1360,19 +1314,20 @@ class ReferenceGenomeDataAccess(DataAccess):
     @classmethod
     def retrieve_reference_genome(cls, ref_gen_dict):
         if not ref_gen_dict:
-            raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided")
-        ref_gen_name, ref_gen_p = None, None
-        if 'name' in ref_gen_dict:
-            ref_gen_name = cls.retrieve_reference_by_name(ref_gen_dict['name'])
-        if 'path' in ref_gen_dict:
-            ref_gen_p = cls.retrieve_reference_by_path(ref_gen_dict['path'])
+            raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided for the reference genome.")
         
-        if ref_gen_name and ref_gen_p and ref_gen_name != ref_gen_p:
+        ref_gen_id_by_name, ref_gen_id_by_path = None, None
+        if 'name' in ref_gen_dict:
+            ref_gen_id_by_name = cls.retrieve_reference_by_name(ref_gen_dict['name'])
+        if 'path' in ref_gen_dict:
+            ref_gen_id_by_path = cls.retrieve_reference_by_path(ref_gen_dict['path'])
+        
+        if ref_gen_id_by_name and ref_gen_id_by_path and ref_gen_id_by_name != ref_gen_id_by_path:
             raise exceptions.InformationConflict(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
-        if ref_gen_name:
-            return ref_gen_name.id
-        if ref_gen_p:
-            return ref_gen_p.id
+        if ref_gen_id_by_name:
+            return ref_gen_id_by_name.id
+        if ref_gen_id_by_path:
+            return ref_gen_id_by_path.id
         return None
     
     

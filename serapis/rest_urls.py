@@ -23,7 +23,7 @@
 
 from django.conf.urls import patterns, include, url
 
-from serapis.controller import view_classes
+from serapis.controller.frontend import view_classes
 #from serapis.view_classes import LoginView, UploadView
 from django.views.generic import TemplateView
 

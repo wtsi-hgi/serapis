@@ -26,7 +26,7 @@ from rest_framework import serializers
 
 from mongoengine.fields import *
 
-from serapis.controller import models
+from serapis.controller.db import models
 
 import json
 import logging
@@ -75,6 +75,7 @@ def serialize(data):
     import simplejson
     return simplejson.dumps(data, default=encode_model, indent=4)
 
+#print "Serialized:::::", serialize([models.Submission()])
 
 def deserialize(data):
     return json.loads(data)

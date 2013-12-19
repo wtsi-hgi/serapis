@@ -401,7 +401,7 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
         has_min_mdata = True
         for field in cls.mandatory_specific_fields_list:
             if not hasattr(file_to_submit, field):
-                BAMFileStatusChecker._register_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
+                cls._register_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
                 has_min_mdata = False
             else:
                 attr_val = getattr(file_to_submit, field)
@@ -414,6 +414,34 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
                 else:
                     cls._unregister_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
         return has_min_mdata and entities_min_mdata
+        
+
+
+
+      
+class VCFFileMetaStatusChecker(FileMetaStatusChecker):
+    ''' This file holds the functionality needed in order to check the status of a VCF file
+        i.e. to evaluate whether this file has enough metadata to be submitted to iRODS or not.'''
+    
+    mandatory_specific_fields_list = constants.VCF_FILE_MANDATORY_FIELDS
+
+    @classmethod
+    def check_and_update_all_statuses(cls, file_id, file_to_submit=None):
+        return super(VCFFileMetaStatusChecker, cls).check_and_update_all_statuses(file_id, file_to_submit)
+    
+    @classmethod
+    def check_entities_status(cls, file_to_submit):
+        return super(VCFFileMetaStatusChecker, cls).check_entities_status(file_to_submit)
+        
+    
+    @classmethod
+    def check_and_report_status(cls, file_to_submit):
+        file_meta_status = super(VCFFileMetaStatusChecker, cls).check_and_report_status(file_to_submit)
+        if file_meta_status == False:
+            return False
+        # Getting the status of the entities:
+        entities_min_mdata = cls.check_entities_status(file_to_submit)
+        return entities_min_mdata
         
 
                 
