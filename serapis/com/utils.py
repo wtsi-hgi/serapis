@@ -305,6 +305,7 @@ def list_files_from_dir(dir_path):
 
 def check_all_files_same_type(file_paths_list):
     file_type = None
+    print "CHECK ALL FILES SAME TYPE  --- ------------ ------- - -------- -", file_paths_list, type(file_paths_list)
     for file_path in file_paths_list:
         f_type = detect_file_type(file_path)
         if not file_type:

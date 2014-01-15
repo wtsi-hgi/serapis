@@ -224,14 +224,16 @@ class FileMetaStatusChecker(MetadataStatusChecker):
     
     
     @classmethod
-    def __check_all_tasks_finished(cls, tasks_dict, task_categ):
+    def _check_all_tasks_finished(cls, tasks_dict, task_categ):
+        ''' Checks that all the tasks in the task dictionary that belong to a certain 
+            category, e.g. PRESUBMISSION_TASKS, have a finished status.'''
         for task_info in tasks_dict.values():
             if task_info['type'] in task_categ and not task_info['status'] in constants.FINISHED_STATUS:
                 return False
         return True
     
     @classmethod
-    def __check_task_type_status(cls, tasks_dict, task_type, status):
+    def _check_task_type_status(cls, tasks_dict, task_type, status):
         for task_info in tasks_dict.values():
             if task_info['type'] == task_type and task_info['status'] == status:
                 return True
@@ -299,7 +301,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
             file_to_submit = data_access.FileDataAccess.retrieve_submitted_file(file_id)
         
         upd_dict = {}
-        presubmission_tasks_finished = cls.__check_all_tasks_finished(file_to_submit.tasks_dict, constants.PRESUBMISSION_TASKS)
+        presubmission_tasks_finished = cls._check_all_tasks_finished(file_to_submit.tasks_dict, constants.PRESUBMISSION_TASKS)
         if presubmission_tasks_finished:
             if cls.check_and_report_status(file_to_submit):
                 logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
@@ -311,7 +313,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
                 upd_dict['file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
                 upd_type_list = [constants.FILE_FIELDS_UPDATE, constants.STUDY_UPDATE, constants.SAMPLE_UPDATE, constants.LIBRARY_UPDATE]
                 
-                if cls.__check_task_type_status(file_to_submit.tasks_dict, constants.UPLOAD_FILE_TASK, constants.SUCCESS_STATUS):
+                if cls._check_task_type_status(file_to_submit.tasks_dict, constants.UPLOAD_FILE_TASK, constants.SUCCESS_STATUS):
                     upd_dict['file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
                 else:
                     upd_dict['file_submission_status'] = constants.FAILURE_SUBMISSION_TO_IRODS_STATUS
@@ -325,10 +327,10 @@ class FileMetaStatusChecker(MetadataStatusChecker):
             upd_dict['file_submission_status'] = constants.SUBMISSION_IN_PREPARATION_STATUS
             upd_type_list = [constants.FILE_FIELDS_UPDATE]
             
-        if cls.__check_task_type_status(file_to_submit.tasks_dict, constants.ADD_META_TO_IRODS_FILE_TASK, constants.SUCCESS_STATUS) == True:
+        if cls._check_task_type_status(file_to_submit.tasks_dict, constants.ADD_META_TO_IRODS_FILE_TASK, constants.SUCCESS_STATUS) == True:
             upd_dict['file_submission_status'] = constants.METADATA_ADDED_TO_STAGED_FILE
-        if (cls.__check_task_type_status(file_to_submit.tasks_dict, constants.MOVE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
-            cls.__check_task_type_status(file_to_submit.tasks_dict, constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS)):
+        if (cls._check_task_type_status(file_to_submit.tasks_dict, constants.MOVE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
+            cls._check_task_type_status(file_to_submit.tasks_dict, constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS)):
                 upd_dict['file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
         if upd_dict:
             return data_access.FileDataAccess.update_file_from_dict(file_id, upd_dict, upd_type_list)

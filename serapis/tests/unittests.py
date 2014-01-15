@@ -22,8 +22,11 @@
 
 
 import os
-from serapis.controller import models, controller, db_model_operations, exceptions
-from serapis.controller.logic import status_checker
+#from serapis.controller import models, controller, db_model_operations, exceptions
+from serapis.controller.db import models, model_builder, data_access
+from serapis.controller import exceptions
+from serapis.controller.logic import controller_strategy
+from serapis.controller.logic import status_checker, app_logic
 from serapis.com import utils, constants
 from serapis.worker import entities
 import unittest
@@ -386,8 +389,11 @@ class TestDBFct(unittest.TestCase):
             "status" : "SUCCESS",
             "type" : constants.UPLOAD_FILE_TASK
         }}
-        res = db_model_operations.check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
+        #res = db_model_operations.check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
+        res = status_checker.BAMFileMetaStatusChecker._check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
         self.assertTrue(res)
+        
+
         
         
         tasks_dict = {
@@ -407,7 +413,7 @@ class TestDBFct(unittest.TestCase):
             "status" : "PENDING_ON_WORKER",
             "type" : constants.UPLOAD_FILE_TASK
         }}
-        res = db_model_operations.check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
+        res = status_checker.BAMFileMetaStatusChecker._check_all_tasks_finished(tasks_dict, constants.PRESUBMISSION_TASKS)
         self.assertFalse(res)
         
          
@@ -426,29 +432,13 @@ class TestController(unittest.TestCase):
 
     maxDiff = None
     
-    def test_check_all_files_same_type(self):
-        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
-                 '/home/ic4/data-test/unit-tests/bamfile2.bam']
-        res = controller.check_all_files_same_type(paths)
-        self.assertTrue(res)
-        
-        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
-                 '/home/ic4/data-test/unit-tests/bamfile2.bam',
-                 '/home/ic4/data-test/vcfs/test.vcf']
-        res = controller.check_all_files_same_type(paths)
-        self.assertFalse(res)
-        
-        paths = ['/home/ic4/data-test/vcfs/hapmap_3.3.All-AFR.b37.sites.vcf.gz',
-                 '/home/ic4/data-test/vcfs/test.vcf']
-        res = controller.check_all_files_same_type(paths)
-        self.assertTrue(res)
-        
+
     
     def test_associate_files_with_indexes(self):
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile1.bai']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         should_be = {'/home/ic4/data-test/unit-tests/bamfile1.bam' : '/home/ic4/data-test/unit-tests/bamfile1.bai', 
                      '/home/ic4/data-test/unit-tests/bamfile2.bam' : ''}
         self.assertDictEqual(res.result, should_be)
@@ -457,20 +447,20 @@ class TestController(unittest.TestCase):
                  '/home/ic4/data-test/unit-tests/bamfile2.bam', 
                  '/home/ic4/data-test/unit-tests/bamfile1.bai',
                  '/home/ic4/data-test/unit-tests/bamfile3.bai']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         self.assertDictEqual(res.error_dict, {constants.UNMATCHED_INDEX_FILES : ['/home/ic4/data-test/unit-tests/bamfile3.bai']})
 
         
         paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')]})
 
         paths = ['/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam5.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         print "ERROR DICT: ", res.error_dict
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
                                                [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
@@ -483,7 +473,7 @@ class TestController(unittest.TestCase):
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bam.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         print "ERROR DICT: ", res.error_dict
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
                                                [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
@@ -495,7 +485,7 @@ class TestController(unittest.TestCase):
                                               })
         
         paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz', '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi']
-        res = controller.associate_files_with_indexes(paths)
+        res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
         self.assertDictEqual(res.result, {'/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz' :
                                             '/home/ic4/media-tmp2/users/ic4/vcfs/Y.vqsr.vcf.gz.tbi'})
         
@@ -503,158 +493,43 @@ class TestController(unittest.TestCase):
 #        res = controller.associate_files_with_indexes(paths)
 #        self.assertListEqual(res.result, [("/home/ic4/data-test/unit-tests/ok_bams/ok_bam1.bam", None)])
                 
-
-    def test_get_files_list_from_request(self):
-        req = {'dir_path' : '/home/ic4/data-test/unit-tests/'}
-        files = controller.get_files_list_from_request(req)
-        self.assertSetEqual(set(files), set(['bamfile1.bam', 'bamfile2.bam', 'bamfile1.bai']))
-        
-        req = {"files_list" : ['/home/ic4/data-test/unit-tests/bamfile1.bam']}
-        files = controller.get_files_list_from_request(req)
-        self.assertListEqual(files, ['/home/ic4/data-test/unit-tests/bamfile1.bam'])
-        
-        req = {"files_list" : '/home/ic4/data-test/unit-tests/bamfile1.bam', 'dir_path' : '/home/ic4/data-test/unit-tests/'}
-        files = controller.get_files_list_from_request(req)
-        should_be = ['bamfile1.bam', 'bamfile2.bam', 'bamfile1.bai']
-        self.assertSetEqual(set(files), set(should_be))
-        self.assertEqual(len(files), len(should_be))
-        
-        
-    
-    def test_get_files_from_dir(self):
-        dir_path = '/home/ic4/data-test/unit-tests/'
-        files = controller.get_files_from_dir(dir_path)
-        self.assertSetEqual(set(['bamfile1.bam', 'bamfile2.bam', 'bamfile1.bai']), set(files))
-        
-        dir_path = '/home/ic4/data-test/unit-testsss/'
-        self.assertRaises(ValueError, controller.get_files_from_dir, dir_path)
-        
-        dir_path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
-        self.assertRaises(ValueError, controller.get_files_from_dir, dir_path)
-        
-        
-    
-    def test_check_file_permissions(self):
-        path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
-        permission = controller.check_file_permissions(path)
-        self.assertEqual(permission, constants.NOACCESS)
-        
-        path = '/home/ic4/data-test/unit-tests/bamfile2.bam'
-        permission = controller.check_file_permissions(path)
-        self.assertEqual(permission, constants.READ_ACCESS)
-        
-        path = '/home/ic4/data-test/unit-tests/bamfile3.bam'
-        permission = controller.check_file_permissions(path)
-        self.assertEqual(permission, constants.NON_EXISTING_FILE)
-        
-        
-        # Failing test:
-        path = '/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306042.bam'
-        permission = controller.check_file_permissions(path)
-        #self.assertEqual(permission, constants.NOACCESS)
-        
-        
-         
-        
-    def test_extend_errors_dict(self):
-        error_list = ["1st-file", "2nd-file"]
-        error_type = constants.NOT_SUPPORTED_FILE_TYPE
-        error_res = {}
-        controller.extend_errors_dict(error_list, error_type, error_res)
-        self.assertDictEqual(error_res, {constants.NOT_SUPPORTED_FILE_TYPE : error_list})
-        
-        error_type = constants.NON_EXISTING_FILE
-        controller.extend_errors_dict(error_list, error_type, error_res)
-        self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : error_list, constants.NOT_SUPPORTED_FILE_TYPE : error_list})
-    
-        error_list2 = ["f3.bam"]
-        controller.extend_errors_dict(error_list2, constants.NON_EXISTING_FILE, error_res)
-        self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : ["1st-file", "2nd-file", "f3.bam"], constants.NOT_SUPPORTED_FILE_TYPE : error_list})
-    
-    
-    def test_verify_files_validity(self):
-        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf.gz", "/dupl/dupl.bam", "", ""]
-        errors = controller.verify_files_validity(paths)
-        self.assertDictEqual({constants.FILE_DUPLICATES : ["", "/dupl/dupl.bam"], constants.NON_EXISTING_FILE : paths}, errors)
-        
-        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
-                 "/home/ic4/media-tmp/bams/8887_8#94.bac", 
-                 "/home/ic4/media-tmp/bams/8887_8#94.bb"]
-        errors = controller.verify_files_validity(paths)
-        self.assertDictEqual(errors, {constants.NON_EXISTING_FILE : ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
-                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bac",  
-                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bb"],
-                                       constants.NOT_SUPPORTED_FILE_TYPE : ["/home/ic4/media-tmp/bams/8887_8#94.bac", 
-                                                                            "/home/ic4/media-tmp/bams/8887_8#94.bb"]})
-        
-    
-    def test_get_file_duplicates(self):
-        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf", "/dupl/dupl.bam", "", ""]
-        duplic = controller.get_file_duplicates(paths)
-        self.assertListEqual(duplic, ["", "/dupl/dupl.bam"])
-        
-        paths = ['d', 'd', 'd', 'd']
-        duplic = controller.get_file_duplicates(paths)
-        self.assertListEqual(duplic, ['d'])
-        
-        paths = [" ", "", ""]
-        duplic = controller.get_file_duplicates(paths)
-        self.assertListEqual(duplic, [""])
-        
-        paths = []
-        duplic = controller.get_file_duplicates(paths)
-        self.assertIsNone(duplic)
-        
-    
-    def test_check_for_invalid_file_types(self):
-        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", "/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]
-        self.assertListEqual(controller.check_for_invalid_file_types(paths), ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"])
-
-        paths = [""]
-        self.assertFalse(controller.check_for_invalid_file_types(paths))
-        
-        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf.gz']
-        invalid_paths = controller.check_for_invalid_file_types(paths)
-        self.assertListEqual([], invalid_paths)
-        
-        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf']
-        invalid_paths = controller.check_for_invalid_file_types(paths)
-        self.assertListEqual(paths, invalid_paths)
-        
-        
-        
-        
-    
-    def test_detect_file_type(self):
-        path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
-        self.assertEqual(utils.detect_file_type(path), 'bam')
-        
-        path = "/home/ic4/media-tmp/bams/8887_8#94.bai"
-        self.assertEqual(utils.detect_file_type(path), 'bai')
-        
-        path = "/home/ic4/media-tmp/bams/8887_8#94.bam.bai"
-        self.assertEqual(utils.detect_file_type(path), 'bai')
-        
-        
-        path = "/home/ic4/media-tmp/bams/8887_8#94.bam.asd"
-        res = utils.detect_file_type(path)
-        self.assertEqual(None, res)
-        
-        path = ""
-        res = utils.detect_file_type(path)
-        self.assertEqual(None, res)
-        
-        
-    
-    def test_check_for_invalid_paths(self):
-        paths = ['/an/invalid/path', 'another/invalid/path']
-        self.assertListEqual(controller.check_for_invalid_paths(paths), paths)
-        
-        paths = ['an/invalid/path', '/home/ic4/data-test/']
-        self.assertListEqual(controller.check_for_invalid_paths(paths), ['an/invalid/path'])
-
-        paths = ['']
-        self.assertListEqual(controller.check_for_invalid_paths(paths), paths)
+#    These 2 functions got moved/renamed after the code refactoring
+#
+#    def test_get_files_list_from_request(self):
+#        req = {'dir_path' : '/home/ic4/data-test/unit-tests/'}
+#        files = controller.get_files_list_from_request(req)
+#        self.assertSetEqual(set(files), set(['bamfile1.bam', 'bamfile2.bam', 'bamfile1.bai']))
+#        
+#        req = {"files_list" : ['/home/ic4/data-test/unit-tests/bamfile1.bam']}
+#        files = controller.get_files_list_from_request(req)
+#        self.assertListEqual(files, ['/home/ic4/data-test/unit-tests/bamfile1.bam'])
+#        
+#        req = {"files_list" : '/home/ic4/data-test/unit-tests/bamfile1.bam', 'dir_path' : '/home/ic4/data-test/unit-tests/'}
+#        files = controller.get_files_list_from_request(req)
+#        should_be = ['bamfile1.bam', 'bamfile2.bam', 'bamfile1.bai']
+#        self.assertSetEqual(set(files), set(should_be))
+#        self.assertEqual(len(files), len(should_be))
+#        
+#       
+#        
+#         
+#    
+#    def test_verify_files_validity(self):
+#        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf.gz", "/dupl/dupl.bam", "", ""]
+#        errors = controller.verify_files_validity(paths)
+#        self.assertDictEqual({constants.FILE_DUPLICATES : ["", "/dupl/dupl.bam"], constants.NON_EXISTING_FILE : paths}, errors)
+#        
+#        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
+#                 "/home/ic4/media-tmp/bams/8887_8#94.bac", 
+#                 "/home/ic4/media-tmp/bams/8887_8#94.bb"]
+#        errors = controller.verify_files_validity(paths)
+#        self.assertDictEqual(errors, {constants.NON_EXISTING_FILE : ["/home/ic4/media-tmp/bams/8887_8#94.bam", 
+#                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bac",  
+#                                                                     "/home/ic4/media-tmp/bams/8887_8#94.bb"],
+#                                       constants.NOT_SUPPORTED_FILE_TYPE : ["/home/ic4/media-tmp/bams/8887_8#94.bac", 
+#                                                                            "/home/ic4/media-tmp/bams/8887_8#94.bb"]})
+#      
+#        
 
 
 class TestUtils(unittest.TestCase):
@@ -674,6 +549,145 @@ class TestUtils(unittest.TestCase):
 #        
 #        date = '20120909'
 #        self.assertFalse(utils.is_date_correct(date))
+
+      
+    def test_extend_errors_dict(self):
+        error_list = ["1st-file", "2nd-file"]
+        error_type = constants.NOT_SUPPORTED_FILE_TYPE
+        error_res = {}
+        utils.extend_errors_dict(error_list, error_type, error_res)
+        self.assertDictEqual(error_res, {constants.NOT_SUPPORTED_FILE_TYPE : error_list})
+        
+        error_type = constants.NON_EXISTING_FILE
+        utils.extend_errors_dict(error_list, error_type, error_res)
+        self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : error_list, constants.NOT_SUPPORTED_FILE_TYPE : error_list})
+    
+        error_list2 = ["f3.bam"]
+        utils.extend_errors_dict(error_list2, constants.NON_EXISTING_FILE, error_res)
+        self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : ["1st-file", "2nd-file", "f3.bam"], constants.NOT_SUPPORTED_FILE_TYPE : error_list})
+    
+    
+   
+    
+    def test_get_files_from_dir(self):
+        dir_path = '/home/ic4/data-test/unit-tests/'
+        files = utils.get_files_from_dir(dir_path)
+        self.assertSetEqual(set(['/home/ic4/data-test/unit-tests/bamfile1.bam', '/home/ic4/data-test/unit-tests/bamfile2.bam', '/home/ic4/data-test/unit-tests/bamfile1.bai']),
+                            set(files))
+        
+        dir_path = '/home/ic4/data-test/unit-testsss/'
+        self.assertRaises(OSError, utils.get_files_from_dir, dir_path)
+        
+        dir_path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
+        self.assertRaises(OSError, utils.get_files_from_dir, dir_path)
+        
+        
+    
+    def test_check_file_permissions(self):
+        path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
+        permission = utils.check_file_permissions(path)
+        self.assertEqual(permission, constants.NOACCESS)
+        
+        path = '/home/ic4/data-test/unit-tests/bamfile2.bam'
+        permission = utils.check_file_permissions(path)
+        self.assertEqual(permission, constants.READ_ACCESS)
+        
+        path = '/home/ic4/data-test/unit-tests/bamfile3.bam'
+        permission = utils.check_file_permissions(path)
+        self.assertEqual(permission, constants.NON_EXISTING_FILE)
+        
+        
+        # Failing test:
+        path = '/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306042.bam'
+        permission = utils.check_file_permissions(path)
+        #self.assertEqual(permission, constants.NOACCESS)
+        
+  
+    
+    def test_get_file_duplicates(self):
+        paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf", "/dupl/dupl.bam", "", ""]
+        duplic = utils.get_file_duplicates(paths)
+        self.assertListEqual(duplic, ["", "/dupl/dupl.bam"])
+        
+        paths = ['d', 'd', 'd', 'd']
+        duplic = utils.get_file_duplicates(paths)
+        self.assertListEqual(duplic, ['d'])
+        
+        paths = [" ", "", ""]
+        duplic = utils.get_file_duplicates(paths)
+        self.assertListEqual(duplic, [""])
+        
+        paths = []
+        duplic = utils.get_file_duplicates(paths)
+        self.assertIsNone(duplic)
+        
+        
+
+
+    def test_detect_file_type(self):
+        path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
+        self.assertEqual(utils.detect_file_type(path), 'bam')
+        
+        path = "/home/ic4/media-tmp/bams/8887_8#94.bai"
+        self.assertEqual(utils.detect_file_type(path), 'bai')
+        
+        path = "/home/ic4/media-tmp/bams/8887_8#94.bam.bai"
+        self.assertEqual(utils.detect_file_type(path), 'bai')
+        
+        
+        path = "/home/ic4/media-tmp/bams/8887_8#94.bam.asd"
+        res = utils.detect_file_type(path)
+        self.assertEqual(None, res)
+        
+        path = ""
+        res = utils.detect_file_type(path)
+        self.assertEqual(None, res)
+
+    
+    def test_check_for_invalid_file_types(self):
+        paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", "/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]
+        self.assertListEqual(utils.check_for_invalid_file_types(paths), ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"])
+
+        paths = [""]
+        self.assertFalse(utils.check_for_invalid_file_types(paths))
+        
+        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf.gz']
+        invalid_paths = utils.check_for_invalid_file_types(paths)
+        self.assertListEqual([], invalid_paths)
+        
+        paths = ['/home/ic4/media-tmp2/users/ic4/vcfs/11.vcf']
+        invalid_paths = utils.check_for_invalid_file_types(paths)
+        self.assertListEqual(paths, invalid_paths)
+        
+    
+    def test_check_for_invalid_paths(self):
+        paths = ['/an/invalid/path', 'another/invalid/path']
+        self.assertListEqual(utils.check_for_invalid_paths(paths), paths)
+        
+        paths = ['an/invalid/path', '/home/ic4/data-test/']
+        self.assertListEqual(utils.check_for_invalid_paths(paths), ['an/invalid/path'])
+
+        paths = ['']
+        self.assertListEqual(utils.check_for_invalid_paths(paths), paths)
+
+
+    def test_check_all_files_same_type(self):
+        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile2.bam']
+        res = utils.check_all_files_same_type(paths)
+        self.assertTrue(res)
+        
+        paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam', 
+                 '/home/ic4/data-test/unit-tests/bamfile2.bam',
+                 '/home/ic4/data-test/vcfs/test.vcf']
+        res = utils.check_all_files_same_type(paths)
+        self.assertFalse(res)
+        
+        paths = ['/home/ic4/data-test/vcfs/hapmap_3.3.All-AFR.b37.sites.vcf.gz',
+                 '/home/ic4/data-test/vcfs/test.vcf']
+        res = utils.check_all_files_same_type(paths)
+        self.assertTrue(res)
+        
         
     def test_unicode2string(self):
         task_dict={u'400f65eb-16d4-4e6b-80d5-4d1113fcfdf4': {u'status': u'SUCCESS', u'type': u'serapis.worker.tasks.UpdateFileMdataTask'}, 
@@ -792,5 +806,155 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(fname, '/lustre/scratch113/projects/crohns/IBD_1.bam')
         
         
+#      def _select_and_remove_tasks_by_status(cls, tasks_dict, status_list):
+#        selected_tasks = set()
+#        for task_id, task_info in tasks_dict.items():
+#            if task_info['status'] in status_list:
+#                removed_task = tasks_dict.pop(task_id)
+#                selected_tasks.add(removed_task['type'])
+#        return selected_tasks
+#    
+        
+class TestAppLogic(unittest.TestCase):
+    
+    def test_select_and_remove_tasks_by_status(self):
+        tasks_dict =  {
+        "43c0a673-76cd-47de-887a-ad10e66e3ee7" : {
+            "status" : "FAILURE",
+            "type" : "UPLOAD_FILE_TASK"
+        },
+        "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "CALC_MD5_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        
+        must_be = {
+            "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "CALC_MD5_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        } 
+        }
+        res = app_logic.BAMFileBusinessLogic._select_and_remove_tasks_by_status(tasks_dict, [constants.FAILURE_STATUS])
+        self.assertDictEqual(must_be, tasks_dict)
+        
+        
+        
+        tasks_dict =  {
+        "43c0a673-76cd-47de-887a-ad10e66e3ee7" : {
+            "status" : constants.PENDING_ON_WORKER_STATUS,
+            "type" : "UPLOAD_FILE_TASK"
+        },
+        "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : constants.PENDING_ON_USER_STATUS,
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "CALC_MD5_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        
+        must_be = {
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+        "status" : "SUCCESS",
+        "type" : "CALC_MD5_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        
+        app_logic.BAMFileBusinessLogic._select_and_remove_tasks_by_status(tasks_dict, [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS])
+        self.assertDictEqual(must_be, tasks_dict)
+
+
+    def test_select_and_remove_tasks_by_id(self):
+        tasks_dict =  {
+        "43c0a673-76cd-47de-887a-ad10e66e3ee7" : {
+            "status" : "FAILURE",
+            "type" : "UPLOAD_FILE_TASK"
+        },
+        "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "CALC_MD5_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        
+        must_be = {
+        "43c0a673-76cd-47de-887a-ad10e66e3ee7" : {
+            "status" : "FAILURE",
+            "type" : "UPLOAD_FILE_TASK"
+        },
+        "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "CALC_MD5_TASK"
+        }
+        }
+        app_logic.BAMFileBusinessLogic._select_and_remove_tasks_by_id(tasks_dict, ["e812259f-cce9-4822-b220-9911d36ec4a0"])
+        self.assertDictEqual(must_be, tasks_dict)
+        
+        
+    def test_select_and_remove_tasks_by_type(self):
+        tasks_dict =  {
+        "43c0a673-76cd-47de-887a-ad10e66e3ee7" : {
+            "status" : "FAILURE",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "6bc1dcfe-6cbb-4144-bebb-5dc8aafab28a" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "b947c8ee-a5c3-4482-8dca-277806025545" : {
+            "status" : "SUCCESS",
+            "type" : "UPDATE_MDATA_TASK"
+        },
+        "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        
+        must_be = {
+                   "e812259f-cce9-4822-b220-9911d36ec4a0" : {
+            "status" : "SUCCESS",
+            "type" : "PARSE_HEADER_TASK"
+        }
+        }
+        app_logic.BAMFileBusinessLogic._select_and_remove_tasks_by_type(tasks_dict, ["UPDATE_MDATA_TASK"])
+        self.assertDictEqual(tasks_dict, must_be)
         
         

@@ -71,6 +71,8 @@ urlpatterns = patterns('',
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/studies/$', view_classes.StudyMainPageRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/studies/(?P<study_id>\w+)/$', view_classes.StudyRequestHandler.as_view()),
     
+    ##### Messages from workers:
+    url(r'^workers/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$', view_classes.WorkerSubmittedFileRequestHandler.as_view()),
     
 
 

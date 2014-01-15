@@ -58,6 +58,8 @@ class SubmissionDataAccess(DataAccess):
                 update_db_dict['set__irods_collection'] = field_val
             elif field_name == 'file_type':
                 update_db_dict['set__file_type'] = field_val
+            elif field_name == 'sanger_user_id':
+                update_db_dict['set__sanger_user_id'] = field_val
             else:
                 logging.error("ERROR: KEY not in Submission class declaration!!!!! %s", field_name)
         return update_db_dict
@@ -110,13 +112,6 @@ class SubmissionDataAccess(DataAccess):
     def delete_submission(cls, submission_id, submission=None):
         if not submission:
             submission = cls.retrieve_submission(submission_id)
-        # 1. Check that all the files can be deleted:
-        for file_id in submission.files_list:
-            subm_file = cls.retrieve_submitted_file(file_id)
-            #### if subm_file != None:
-            cls.check_and_update_all_file_statuses(None, subm_file)
-            if subm_file.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
-                return False
             
         # 2. Delete the files and the submission 
         models.Submission.objects(id=submission_id).delete()

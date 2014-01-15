@@ -70,7 +70,9 @@ from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 
 
 #BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
-BASE_URL = "http://localhost:8000/api-rest/submissions/"
+#BASE_URL = "http://localhost:8000/api-rest/submissions/"
+BASE_URL = "http://localhost:8000/api-rest/workers/submissions/"
+#workers/tasks/(?P<task_id>)/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$
 MD5 = "md5"
 
 
@@ -105,10 +107,16 @@ def deserialize(data):
 #    return json.loads(data)
 
 def build_url(submission_id, file_id):
-    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
     url_str = [BASE_URL, str(submission_id), "/files/", str(file_id),"/"]
     url_str = ''.join(url_str)
     return url_str
+
+#def build_url(submission_id, file_id, task_id):
+#    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
+#    url_str = [BASE_URL, task_id,"/submissions/", str(submission_id), "/files/", str(file_id),"/"]
+#    url_str = ''.join(url_str)
+#    return url_str
+
 
 def build_result(submission_id, file_id):
     result = dict()
@@ -150,7 +158,7 @@ def send_http_PUT_req(msg, submission_id, file_id):
     if not response.status_code == '500':
         print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response.text
     else:
-        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response
+        print "SENT PUT REQUEST. 500 RESPONSE RECEIVED: " #, response
     return response
 
 

@@ -5,12 +5,14 @@ from serapis.com import utils, constants
 from serapis.controller.frontend import validator
 from serapis.controller.db import models, data_access, model_builder
 from serapis.controller.logic import app_logic
-from serapis.controller import exceptions
+from serapis.controller import exceptions, serapis2irods
+
 
 import abc
 import copy
 import logging
 from multimethods import multimethod 
+from bson.objectid import ObjectId
 
 
 
@@ -22,6 +24,13 @@ class GeneralContext(object):
         self.request_data = request_data
         print "GENERAL CONSTRUCTOR CALLED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         
+class WorkerRequestContext(object):
+    ''' This type of classes are used as container to keep the information
+        taken from the requests initiated by the workers.'''
+    def __init__(self, request_data=None):
+        #self.task_id = task_id
+        self.request_data = request_data
+
 
 class GeneralSubmissionContext(GeneralContext):
     ''' This class is a container class for the submission-related requests.'''
@@ -58,6 +67,16 @@ class SpecificFileContext(GeneralFileContext):
         super(SpecificFileContext, self).__init__(user_id, submission_id, request_data)
     
 
+class WorkerSpecificFileContext(WorkerRequestContext):
+    ''' This class is a container class that keeps and passes over the information
+        taken from the requests coming from the workers, for a specific file from a specific submission.'''
+    def __init__(self, submission_id, file_id, request_data=None):
+        #self.user_id = user_id
+        self.submission_id = submission_id
+        self.file_id = file_id
+        #self.request_data = request_data
+#        self.entity_id = entity_id
+        super(WorkerSpecificFileContext, self).__init__(request_data)
 
 
 
@@ -68,32 +87,28 @@ class ResourceHandlingStrategy(object):
     __metaclass__ = abc.ABCMeta
     
     @classmethod
-    @abc.abstractmethod
-    def convert(cls, request_data):
+    def convert(self, request_data):
         ''' This function converts the data from the request to a different format.'''
-        pass
+        return utils.unicode2string(request_data)
+
     
-    @classmethod
-    @abc.abstractmethod
-    def validate(cls, request_data):
+    #@abc.abstractmethod
+    def validate(self, request_data):
         ''' This function validates the data coming from the client, checking the fields
             present in the request's body, type of the fields, etc.'''
         pass
     
-    @classmethod
-    @abc.abstractmethod
-    def verify_data(cls, request_data):
+    #@abc.abstractmethod
+    def verify_data(self, request_data):
         ''' This function verifies the integrity of the data provided by'''
     
-    @classmethod
-    @abc.abstractmethod
-    def extract_data(cls, request_data):
+    #@abc.abstractmethod
+    def extract_data(self, request_data):
         ''' This function extracts the useful information from the request and returns it.'''
         pass
     
-    @classmethod
     @abc.abstractmethod
-    def process_request(cls, context):
+    def process_request(self, context):
         ''' This function is responsible for processing the request and returning the results to the client.'''
         pass
         
@@ -216,10 +231,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         # OPTIONAL - to be considered -- add extra check if all values != '' 
         return models.Result(file_index_map, error_dict=error_dict)
     
-    @classmethod
-    def convert(cls, request_data):
-        return utils.unicode2string(request_data)
-
+    
     @classmethod
     def validate(cls, request_data):
         validator.submission_post_validator(request_data)
@@ -293,9 +305,16 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         request_data = cls.extract_data(request_data)
         cls.verify_data(request_data)
         
-        file_et_index_map = cls._associate_files_with_indexes(request_data['files_list']).result
+        error_dict = {}
+        file_et_index_map = cls._associate_files_with_indexes(request_data['files_list'])
         if hasattr(file_et_index_map, 'error_dict') and getattr(file_et_index_map, 'error_dict'):
             return models.Result(False, error_dict=file_et_index_map.error_dict, warning_dict=file_et_index_map.warning_dict)
+        
+        file_et_index_map = file_et_index_map.result
+        no_index_files = [f for f, v in file_et_index_map.items() if v=='']
+        if no_index_files:
+            utils.extend_errors_dict(no_index_files, constants.FILE_WITHOUT_INDEX, error_dict)
+            return models.Result(False, error_dict=error_dict)
         
         files_type = utils.check_all_files_same_type(file_et_index_map)
         if not files_type:
@@ -395,19 +414,338 @@ class SubmissionModificationStrategy(ResourceModificationStrategy):
 
 class FileModificationStrategy(ResourceModificationStrategy):
     ''' This class contains the functionality for updating a file. '''
+  
+    #def update_file_from_task(self, submission_id, file_id, data):
+    def update_file_from_task(self, context):
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
+        tasks_dict = file_logic.file_data_access.retrieve_tasks_dict(context.file_id)
+        try: 
+            task_type = tasks_dict[context.request_data['task_id']]['type']
+        except KeyError:
+            raise exceptions.TaskNotRegisteredError(faulty_expression=context.request_data['task_id'])
+        
+        try:
+            errors = context.request_data['errors']
+        except KeyError:
+            errors = None
+    
+        if task_type in constants.IRODS_TASKS:
+            file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+        else:
+            if context.request_data['status'] == constants.FAILURE_STATUS:
+                file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+            else:
+                file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data['result'], 
+                                                      task_type, 
+                                                      task_id=context.request_data['task_id'], 
+                                                      task_status=context.request_data['status'], 
+                                                      errors=errors)
+        # TESTING:
+        if task_type == constants.UPLOAD_FILE_TASK:
+            file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+            serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+            
+        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+        file_logic.status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
+    
+    
+    def update_file_from_user(self, context):
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
+        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+        has_new_entities = False
+        if 'library_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.library_list, context.request_data['library_list']) == True: 
+            logging.debug("Has new libraries!")
+            has_new_entities = True
+        elif 'sample_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.sample_list, context.request_data['sample_list']) == True:
+            logging.debug("Has new samples!")
+            has_new_entities = True
+        elif 'study_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.study_list, context.request_data['study_list']) == True:
+            logging.debug("Has new studies!")
+            has_new_entities = True
+        
+        file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
+        if has_new_entities == True:
+            file_to_update.reload()
+            #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_to_update.file_type)
+            submitted = file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], context.file_id, file_to_update)
+            if not submitted:
+                #return False
+                logging.error("Tasks not submitted, though they should have been, as new entities have been found in the update message!")
+            file_logic.status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
+        return True
+            
+    
+#    def update_file_submitted(self, submission_id, file_id, data):
+#        ''' Updates a file from a submission.
+#        Params:
+#            submission_id -- a string with the id of the submission
+#            file_id -- a string containing the id of the file to be modified
+#        Throws:
+#            InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+#            DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
+#            #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+#            KeyError -- if a key does not exist in the model of the submitted file
+#        '''
+#        #logging.info("*********************************** START ************************************************" + str(file_id))
+#        if 'task_id' in data:
+#            self.update_file_from_task(submission_id, file_id, data)
+#        else:
+#            self.update_file_from_user(submission_id, file_id, data)
+#        #db_model_operations.check_and_update_all_file_statuses(file_id)        
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
+        print "Called SpecificFileContext process_req in file modif, context: ", vars(context)
+        context.request_data = self.convert(context.request_data)
+        self.validate(context.request_data)
+        self.update_file_from_user(context)
         
-        
-        
-        
-        
-        
-        
-        
+    @multimethod(WorkerSpecificFileContext)
+    def process_request(self, context):
+        context.request_data = self.convert(context.request_data)
+        print "Called WorkerSpecificFileContext process_req in file modif", vars(context)
+        self.update_file_from_task(context)
         
 
+class ResourceDeletionStrategy(ResourceHandlingStrategy):
+    ''' This class contains the logic for deleting resources.'''
+    pass    
+    
+class FileDeletionStrategy(ResourceDeletionStrategy):
+    ''' This class contains the logic for deleting files from a submission.'''
+    
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        ''' Deletes a file from a submission.
+         Throws:
+             InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+             DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error).
+        '''    
+        subm_file = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+        if subm_file.file_submission_status in [constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS, constants.SUBMISSION_IN_PROGRESS_STATUS]:
+            error_msg = "The file can't be deleted because it has already been submitted to iRODS. (status="+subm_file.file_submission_status+")" 
+            raise exceptions.OperationNotAllowed(msg=error_msg)
+        submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id) 
+        file_obj_id = ObjectId(context.file_id)
+        if file_obj_id in submission.files_list:
+            submission.files_list.remove(file_obj_id)
+            if len(submission.files_list) == 0:
+                submission.delete()
+            else:
+                data_access.SubmissionDataAccess.update_submission_file_list(context.submission_id, submission.files_list)
+        return data_access.FileDataAccess.delete_submitted_file(None, subm_file)
+        
+            
+class SubmissionDeletionStrategy(ResourceDeletionStrategy):
+    ''' This class contains the logic for deleting submissions.'''
+    
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        ''' This function deletes this submission given as parameter in the context.
+            Throws:
+                InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
+                DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error) 
+        '''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        for f in files:
+            file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(f.id, f)
+            file_logic.status_checker.check_and_update_all_statuses(f.id, f)
+            if f.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
+                return False
+        return data_access.SubmissionDataAccess.delete_submission(context.submission_id)
+    
+    
+class ResubmissionOperationsStrategy(object):
+    ''' Class used when there is a request for one or more presubmission tasks to be resubmitted.'''
+
+    def convert(self, request_data):
+        return utils.unicode2string(request_data)
+    
+    def validate(self, request_data):
+        validator.resubmission_message_validator(request_data)
+ 
+    def backend_file_operation(self, context, file_obj, submission):
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
+        if not context.request_data:
+            # By default resubmit the failed and pending tasks:
+            statuses = [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]
+            return file_logic.resubmit_tasks_by_status(statuses, file_obj, submission)
+        if 'status_list' in context.request_data:
+            return file_logic.resubmit_tasks_by_status(context.request_data['status_list'], file_obj, submission)
+        if 'task_type_list' in context.request_data:
+            return file_logic.resubmit_tasks_by_type(context.request_data['task_type_list'], file_obj, submission)
+        if 'task_ids' in context.request_data:
+            return file_logic.resubmit_tasks_by_id(context.request_data['task_ids'], file_obj, submission)
+    
+    
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        ''' Resubmit tasks for all the files in a submission.'''
+        req_data = self.convert(context.request_data)
+        self.validate(req_data)
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+        submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
+        return self.backend_file_operation(context, file_obj, submission)
+         
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        ''' Resubmit tasks for all the files in a submission.'''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+        results = {}
+        for f in files:
+            file_context = SpecificFileContext(None, context.submission_id, f.id)
+            results[str(f.id)] = self.backend_file_operation(file_context, f, submission).result
+        return models.Result(results)
+
+
+class BackendOperationsStrategy(object):
+    ''' This class contains the logic for various iRODS operations.'''
+    __metaclass__ = abc.ABCMeta
+    task_name = None
+
+    def is_file_ready(self, context, file_obj=None):
+        ''' Checks if the submission or file to be submitted are ready.'''
+        if not file_obj:
+            file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
+        return file_logic.is_file_ready_for_task(self.task_name, file_obj.id, file_obj)
+
+    def are_all_ready(self, context, files=None):
+        if not files:
+            files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        results = {}
+        error_dict = {}
+        ready = True
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(files[0].file_type)
+        for file_to_submit in files:
+            file_check_result = file_logic.is_file_ready_for_task(self.task_name, file_to_submit.id, file_to_submit)
+            if not file_check_result.result:
+                ready = False
+                error_dict.update(file_check_result.error_dict)
+            results[str(file_to_submit.id)] = file_check_result.result
+        if not ready:
+            return models.Result(results, error_dict)
+        return models.Result(True)
+
+    def convert(self, request_data):
+        return utils.unicode2string(request_data)
+    
+    def validate(self, request_data):
+        validator.irods_post_validator(request_data)
+
+    def extract_data(self, request_data):
+        if not 'atomic' in request_data:
+            return {'atomic' : False}
+        return {'atomic' : True}
+    
+    @abc.abstractmethod
+    def backend_file_operation(self, context, file_obj=None):
+        ''' This is the actual operation that is being executed on a file.'''
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
+        return file_logic.submit_submission_task(self.task_name, context.file_id, file_obj)
+        
+    def apply_atomically_on_all_files(self, context):
+        ''' This is the operation executed on all files from a submission in an atomic way.'''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        results = {}
+        #submission_logic = app_logic.SubmissionBusinessLogic(files[0].file_type)
+        #files_ready = submission_logic.check_all_files_ready_for_task(cls.task_name, files)
+        files_ready_check = self.are_all_ready(context, files)
+        if not files_ready_check.result:
+            return files_ready_check
+        for f in files:
+            file_context = SpecificFileContext(None, context.submission_id, f.id)
+            results[str(f.id)] = self.backend_file_operation(file_context, f).result
+        return models.Result(results)
+    
+    def apply_nonatomically_on_all_files(self, context):
+        ''' This is the backend operation executed on all files from a submission in a non-atomic way.'''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        results = {}
+        for file_to_submit in files:
+            file_context = SpecificFileContext(None, context.submission_id, file_to_submit.id)
+            submission_result = self.backend_file_operation(file_context)
+            results[str(file_to_submit.id)] = submission_result.result
+        return models.Result(results)
+    
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        req_data = self.convert(context.request_data)
+        self.validate(self, req_data)
+        req_data = self.extract_data(req_data)
+        if req_data['atomic']:
+            return self.apply_atomically_on_all_files()
+        return self.apply_nonatomically_on_all_files()
+    
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        return self.backend_file_operation(context)
+    
+
+    
+class BackendSubmissionStrategy(BackendOperationsStrategy):
+    ''' This class contains the functionality for submitting a file to iRODS,
+        i.e. adding the metadata to it present in the DB and moving it from
+        the staging area to the permanent backend collection.'''
+    task_name = constants.SUBMIT_TO_PERMANENT_COLL_TASK
+    
+
+class BackendMetadataHandlingStrategy(BackendOperationsStrategy):
+    ''' This class contains the functionality for adding/removing/updating the metadata of an iRODS data object (file).'''
+    pass
+
+class MoveFilesToPermanentBackendCollection(BackendOperationsStrategy):
+    ''' This class contains the functionality for moving files from the staging area 
+        to the permanent backend collection, if they fulfill the requirements needed.'''
+    task_name = constants.MOVE_TO_PERMANENT_COLL_TASK
+    
+
+class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
+    ''' This class contains the functionality for adding metadata to a staged file.'''
+    task_name = constants.ADD_META_TO_IRODS_FILE_TASK
+    
+#    @classmethod
+#    def backend_file_operation(cls, context, file_obj=None):
+#        if not file_obj:
+#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+#        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
+#        return file_logic.submit_submission_tasks([constants.ADD_META_TO_IRODS_FILE_TASK], context.file_id, file_obj)
+#    
+#    @classmethod
+#    def apply_atomically_on_all_files(cls, context):
+#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+#        results = {}
+#        submission_logic = app_logic.SubmissionBusinessLogic(files[0].file_type)
+#        files_ready = submission_logic.check_files_ready_for_submission(files)
+#        if not files_ready.result:
+#            return files_ready
+#        for f in files:
+#            file_context = SpecificFileContext(None, context.submission_id, f.id)
+#            results[str(f.id)] = cls.backend_file_operation(file_context)
+#        return models.Result(results)
+#
+#    @classmethod
+#    def apply_nonatomically_on_all_files(cls, context):
+#        results = {}
+#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+#        for file_to_submit in files:
+#            file_context = SpecificFileContext(None, context.submission_id, file_to_submit.id)
+#            res = cls.backend_file_operation(file_context, file_to_submit)
+#            results[str(file_to_submit.id)] = res.result
+#            if res.error_dict:
+#                logging.error("ERRORs dict: %s",str(res.error_dict))
+#        return models.Result(results)
+
+
+#    @classmethod
+#    def process_request(cls, context):
+#        req_data = cls.convert(context.request_data)
+#        cls.validate(cls, req_data)
+#        req_data = cls.extract_data(req_data)
+    
+            
 
 
 

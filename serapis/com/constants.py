@@ -75,6 +75,14 @@ CALCULATE_MD5_Q = "CalculateMD5Q"
 # IRODS queue:
 IRODS_Q = "IRODSQ"
 
+#################### SERAPIS QUEUES ################################
+
+SERAPIS_UPLOAD_Q = UPLOAD_Q+'.serapis'
+
+SERAPIS_PROCESS_MDATA_Q = PROCESS_MDATA_Q+'.serapis'
+
+SERAPIS_CALCULATE_MD5_Q = CALCULATE_MD5_Q+'.serapis'
+
 
 ######################## FILE PERMISSIONS #######################################
 

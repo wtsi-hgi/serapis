@@ -21,7 +21,8 @@
 
 
 
-import models, exceptions
+import exceptions
+from serapis.controller.db import models
 from serapis.com import  constants, utils
 import time
 import logging
