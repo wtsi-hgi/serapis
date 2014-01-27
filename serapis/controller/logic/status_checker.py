@@ -510,6 +510,22 @@ class FileStatusCheckerForSubmissionTasks(object):
             return models.Result(False, error_dict=error_dict)
         return models.Result(True)
     
+    @classmethod
+    def _check_file_md5_eq(cls, file_path, calculated_md5):
+        md5_file_path = file_path + '.md5'
+        if os.path.exists(md5_file_path):
+            official_md5 = open(md5_file_path).readline().split(' ')[0]     # the line looks like: '1682c0da2192ca32b8bdb5e5dda148fe  UC729852.bam\n'
+            #print "COMPARING md5!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
+            equal_md5 = (official_md5 == calculated_md5)
+            #print "MD5 WERE EQUAL?????????????????????????????????????????????????????????????////", equal_md5
+            if not equal_md5:
+                logging.error("The md5 sum calculated is different from the md5 sum in the file.md5!!!")
+            return equal_md5
+        else:
+            #print "MD5 hasn't been cheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeckedddddddddddddddddddddddddddddddddd!!!!"
+            logging.error("Md5 sum hasn't been checked between the calculated md5 and the md5 stored in the .md5 file, because this file doesn't exist.")
+            return True
+    
 
     @classmethod
     def _is_ready_for_add_meta_task(cls, file_obj):

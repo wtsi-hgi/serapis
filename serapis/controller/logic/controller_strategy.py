@@ -530,7 +530,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             if not submitted:
                 #return False
                 logging.error("Tasks not submitted, though they should have been, as new entities have been found in the update message!")
-            file_logic.meta_status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
+            file_logic.check_and_update_all_statuses(context.file_id, file_to_update)
         return True
             
     
@@ -608,7 +608,7 @@ class SubmissionDeletionStrategy(ResourceDeletionStrategy):
         files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         for f in files:
             file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(f.id, f)
-            file_logic.meta_status_checker.check_and_update_all_statuses(f.id, f)
+            file_logic.check_and_update_all_statuses(f.id, f)
             if f.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
                 return False
         return data_access.SubmissionDataAccess.delete_submission(context.submission_id)
@@ -667,7 +667,7 @@ class BackendOperationsStrategy(object):
         ''' Checks if the submission or file to be submitted are ready.'''
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-        return meta_status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(self.task_name, file_obj)
+        return status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(self.task_name, file_obj)
         #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
         #return file_logic.is_file_ready_for_task(self.task_name, file_obj.id, file_obj)
 
