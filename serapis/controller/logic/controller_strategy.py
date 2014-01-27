@@ -4,7 +4,7 @@ from serapis import serializers
 from serapis.com import utils, constants
 from serapis.controller.frontend import validator
 from serapis.controller.db import models, data_access, model_builder
-from serapis.controller.logic import app_logic
+from serapis.controller.logic import app_logic, status_checker
 from serapis.controller import exceptions, serapis2irods
 
 
@@ -17,41 +17,50 @@ from bson.objectid import ObjectId
 
 
 class GeneralContext(object):
-    ''' This type of classes are used as container to keep and pass over 
+    ''' This type is used as a data container to pass over 
         the information taken from the request: parameters and request body.'''
     def __init__(self, user_id, request_data=None):
         self.user_id = user_id
         self.request_data = request_data
-        print "GENERAL CONSTRUCTOR CALLED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+
         
 class WorkerRequestContext(object):
-    ''' This type of classes are used as container to keep the information
+    ''' This type is used as a data container to transfer the information
         taken from the requests initiated by the workers.'''
     def __init__(self, request_data=None):
-        #self.task_id = task_id
         self.request_data = request_data
 
+
+class GeneralReferenceGenomeContext(object):
+    def __init__(self, request_data=None):
+        self.request_data = request_data
+        
+
+class ReferenceGenomeContext(object):
+    ''' This class is used as a data container for transferring the information
+        from the requests to the parts of the application processing this data.'''
+    def __init__(self, ref_id, request_data=None):
+        self.reference_id = ref_id
+        self.request_data = request_data
+    
 
 class GeneralSubmissionContext(GeneralContext):
     ''' This class is a container class for the submission-related requests.'''
     pass
 
+
 class SpecificSubmissionContext(GeneralSubmissionContext):
     ''' This class is a container class that keeps and passes over the 
         information taken from a request regarding a specific submission.'''
     def __init__(self, user_id, submission_id, request_data=None):
-        #self.user_id = user_id
         self.submission_id = submission_id
-        #self.request_data = request_data
         super(SpecificSubmissionContext, self).__init__(user_id, request_data)     
         
 class GeneralFileContext(GeneralContext):
     ''' This class is a container class that keeps the general information 
         related to the files of a submission.'''
     def __init__(self, user_id, submission_id, request_data=None):
-        #self.user_id = user_id
         self.submission_id = submission_id
-        #self.request_data = request_data
         super(GeneralFileContext, self).__init__(user_id, request_data)
         
 
@@ -59,11 +68,7 @@ class SpecificFileContext(GeneralFileContext):
     ''' This class is a container class that keeps and passes over the information 
         taken from a request regarding a specific file from a specific submission.'''
     def __init__(self, user_id, submission_id, file_id, request_data=None):
-        #self.user_id = user_id
-        #self.submission_id = submission_id
         self.file_id = file_id
-        #self.request_data = request_data
-#        self.entity_id = entity_id
         super(SpecificFileContext, self).__init__(user_id, submission_id, request_data)
     
 
@@ -71,14 +76,9 @@ class WorkerSpecificFileContext(WorkerRequestContext):
     ''' This class is a container class that keeps and passes over the information
         taken from the requests coming from the workers, for a specific file from a specific submission.'''
     def __init__(self, submission_id, file_id, request_data=None):
-        #self.user_id = user_id
         self.submission_id = submission_id
         self.file_id = file_id
-        #self.request_data = request_data
-#        self.entity_id = entity_id
         super(WorkerSpecificFileContext, self).__init__(request_data)
-
-
 
 
 class ResourceHandlingStrategy(object):
@@ -118,6 +118,76 @@ class ResourceCreationStrategy(ResourceHandlingStrategy):
     ''' This class is in charge of the creation of resources such as submissions and file.'''
     pass
 
+
+class ResourceRetrivalStrategy(ResourceHandlingStrategy):
+    ''' This class contains the logic for retrieving resources from the DB, as requested by the client.'''
+    pass
+
+
+class ResourceModificationStrategy(ResourceHandlingStrategy):
+    ''' This class contains the functionality for modifying a resource.'''
+    pass        
+        
+        
+class ReferenceGenomeRetrivalStrategy(ResourceHandlingStrategy):
+    
+    @classmethod
+    def validate(cls, request_data):
+        validator.reference_genome_schema(request_data)
+        
+    @multimethod(ReferenceGenomeContext)
+    def process_request(self, context):
+        return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_id(context.reference_id)
+    
+    @multimethod(GeneralReferenceGenomeContext)
+    def process_request(self, context):
+        if not context.request_data:
+            return data_access.ReferenceGenomeDataAccess.retrieve_all()
+        req_data = self.convert(context.request_data)
+        self.validate(req_data)
+        #if hasattr(context, 'name'):
+        if 'name' in req_data:
+            return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_name(req_data['name'])
+        #if hasattr(context, 'path'):
+        elif 'path' in req_data:
+            return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_path(req_data['path'])
+        else:
+            return None
+    
+    
+    
+class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
+    
+    @classmethod
+    def validate(cls, request_data):
+        validator.reference_genome_schema(request_data)
+        
+    # context = ReferenceGenomeContext type
+    def process_request(self, context):
+        if not context.request_data:
+            return None
+        req_data = self.convert(context.request_data)
+        self.validate(req_data)
+        #return data_access.ReferenceGenomeDataAccess.insert_reference_genome(req_data)
+        ref_genome = data_access.ReferenceGenomeDataAccess.insert_into_db(req_data)
+        return ref_genome.id
+    
+    
+class ReferenceGenomeModificationStrategy(ResourceModificationStrategy):
+    
+    @classmethod
+    def validate(cls, request_data):
+        validator.reference_genome_schema(request_data)
+        
+    # context = ReferenceGenomeContext type
+    def process_request(self, context):
+        if not context.request_data:
+            return None
+        req_data = self.convert(context.request_data)
+        self.validate(req_data)
+        updated = data_access.ReferenceGenomeDataAccess.update(context.reference_id, req_data)
+        return updated == 1
+        
 
 class SubmissionCreationStrategy(ResourceCreationStrategy):
     ''' This class contains the logic for creating new submissions.'''
@@ -339,13 +409,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         return models.Result(str(submission.id))
     
     
-    
-    
-class ResourceRetrivalStrategy(ResourceHandlingStrategy):
-    ''' This class contains the logic for retrieving resources from the DB, as requested by the client.'''
-    pass
-
-
+ 
 class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
     ''' This class contains the logic useful for retrieving submissions. '''
     
@@ -401,12 +465,6 @@ class FileRetrievalStrategy(ResourceRetrivalStrategy):
         
         
         
-
-class ResourceModificationStrategy(ResourceHandlingStrategy):
-    ''' This class contains the functionality for modifying a resource.'''
-    pass        
-        
-        
 class SubmissionModificationStrategy(ResourceModificationStrategy):
     ''' Not implemented yet.'''
     pass
@@ -447,7 +505,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
         serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
-        file_logic.status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
+        file_logic.meta_status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
     
     
     def update_file_from_user(self, context):
@@ -472,7 +530,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             if not submitted:
                 #return False
                 logging.error("Tasks not submitted, though they should have been, as new entities have been found in the update message!")
-            file_logic.status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
+            file_logic.meta_status_checker.check_and_update_all_statuses(context.file_id, file_to_update)
         return True
             
     
@@ -550,7 +608,7 @@ class SubmissionDeletionStrategy(ResourceDeletionStrategy):
         files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         for f in files:
             file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(f.id, f)
-            file_logic.status_checker.check_and_update_all_statuses(f.id, f)
+            file_logic.meta_status_checker.check_and_update_all_statuses(f.id, f)
             if f.file_submission_status in [constants.SUCCESS_STATUS, constants.IN_PROGRESS_STATUS]:
                 return False
         return data_access.SubmissionDataAccess.delete_submission(context.submission_id)
@@ -609,8 +667,9 @@ class BackendOperationsStrategy(object):
         ''' Checks if the submission or file to be submitted are ready.'''
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
-        return file_logic.is_file_ready_for_task(self.task_name, file_obj.id, file_obj)
+        return meta_status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(self.task_name, file_obj)
+        #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
+        #return file_logic.is_file_ready_for_task(self.task_name, file_obj.id, file_obj)
 
     def are_all_ready(self, context, files=None):
         if not files:
@@ -618,9 +677,10 @@ class BackendOperationsStrategy(object):
         results = {}
         error_dict = {}
         ready = True
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(files[0].file_type)
+        #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(files[0].file_type)
         for file_to_submit in files:
-            file_check_result = file_logic.is_file_ready_for_task(self.task_name, file_to_submit.id, file_to_submit)
+            #file_check_result = file_logic.is_file_ready_for_task(self.task_name, file_to_submit.id, file_to_submit)
+            file_check_result = self.is_file_ready(context, file_to_submit)
             if not file_check_result.result:
                 ready = False
                 error_dict.update(file_check_result.error_dict)

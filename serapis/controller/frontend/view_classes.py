@@ -40,6 +40,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 #from rest_framework.decorators import api_view
 
+#from rest_framework.routers import *
+
 #from serializers import ObjectIdEncoder
 
 from os import listdir
@@ -51,6 +53,7 @@ from pymongo.errors import InvalidId
 import errno
 import json
 from mongoengine.queryset import DoesNotExist
+from mongoengine.errors import NotUniqueError
 #from celery.bin.celery import result
 
 import logging
@@ -114,6 +117,52 @@ def replace_null_id_json(file_submitted):
 #        return input.encode('utf-8')
 #    else:
 #        return input
+
+
+# ----------------------- REFERENCE GENOMES HANDLING --------------------
+
+#/references
+class ReferencesMainPageRequestHandler(APIView):
+    
+    def get(self, request, format=None):
+        context = controller_strategy.GeneralReferenceGenomeContext()
+        strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
+        references = strategy.process_request(context)
+        serial_refs = serializers.serialize(references)
+        return Response({"result" : serial_refs}, status=200)
+    
+    def post(self, request, format=None):
+        if not hasattr(request, 'DATA'):
+            return Response(status=304)
+        try:
+            context = controller_strategy.GeneralReferenceGenomeContext(request.DATA)
+            strategy = controller_strategy.ReferenceGenomeInsertionStrategy()
+            ref_id = strategy.process_request(context)
+            return Response({"result" : ref_id}, status=201)
+        except NotUniqueError:
+            return Response("Resource already exists", status=424)
+    
+    
+    
+# /references/123/
+class ReferenceRequestHandler(APIView):
+    
+    def get(self, request, reference_id):
+        print "RENDERERS -- default : ", self.renderer_classes
+        context = controller_strategy.ReferenceGenomeContext(reference_id)
+        strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
+        ref = strategy.process_request(context)
+        return Response({"result" : serializers.serialize(ref)})
+    
+    # Should we really allow the users to modify references? Maybe if they are admins...
+    def put(self, request, reference_id, format=None):
+        if not hasattr(request, 'DATA'):
+            return Response("No data to be updated", 304)
+        context = controller_strategy.ReferenceGenomeContext(reference_id, request.DATA)
+        strategy = controller_strategy.ReferenceGenomeModificationStrategy()
+        updated = strategy.process_request(context)
+        return Response({"result" : serializers.serialize(updated)})
+    
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 

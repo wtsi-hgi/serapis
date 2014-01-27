@@ -34,6 +34,9 @@ urlpatterns = patterns('',
 
     # (?P<user_id>\w+) is a Python named group containing only words ([a-zA-Z0-9]
     
+    url(r'^references/$', view_classes.ReferencesMainPageRequestHandler.as_view()),
+    url(r'^references/(?P<reference_id>\w+)/$', view_classes.ReferenceRequestHandler.as_view()),
+    
     
     
    # url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.GetAllUserSubmissions.as_view()),

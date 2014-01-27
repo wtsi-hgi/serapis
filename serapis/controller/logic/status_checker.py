@@ -1,8 +1,34 @@
-import abc
+
+
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
+
+import abc, os
 import logging
 
-from serapis.com import constants
-from serapis.controller.db import data_access
+from serapis.com import constants, utils
+from serapis.controller.db import data_access, models
 
  
     
@@ -445,6 +471,83 @@ class VCFFileMetaStatusChecker(FileMetaStatusChecker):
         entities_min_mdata = cls.check_entities_status(file_to_submit)
         return entities_min_mdata
         
+        
 
+class FileStatusCheckerForSubmissionTasks(object):
+    ''' This class contains the functionality for checking the file status 
+        in order to decide whether a file is ready for a specific submission task or not.'''
+    
+    @classmethod
+    def _compare_file_md5(cls, md5_file_path, calculated_md5):
+        md5_file_path = md5_file_path + '.md5'
+        if os.path.exists(md5_file_path):
+            official_md5 = open(md5_file_path).readline().split(' ')[0]     # the line looks like: '1682c0da2192ca32b8bdb5e5dda148fe  UC729852.bam\n'
+            #print "COMPARING md5!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
+            equal_md5 = (official_md5 == calculated_md5)
+            #print "MD5 WERE EQUAL?????????????????????????????????????????????????????????????////", equal_md5
+            if not equal_md5:
+                logging.error("The md5 sum calculated is different from the md5 sum in the file.md5!!!")
+            return equal_md5
+        else:
+            #print "MD5 hasn't been cheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeckedddddddddddddddddddddddddddddddddd!!!!"
+            logging.error("Md5 sum hasn't been checked between the calculated md5 and the md5 stored in the .md5 file, because this file doesn't exist.")
+            return True
+        
+    @classmethod
+    def _check_file_md5(cls, file_obj):
+        error_dict = {}
+        f_md5_correct = cls.check_file_md5_eq(file_obj.file_path_client, file_obj.md5)
+        if not f_md5_correct:
+            logging.error("Unequal md5: calculated file's md5 is different than the contents of %s.md5", file_obj.file_path_client)
+            utils.append_to_errors_dict(str(file_obj.id), constants.UNEQUAL_MD5,error_dict)
+        
+        if file_obj.index_file.file_path_client:
+            index_md5_correct = cls.check_file_md5_eq(file_obj.index_file.file_path_client, file_obj.index_file.md5)
+            if not  index_md5_correct:
+                logging.error("Unequal md5: calculated index file's md5 is different than the contents of %s.md5", file_obj.index_file.file_path_client)
+                utils.append_to_errors_dict("index - "+str(file_obj.id), constants.UNEQUAL_MD5, error_dict)
+        if error_dict:
+            return models.Result(False, error_dict=error_dict)
+        return models.Result(True)
+    
+
+    @classmethod
+    def _is_ready_for_add_meta_task(cls, file_obj):
+        error_dict = {}
+        if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+            utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
+        md5_check = cls._check_file_md5(file_obj)
+        if not md5_check.result:
+            utils.append_to_errors_dict(file_obj.id, constants.UNEQUAL_MD5, error_dict)
+        if error_dict:
+            return models.Result(False, error_dict)
+        return models.Result(True)
+    
+    @classmethod
+    def _is_ready_for_submit_task(cls, file_obj):
+        return cls.is_ready_for_add_meta_task(file_obj)
+
+    @classmethod
+    def _is_ready_for_move_to_permanent_coll_task(cls, file_obj):
+        error_dict = {}
+        if not file_obj.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
+            utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
+            return models.Result(False, error_dict)
+        return models.Result(True)
+        
+    @classmethod
+    def is_file_ready_for_task(cls, task_name, file_obj):
+        if task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
+            return cls._is_ready_for_add_meta_task(file_obj)
+        elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
+            return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
+        elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
+            return cls._is_ready_for_submit_task(file_obj)
+        return None
+                
+                
+                
+                
+                
                 
 

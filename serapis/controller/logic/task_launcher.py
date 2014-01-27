@@ -1,7 +1,34 @@
-from serapis.com import constants
+
+
+
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
+
+from serapis.com import constants, utils
 from serapis.worker import tasks
-from serapis.controller import db_model_operations, serapis2irods
-from serapis.controller.db import data_access
+from serapis.controller import serapis2irods
+from serapis.controller.db import data_access, models
 from serapis.controller.serapis2irods import serapis2irods_logic
 from serapis import serializers
 
@@ -33,6 +60,7 @@ submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
 
 
 ##################### MAIN LOGIC ###################################
+
 
 
 class TaskLauncher(object):

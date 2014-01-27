@@ -27,9 +27,11 @@ import datetime
 import logging
 import hashlib
 import collections
+import simplejson
 from os import listdir
 from os.path import isfile, join, exists
 from serapis.com import constants
+
 
 
 
@@ -57,6 +59,15 @@ def calculate_md5(file_path):
     return md5_sum.hexdigest()
 
 
+######################### JSON CONVERSION #######################################
+#
+#
+#def serialize(data):
+#    return simplejson.dumps(data)
+#
+#
+#def deserialize(data):
+#    return simplejson.loads(data)
 
 
 ######################### UNICODE processing ####################################

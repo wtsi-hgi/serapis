@@ -1,5 +1,30 @@
 
 
+
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
+
 import abc
 import logging
 from bson.objectid import ObjectId
@@ -9,6 +34,7 @@ from serapis.controller.db import models
 from mongoengine.queryset import DoesNotExist
     
 
+#################################################################################
     
     
 class DataAccess(object):
@@ -142,8 +168,8 @@ class SubmissionDataAccess(DataAccess):
     
     @classmethod
     def retrieve_all_files_for_submission(cls, subm_id):
-        files = models.SubmittedFile.objects(submission_id=subm_id)
-        return [f for f in files]
+        return models.SubmittedFile.objects(submission_id=subm_id)
+        #return [f for f in files]
 
     
     @classmethod    
@@ -158,7 +184,7 @@ class SubmissionDataAccess(DataAccess):
     def retrieve_submission_upload_as_serapis_flag(cls, submission_id):
         if not submission_id:
             return None
-        return models.Submission.objects(id=submission_id).only('upload_as_serapis').get().upload_as_serapis
+        return models.Submission.objects(id=ObjectId(submission_id)).only('upload_as_serapis').get().upload_as_serapis
 
     @classmethod
     def retrieve_only_submission_fields(cls, submission_id, fields_list):
@@ -959,7 +985,7 @@ class FileDataAccess(DataAccess):
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
             elif field_name == 'reference_genome':
-                    ref_gen = cls.get_or_insert_reference_genome(field_val)     # field_val should be a path
+                    ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
                     update_db_dict['set__file_reference_genome_id'] = ref_gen.md5
             else:
                 logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
@@ -979,6 +1005,8 @@ class FileDataAccess(DataAccess):
     def update_file_mdata(cls, file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
         upd, i = 0, 0
         db_update_dict = {}
+        
+        print "MESSAGE RECEIVED FROM WORKERSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS", file_updates
         if task_id:
             db_update_dict = {"set__tasks_dict__"+task_id+"__status" : task_status}
             if errors:
@@ -1248,20 +1276,37 @@ class VCFFileDataAccess(FileDataAccess):
 
 class ReferenceGenomeDataAccess(DataAccess):
  
-    @classmethod   
-    def insert_reference_genome(cls, ref_dict):
-        ref_genome = models.ReferenceGenome()
-        if 'name' in ref_dict:
-            #ref_name = ref_dict['name']
-            ref_genome.name = ref_dict['name']
-        if 'path' in ref_dict:
-            ref_genome.paths = [ref_dict['path']]
-        else:
-            raise exceptions.NotEnoughInformationProvided(msg="You must provide both the name and the path for the reference genome.") 
-        md5 = utils.calculate_md5(ref_dict['path'])
-        ref_genome.md5 = md5
-        ref_genome.save()
-        return ref_genome
+#    @classmethod   
+#    def insert_reference_genome(cls, ref_dict):
+#        ref_genome = models.ReferenceGenome()
+#        if 'name' in ref_dict:
+#            #ref_name = ref_dict['name']
+#            ref_genome.name = ref_dict['name']
+#        if 'path' in ref_dict:
+#            ref_genome.paths = [ref_dict['path']]
+#        else:
+#            raise exceptions.NotEnoughInformationProvided(msg="You must provide both the name and the path for the reference genome.") 
+#        md5 = utils.calculate_md5(ref_dict['path'])
+#        ref_genome.md5 = md5
+#        print "REF GENOME TO BE INSERTED::::::::::::", vars(ref_genome)
+#        ref_genome.save()
+#        return ref_genome
+#    
+    
+    @classmethod
+    def insert_into_db(cls, ref_genome_dict):
+        ref_gen = models.ReferenceGenome()
+        if 'name' in ref_genome_dict:
+            ref_gen.name = ref_genome_dict['name']
+            print "NAME: ", ref_gen.name
+        if 'path' in ref_genome_dict:
+            ref_gen.paths = [ref_genome_dict['path']]
+            print "PATHS: ", ref_gen.paths
+        ref_gen.md5 = utils.calculate_md5(ref_genome_dict['path'])
+        print "REF GEN BEFORE ADDING IT: ;:::::::::::::::", vars(ref_gen)
+        ref_gen.save()
+        return ref_gen
+    
     
     #def insert_reference_genome(ref_dict):
     #    ref_genome = models.ReferenceGenome()
@@ -1285,6 +1330,10 @@ class ReferenceGenomeDataAccess(DataAccess):
     #    return ref_genome
         
     @classmethod
+    def retrieve_all(cls):
+        return models.ReferenceGenome.objects()
+    
+    @classmethod
     def retrieve_reference_by_path(cls, path):
         try:
             return models.ReferenceGenome.objects(paths__in=[path]).hint([('paths', 1)]).get()
@@ -1298,6 +1347,11 @@ class ReferenceGenomeDataAccess(DataAccess):
             return found
         except DoesNotExist:
             return None
+        
+    @classmethod
+    def retrieve_reference_by_id(cls, ref_id):
+        return cls.retrieve_reference_by_md5(ref_id)
+    
     
     @classmethod
     def retrieve_reference_by_name(cls, canonical_name):
@@ -1305,7 +1359,8 @@ class ReferenceGenomeDataAccess(DataAccess):
             return models.ReferenceGenome.objects(name=canonical_name).get()
         except DoesNotExist:
             return None
-        
+    
+    # NOT USED< I THINK    
     @classmethod
     def retrieve_reference_genome(cls, ref_gen_dict):
         if not ref_gen_dict:
@@ -1327,39 +1382,65 @@ class ReferenceGenomeDataAccess(DataAccess):
     
     
     @classmethod
-    def get_or_insert_reference_genome(cls, file_path):
-        ''' This function receives a path identifying 
-            a reference file and retrieves it from the database 
-            or inserts it if it's not there.
-        Parameters: a path(string)
-        Throws:
-            - TooMuchInformationProvided exception - when the dict has more than a field
-            - NotEnoughInformationProvided - when the dict is empty
-        '''
-        if not file_path:
-            raise exceptions.NotEnoughInformationProvided(msg="ERROR: the path of the reference genome must be provided.")        
-        ref_gen = cls.retrieve_reference_by_path(file_path)
-        if ref_gen:
-            return ref_gen
-        return cls.insert_reference_genome({'path' : file_path})
+    def update(cls, ref_id, ref_dict):
+        old_ref = cls.retrieve_reference_by_id(ref_id)
+        update_dict = {}
+        if 'name' in ref_dict and old_ref.name != ref_dict['name']:
+            update_dict['set__name'] = ref_dict['name']
+        if 'path' in ref_dict:
+            paths = old_ref.paths
+            paths.append(ref_dict['path'])
+            paths = list(set(paths))
+            if paths != old_ref.paths:
+                update_dict['set__paths'] = paths
+        if update_dict:
+            update_dict['inc__version'] = 1 
+            updated = models.ReferenceGenome.objects(md5=ref_id, version=old_ref.version).update_one(**update_dict)
+            return updated
+        return None
         
-        
-    @classmethod
-    def get_or_insert_reference_genome_path_and_name(cls, data):
-        ''' This function receives a dictionary with data identifying 
-            a reference genome and retrieves it from the data base.
-        Parameters: a dictionary
-        Throws:
-            - TooMuchInformationProvided exception - when the dict has more than a field
-            - NotEnoughInformationProvided - when the dict is empty
-        '''
-        if not 'name' in data and not 'path' in data:
-            raise exceptions.NotEnoughInformationProvided(msg="ERROR: either the name or the path of the reference genome must be provided.")        
-        ref_gen = cls.retrieve_reference_genome(data)
-        if ref_gen:
-            return ref_gen
-        return cls.insert_reference_genome(data)
+            
+#        for (field_name, field_val) in file_updates.iteritems():
+#            if field_val == 'null' or not field_val:
+#                pass
+#            if field_name in submitted_file._fields:        
     
+#    
+#    
+#    @classmethod
+#    def get_or_insert_reference_genome(cls, file_path):
+#        ''' This function receives a path identifying 
+#            a reference file and retrieves it from the database 
+#            or inserts it if it's not there.
+#        Parameters: a path(string)
+#        Throws:
+#            - TooMuchInformationProvided exception - when the dict has more than a field
+#            - NotEnoughInformationProvided - when the dict is empty
+#        '''
+#        if not file_path:
+#            raise exceptions.NotEnoughInformationProvided(msg="ERROR: the path of the reference genome must be provided.")        
+#        ref_gen = cls.retrieve_reference_by_path(file_path)
+#        if ref_gen:
+#            return ref_gen
+#        return cls.insert_reference_genome({'path' : file_path})
+#        
+#        
+#    @classmethod
+#    def get_or_insert_reference_genome_path_and_name(cls, data):
+#        ''' This function receives a dictionary with data identifying 
+#            a reference genome and retrieves it from the data base.
+#        Parameters: a dictionary
+#        Throws:
+#            - TooMuchInformationProvided exception - when the dict has more than a field
+#            - NotEnoughInformationProvided - when the dict is empty
+#        '''
+#        if not 'name' in data and not 'path' in data:
+#            raise exceptions.NotEnoughInformationProvided(msg="ERROR: either the name or the path of the reference genome must be provided.")        
+#        ref_gen = cls.retrieve_reference_genome(data)
+#        if ref_gen:
+#            return ref_gen
+#        return cls.insert_reference_genome(data)
+#    
 
 
 

@@ -139,8 +139,9 @@ class ReferenceGenome(Document):
     meta = {
                'indexes': ['paths']
            }
-
-
+    version = IntField(default=0)
+    
+    
 class Sample(Entity):          # one sample can be member of many studies
     accession_number = StringField()         # each sample relates to EXACTLY 1 individual
     sanger_sample_id = StringField()

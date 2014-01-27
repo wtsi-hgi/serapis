@@ -1,4 +1,29 @@
 
+
+
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
 from serapis.controller.logic import task_launcher #BatchTasksLauncherBAMFile, BatchTasksLauncherVCFFile
 from serapis.com import constants, utils
 from serapis.controller import db_model_operations
@@ -14,23 +39,21 @@ import logging
 #import serapis.controller.db.data_access
 from multimethods import multimethod 
 
-class BusinessLogic:
+
+
+
+#################################################################################
+
+
+class BusinessLogic(object):
     pass
     
     
-    
-    
-class SubmissionBusinessLogic:
-    
-    #@multimethod(str)
+class SubmissionBusinessLogic(BusinessLogic):
+    ''' This class contains the main logic for a submission.'''
+        
     def __init__(self, file_type):
         self.file_logic = FileBusinessLogicBuilder.build_from_type(file_type)
-        
-#    @multimethod(models.Submission)
-#    def __init__(self, submission):
-#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission.id)
-#        f_type = files[0].file_type
-#        self.__init__(f_type)
     
     # TODO: see if I can do this operation as a batch of updates in mongodb
     # TODO: measure the time that it takes for this fct to run
@@ -58,26 +81,9 @@ class SubmissionBusinessLogic:
     
     
 #    @multimethod
-#    def check_all_files_ready_for_task(self, task_name, files):
-#        results = {}
-#        error_dict = {}
-#        ready = True
-#        for file_to_submit in files:
-#            file_check_result = self.file_logic.is_file_ready_for_task(task_name, file_to_submit.id, file_to_submit)
-#            if file_check_result.result == False:
-#                ready = False
-#                error_dict.update(file_check_result.error_dict)
-#            results[str(file_to_submit.id)] = file_check_result.result
-#        if not ready:
-#            return models.Result(results, error_dict)
-#        return models.Result(True)
-    
-    
-        
-    @multimethod
-    def check_files_ready_for_task(self, task_name, submission_id):
-        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
-        return self.check_files_ready_for_task(task_name, files)
+#    def check_files_ready_for_task(self, task_name, submission_id):
+#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
+#        return self.check_files_ready_for_task(task_name, files)
 
     
 #    @multimethod
@@ -106,11 +112,17 @@ class FileBusinessLogic:
     __metaclass__ = abc.ABCMeta
     batch_tasks_launcher    = None
     file_builder            = None
-    status_checker          = None
+    meta_status_checker          = None
     file_data_access        = None
     
     # PB: these methods can't be only classmethods, they have to be also abstract, otherwise one can call: FileBusinessLogic.resubmit, without 
     # task_launcher to be initialized!!!
+    
+    def check_and_update_all_file_statuses(self, file_id, file_to_submit):
+        return self.meta_status_checker.check_and_update_all_statuses(file_id, file_to_submit)
+    
+    
+    
     
     
     @classmethod
@@ -187,41 +199,7 @@ class FileBusinessLogic:
             return cls.resubmit_presubmission_tasks(tasks_to_resubmit, file_obj, submission)
         return models.Result(False)
 
-#        new_tasks_dict = {}
-#        tasks_dict = file_obj.tasks_dict
-#        set_of_failed_tasks = set()
-#        for task_id, task_info in tasks_dict.iteritems():
-#            if task_info['status'] in [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]:
-#                set_of_failed_tasks.add(task_info['type'])
-#            else:
-#                new_tasks_dict[task_id] = task_info
-                
-#        resubm_tasks_dict = None
-#        if failed_tasks:
-#            resubm_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks(failed_tasks, 
-#                                                                              file_id, 
-#                                                                              user_id=submission.sanger_user_id, 
-#                                                                              file_obj=file_obj, 
-#                                                                              as_serapis=submission.upload_as_serapis)
-#            file_obj.tasks_dict.update(resubm_tasks_dict)
-#            file_status = cls._decide_file_presubmission_status(submission.upload_as_serapis)
-#            cls.after_tasks_submission(file_id, failed_tasks, file_obj.tasks_dict, file_status)
-#            return True
-#        return False
-        
-        
-#    @classmethod
-#    def resubmit_presubmission_failed_tasks(cls, file_obj, submission):
-#        ''' This method is used for resubmitting to the queues the presubmission tasks that failed.'''
-#        if file_obj == None:
-#            file_obj = cls.file_data_access.retrieve_submitted_file(file_id) 
-#        if not submission:
-#            submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
-#        
-#        failure_statuses = [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]
-#        return cls.resubmit_tasks_by_status(failure_statuses, file_id, file_obj, submission)
-    
-    
+
     @classmethod
     def submit_presubmission_tasks(cls, list_of_tasks, file_id, file_obj=None, submission=None):
         ''' This method submits a list of presubmission tasks to the queues for execution on the workers.'''
@@ -267,7 +245,11 @@ class FileBusinessLogic:
 #        file_check_result = cls._check_file_md5(file_id, file_obj)
 #        if not file_check_result.result:
 #            return file_check_result
-#        
+
+        is_ready = status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(task_name, file_obj)
+        if not is_ready.result:
+            return is_ready
+        
         # Submitting a list of tasks:
         submitted_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks([task_name], 
                                                                           file_id, 
@@ -309,77 +291,7 @@ class FileBusinessLogic:
             raise exceptions.EditConflictError("The entity couldn't be inserted.")
         
     
-    @classmethod
-    def _compare_file_md5(cls, md5_file_path, calculated_md5):
-        md5_file_path = md5_file_path + '.md5'
-        if os.path.exists(md5_file_path):
-            official_md5 = open(md5_file_path).readline().split(' ')[0]     # the line looks like: '1682c0da2192ca32b8bdb5e5dda148fe  UC729852.bam\n'
-            #print "COMPARING md5!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: from the file: ", official_md5, " and calculated: ", calculated_md5
-            equal_md5 = (official_md5 == calculated_md5)
-            #print "MD5 WERE EQUAL?????????????????????????????????????????????????????????????////", equal_md5
-            if not equal_md5:
-                logging.error("The md5 sum calculated is different from the md5 sum in the file.md5!!!")
-            return equal_md5
-        else:
-            #print "MD5 hasn't been cheeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeckedddddddddddddddddddddddddddddddddd!!!!"
-            logging.error("Md5 sum hasn't been checked between the calculated md5 and the md5 stored in the .md5 file, because this file doesn't exist.")
-            return True
-        
-    @classmethod
-    def _check_file_md5(cls, file_id, file_obj=None):
-        if not file_obj:
-            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-        error_dict = {}
-        
-        f_md5_correct = cls.check_file_md5_eq(file_obj.file_path_client, file_obj.md5)
-        if not f_md5_correct:
-            logging.error("Unequal md5: calculated file's md5 is different than the contents of %s.md5", file_obj.file_path_client)
-            utils.append_to_errors_dict(str(file_obj.id), constants.UNEQUAL_MD5,error_dict)
-        
-        if file_obj.index_file.file_path_client:
-            index_md5_correct = cls.check_file_md5_eq(file_obj.index_file.file_path_client, file_obj.index_file.md5)
-            if not  index_md5_correct:
-                logging.error("Unequal md5: calculated index file's md5 is different than the contents of %s.md5", file_obj.index_file.file_path_client)
-                utils.append_to_errors_dict("index - "+str(file_obj.id), constants.UNEQUAL_MD5, error_dict)
-        if error_dict:
-            return models.Result(False, error_dict=error_dict)
-        return models.Result(True)
-    
-    
-        
-    @classmethod
-    def _is_file_status_ok_for_task(cls, task_name, file_id, file_obj=None):
-        if not file_obj:
-            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-        if task_name in [constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.ADD_META_TO_IRODS_FILE_TASK]:
-            if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-                return False
-        elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
-            if not file_obj.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
-                return False
-        return True
-    
-    
-
-    @classmethod
-    def is_file_ready_for_task(cls, task_name, file_id, file_obj=None):
-        if not file_obj:
-            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-        error_dict = {}
-        if not cls._is_file_status_ok_for_task(task_name, file_id, file_obj):
-            utils.append_to_errors_dict(str(file_obj.id), constants.FILE_NOT_READY_FOR_SUBMISSION, error_dict)
-            return models.Result(False, error_dict=error_dict)
-    
-        if task_name in [constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.ADD_META_TO_IRODS_FILE_TASK]:
-            md5_check = cls._check_file_md5(file_id, file_obj)
-            if not md5_check.result:
-                utils.append_to_errors_dict(file_id, constants.UNEQUAL_MD5, error_dict)
-        
-        if error_dict:
-            return models.Result(False, error_dict)
-        return models.Result(True)
-        
-        
+   
     
 #    @classmethod
 #    def update_entity_in_filemeta(cls, entity_json, entity_type, sender, file_id, submitted_file=None):
@@ -398,7 +310,7 @@ class FileBusinessLogic:
 
 class BAMFileBusinessLogic(FileBusinessLogic):
     ''' The implementation of FileBusinessLogic class for processing BAM files.'''
-    status_checker = status_checker.BAMFileMetaStatusChecker()
+    meta_status_checker = status_checker.BAMFileMetaStatusChecker()
     batch_tasks_launcher = task_launcher.BatchTasksLauncherBAMFile()
     file_builder = model_builder.BAMFileBuilder()
     file_data_access = data_access.BAMFileDataAccess()
@@ -406,7 +318,7 @@ class BAMFileBusinessLogic(FileBusinessLogic):
     
 
 class VCFFileBusinessLogic(FileBusinessLogic):
-    status_checker = status_checker.VCFFileMetaStatusChecker()
+    meta_status_checker = status_checker.VCFFileMetaStatusChecker()
     batch_tasks_launcher = task_launcher.BatchTasksLauncherVCFFile()
     file_builder = model_builder.VCFFileBuilder()
     file_data_access = data_access.VCFFileDataAccess()

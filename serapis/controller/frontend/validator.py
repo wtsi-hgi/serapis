@@ -169,7 +169,7 @@ submitted_file_schema = Schema({
 
 
 reference_genome_schema = Schema({
-    'md5' : str,
+#    'md5' : str,
     'path' : str,
     'name' : str
     })
@@ -214,7 +214,8 @@ study_post_submission_validator = Schema({
 
 submission_post_validator = Schema({
     'files_list' : [str],
-    IsDir('dir_path') : All(str, Length(min=1)),
+    #IsDir('dir_path') : All(str, Length(min=1)),
+    'dir_path' : All(str, Length(min=1)),
     Required('sanger_user_id') :  All(str, Length(min=1)),
     Required('hgi_project_list') : [str],    #All(str, Length(min=1)),
     Required('study') : study_post_submission_validator,
@@ -238,6 +239,18 @@ resubmission_message_validator = Schema({
     'task_ids' : str,
     'task_type_list' : list                                          
                                          })
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
