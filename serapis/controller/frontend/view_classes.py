@@ -122,6 +122,16 @@ def replace_null_id_json(file_submitted):
 
 # ----------------------- REFERENCE GENOMES HANDLING --------------------
 
+def catch_multiple_invalid_error(e):
+    path = ''
+    for p in e.path:
+        if path:
+            path = path+ '->' + str(p)
+        else:
+            path = str(p)
+    return path
+    
+    
 #/references
 class ReferencesMainPageRequestHandler(APIView):
     
@@ -144,6 +154,10 @@ class ReferencesMainPageRequestHandler(APIView):
             return Response("Resource already exists", status=424)
         except IOError as e:
             return Response(e.strerror, status=424)
+        except MultipleInvalid as e:
+            #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
+            req_result = {'error' : catch_multiple_invalid_error(e)}
+            return Response(req_result, status=status.HTTP_400_BAD_REQUEST)
     
     
 # /references/123/
