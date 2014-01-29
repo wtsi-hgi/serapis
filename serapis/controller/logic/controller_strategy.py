@@ -170,11 +170,11 @@ class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
         req_data = self.convert(context.request_data)
         self.validate(req_data)
         #return data_access.ReferenceGenomeDataAccess.insert_reference_genome(req_data)
-        existing_ref = data_access.ReferenceGenomeDataAccess.retrieve_reference_genome(req_data)
-        if not existing_ref:
+        existing_ref_id = data_access.ReferenceGenomeDataAccess.retrieve_reference_genome(req_data)
+        if not existing_ref_id:
             ref_genome = data_access.ReferenceGenomeDataAccess.insert_into_db(req_data)
         else:
-            ref_genome = data_access.ReferenceGenomeDataAccess.update(existing_ref.id, req_data)
+            ref_genome = data_access.ReferenceGenomeDataAccess.update(existing_ref_id, req_data)
         return ref_genome.id
     
     
