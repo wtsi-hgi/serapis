@@ -134,6 +134,7 @@ class ReferenceGenomeRetrivalStrategy(ResourceHandlingStrategy):
     @classmethod
     def validate(cls, request_data):
         validator.reference_genome_schema(request_data)
+            
         
     @multimethod(ReferenceGenomeContext)
     def process_request(self, context):

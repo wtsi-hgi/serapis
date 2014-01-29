@@ -23,6 +23,7 @@
 from django.views.generic import TemplateView
 from django.views.generic.edit import FormView
 from django.http import HttpResponseRedirect
+from rest_framework import status
 
 #from serapis.forms import UploadForm
 from serapis.controller.frontend import validator, controller
@@ -138,10 +139,11 @@ class ReferencesMainPageRequestHandler(APIView):
             context = controller_strategy.GeneralReferenceGenomeContext(request.DATA)
             strategy = controller_strategy.ReferenceGenomeInsertionStrategy()
             ref_id = strategy.process_request(context)
-            return Response({"result" : ref_id}, status=201)
+            return Response({"result" : ref_id}, status=status.HTTP_201_CREATED)
         except NotUniqueError:
             return Response("Resource already exists", status=424)
-    
+        except IOError as e:
+            return Response(e.strerror, status=424)
     
     
 # /references/123/
@@ -157,7 +159,7 @@ class ReferenceRequestHandler(APIView):
     # Should we really allow the users to modify references? Maybe if they are admins...
     def put(self, request, reference_id, format=None):
         if not hasattr(request, 'DATA'):
-            return Response("No data to be updated", 304)
+            return Response("No data to be updated", status.HTTP_304_NOT_MODIFIED)
         context = controller_strategy.ReferenceGenomeContext(reference_id, request.DATA)
         strategy = controller_strategy.ReferenceGenomeModificationStrategy()
         updated = strategy.process_request(context)
@@ -176,7 +178,7 @@ class SubmissionsMainPageRequestHandler(APIView):
         strategy = controller_strategy.SubmissionRetrievalStrategy()
         submission_list = strategy.process_request(context)
         submission_list = serializers.serialize(submission_list)
-        return Response(submission_list, status=200)
+        return Response(submission_list, status=status.HTTP_200_OK)
 
 
 #        submissions_list = controller.get_all_submissions(user_id)
@@ -232,7 +234,7 @@ class SubmissionsMainPageRequestHandler(APIView):
                 files = [str(f.id) for f in models.SubmittedFile.objects(submission_id=submission_id).all()]
                 req_result['testing'] = files
                 # END TESTING
-                return Response(req_result, status=201)
+                return Response(req_result, status=status.HTTP_201_CREATED)
         except MultipleInvalid as e:
             path = ''
             for p in e.path:
