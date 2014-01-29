@@ -130,11 +130,11 @@ class ReferencesMainPageRequestHandler(APIView):
         strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
         references = strategy.process_request(context)
         serial_refs = serializers.serialize(references)
-        return Response({"result" : serial_refs}, status=200)
+        return Response({"result" : serial_refs}, status=status.HTTP_200_OK)
     
     def post(self, request, format=None):
         if not hasattr(request, 'DATA'):
-            return Response(status=304)
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
         try:
             context = controller_strategy.GeneralReferenceGenomeContext(request.DATA)
             strategy = controller_strategy.ReferenceGenomeInsertionStrategy()
@@ -246,7 +246,7 @@ class SubmissionsMainPageRequestHandler(APIView):
             print " and e: ", str(e)
             #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
             req_result['error'] = str(e)
-            return Response(req_result, status=400)
+            return Response(req_result, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.NotEnoughInformationProvided as e:
             req_result['error'] = e.strerror
             logging.error("Not enough info %s", e)
@@ -263,11 +263,11 @@ class SubmissionsMainPageRequestHandler(APIView):
             return Response(req_result, status=424)
         except exceptions.ResourceNotFoundError as e:
             logging.error("Resource not found: %s", e.faulty_expression)
-            return Response(e.message, status=400)
+            return Response(e.message, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.InvalidRequestData as e:
             logging.error("Invalid request data on POST request to submissions.")
             result = {'errors' : e.faulty_expression, 'message' : e.message}
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
             
         #This should be here: 
 #        except:

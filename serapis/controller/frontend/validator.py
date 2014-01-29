@@ -170,7 +170,7 @@ submitted_file_schema = Schema({
 
 reference_genome_schema = Schema({
 #    'md5' : str,
-    'path' : str,
+    'path' : IsFile(str),
     'name' : str
     })
 
