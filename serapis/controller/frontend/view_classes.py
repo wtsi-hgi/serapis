@@ -460,13 +460,13 @@ class SubmittedFilesMainPageRequestHandler(APIView):
                 else:
                     path = p
             result['errors'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
             return Response(result, status=404)
@@ -509,19 +509,19 @@ class SubmittedFileRequestHandler(APIView):
             file_serial = serializers.serialize(file_obj)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except InvalidId as e:
             result['errors'] = "Invalid Id"
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         else:
             #file_serial = serializers.serialize(file_req)
             result["result"] = file_serial
             res_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+res_serial)
-            return Response(res_serial, status=200)
+            return Response(res_serial, status=status.HTTP_200_OK)
 
             
     def post(self, request, submission_id, file_id, format=None):
@@ -550,16 +550,16 @@ class SubmittedFileRequestHandler(APIView):
                 else:
                     path = p
             result['errors'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if resubmission_result.error_dict:
                 result['errors'] = resubmission_result.error_dict 
@@ -569,12 +569,12 @@ class SubmittedFileRequestHandler(APIView):
                 result['result'] = False
                 result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted. " 
                 logging.info("RESULT RESUBMIT JOBS: %s", result)
-                return Response(result, status=200) # Should it be 304? (nothing has changed)
+                return Response(result, status=status.HTTP_200_OK) # Should it be 304? (nothing has changed)
             else:
                 result['result'] = True
                 logging.info("RESULT RESUBMIT JOBS: %s", result)
                 result['message'] = "Jobs resubmitted."+str(result['message']) if 'message' in result else "Jobs resubmitted." 
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
                 
     
     def put(self, request, submission_id, file_id, format=None):

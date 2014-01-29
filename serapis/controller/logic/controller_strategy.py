@@ -511,7 +511,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
         serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
-        file_logic.check_and_update_all_statuses(context.file_id, file_to_update)
+        file_logic.check_and_update_all_file_statuses(context.file_id, file_to_update)
     
     
     def update_file_from_user(self, context):

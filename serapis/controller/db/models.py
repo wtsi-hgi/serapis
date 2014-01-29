@@ -179,7 +179,6 @@ class IndexFile(EmbeddedDocument):
     
 class SubmittedFile(DynamicDocument):
     submission_id = StringField()
-    #id = ObjectId()
     file_type = StringField(choices=constants.FILE_TYPES)
     file_path_client = StringField()
     irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name

@@ -985,7 +985,10 @@ class FileDataAccess(DataAccess):
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
             elif field_name == 'reference_genome':
-                    ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
+                    #ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
+                    ref_gen = ReferenceGenomeDataAccess.retrieve_reference_by_path(field_val)
+                    if not ref_gen:
+                        raise exceptions.ResourceNotFoundError(field_val, "Reference genome not in the DB.")
                     update_db_dict['set__file_reference_genome_id'] = ref_gen.md5
             else:
                 logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
