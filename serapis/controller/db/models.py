@@ -33,20 +33,20 @@ from collections import namedtuple
 ########################################################################
 # ------------------- Model classes ----------------------------------
     
-
-FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
-                              'index_file_upload_job_status', 
-                              'file_header_parsing_job_status', 
-                              'header_has_mdata', 
-                              'file_update_jobs_dict', 
-                              'last_updates_source',
-                              'file_mdata_status',
-                              'file_submission_status',
-                              'file_update_jobs_dict',
-                              'missing_mandatory_fields_dict',
-                              'file_error_log',
-                              'presubmission_tasks_dict'
-                              ]
+#
+#FILE_SUBMITTED_META_FIELDS = ['file_upload_job_status',
+#                              'index_file_upload_job_status', 
+#                              'file_header_parsing_job_status', 
+#                              'header_has_mdata', 
+#                              'file_update_jobs_dict', 
+#                              'last_updates_source',
+#                              'file_mdata_status',
+#                              'file_submission_status',
+#                              'file_update_jobs_dict',
+#                              'missing_mandatory_fields_dict',
+#                              'file_error_log',
+#                              'presubmission_tasks_dict'
+#                              ]
   
 ########## General classes ###############
 TaskInfo = namedtuple('TaskInfo', ['id', 'type', 'status'])
@@ -58,8 +58,17 @@ class Result:
         self.warning_dict = warning_dict
         self.message = message
 
+
+
+class SerapisModel(object):
+    ''' Parent class for all the model classes.'''
+    
+    def get_internal_fields(self):
+        ''' Method that returns a list of fields that have an internal usage
+            and shouldn't be exposed to the user at all.'''
+        return []
   
-class Entity(DynamicEmbeddedDocument):
+class Entity(DynamicEmbeddedDocument, SerapisModel):
     internal_id = IntField()
     name = StringField()    # UNIQUE
     
@@ -91,7 +100,7 @@ class Entity(DynamicEmbeddedDocument):
 
     
 
-class Study(Entity):
+class Study(Entity, SerapisModel):
     accession_number = StringField()
     study_type = StringField(choices=constants.STUDY_TYPES)
     study_title = StringField()
@@ -110,17 +119,19 @@ class Study(Entity):
 
 
     
-class AbstractLibrary(DynamicEmbeddedDocument):
+class AbstractLibrary(DynamicEmbeddedDocument, SerapisModel):
     library_source = StringField(choices=constants.LIBRARY_SOURCES.keys())
 #    library_selection = StringField(default="unspecified")
     library_strategy = StringField(choices=constants.LIBRARY_STRATEGY.keys())
     instrument_model = StringField(choices=constants.INSTRUMENT_MODEL, default="unspecified")
     coverage = StringField()
 
-    meta = {'allow_inheritance': True}
+    meta = {
+            'allow_inheritance': True
+            }
     
 
-class Library(AbstractLibrary, Entity):
+class Library(AbstractLibrary, Entity, SerapisModel):
     library_type = StringField()
     public_name = StringField()
     sample_internal_id = IntField()
@@ -131,7 +142,7 @@ class Library(AbstractLibrary, Entity):
 #    paths = ListField()
 #    name = StringField(unique_with='md5')
 
-class ReferenceGenome(Document):
+class ReferenceGenome(Document, SerapisModel):
     md5 = StringField(primary_key=True)
 #    md5 = StringField(unique=True)
     paths = ListField()
@@ -140,6 +151,11 @@ class ReferenceGenome(Document):
                'indexes': ['paths']
            }
     version = IntField(default=0)
+    
+    def get_internal_fields(self):
+        return [
+                'version'
+                ]
     
     
 class Sample(Entity):          # one sample can be member of many studies
@@ -161,7 +177,7 @@ class Sample(Entity):          # one sample can be member of many studies
     
   
 # This is not a document, it's just a container
-class GeneralFileMdata:
+class GeneralFileMdata(SerapisModel):
     #hgi_project = StringField()
     #DATA-RELATED FIELDS:
     data_type = StringField(choices=constants.DATA_TYPES)
@@ -170,26 +186,41 @@ class GeneralFileMdata:
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
     study = EmbeddedDocumentField(Study)
     
+   
     
-class IndexFile(EmbeddedDocument):
+class IndexFile(EmbeddedDocument, SerapisModel):
     irods_coll = StringField()
     file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
 
     
-class SubmittedFile(DynamicDocument):
+class SubmittedFile(DynamicDocument, SerapisModel):
+    # The internal id of the submission that this file is part of
     submission_id = StringField()
+    
+    # The type of file (e.g. bam, vcf...)
     file_type = StringField(choices=constants.FILE_TYPES)
+    
+    # The path to the file on the client
     file_path_client = StringField()
+    
+    # The irods collection where the file is to be submitted
     irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
+    
+    # The md5 of the file, as calculated on the client
     md5 = StringField()
     
-    #OPTIONAL:
+    #OPTIONAL or not really:
     index_file = EmbeddedDocumentField(IndexFile)
     
     # SUBMISSION MDATA
+    # The internal id of the reference object, stored in ReferenceGenome Mongo collection
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
+    
+    # Abstract data that applies to the library
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
+    
+    # The type of data stored in the file -- variation, sequencing data
     data_type = StringField(choices=constants.DATA_TYPES)
     
     # For BAMs: - data_subtype_tags:
@@ -205,6 +236,8 @@ class SubmittedFile(DynamicDocument):
 #    - individual-multiplicity:
 
     data_subtype_tags = DictField()
+    
+    # The list of hgi projects that this file is part of...hmmm -- to think about it
     hgi_project_list = ListField(default=[])
     
     # ENTITIES:
@@ -237,7 +270,6 @@ class SubmittedFile(DynamicDocument):
     # Flag telling if the file header has metadata or not:
     header_has_mdata = BooleanField()
        
-    
     #GENERAL STATUSES -- NOT MODIFYABLE BY THE WORKERS, ONLY BY CONTROLLER
     # Status of the metadata for this file:
     file_mdata_status = StringField(choices=constants.FILE_MDATA_STATUS)              # ("COMPLETE", "INCOMPLETE", "IN_PROGRESS", "IS_MINIMAL"), general status => when COMPLETE file can be submitted to iRODS
@@ -269,8 +301,25 @@ class SubmittedFile(DynamicDocument):
             'indexes' : ['_id', 'submission_id']
             }
     
-    
-    
+    def get_internal_fields(self):
+        return [
+            'version',
+            'not_unique_entity_error_dict',
+            'missing_entities_error_dict',
+            'missing_optional_fields_dict',
+            'missing_mandatory_fields_dict',
+            'file_submission_status',
+            'file_mdata_status',
+            'tasks_dict',
+            'header_has_mdata', 
+            'last_updates_source',
+            'file_mdata_status',
+            'file_submission_status',
+            'file_error_log',
+            #'submission_id',
+            #'id'
+            ]
+
 
 class BAMFile(SubmittedFile):
     seq_centers = ListField()           # list of strings - List of sequencing centers where the data has been sequenced
@@ -300,38 +349,66 @@ class VCFFile(SubmittedFile):
 #    coverage = StringField()
         
         
-class Submission(DynamicDocument):
+class Submission(DynamicDocument, SerapisModel):
+    # The user id of the submitter
     sanger_user_id = StringField()
+    
+    # The status of the submission, i.e. which steps of the submission the files are in
     submission_status = StringField(choices=constants.SUBMISSION_STATUS)
+    
+    # List of HGI projects that should have access to this data on the backend
     hgi_project_list = ListField(default=[])
+    
+    # The date when the submission object was created
     submission_date = StringField()
 
+    # The list of files = list of file ids (ObjectIds)
     files_list = ListField()        # list of ObjectIds - representing SubmittedFile ids
+    
+    # The type of the files within the submission -- all files have the same type
     file_type = StringField()
     
-#    dir_path = StringField()
+    # The irods collection where the files will be ultimately stored
+    irods_collection = StringField()
     
-    # Files metadata:
+    # Flag - true if the data is/has been uploaded as serapis user, false if the user uploaded as himself
+    upload_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
+    
+    # Internal field -- keeping the version of the submission -- changes only if the submission-related fields change, not with every file!!!
+    version = IntField(default=0)
+    
+    #    dir_path = StringField()
+
+    # Files metadata -- experimental, to be removed
     data_type = StringField(choices=constants.DATA_TYPES)
     data_subtype_tags = DictField()
     file_reference_genome_id = StringField()    # id of the ref genome document (manual reference)
     abstract_library = EmbeddedDocumentField(AbstractLibrary)
     study = EmbeddedDocumentField(Study)
     
-    irods_collection = StringField()
-    upload_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
-    
-    version = IntField(default=0)
-    
     meta = {
         'indexes': ['_id', 'sanger_user_id'],
             }
     
+    def get_internal_fields(self):
+        return [
+                #'id', -- to decomment for production
+                #'files_list',
+                'upload_as_serapis',
+                'version',
+                
+                ]
+        # Hmmm, how about files list??? if I return it when serializing a submission, there will be the real ids exposed to the outside world...
+        
 #    meta = {
 #        'allow_inheritance': True,
 #        'indexes': ['-created_at', 'slug'],
 #        'ordering': ['-created_at']
 #    }
+
+
+
+
 
 class MyEmbed(EmbeddedDocument):
     embedField = StringField(primary_key=True)

@@ -403,7 +403,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         if not submission_id:
             return models.Result(False, message="Submission couldn't be created.")
         submission = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
-        print "SUBMISSION FILE TYPE ---- ", submission.file_type, vars(submission)
+        #print "SUBMISSION FILE TYPE ---- ", submission.file_type, vars(submission)
         
         submission_logic_layer = app_logic.SubmissionBusinessLogic(submission.file_type)
         files_init = submission_logic_layer.init_and_submit_files(file_et_index_map, submission)
@@ -423,7 +423,7 @@ class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
     def process_request(self, context):
         ''' This method retrieves and returns all the submissions corresponding
             to the parameters provided in the GeneralContext.'''
-        print "PRocess Request context...", type(context)
+        #print "Process Request context...", type(context)
         return data_access.SubmissionDataAccess.retrieve_all_user_submissions(context.user_id)
     
 
@@ -431,7 +431,7 @@ class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
     def process_request(self, context):
         ''' This function is responsible for processing the request and returning the results to the client.'''
        
-        print "Process SUbmission request context...of ", type(context)
+        #print "Process SUbmission request context...of ", type(context)
         # if request_body contains a list of fields to be returned: validate fields and retrieve only those fields from the db
         #if submission_context.submission_id:
         return data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
@@ -450,7 +450,7 @@ class FileRetrievalStrategy(ResourceRetrivalStrategy):
             Returns:
                 list of files for this submission
         '''
-        print "Process File request context...of ", type(context)
+        #print "Process File request context...of ", type(context)
         return data_access.SubmissionDataAccess.retrieve_all_file_ids_for_submission(context.submission_id)
 
 
@@ -466,7 +466,7 @@ class FileRetrievalStrategy(ResourceRetrivalStrategy):
             Throws:
                 InvalidId -- if the id is invalid
                 DoesNotExist -- if there is no resource with this id in the DB.'''
-        print "Process File request context...of ", type(context)
+        #print "Process File request context...of ", type(context)
         return data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
         
         

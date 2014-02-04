@@ -99,7 +99,8 @@ class TaskLauncher(object):
             logging.error("LAUNCH update file metadata called with null parameters. The task  wasn't submitted to the queue!")
             return None
         logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
-        file_serialized = serializers.serialize(file_submitted)
+        #file_serialized = serializers.serialize(file_submitted)
+        file_serialized = serializers.serialize_excluding_meta(file_submitted)
         task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                     'file_id' : file_submitted.id,
                                                     'submission_id' : file_submitted.submission_id,

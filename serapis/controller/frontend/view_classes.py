@@ -35,7 +35,7 @@ from serapis.controller.logic import controller_strategy
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
-from rest_framework.renderers import JSONRenderer
+from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, BrowsableAPIRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -45,14 +45,12 @@ from rest_framework.views import APIView
 
 #from serializers import ObjectIdEncoder
 
-from os import listdir
-from os.path import isfile, join
-from bson.objectid import ObjectId
+#from os import listdir
+#from os.path import isfile, join
+#from bson.objectid import ObjectId
 from pymongo.errors import InvalidId
 
-#import ipdb
-import errno
-import json
+#import errno
 from mongoengine.queryset import DoesNotExist
 from mongoengine.errors import NotUniqueError
 #from celery.bin.celery import result
@@ -61,63 +59,41 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
     
-USER_ID = 'ic4'
+#USER_ID = 'ic4'
+USER_ID = 'yl2'
         
 
 # ----------------------------- AUXILIARY FCTIONS ---------------------------
 
-def _decode_list(data):
-    rv = []
-    for item in data:
-        if isinstance(item, unicode):
-            item = item.encode('utf-8')
-        elif isinstance(item, list):
-            item = _decode_list(item)
-        elif isinstance(item, dict):
-            item = _decode_dict(item)
-        rv.append(item)
-    return rv
-
-def _decode_dict(data):
-    rv = {}
-    for key, value in data.iteritems():
-        if isinstance(key, unicode):
-            key = key.encode('utf-8')
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        elif isinstance(value, list):
-            value = _decode_list(value)
-        elif isinstance(value, dict):
-            value = _decode_dict(value)
-        rv[key] = value
-    return rv
+#def _decode_list(data):
+#    rv = []
+#    for item in data:
+#        if isinstance(item, unicode):
+#            item = item.encode('utf-8')
+#        elif isinstance(item, list):
+#            item = _decode_list(item)
+#        elif isinstance(item, dict):
+#            item = _decode_dict(item)
+#        rv.append(item)
+#    return rv
+#
+#def _decode_dict(data):
+#    rv = {}
+#    for key, value in data.iteritems():
+#        if isinstance(key, unicode):
+#            key = key.encode('utf-8')
+#        if isinstance(value, unicode):
+#            value = value.encode('utf-8')
+#        elif isinstance(value, list):
+#            value = _decode_list(value)
+#        elif isinstance(value, dict):
+#            value = _decode_dict(value)
+#        rv[key] = value
+#    return rv
 
 #obj = json.loads(s, object_hook=_decode_dict)
 
         
-#----------------------------- AUXILIARY TEMPORARY --------------------------
-def replace_null_id_json(file_submitted):
-    if 'null' in file_submitted:
-        file_submitted['null'] = '_id'
-        
-#def from_unicode_to_string(data):
-#    new_data = dict()
-#    for elem in data:
-#        key = ''.join(chr(ord(c)) for c in elem)
-#        val = ''.join(chr(ord(c)) for c in data[elem])
-#        new_data[key] = val
-#    return new_data
-#            
-#
-#def from_unicode_to_string(input):
-#    if isinstance(input, dict):
-#        return dict((from_unicode_to_string(key), from_unicode_to_string(value)) for key, value in input.iteritems())
-#    elif isinstance(input, list):
-#        return [from_unicode_to_string(element) for element in input]
-#    elif isinstance(input, unicode):
-#        return input.encode('utf-8')
-#    else:
-#        return input
 
 
 # ----------------------- REFERENCE GENOMES HANDLING --------------------
@@ -134,50 +110,57 @@ def catch_multiple_invalid_error(e):
     
 #/references
 class ReferencesMainPageRequestHandler(APIView):
+    ''' 
+        A view that processes requests referring to reference genomes.
+    '''
+    renderer_classes = (JSONRenderer, XMLRenderer, YAMLRenderer)
     
-    def get(self, request, format=None):
+    def get(self, request):
         context = controller_strategy.GeneralReferenceGenomeContext()
         strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
         references = strategy.process_request(context)
-        serial_refs = serializers.serialize(references)
-        return Response({"result" : serial_refs}, status=status.HTTP_200_OK)
+        serial_refs = serializers.serialize({"results" : references})
+        return Response(serial_refs, status=status.HTTP_200_OK)
     
-    def post(self, request, format=None):
+    def post(self, request):
         if not hasattr(request, 'DATA'):
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
+            return Response("No resource created.", status=status.HTTP_200_OK)
         try:
             context = controller_strategy.GeneralReferenceGenomeContext(request.DATA)
             strategy = controller_strategy.ReferenceGenomeInsertionStrategy()
             ref_id = strategy.process_request(context)
-            return Response({"result" : ref_id}, status=status.HTTP_201_CREATED)
+            return Response(serializers.serialize({"result" : ref_id}), status=status.HTTP_201_CREATED)
         except NotUniqueError:
             return Response("Resource already exists", status=424)
         except IOError as e:
-            return Response(e.strerror, status=424)
+            return Response(serializers.serialize(e.strerror), status=424)
         except MultipleInvalid as e:
             #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
             req_result = {'error' : catch_multiple_invalid_error(e)}
-            return Response(req_result, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializers.serialize(req_result), status=status.HTTP_400_BAD_REQUEST)
     
     
 # /references/123/
 class ReferenceRequestHandler(APIView):
+    """ 
+        A view that processes requests for a specific reference genome.
+    """
+    renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     
     def get(self, request, reference_id):
-        print "RENDERERS -- default : ", self.renderer_classes
         context = controller_strategy.ReferenceGenomeContext(reference_id)
         strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
         ref = strategy.process_request(context)
-        return Response({"result" : serializers.serialize(ref)})
+        return Response({"results" : ref})
     
     # Should we really allow the users to modify references? Maybe if they are admins...
-    def put(self, request, reference_id, format=None):
+    def put(self, request, reference_id):
         if not hasattr(request, 'DATA'):
             return Response("No data to be updated", status.HTTP_304_NOT_MODIFIED)
         context = controller_strategy.ReferenceGenomeContext(reference_id, request.DATA)
         strategy = controller_strategy.ReferenceGenomeModificationStrategy()
         updated = strategy.process_request(context)
-        return Response({"result" : serializers.serialize(updated)})
+        return Response({"result" : updated})
     
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
@@ -185,13 +168,13 @@ class ReferenceRequestHandler(APIView):
 # /submissions/
 class SubmissionsMainPageRequestHandler(APIView):
     # GET all the submissions for a user_id
-    def get(self, request, format=None):
+    def get(self, request):
         ''' Retrieves all the submissions for this user. '''
         user_id = USER_ID
         context = controller_strategy.GeneralSubmissionContext(user_id)
         strategy = controller_strategy.SubmissionRetrievalStrategy()
         submission_list = strategy.process_request(context)
-        submission_list = serializers.serialize(submission_list)
+        #submission_list = serializers.serialize(submission_list)
         return Response(submission_list, status=status.HTTP_200_OK)
 
 
@@ -306,14 +289,14 @@ class SubmissionRequestHandler(APIView):
             submission_serial = serializers.serialize(submission)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submission does not exist"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             #subm_serialized = serializers.serialize(submission)
             result['result'] = submission_serial
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
         
 # Given the fact that submission is not an entity itself, there is nothing to be updated about it.
 # It's only purpose is to keep track of a bunch of files that people wish to submit at the same time.
@@ -335,14 +318,14 @@ class SubmissionRequestHandler(APIView):
             was_deleted = controller.delete_submission(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submission does not exist"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if was_deleted:
                 result['result'] = "Submission successfully deleted."
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['result'] = "Submission not deleted - probably because the files have been already submitted to iRODS"
                 return Response(result, status=424)   # Method failed OR 304 - Not modified (but this is more of an UPDATE status response
@@ -360,13 +343,13 @@ class SubmissionStatusRequestHandler(APIView):
             subm_statuses = controller.get_submission_status(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submission not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = subm_statuses
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
 
 
 class AllSubmittedFilesStatusesHandler(APIView):
@@ -377,13 +360,13 @@ class AllSubmittedFilesStatusesHandler(APIView):
             subm_statuses = controller.get_all_submitted_files_status(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submission not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = subm_statuses
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
           
 
@@ -401,13 +384,13 @@ class SubmittedFileStatusRequestHandler(APIView):
             subm_statuses = controller.get_submitted_file_status(file_id)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = subm_statuses
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
 
  
 
@@ -419,7 +402,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
     ''' Handles the requests coming for /submissions/123/files/.
         GET - retrieves the list of files for this submission.
         POST - adds a new file to this submission.'''
-    def get(self, request, submission_id, format=None):
+    def get(self, request, submission_id):
         try:
             result = dict()
             context = controller_strategy.GeneralFileContext(USER_ID, submission_id)
@@ -427,18 +410,13 @@ class SubmittedFilesMainPageRequestHandler(APIView):
             files = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submission not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
-            #file_serial = serializers.serialize(files)
-            #result['result'] = file_serial
-            files_serial = serializers.serialize(files)
-            result['result'] = files_serial
-            #result_serial = serializers.serialize_excluding_meta(result)
-            logging.info("Submitted files list: "+files_serial)
-            return Response(files_serial, status=200)
+            result['result'] = files
+            return Response(files, status=status.HTTP_200_OK)
         
         
     # TODO: should I really expose this method?
@@ -469,7 +447,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if resubmission_result.error_dict:
                 result['errors'] = resubmission_result.error_dict 
@@ -479,12 +457,12 @@ class SubmittedFilesMainPageRequestHandler(APIView):
                 result['result'] = False
                 result['message'] = "Jobs haven't been resubmitted - "+str(result['message']) if 'message' in result else "Jobs haven't been resubmitted. " 
                 logging.info("RESULT RESUBMIT JOBS: %s", result)
-                return Response(result, status=200) # Should it be 304? (nothing has changed)
+                return Response(result, status=status.HTTP_200_OK) # Should it be 304? (nothing has changed)
             else:
                 result['result'] = resubmission_result.result
                 logging.info("RESULT RESUBMIT JOBS: %s", result)
                 result['message'] = "Jobs resubmitted."+str(result['message']) if 'message' in result else "Jobs resubmitted." 
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
     
 
     
@@ -519,9 +497,9 @@ class SubmittedFileRequestHandler(APIView):
         else:
             #file_serial = serializers.serialize(file_req)
             result["result"] = file_serial
-            res_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+res_serial)
-            return Response(res_serial, status=status.HTTP_200_OK)
+            #res_serial = serializers.serialize_excluding_meta(result)
+            #logging.debug("RESULT IS: "+res_serial)
+            return Response(result, status=status.HTTP_200_OK)
 
             
     def post(self, request, submission_id, file_id, format=None):
@@ -611,16 +589,16 @@ class SubmittedFileRequestHandler(APIView):
                 else:
                     path = p
             result['errors'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
@@ -635,7 +613,7 @@ class SubmittedFileRequestHandler(APIView):
             result['message'] = "Successfully updated"
             #result_serial = serializers.serialize(result)
             # return Response(result_serial, status=200)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
     
     def delete(self, request, submission_id, file_id, format=None):
@@ -650,20 +628,20 @@ class SubmittedFileRequestHandler(APIView):
             #was_deleted = controller.delete_submitted_file(submission_id, file_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
         else:
             if was_deleted == True:
                 result['result'] = "Successfully deleted"
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['result'] = "File was not deleted, probably because it was already submitted to IRODS or in process."
                 return Response(result, status=424)
@@ -719,16 +697,16 @@ class WorkerSubmittedFileRequestHandler(APIView):
                 else:
                     path = p
             result['errors'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
@@ -743,7 +721,7 @@ class WorkerSubmittedFileRequestHandler(APIView):
             result['message'] = "Successfully updated"
             #result_serial = serializers.serialize(result)
             # return Response(result_serial, status=200)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
 
 
@@ -761,18 +739,18 @@ class LibrariesMainPageRequestHandler(APIView):
             libs = controller.get_all_libraries(submission_id, file_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = libs
-            result_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
     
     def post(self,  request, submission_id, file_id, format=None):
@@ -795,16 +773,16 @@ class LibrariesMainPageRequestHandler(APIView):
                 else:
                     path = p
             result['error'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
@@ -818,7 +796,7 @@ class LibrariesMainPageRequestHandler(APIView):
             result['result'] = "Library added"
             #result = serializers.serialize(result)
             logging.debug("RESULT IS: "+str(result))
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
             
     
 
@@ -834,32 +812,26 @@ class LibraryRequestHandler(APIView):
             lib = controller.get_library(submission_id, file_id, library_id)
         except InvalidId:
             result['error'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
 #            result['errors'] = e.message
 #            return Response(result, status=404)
         else:
             result['result'] = lib
-            result_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
 
     def put(self, request, submission_id, file_id, library_id, format=None):
         ''' Updates the metadata associated to a particular library.'''
         try:
-#            result = dict()
-#            new_data = dict()
-#            for elem in data:
-#                key = ''.join(chr(ord(c)) for c in elem)
-#                val = ''.join(chr(ord(c)) for c in data[elem])
-#                new_data[key] = val
             data = request.DATA
             data = utils.unicode2string(data)
             validator.library_schema(data)
@@ -873,22 +845,22 @@ class LibraryRequestHandler(APIView):
                 else:
                     path = p
             result['error'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
             result['erors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
@@ -898,13 +870,13 @@ class LibraryRequestHandler(APIView):
         else:
             if was_updated:
                 result['message'] = "Successfully updated"
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['message'] = "Not modified"
-                return Response(result, status=304)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
             #result_serial = serializers.serialize(result)
             # return Response(result_serial, status=200)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
     
     def delete(self, request, submission_id, file_id, library_id, format=None):
@@ -913,24 +885,24 @@ class LibraryRequestHandler(APIView):
             was_deleted = controller.delete_library(submission_id, file_id, library_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if was_deleted:
                 result['result'] = "Successfully deleted"
                 result_serial = serializers.serialize(result)
                 logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=200)
+                return Response(result_serial, status=status.HTTP_200_OK)
             else:
                 result['result'] = "Library couldn't be deleted"
-                result_serial = serializers.serialize(result)
-                logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=304)
+                #result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
             
     
     
@@ -951,20 +923,20 @@ class SamplesMainPageRequestHandler(APIView):
             samples = controller.get_all_samples(submission_id, file_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = samples
             logging.debug("NOT SERIALIZED RESULT: "+str([(s.name,s.internal_id) for s in samples]))
-            result_serial = serializers.serialize_excluding_meta(result)
-            print "PRINT RESULT SERIAL: ", result_serial
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            print "PRINT RESULT SERIAL: ", result
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
     
     def post(self,  request, submission_id, file_id, format=None):
@@ -986,16 +958,16 @@ class SamplesMainPageRequestHandler(APIView):
                 else:
                     path = p
             result['error'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
@@ -1004,13 +976,13 @@ class SamplesMainPageRequestHandler(APIView):
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         except exceptions.EditConflictError as e:
             result['errors'] = e.strerror
-            return Response(result, status=409)     # 409 = EditConflict
+            return Response(result, status=status.HTTP_409_CONFLICT)     # 409 = EditConflict
 
         else:
             result['result'] = "Sample added"
             #result = serializers.serialize(result)
             logging.debug("RESULT IS: "+str(result))
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
         
     
     
@@ -1030,21 +1002,21 @@ class SampleRequestHandler(APIView):
             
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
 #            result['errors'] = e.message
 #            return Response(result, status=404)
         else:
             result['result'] = sample
-            result_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
 
     def put(self, request, submission_id, file_id, sample_id, format=None):
@@ -1064,23 +1036,23 @@ class SampleRequestHandler(APIView):
                 else:
                     path = p
             result['error'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
@@ -1090,13 +1062,13 @@ class SampleRequestHandler(APIView):
             print "WAS UPDATED? -- from views: ", was_updated
             if was_updated == 1:
                 result['message'] = "Successfully updated"
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['message'] = "Not modified"
-                return Response(result, status=304)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
             #result_serial = serializers.serialize(result)
             # return Response(result_serial, status=200)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
     
     def delete(self, request, submission_id, file_id, sample_id, format=None):
@@ -1105,24 +1077,24 @@ class SampleRequestHandler(APIView):
             was_deleted = controller.delete_sample(submission_id, file_id, sample_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if was_deleted:
                 result['result'] = "Successfully deleted"
-                result_serial = serializers.serialize(result)
-                logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=200)
+                #result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['result'] = "Sample couldn't be deleted"
-                result_serial = serializers.serialize(result)
-                logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=304)
+                #result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
             
 
 
@@ -1139,18 +1111,18 @@ class StudyMainPageRequestHandler(APIView):
             studies = controller.get_all_studies(submission_id, file_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             result['result'] = studies
-            result_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
     
     def post(self,  request, submission_id, file_id, format=None):
@@ -1159,7 +1131,6 @@ class StudyMainPageRequestHandler(APIView):
             successfully added, False if not.
         '''
         try:
-#            data = request.POST['_content']
             result = dict()
             req_data = request.DATA if hasattr(request, 'DATA') else None
             req_data = utils.unicode2string(req_data)
@@ -1173,16 +1144,16 @@ class StudyMainPageRequestHandler(APIView):
                 else:
                     path = p
             result['error'] = "Message contents invalid: "+e.msg + " "+ path
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
@@ -1191,13 +1162,13 @@ class StudyMainPageRequestHandler(APIView):
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
         except exceptions.EditConflictError as e:
             result['errors'] = e.strerror
-            return Response(result, status=409)     # 409 = EditConflict
+            return Response(result, status=status.HTTP_409_CONFLICT)     # 409 = EditConflict
 
         else:
             result['result'] = "Study added"
             #result = serializers.serialize(result)
             logging.debug("RESULT IS: "+str(result))
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
         
             
     
@@ -1211,26 +1182,25 @@ class StudyRequestHandler(APIView):
 
     def get(self, request, submission_id, file_id, study_id, format=None):
         try:
-            print "STUDY IDDDDDDDDDDD", study_id
             result = dict()
             lib = controller.get_study(submission_id, file_id, study_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
 #            result['errors'] = e.message
 #            return Response(result, status=404)
         else:
             result['result'] = lib
-            result_serial = serializers.serialize_excluding_meta(result)
-            logging.debug("RESULT IS: "+result_serial)
-            return Response(result_serial, status=200)
+            #result_serial = serializers.serialize_excluding_meta(result)
+            logging.debug("RESULT IS: "+result)
+            return Response(result, status=status.HTTP_200_OK)
         
 
     def put(self, request, submission_id, file_id, study_id, format=None):
@@ -1243,20 +1213,20 @@ class StudyRequestHandler(APIView):
             was_updated = controller.update_study(submission_id, file_id, study_id, req_data)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except exceptions.NoEntityIdentifyingFieldsProvided as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
         except exceptions.ResourceNotFoundError as e:
             result['erors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
@@ -1265,17 +1235,17 @@ class StudyRequestHandler(APIView):
                                                     # leading to a conflict
 #        except exceptions.ResourceNotFoundError as e:
 #            result['errors'] = e.message
-#            return Response(result, status=404)
+#            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if was_updated == 1:
                 result['message'] = "Successfully updated"
-                return Response(result, status=200)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['message'] = "Not modified"
-                return Response(result, status=304)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
             #result_serial = serializers.serialize(result)
             # return Response(result_serial, status=200)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
     
     
     def delete(self, request, submission_id, file_id, study_id, format=None):
@@ -1284,24 +1254,24 @@ class StudyRequestHandler(APIView):
             was_deleted = controller.delete_study(submission_id, file_id, study_id)
         except InvalidId:
             result['errors'] = "Invalid id"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             if was_deleted:
                 result['result'] = "Successfully deleted"
-                result_serial = serializers.serialize(result)
-                logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=200)
+                #result_serial = serializers.serialize(result)
+                logging.debug("RESULT IS: "+result)
+                return Response(result, status=status.HTTP_200_OK)
             else:
                 result['result'] = "Study couldn't be deleted"
                 result_serial = serializers.serialize(result)
                 logging.debug("RESULT IS: "+result_serial)
-                return Response(result_serial, status=304)
+                return Response(result, status=status.HTTP_304_NOT_MODIFIED)
                 
     
     
@@ -1331,11 +1301,11 @@ class SubmissionIRODSRequestHandler(APIView):
         except InvalidId:
             result['errors'] = "InvalidId"
             result['result'] = False
-            return Response(result, status=400)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             result['result'] = False
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.strerror
             result['result'] = False
@@ -1364,10 +1334,10 @@ class SubmittedFileIRODSRequestHandler(APIView):
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
@@ -1379,7 +1349,7 @@ class SubmittedFileIRODSRequestHandler(APIView):
             if hasattr(submission_result, 'error_dict'):
                 result['errors'] = submission_result.error_dict
                 return Response(result, status=424)
-            return Response(result, status=200)
+            return Response(result, status=status.HTTP_200_OK)
             
        
 # submissions/<submission_id>/irods/meta/'
@@ -1402,10 +1372,10 @@ class SubmissionIRODSMetaRequestHandler(APIView):
             #added_meta = controller.add_meta_to_all_staged_files(submission_id, data)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
@@ -1440,10 +1410,10 @@ class SubmittedFileIRODSMetaRequestHandler(APIView):
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.message
             return Response(result, status=424)
@@ -1479,10 +1449,10 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.message
             return Response(result, status=424)
@@ -1514,10 +1484,10 @@ class SubmittedFileToiRODSPermanentRequestHandler(APIView):
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
-            return Response(result, status=404)
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
         except exceptions.OperationNotAllowed as e:
             result['errors'] = e.message
             return Response(result, status=424)
@@ -1532,6 +1502,11 @@ class SubmittedFileToiRODSPermanentRequestHandler(APIView):
                 if submission_result.message:
                     result['errors'] = submission_result.message
                 return Response(result, status=424) 
+       
+       
+       
+       
+       
        
        
 # ------------------------------ NOT USED ---------------------------

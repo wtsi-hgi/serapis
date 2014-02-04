@@ -156,7 +156,7 @@ class SubmissionDataAccess(DataAccess):
     
     @classmethod
     def retrieve_all_user_submissions(cls, user_id):
-        return models.Submission.objects.filter(sanger_user_id=user_id)
+        return  models.Submission.objects.filter(sanger_user_id=user_id)
     
     @classmethod
     def retrieve_submission(cls, subm_id):
