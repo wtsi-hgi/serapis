@@ -49,9 +49,14 @@ urlpatterns = patterns('',
     url(r'^serapis/', include('serapis.urls')),
 
     # Uncomment the next line to enable the admin:
-    url(r'^admin/', include(admin.site.urls)),
+    #url(r'^admin/', include(admin.site.urls)),
+    
+    #url(r'^admin/', include('serapis.rest_urls', namespace='rest_framework')),
     
     url(r'^api-rest/', include('serapis.rest_urls', namespace='rest_framework')),
+    
+    url(r'^admin/', include('serapis.controller.admin.frontend.urls', namespace='rest_framework')),
+    
     
     #url(r'^rest-api/', include('rest_framework_docs.urls')),
     

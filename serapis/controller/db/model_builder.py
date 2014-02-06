@@ -59,7 +59,7 @@ class FileBuilder(object):
     @classmethod
     def initialize(cls, file_obj, submission):
         file_obj.submission_id = str(submission.id)
-        file_obj.hgi_project_list = submission.hgi_project_list
+        file_obj.hgi_project = submission.hgi_project
         file_obj.irods_coll = submission.irods_collection
         file_obj.file_type = submission.file_type
         

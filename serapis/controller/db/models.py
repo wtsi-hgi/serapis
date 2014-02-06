@@ -239,7 +239,8 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     data_subtype_tags = DictField()
     
     # The list of hgi projects that this file is part of...hmmm -- to think about it
-    hgi_project_list = ListField(default=[])
+    #hgi_project_list = ListField(default=[])
+    hgi_project = StringField()
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
@@ -358,7 +359,8 @@ class Submission(DynamicDocument, SerapisModel):
     submission_status = StringField(choices=constants.SUBMISSION_STATUS)
     
     # List of HGI projects that should have access to this data on the backend
-    hgi_project_list = ListField(default=[])
+    #hgi_project_list = ListField(default=[])
+    hgi_project = StringField()
     
     # The date when the submission object was created
     submission_date = StringField()

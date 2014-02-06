@@ -1,10 +1,10 @@
 
 
-from serapis import serializers
+#from serapis import serializers
 from serapis.com import utils, constants
 from serapis.controller.frontend import validator
 from serapis.controller.db import models, data_access, model_builder
-from serapis.controller.logic import app_logic, status_checker
+from serapis.controller.logic import app_logic, status_checker, serapis_models
 from serapis.controller import exceptions, serapis2irods
 
 
@@ -121,7 +121,10 @@ class ResourceCreationStrategy(ResourceHandlingStrategy):
 
 class ResourceRetrivalStrategy(ResourceHandlingStrategy):
     ''' This class contains the logic for retrieving resources from the DB, as requested by the client.'''
-    pass
+    @abc.abstractmethod
+    def process_request(self, context, full_repr=False):
+        ''' This function is responsible for processing the request and returning the results to the client.'''
+        pass
 
 
 class ResourceModificationStrategy(ResourceHandlingStrategy):
@@ -420,54 +423,119 @@ class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
     ''' This class contains the logic useful for retrieving submissions. '''
     
     @multimethod(GeneralSubmissionContext)
-    def process_request(self, context):
-        ''' This method retrieves and returns all the submissions corresponding
-            to the parameters provided in the GeneralContext.'''
-        #print "Process Request context...", type(context)
-        return data_access.SubmissionDataAccess.retrieve_all_user_submissions(context.user_id)
-    
-
+    def retrieve_full_representation(self, context):
+        #return data_access.SubmissionDataAccess.retrieve_all_user_submissions(context.user_id)
+        return data_access.SubmissionDataAccess.retrieve_all_submissions()
+        
+        
     @multimethod(SpecificSubmissionContext)
-    def process_request(self, context):
-        ''' This function is responsible for processing the request and returning the results to the client.'''
-       
-        #print "Process SUbmission request context...of ", type(context)
-        # if request_body contains a list of fields to be returned: validate fields and retrieve only those fields from the db
-        #if submission_context.submission_id:
+    def retrieve_full_representation(self, context):
         return data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
         
+    
+    @multimethod(GeneralSubmissionContext)
+    def retrieve_part_representation(self, context):
+        db_submissions = data_access.SubmissionDataAccess.retrieve_all_submissions()
+        serapis_subm = [serapis_models.Submission.build_from_db_model(s) for s in db_submissions]
+        return serapis_subm
 
+    
+    @multimethod(SpecificSubmissionContext)
+    def retrieve_part_representation(self, context):
+        db_subm = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+        serapis_subm = serapis_models.Submission.build_from_db_model(db_subm)
+        return serapis_subm
+    
+    
+    @multimethod(GeneralSubmissionContext, bool)
+    def process_request(self, context, full_repr=False):
+        ''' This method retrieves and returns all the submissions corresponding
+            to the parameters provided in the GeneralContext.'''
+        if full_repr:
+            return self.retrieve_full_representation(context)
+        return self.retrieve_part_representation(context)
+    
+
+    @multimethod(SpecificSubmissionContext, bool)
+    def process_request(self, context, full_repr=False):
+        ''' This function is responsible for processing the request and returning the results to the client.'''
+        if full_repr:
+            return self.retrieve_full_representation(context)
+        return self.retrieve_part_representation(context)
+        
+        
 class FileRetrievalStrategy(ResourceRetrivalStrategy):
 
     @multimethod(GeneralFileContext)
-    def process_request(self, context):
+    def retrieve_full_representation(self, context):
+        ''' This method is called when the request asks for 
+            the full representation of the files.'''
+        #return data_access.SubmissionDataAccess.retrieve_all_file_ids_for_submission(context.submission_id)
+        return data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+    
+    @multimethod(SpecificFileContext)
+    def retrieve_full_representation(self, context):
+        ''' This method is called when the request asks for 
+            the full representation of a files.'''
+        return data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+    
+    
+    @multimethod(GeneralFileContext)
+    def retrieve_part_representation(self, context):
+        ''' This method is called when the request asks for 
+            a partial representation of the files.'''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        part_files = [serapis_models.SubmittedFileModel.build_from_db_model(f) for f in files]
+        return part_files
+    
+    @multimethod(SpecificFileContext)
+    def retrieve_part_representation(self, context):
+        ''' This method is called when the request asks for 
+            a partial representation of a file.'''
+        db_file = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+        serapis_file = serapis_models.SubmittedFileModel.build_from_db_model(db_file)
+        return serapis_file
+ 
+    
+    
+    @multimethod(GeneralFileContext, bool)
+    def process_request(self, context, full_repr=False):
         ''' This method retrieves and returns all the files selected by the criteria given
             as parameters in the GeneralContext provided by the client.
             Params: -- context 
+                    -- full_repr -- if it's true, then the request requires the
+                        full representation of the resource. The default is to 
+                        get a partial representation.
             Throws:
                 DoesNotExist -- if there is no submission with the id given as context param (Mongoengine specific error)
                 InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
             Returns:
                 list of files for this submission
         '''
-        #print "Process File request context...of ", type(context)
-        return data_access.SubmissionDataAccess.retrieve_all_file_ids_for_submission(context.submission_id)
+        if full_repr:
+            return self.retrieve_full_representation(context)
+        return self.retrieve_part_representation(context)
+        
 
-
-    @multimethod(SpecificFileContext)
-    def process_request(self, context):
+    @multimethod(SpecificFileContext, bool)
+    def process_request(self, context, full_repr=False):
         ''' This method retrieves and returns all the files selected by the criteria in the
             FileContext provided as parameter by the client.
             Retrieves the submitted file from the DB and returns it.
             Params: 
                 context -- contains the request parameters and data
+                full_repr -- if it's true, then the request requires the
+                             full representation of the resource. The default is to 
+                             get a partial representation.
             Returns:
                 a SubmittedFile object instance
             Throws:
                 InvalidId -- if the id is invalid
                 DoesNotExist -- if there is no resource with this id in the DB.'''
-        #print "Process File request context...of ", type(context)
-        return data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
+        if full_repr:
+            return self.retrieve_full_representation(context)
+        return self.retrieve_part_representation(context)
+        
         
         
         
@@ -479,40 +547,7 @@ class SubmissionModificationStrategy(ResourceModificationStrategy):
 class FileModificationStrategy(ResourceModificationStrategy):
     ''' This class contains the functionality for updating a file. '''
   
-    #def update_file_from_task(self, submission_id, file_id, data):
-    def update_file_from_task(self, context):
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
-        tasks_dict = file_logic.file_data_access.retrieve_tasks_dict(context.file_id)
-        try: 
-            task_type = tasks_dict[context.request_data['task_id']]['type']
-        except KeyError:
-            raise exceptions.TaskNotRegisteredError(faulty_expression=context.request_data['task_id'])
-        
-        try:
-            errors = context.request_data['errors']
-        except KeyError:
-            errors = None
-    
-        if task_type in constants.IRODS_TASKS:
-            file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
-        else:
-            if context.request_data['status'] == constants.FAILURE_STATUS:
-                file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
-            else:
-                file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data['result'], 
-                                                      task_type, 
-                                                      task_id=context.request_data['task_id'], 
-                                                      task_status=context.request_data['status'], 
-                                                      errors=errors)
-        # TESTING:
-        if task_type == constants.UPLOAD_FILE_TASK:
-            file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
-            serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
-            
-        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
-        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
-        file_logic.check_and_update_all_file_statuses(context.file_id, file_to_update)
-    
+   
     
     def update_file_from_user(self, context):
         file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
@@ -556,7 +591,51 @@ class FileModificationStrategy(ResourceModificationStrategy):
 #            self.update_file_from_task(submission_id, file_id, data)
 #        else:
 #            self.update_file_from_user(submission_id, file_id, data)
-#        #db_model_operations.check_and_update_all_file_statuses(file_id)        
+#        #db_model_operations.check_and_update_all_file_statuses(file_id)       
+
+
+    #def update_file_from_task(self, submission_id, file_id, data):
+    def update_file_from_task(self, context):
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
+        tasks_dict = file_logic.file_data_access.retrieve_tasks_dict(context.file_id)
+        try: 
+            task_type = tasks_dict[context.request_data['task_id']]['type']
+        except KeyError:
+            raise exceptions.TaskNotRegisteredError(faulty_expression=context.request_data['task_id'])
+        
+        try:
+            errors = context.request_data['errors']
+        except KeyError:
+            errors = None
+    
+        if task_type in constants.IRODS_TASKS:
+            file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+        else:
+            if context.request_data['status'] == constants.FAILURE_STATUS:
+                file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+            else:
+                file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data['result'], 
+                                                      task_type, 
+                                                      task_id=context.request_data['task_id'], 
+                                                      task_status=context.request_data['status'], 
+                                                      errors=errors)
+        # TESTING:
+        if task_type == constants.UPLOAD_FILE_TASK:
+            file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+            serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+            
+        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+        file_logic.check_and_update_all_file_statuses(context.file_id, file_to_update)
+    
+    
+    
+    @multimethod(WorkerSpecificFileContext)
+    def process_request(self, context):
+        context.request_data = self.convert(context.request_data)
+        #print "Called WorkerSpecificFileContext process_req in file modif", vars(context)
+        self.update_file_from_task(context)
+     
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
@@ -565,12 +644,19 @@ class FileModificationStrategy(ResourceModificationStrategy):
         self.validate(context.request_data)
         self.update_file_from_user(context)
         
-    @multimethod(WorkerSpecificFileContext)
-    def process_request(self, context):
-        context.request_data = self.convert(context.request_data)
-        print "Called WorkerSpecificFileContext process_req in file modif", vars(context)
-        self.update_file_from_task(context)
-        
+     
+
+class FileUpdateStrategy(FileModificationStrategy):
+    pass
+
+class FilePatchStrategy(FileModificationStrategy):
+    
+    
+    def patch_from_task(self, context):
+        pass
+    
+    
+
 
 class ResourceDeletionStrategy(ResourceHandlingStrategy):
     ''' This class contains the logic for deleting resources.'''

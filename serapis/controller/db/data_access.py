@@ -49,16 +49,21 @@ class SubmissionDataAccess(DataAccess):
         for (field_name, field_val) in update_dict.iteritems():
             if field_name == 'files_list':
                 pass
-            elif field_name == 'hgi_project_list' and field_val:
-                for prj in field_val:
-                    if not utils.is_hgi_project(prj):
-                        raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
-                if getattr(submission, 'hgi_project_list'):
-                    hgi_projects = submission.hgi_project_list
-                    hgi_projects.extend(field_val)
-                else:
-                    hgi_projects = field_val
-                update_db_dict['set__hgi_project_list'] = hgi_projects
+#            elif field_name == 'hgi_project_list' and field_val:
+#                for prj in field_val:
+#                    if not utils.is_hgi_project(prj):
+#                        raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
+#                if getattr(submission, 'hgi_project_list'):
+#                    hgi_projects = submission.hgi_project_list
+#                    hgi_projects.extend(field_val)
+#                else:
+#                    hgi_projects = field_val
+#                update_db_dict['set__hgi_project_list'] = hgi_projects
+            elif field_name == 'hgi_project' and field_val:
+                #for prj in field_val:
+                if not utils.is_hgi_project(field_val):
+                    raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
+                update_db_dict['set__hgi_project'] = field_val
             elif field_name == 'upload_as_serapis' and field_val:
                 update_db_dict['set__upload_as_serapis'] = field_val
             # File-related metadata:
@@ -952,17 +957,18 @@ class FileDataAccess(DataAccess):
                             #update_db_dict['inc__version__0'] = 1
                         else:
                             raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
-                elif field_name == 'hgi_project_list':
+                #elif field_name == 'hgi_project_list':
+                elif field_name == 'hgi_project':
                     if update_source == constants.EXTERNAL_SOURCE:
-                        for prj in field_val:
-                            if not utils.is_hgi_project(prj):
-                                raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
-                        if getattr(submitted_file, 'hgi_project_list'):
-                            hgi_projects = submitted_file.hgi_project_list
-                            hgi_projects.extend(field_val)
-                        else:
-                            hgi_projects = field_val                    
-                        update_db_dict['set__hgi_project_list'] = hgi_projects
+                        #for prj in field_val:
+                        if not utils.is_hgi_project(field_val):
+                            raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
+#                        if getattr(submitted_file, 'hgi_project'):
+#                            hgi_projects = submitted_file.hgi_project
+#                            hgi_projects.extend(field_val)
+#                        else:
+#                            hgi_projects = field_val                    
+                        update_db_dict['set__hgi_project'] = field_val
                 elif field_name == 'data_type':
                     if update_source == constants.EXTERNAL_SOURCE:
                         update_db_dict['set__data_type'] = field_val
@@ -1163,8 +1169,10 @@ class FileDataAccess(DataAccess):
     @classmethod
     def insert_hgi_project(cls, subm_id, project):
         if utils.is_hgi_project(project):
-            upd_dict = {'add_to_set__hgi_project_list' : project}
+            upd_dict = {'set__hgi_project' : project}
             return models.Submission.objects(id=subm_id).update_one(**upd_dict)
+#            upd_dict = {'add_to_set__hgi_project_list' : project}
+#            return models.Submission.objects(id=subm_id).update_one(**upd_dict)
     
     
     
