@@ -25,7 +25,7 @@ from django.conf.urls import patterns, include, url
 
 from serapis.controller.frontend import view_classes
 #from serapis.view_classes import LoginView, UploadView
-from django.views.generic import TemplateView
+#from django.views.generic import TemplateView
 
 from rest_framework.urlpatterns import format_suffix_patterns
     
@@ -34,12 +34,11 @@ urlpatterns = patterns('',
 
     # (?P<user_id>\w+) is a Python named group containing only words ([a-zA-Z0-9]
     
+    
     url(r'^references/$', view_classes.ReferencesMainPageRequestHandler.as_view()),
     url(r'^references/(?P<reference_id>\w+)/$', view_classes.ReferenceRequestHandler.as_view()),
     
-    
-    
-   # url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.GetAllUserSubmissions.as_view()),
+
     url(r'^submissions/$', view_classes.SubmissionsMainPageRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/$', view_classes.SubmissionRequestHandler.as_view()),
     
@@ -77,33 +76,8 @@ urlpatterns = patterns('',
     ##### Messages from workers:
     url(r'^workers/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$', view_classes.WorkerSubmittedFileRequestHandler.as_view()),
     
-
-
-    #url(r'^submissions/status=(?P<status>\w+)/$', view_classes.GetStatusSubmissions.as_view()),
-    
-    
-    #url(r'^foldercontent/$', view_classes.GetFolderContent.as_view()),
-    
-    
-
-#    # (?P<user_id>\w+) is a Python named group containing only words ([a-zA-Z0-9]
-#    url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.SubmissionsMainPageRequestHandler.as_view()),
-#   # url(r'^submissions/user_id=(?P<user_id>\w+)/$', view_classes.GetAllUserSubmissions.as_view()),
-#    
-#    url(r'^submissions/user_id=(?P<user_id>\w+)/submission_id=(?P<submission_id>\w+)/$', view_classes.SubmissionRequestHandler.as_view()),
-#    url(r'^submissions/user_id=(?P<user_id>\w+)/submission_id=(?P<submission_id>\w+)/status/$', view_classes.SubmissionStatusRequestHandler.as_view()),
-#
-#    url(r'^submissions/user_id=(?P<user_id>\w+)/submission_id=(?P<submission_id>\w+)/file_id=(?P<file_id>\w+)/$', view_classes.SubmittedFileRequestHandler.as_view()),
-#    
-#
-#    url(r'^submissions/status=(?P<status>\w+)/$', view_classes.GetStatusSubmissions.as_view()),
-#    
-#    
-#    url(r'^foldercontent/$', view_classes.GetFolderContent.as_view()),
-#    
-#    
-    #url(r'^insert/$', view_classes.MdataInsert.as_view()),    
-    #url(r'^update/$', view_classes.MdataUpdate.as_view()),
    )
 
 urlpatterns = format_suffix_patterns(urlpatterns)
+
+

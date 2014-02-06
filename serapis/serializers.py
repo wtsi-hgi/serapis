@@ -21,13 +21,14 @@
 
 
 
-from django.forms import widgets
+#from django.forms import widgets
 from rest_framework import serializers
 
 from mongoengine.fields import *
 
 from serapis.controller.db import models
 
+import simplejson
 import json
 import logging
 import mongoengine
@@ -47,10 +48,8 @@ class ObjectIdEncoder(JSONEncoder):
 def encode_model(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
         out = dict(obj._data)
-        #print "OBJECTS ITEMS: WHY NO ID>????", out.items()
         for k,v in out.items():
             if isinstance(v, ObjectId):
-        #        print "OBJECT ID KEY------------------------", k
                 #out['id'] = str(v)
                 out[k] = str(v)
     elif isinstance(obj, ObjectId):
@@ -67,13 +66,29 @@ def encode_model(obj):
     else:
         logging.info(obj)
         raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+    print "BEFORE RETURNING ENCODED OBJ: ", out
     return out          
         
+def encode2(obj):
+    ret= dict(obj._data)
+    print "BEFORE RETURNING: ", ret
+    return ret
+        
+class MyEncoder(JSONEncoder):
+    def default(self, o):
+        return o.__dict__    
+
+#>>> MyEncoder().encode(f)
+#'{"fname": "/foo/bar"}'
+
+def serialize1(data):
+    return json.dumps(data, cls=MyEncoder, ensure_ascii=False)
 
 
 def serialize(data):
-    import simplejson
-    return simplejson.dumps(data, default=encode_model, indent=4)
+    #return simplejson.dumps(data, default=encode_model, indent=4)
+    #return simplejson.dumps(data, default=encode2, ensure_ascii=False)
+    return data
 
 #print "Serialized:::::", serialize([models.Submission()])
 
@@ -86,9 +101,11 @@ def deserialize(data):
     
 def encode_excluding_meta(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
+        internal_fields = obj.get_internal_fields()
         out = dict(obj._data)
         for k,v in out.items():
-            if k in models.FILE_SUBMITTED_META_FIELDS:
+            #if k in models.FILE_SUBMITTED_META_FIELDS:
+            if k in internal_fields:
                 out.pop(k)
                 continue
             if isinstance(v, ObjectId):
@@ -110,7 +127,7 @@ def serialize_excluding_meta(data):
     ''' Serializer that uses an encoding function which excludes all the 
         implementation-specific metadata - data showing the statuses of the jobs
         or who did the last updates = fields not relevant for the user, only for the logic behind.'''
-    import simplejson
+
     return simplejson.dumps(data, default=encode_excluding_meta, indent=4)
 
 

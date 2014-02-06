@@ -50,6 +50,8 @@ from rest_framework.views import APIView
 #from bson.objectid import ObjectId
 from pymongo.errors import InvalidId
 
+import time 
+
 #import errno
 from mongoengine.queryset import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -162,6 +164,9 @@ class ReferenceRequestHandler(APIView):
         updated = strategy.process_request(context)
         return Response({"result" : updated})
     
+    def patch(self, request, reference_id):
+        print "PATCH REQUEST CALLED!!!!!!!"
+        return Response("PATCH -- accepted, yey!", status=status.HTTP_200_OK)
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
 
@@ -173,7 +178,7 @@ class SubmissionsMainPageRequestHandler(APIView):
         user_id = USER_ID
         context = controller_strategy.GeneralSubmissionContext(user_id)
         strategy = controller_strategy.SubmissionRetrievalStrategy()
-        submission_list = strategy.process_request(context)
+        submission_list = strategy.process_request(context, False)
         #submission_list = serializers.serialize(submission_list)
         return Response(submission_list, status=status.HTTP_200_OK)
 
@@ -193,17 +198,12 @@ class SubmissionsMainPageRequestHandler(APIView):
         '''
         user_id = USER_ID
         try:
-#            data = request.POST['_content']
-            print "start of the reqest!!!!"
+
+            if not hasattr(request, 'DATA'):
+                return Response(status=status.HTTP_304_NOT_MODIFIED)
             req_result = dict()
-#            data = request.DATA
-#            data = utils.unicode2string(data)
-#            #validator.submission_schema(data)       # throws MultipleInvalid exc if Bad Formed Req.
-#            validator.submission_post_validator(data)
             
-            import time #, ipdb
             t1 = time.time()
-#            subm_result = controller.create_submission(user_id, data)
             context = controller_strategy.GeneralContext(user_id, request_data=request.DATA)
             subm_result = controller_strategy.SubmissionCreationStrategy.process_request(context)
             
@@ -285,7 +285,7 @@ class SubmissionRequestHandler(APIView):
             #submission = controller.get_submission(submission_id)
             context = controller_strategy.SpecificSubmissionContext(user_id, submission_id)
             strategy = controller_strategy.SubmissionRetrievalStrategy()
-            submission = strategy.process_request(context)
+            submission = strategy.process_request(context, False)
             submission_serial = serializers.serialize(submission)
         except InvalidId:
             result['errors'] = "Invalid id"
@@ -407,7 +407,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
             result = dict()
             context = controller_strategy.GeneralFileContext(USER_ID, submission_id)
             strategy = controller_strategy.FileRetrievalStrategy()
-            files = strategy.process_request(context)
+            files = strategy.process_request(context, False)
         except InvalidId:
             result['errors'] = "Invalid id"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -483,7 +483,7 @@ class SubmittedFileRequestHandler(APIView):
 #            file_req = controller.get_submitted_file(file_id)
             context = controller_strategy.SpecificFileContext(user_id, submission_id, file_id)
             strategy = controller_strategy.FileRetrievalStrategy()
-            file_obj = strategy.process_request(context)
+            file_obj = strategy.process_request(context, False)
             file_serial = serializers.serialize(file_obj)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
@@ -684,6 +684,7 @@ class WorkerSubmittedFileRequestHandler(APIView):
 
             logging.debug("Received PUT request -- submission id: %s",str(submission_id))
             context = controller_strategy.WorkerSpecificFileContext(submission_id, file_id, request_data=req_data)
+            #strategy = controller_strategy.FileModificationStrategy()
             strategy = controller_strategy.FileModificationStrategy()
             print "VARS de Strategy: ", vars(strategy)
             print "CONTEXT type: ", type(context)

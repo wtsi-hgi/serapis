@@ -159,6 +159,10 @@ class SubmissionDataAccess(DataAccess):
         return  models.Submission.objects.filter(sanger_user_id=user_id)
     
     @classmethod
+    def retrieve_all_submissions(cls):
+        return models.Submission.objects()
+    
+    @classmethod
     def retrieve_submission(cls, subm_id):
         return models.Submission.objects(_id=ObjectId(subm_id)).get()
     
@@ -1009,7 +1013,6 @@ class FileDataAccess(DataAccess):
         upd, i = 0, 0
         db_update_dict = {}
         
-        print "MESSAGE RECEIVED FROM WORKERSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS", file_updates
         if task_id:
             db_update_dict = {"set__tasks_dict__"+task_id+"__status" : task_status}
             if errors:
@@ -1029,6 +1032,30 @@ class FileDataAccess(DataAccess):
                 break
             i+=1
         return upd
+    
+    
+    
+    def build_patch_dict(self, updates):
+        update_db_dict = dict()
+        for (field_name, field_val) in updates.iteritems():
+            if field_val == 'null' or not field_val:
+                continue
+        pass
+                
+    
+    def patch_file_mdata(self, file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+        upd, i = 0, 0
+        db_update_dict = {}
+        
+        if task_id:
+            db_update_dict = {"set__tasks_dict__"+task_id+"__status" : task_status}
+            if errors:
+                for e in errors:
+                    db_update_dict['add_to_set__file_error_log'] = e
+        while i < nr_retries:
+            submitted_file = cls.retrieve_submitted_file(file_id)
+            
+
     
     @classmethod
     def update_data_subtype_tags(cls, file_id, subtype_tags_dict):

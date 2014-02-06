@@ -129,7 +129,6 @@ class SubmissionBuilder(Builder):
         submission = models.Submission()
         cls.initialize(submission, user_id, submission_data)
         submission.save()
-        print "submission id:::::::::::;", submission.id
         if data_access.SubmissionDataAccess.update_submission(submission_data, submission.id, submission) == 1:
             return submission.id
         submission.delete()

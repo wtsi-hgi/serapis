@@ -85,6 +85,7 @@ class Entity(DynamicEmbeddedDocument, SerapisModel):
     def __eq__(self, other):
         if other == None:
             return False
+        print "THE EQ WAS ACTUALLY called!!!"
         for id_field in constants.ENTITY_IDENTITYING_FIELDS:
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
@@ -116,7 +117,7 @@ class Study(Entity, SerapisModel):
         elif self.internal_id:
             return self.internal_id
         return None
-
+    
 
     
 class AbstractLibrary(DynamicEmbeddedDocument, SerapisModel):
