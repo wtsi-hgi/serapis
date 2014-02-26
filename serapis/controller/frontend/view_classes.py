@@ -19,6 +19,7 @@
 # 
 #################################################################################
 
+#from django.contrib.auth.models import User, Group
 
 from django.views.generic import TemplateView
 from django.views.generic.edit import FormView
@@ -26,7 +27,7 @@ from django.http import HttpResponseRedirect
 from rest_framework import status
 
 #from serapis.forms import UploadForm
-from serapis.controller.frontend import validator, controller
+from serapis.controller.frontend import validator, controller, permissions, roles
 from serapis import serializers
 from serapis.com import utils
 from serapis.controller.db import models
@@ -39,6 +40,9 @@ from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, Br
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework import permissions as rest_permissions
+
 #from rest_framework.decorators import api_view
 
 #from rest_framework.routers import *
@@ -65,37 +69,6 @@ logging.basicConfig(level=logging.DEBUG)
 USER_ID = 'yl2'
         
 
-# ----------------------------- AUXILIARY FCTIONS ---------------------------
-
-#def _decode_list(data):
-#    rv = []
-#    for item in data:
-#        if isinstance(item, unicode):
-#            item = item.encode('utf-8')
-#        elif isinstance(item, list):
-#            item = _decode_list(item)
-#        elif isinstance(item, dict):
-#            item = _decode_dict(item)
-#        rv.append(item)
-#    return rv
-#
-#def _decode_dict(data):
-#    rv = {}
-#    for key, value in data.iteritems():
-#        if isinstance(key, unicode):
-#            key = key.encode('utf-8')
-#        if isinstance(value, unicode):
-#            value = value.encode('utf-8')
-#        elif isinstance(value, list):
-#            value = _decode_list(value)
-#        elif isinstance(value, dict):
-#            value = _decode_dict(value)
-#        rv[key] = value
-#    return rv
-
-#obj = json.loads(s, object_hook=_decode_dict)
-
-        
 
 
 # ----------------------- REFERENCE GENOMES HANDLING --------------------
@@ -109,22 +82,28 @@ def catch_multiple_invalid_error(e):
             path = str(p)
     return path
     
-    
+
 #/references
 class ReferencesMainPageRequestHandler(APIView):
     ''' 
         A view that processes requests referring to reference genomes.
     '''
-    renderer_classes = (JSONRenderer, XMLRenderer, YAMLRenderer)
+    renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
     
     def get(self, request):
         context = controller_strategy.GeneralReferenceGenomeContext()
-        strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
+        if roles.is_admin(request):
+            strategy = controller_strategy.ReferenceGenomeRetrivalAdminStrategy()
+        else:
+            strategy = controller_strategy.ReferenceGenomeRetrivalUserStrategy()
         references = strategy.process_request(context)
         serial_refs = serializers.serialize({"results" : references})
         return Response(serial_refs, status=status.HTTP_200_OK)
     
     def post(self, request):
+        if not roles.is_admin(request):
+            return Response("This request can only be fulfilled if you are logged in as admin.", status=status.HTTP_403_FORBIDDEN)
         if not hasattr(request, 'DATA'):
             return Response("No resource created.", status=status.HTTP_200_OK)
         try:
@@ -148,15 +127,21 @@ class ReferenceRequestHandler(APIView):
         A view that processes requests for a specific reference genome.
     """
     renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, rest_permissions.AllowAny
     
     def get(self, request, reference_id):
         context = controller_strategy.ReferenceGenomeContext(reference_id)
-        strategy = controller_strategy.ReferenceGenomeRetrivalStrategy()
+        if roles.is_admin(request):
+            strategy = controller_strategy.ReferenceGenomeRetrivalAdminStrategy()
+        else:
+            strategy = controller_strategy.ReferenceGenomeRetrivalUserStrategy()
         ref = strategy.process_request(context)
         return Response({"results" : ref})
     
     # Should we really allow the users to modify references? Maybe if they are admins...
     def put(self, request, reference_id):
+        if not roles.is_admin(request):
+            return Response("This request ca n only be fulfilled if you are logged in as admin.", status=status.HTTP_403_FORBIDDEN)
         if not hasattr(request, 'DATA'):
             return Response("No data to be updated", status.HTTP_304_NOT_MODIFIED)
         context = controller_strategy.ReferenceGenomeContext(reference_id, request.DATA)
@@ -165,6 +150,8 @@ class ReferenceRequestHandler(APIView):
         return Response({"result" : updated})
     
     def patch(self, request, reference_id):
+        if not roles.is_admin(request):
+            return Response("This request can only be fulfilled if you are logged in as admin.", status=status.HTTP_403_FORBIDDEN)
         print "PATCH REQUEST CALLED!!!!!!!"
         return Response("PATCH -- accepted, yey!", status=status.HTTP_200_OK)
 
@@ -172,21 +159,23 @@ class ReferenceRequestHandler(APIView):
 
 # /submissions/
 class SubmissionsMainPageRequestHandler(APIView):
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )#rest_permissions.AllowAny, ) #,rest_permissions.IsAdminUser,
+    
     # GET all the submissions for a user_id
     def get(self, request):
         ''' Retrieves all the submissions for this user. '''
         user_id = USER_ID
+        print "USER: ", request.user
         context = controller_strategy.GeneralSubmissionContext(user_id)
-        strategy = controller_strategy.SubmissionRetrievalStrategy()
-        submission_list = strategy.process_request(context, False)
-        #submission_list = serializers.serialize(submission_list)
+        if roles.is_admin(request):
+            print "Is admin..."
+            strategy = controller_strategy.SubmissionRetrievalAdminStrategy()
+        else:
+            print "normal user...."
+            strategy = controller_strategy.SubmissionRetrievalUserStrategy()            
+        submission_list = strategy.process_request(context)
         return Response(submission_list, status=status.HTTP_200_OK)
 
-
-#        submissions_list = controller.get_all_submissions(user_id)
-#        subm_serialized = serializers.serialize(submissions_list)
-#        return Response("Submission list: "+subm_serialized, status=200)
-    
     
     # POST = create a new submission, for uploading the list of files given as param
     def post(self, request):
@@ -274,19 +263,26 @@ class SubmissionsMainPageRequestHandler(APIView):
     
 # ---------------------- HANDLE 1 SUBMISSION -------------
 
+
+
 # /submissions/submission_id
 class SubmissionRequestHandler(APIView):
+    authentication_classes = (BasicAuthentication, SessionAuthentication)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+
     def get(self, request, submission_id, format=None):
         ''' Retrieves a submission given by submission_id.'''
         try:
             user_id = USER_ID
             result = dict()
             logging.debug("Received GET request - submission id:"+submission_id)
-            #submission = controller.get_submission(submission_id)
             context = controller_strategy.SpecificSubmissionContext(user_id, submission_id)
-            strategy = controller_strategy.SubmissionRetrievalStrategy()
-            submission = strategy.process_request(context, False)
-            submission_serial = serializers.serialize(submission)
+            if roles.is_admin(request):
+                strategy = controller_strategy.SubmissionRetrievalAdminStrategy()
+            else:
+                strategy = controller_strategy.SubmissionRetrievalUserStrategy()
+            submission = strategy.process_request(context)
+            #submission_serial = serializers.serialize(submission)
         except InvalidId:
             result['errors'] = "Invalid id"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -295,7 +291,7 @@ class SubmissionRequestHandler(APIView):
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
             #subm_serialized = serializers.serialize(submission)
-            result['result'] = submission_serial
+            result['result'] = submission
             return Response(result, status=status.HTTP_200_OK)
         
 # Given the fact that submission is not an entity itself, there is nothing to be updated about it.
@@ -309,6 +305,19 @@ class SubmissionRequestHandler(APIView):
 #            data = request.DATA
 # ...
 
+
+    def post(self, request, submission_id):
+        ''' Adds another file to the submission identified by submission_id.'''
+#        try:
+#            user_id = USER_ID
+#            result = dict()
+#            logging.debug("Received a POST request for adding more files to the submission: %s", submission_id)
+#            context = controller_strategy.SpecificSubmissionContext(user_id, submission_id)
+#            strategy = controller_strategy.AddFileToSubmissionStrategy()
+#            result = strategy.process_request(context)
+#            
+        pass
+            
 
 
     def delete(self, request, submission_id):
@@ -402,12 +411,17 @@ class SubmittedFilesMainPageRequestHandler(APIView):
     ''' Handles the requests coming for /submissions/123/files/.
         GET - retrieves the list of files for this submission.
         POST - adds a new file to this submission.'''
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+
     def get(self, request, submission_id):
         try:
             result = dict()
             context = controller_strategy.GeneralFileContext(USER_ID, submission_id)
-            strategy = controller_strategy.FileRetrievalStrategy()
-            files = strategy.process_request(context, False)
+            if roles.is_admin(request):
+                strategy = controller_strategy.FileRetrievalAdminStrategy()
+            else:
+                strategy = controller_strategy.FileRetrievalUserStrategy()
+            files = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "Invalid id"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -428,7 +442,10 @@ class SubmittedFilesMainPageRequestHandler(APIView):
         try:
             result = dict()
             context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
-            strategy = controller_strategy.ResubmissionOperationsStrategy()
+            if roles.is_admin(request):
+                strategy = controller_strategy.ResubmissionOperationsAdminStrategy()
+            else:
+                strategy = controller_strategy.ResubmissionOperationUserStrategy()
             resubmission_result = strategy.process_request(context)
         except MultipleInvalid as e:
             path = ''
@@ -480,11 +497,13 @@ class SubmittedFileRequestHandler(APIView):
         try:
             user_id = USER_ID
             result = dict()
-#            file_req = controller.get_submitted_file(file_id)
             context = controller_strategy.SpecificFileContext(user_id, submission_id, file_id)
-            strategy = controller_strategy.FileRetrievalStrategy()
-            file_obj = strategy.process_request(context, False)
-            file_serial = serializers.serialize(file_obj)
+            if roles.is_admin(request):
+                strategy = controller_strategy.FileRetrievalAdminStrategy()
+            else:
+                strategy = controller_strategy.FileRetrievalUserStrategy()
+            file_obj = strategy.process_request(context)
+            #file_serial = serializers.serialize(file_obj)
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
@@ -496,7 +515,7 @@ class SubmittedFileRequestHandler(APIView):
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         else:
             #file_serial = serializers.serialize(file_req)
-            result["result"] = file_serial
+            result["result"] = file_obj
             #res_serial = serializers.serialize_excluding_meta(result)
             #logging.debug("RESULT IS: "+res_serial)
             return Response(result, status=status.HTTP_200_OK)
@@ -515,8 +534,10 @@ class SubmittedFileRequestHandler(APIView):
             result = dict()
             #validator.submitted_file_schema(data)
             #resubmission_result = controller.resubmit_jobs_for_file(submission_id, file_id)
-            
-            context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, request.DATA)
+            req_data = None
+            if hasattr(request, 'DATA'):
+                req_data = request.Data
+            context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
             strategy = controller_strategy.ResubmissionOperationsStrategy()
             resubmission_result = strategy.process_request(context)
 
@@ -557,7 +578,10 @@ class SubmittedFileRequestHandler(APIView):
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
-        req_data = request.DATA
+        if hasattr(request, 'DATA'):
+            req_data = request.DATA
+        else:
+            return Response("Nothing to update.", status=status.HTTP_304_NOT_MODIFIED)
         #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
             user_id = USER_ID
@@ -1398,7 +1422,7 @@ class SubmissionIRODSMetaRequestHandler(APIView):
         pass
     
     
-# submissions/<submission_id>/files/<file_id>/irods/meta/
+# submissions/<submission_id>/files/<file_id>/irods-temp/meta/
 class SubmittedFileIRODSMetaRequestHandler(APIView):
     def post(self, request, submission_id, file_id, format=None):
         ''' Attaches the metadata to the file, while it's still in the staging area'''
@@ -1431,7 +1455,7 @@ class SubmittedFileIRODSMetaRequestHandler(APIView):
 
        
 
-# submissions/<submission_id>/irods/irods-files/
+# submissions/<submission_id>/irods/irods-perm/
 class SubmissionToiRODSPermanentRequestHandler(APIView):
        
     def post(self, request, submission_id, format=None):

@@ -181,7 +181,7 @@ FILE_FIELDS_UPDATE  = 'FILE_FIELDS_UPDATE'
 STUDY_MANDATORY_FIELDS      = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS    = {'library_source', 'coverage'} #'library_selection', 
 SAMPLE_MANDATORY_FIELDS     = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
-FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project_list', 'data_subtype_tags', 'md5'}
+FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
 INDEX_MANDATORY_FIELDS      = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list'}
 VCF_FILE_MANDATORY_FIELDS   = {'file_format'}
@@ -420,7 +420,7 @@ PATH_IS_NOT_A_DIRECTORY                     = "PATH_IS_NOT_A_DIRECTORY"
 EMPTY_DIRECTORY                             = "EMPTY_DIRECTORY"
 FILE_DUPLICATES                             = "FILE_DUPLICATES"
 NO_IRODS_PATH_SPECIFIED                     = "NO_IRODS_PATH_SPECIFIED"
-FILE_NOT_READY_FOR_SUBMISSION               = "FILE_NOT_READY_FOR_SUBMISSION" 
+FILE_STATUS_NOT_READY_FOR_SUBMISSION        = "FILE_STATUS_NOT_READY_FOR_SUBMISSION" 
 
 
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,

@@ -54,10 +54,12 @@ class FileBuilder(object):
     @classmethod
     @abc.abstractmethod
     def get_file_instance(cls, file_path):
-        return   
+        ''' To be implemented for each type of file.'''
+        raise NotImplementedError("Method get_file_instance must be implemented by the subtypes.")
     
     @classmethod
-    def initialize(cls, file_obj, submission):
+    def initialize(cls, file_obj, file_id, submission):
+        file_obj.file_id = file_id
         file_obj.submission_id = str(submission.id)
         file_obj.hgi_project = submission.hgi_project
         file_obj.irods_coll = submission.irods_collection
@@ -85,9 +87,9 @@ class FileBuilder(object):
         return index_file
     
     @classmethod
-    def build(cls, file_path, index_file_path, submission):
+    def build(cls, file_id, file_path, index_file_path, submission):
         new_file = cls.get_file_instance(file_path)
-        cls.initialize(new_file, submission)
+        cls.initialize(new_file, file_id, submission)
         new_file.index_file = cls.build_index(index_file_path, submission.irods_collection)
         return new_file
         

@@ -59,8 +59,9 @@ class SubmissionBusinessLogic(BusinessLogic):
     # TODO: measure the time that it takes for this fct to run
     def init_and_submit_files(self, files_dict, submission):
         files_to_subm_list = []
-        for file_path, index_file_path in files_dict.items():
-            new_file = self.file_logic.file_builder.build(file_path, index_file_path, submission)
+        for i, tupl in enumerate(files_dict.items()):
+            file_path, index_file_path = tupl
+            new_file = self.file_logic.build_file(i+1, file_path, index_file_path, submission)
             new_file.save(validate=False)
             files_to_subm_list.append(new_file)
 
@@ -73,39 +74,13 @@ class SubmissionBusinessLogic(BusinessLogic):
         # TODO: split this fct in 2 diff ones:
         # Submit jobs for the file:
         for file_obj in files_to_subm_list:
-            tasks_dict = self.file_logic.batch_tasks_launcher.submit_initial_tasks(file_obj.id, submission.sanger_user_id, 
-                                                                               file_obj, submission.upload_as_serapis)
+            tasks_dict = self.file_logic.batch_tasks_launcher.submit_initial_tasks(file_obj, submission.sanger_user_id, submission.upload_as_serapis)
             status = constants.PENDING_ON_WORKER_STATUS if submission.upload_as_serapis else constants.PENDING_ON_USER_STATUS
             self.file_logic.after_tasks_submission(file_obj.id, constants.PRESUBMISSION_TASKS, tasks_dict, status)
         return True
     
-    
-#    @multimethod
-#    def check_files_ready_for_task(self, task_name, submission_id):
-#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
-#        return self.check_files_ready_for_task(task_name, files)
-
-    
-#    @multimethod
-#    def check_files_ready_for_submission(self, files):
-#        results = {}
-#        error_dict = {}
-#        ready_to_submit = True
-#        for file_to_submit in files:
-#            file_check_result = self.file_logic._check_file_md5(file_to_submit.id, file_to_submit)
-#            if file_check_result.result == False:
-#                ready_to_submit = False
-#                error_dict.update(file_check_result.error_dict)
-#            results[str(file_to_submit.id)] = file_check_result.result
-#        if not ready_to_submit:
-#            return models.Result(results, error_dict)
-#        return models.Result(True)
-    
-#    
-#    @multimethod
-#    def check_files_ready_for_submission(self, submission_id):
-#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
-#        return self.check_files_ready_for_submission(files)
+    def add_file_to_submission(self, file_path):
+        pass
     
     
 class FileBusinessLogic:
@@ -117,6 +92,9 @@ class FileBusinessLogic:
     
     # PB: these methods can't be only classmethods, they have to be also abstract, otherwise one can call: FileBusinessLogic.resubmit, without 
     # task_launcher to be initialized!!!
+    
+    def build_file(self, file_id, file_path, index_file_path, submission):
+        return self.file_builder.build(file_id, file_path, index_file_path, submission)
     
     def check_and_update_all_file_statuses(self, file_id, file_to_submit):
         return self.meta_status_checker.check_and_update_all_statuses(file_id, file_to_submit)
@@ -162,9 +140,8 @@ class FileBusinessLogic:
     @classmethod
     def resubmit_presubmission_tasks(cls, tasks_to_resubmit, file_obj, submission):
         resubm_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks(tasks_to_resubmit, 
-                                                                          file_obj.id, 
+                                                                          file_obj, 
                                                                           user_id=submission.sanger_user_id, 
-                                                                          file_obj=file_obj, 
                                                                           as_serapis=submission.upload_as_serapis)
         file_obj.tasks_dict.update(resubm_tasks_dict)
         file_status = cls._decide_file_presubmission_status(submission.upload_as_serapis)
@@ -198,24 +175,25 @@ class FileBusinessLogic:
 
 
     @classmethod
-    def submit_presubmission_tasks(cls, list_of_tasks, file_id, file_obj=None, submission=None):
+    def submit_presubmission_tasks(cls, list_of_tasks, file_obj, submission=None):
         ''' This method submits a list of presubmission tasks to the queues for execution on the workers.'''
         if not file_obj:
-            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+        #    file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj.id)
+            logging.error("File not provided.")
+            return False
         if not submission:
             submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
             
         # Submitting a list of tasks:
         submitted_tasks_dict = None
-        if list_of_tasks:
+        if list_of_tasks:              
             submitted_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks(list_of_tasks, 
-                                                                              file_id, 
+                                                                              file_obj,
                                                                               user_id=submission.sanger_user_id, 
-                                                                              file_obj=file_obj, 
                                                                               as_serapis=submission.upload_as_serapis)
             file_obj.tasks_dict.update(submitted_tasks_dict)
             file_status = cls._decide_file_presubmission_status(submission.upload_as_serapis)
-            cls.after_tasks_submission(file_id, list_of_tasks, file_obj.tasks_dict, file_status)
+            cls.after_tasks_submission(file_obj.id, list_of_tasks, file_obj.tasks_dict, file_status)
             return True
         return False
     
@@ -259,7 +237,7 @@ class FileBusinessLogic:
 
 
     @classmethod
-    def after_tasks_submission(cls, file_id, list_of_tasks, submitted_tasks_dict, file_status):
+    def after_tasks_submission(cls, file_id_db, list_of_tasks, submitted_tasks_dict, file_status):
         ''' This method updates in the db the status-fields in field_list 
             with the status got as parameter. '''
         if not list_of_tasks or not submitted_tasks_dict:
@@ -270,7 +248,7 @@ class FileBusinessLogic:
             if task_resubmitted in constants.METADATA_TASKS:
                 update_dict['file_mdata_status'] = file_status
                 break
-        cls.file_data_access.update_file_from_dict(file_id, update_dict)
+        cls.file_data_access.update_file_from_dict(file_id_db, update_dict)
         return True
     
     

@@ -806,6 +806,10 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(fname, '/lustre/scratch113/projects/crohns/IBD_1.bam')
         
         
+    def test_is_date_correct(self):
+        date = "2014-10-10"
+        self.assertRaises(ValueError, utils.is_date_correct(date))
+        
 #      def _select_and_remove_tasks_by_status(cls, tasks_dict, status_list):
 #        selected_tasks = set()
 #        for task_id, task_info in tasks_dict.items():

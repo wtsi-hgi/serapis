@@ -22,6 +22,7 @@
 import re
 import os
 import errno
+import time
 import unicodedata
 import datetime
 import logging
@@ -375,34 +376,53 @@ def detect_file_type(file_path):
 #        logging.error("NOT SUPPORTED FILE TYPE!")
 #        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+f_ext)
 
-#
-#def is_date_correct(date):
-#    try:
-#        date_struct = time.strptime(date, constants.DATE_FORMAT)
-#    except ValueError:
-#        # Only caught the error to change the message with a more relevant one
-#        raise ValueError("Error: date is not in the correct format.")
-#    year = date_struct.tm_year
-#    max_year = datetime.date.today().year
-#    if year < constants.MIN_SUBMISSION_YEAR:
-#        raise ValueError("The year given is incorrect. Min year = 2013")
-#    if year > max_year:
-#        raise ValueError("The year given is incorrect. Max year = "+str(max_year))
-#    return True
+
+def is_date_correct(date):
+    try:
+        date_struct = time.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        # Only caught the error to change the message with a more relevant one
+        raise ValueError("Error: date is not in the correct format.")
+    year = date_struct.tm_year
+    print year
+    max_year = datetime.date.today().year
+    if int(year) < 2010:
+        raise ValueError("The year given is incorrect. Min year = 2013")
+    if int(year) > max_year:
+        raise ValueError("The year given is incorrect. Max year = "+str(max_year))
+    return True
         
 
 ############## OTHER GENERAL UTILS ################
 
 def get_today_date():
     today = datetime.date.today()
-    year = str(today.year)
-    month = str(today.month)
-    day = str(today.day)
-    if len(month) == 1:
-        month = "0" + month
-    if len(day) == 1:
-        day = "0" + day
-    return str(year) + str(month) + str(day)
+    return today.isoformat()
+
+    # Working - gets both date and time:
+    #    now = datetime.datetime.now()
+    #    return now.isoformat()
+    
+    #today = datetime.date.today()
+    #    year = str(today.year)
+    #    month = str(today.month)
+    #    day = str(today.day)
+    #    if len(month) == 1:
+    #        month = "0" + month
+    #    if len(day) == 1:
+    #        day = "0" + day
+    #    return str(year) + str(month) + str(day)
+    
+    # Working - Martin's format
+    #    today = datetime.date.today()
+    #    year = str(today.year)
+    #    month = str(today.month)
+    #    day = str(today.day)
+    #    if len(month) == 1:
+    #        month = "0" + month
+    #    if len(day) == 1:
+    #        day = "0" + day
+    #    return str(year) + str(month) + str(day)
 
 
 def levenshtein(a,b):

@@ -53,3 +53,7 @@ urlpatterns = patterns('',
     #url(r'^(?P<file_batch_id>\d+)/$', views.call_thrift, name='call_thrift'),
     
     )
+urlpatterns += patterns('', url(r'^api-auth/', include('rest_framework.urls',
+                               namespace='rest_framework')),
+)
+

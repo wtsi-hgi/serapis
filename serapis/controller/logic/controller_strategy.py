@@ -131,34 +131,37 @@ class ResourceModificationStrategy(ResourceHandlingStrategy):
     ''' This class contains the functionality for modifying a resource.'''
     pass        
         
-        
-class ReferenceGenomeRetrivalStrategy(ResourceHandlingStrategy):
-    
+
+class ReferenceGenomeRetrievalStrategy(ResourceHandlingStrategy):
     @classmethod
     def validate(cls, request_data):
         validator.reference_genome_schema(request_data)
-            
         
+
+class ReferenceGenomeRetrivalUserStrategy(ReferenceGenomeRetrievalStrategy):
+
+    @multimethod(ReferenceGenomeContext)
+    def process_request(self, context):
+        ref = data_access.ReferenceGenomeDataAccess.retrieve_reference_by_id(context.reference_id)
+        return serapis_models.ReferenceGenomeModel.build_from_db_model(ref)
+
+    @multimethod(GeneralReferenceGenomeContext)
+    def process_request(self, context):
+        all_refs =  data_access.ReferenceGenomeDataAccess.retrieve_all()
+        return [serapis_models.ReferenceGenomeModel.build_from_db_model(ref) for ref in all_refs]
+     
+            
+class ReferenceGenomeRetrivalAdminStrategy(ReferenceGenomeRetrievalStrategy):
+    
     @multimethod(ReferenceGenomeContext)
     def process_request(self, context):
         return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_id(context.reference_id)
     
     @multimethod(GeneralReferenceGenomeContext)
     def process_request(self, context):
-        if not context.request_data:
-            return data_access.ReferenceGenomeDataAccess.retrieve_all()
-        req_data = self.convert(context.request_data)
-        self.validate(req_data)
-        #if hasattr(context, 'name'):
-        if 'name' in req_data:
-            return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_name(req_data['name'])
-        #if hasattr(context, 'path'):
-        elif 'path' in req_data:
-            return data_access.ReferenceGenomeDataAccess.retrieve_reference_by_path(req_data['path'])
-        else:
-            return None
-    
-    
+        return data_access.ReferenceGenomeDataAccess.retrieve_all()
+
+
     
 class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
     
@@ -166,7 +169,6 @@ class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
     def validate(cls, request_data):
         validator.reference_genome_schema(request_data)
         
-    # context = ReferenceGenomeContext type
     def process_request(self, context):
         if not context.request_data:
             return None
@@ -178,8 +180,6 @@ class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
             ref_genome = data_access.ReferenceGenomeDataAccess.insert_into_db(req_data)
             ref_id = ref_genome.id
         return ref_id 
-#            ref_genome = data_access.ReferenceGenomeDataAccess.update(existing_ref_id, req_data)
-#        return ref_genome.id
     
     
 class ReferenceGenomeModificationStrategy(ResourceModificationStrategy):
@@ -317,9 +317,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         
     @classmethod
     def extract_data(cls, request_data):
-        #extracted_data = copy.deepcopy(request_data)
         extracted_data = copy.deepcopy(request_data)
-        #extracted_data['sanger_user_id'] = request_data.pop('sanger_user_id')
         
         # Get files from the request data:
         file_paths_list = cls._extract_files_list(request_data)
@@ -375,14 +373,16 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
             result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
             return result
-
+        return models.Result(True)
 
     @classmethod
     def process_request(cls, context):
         request_data = cls.convert(context.request_data)
         cls.validate(request_data)
         request_data = cls.extract_data(request_data)
-        cls.verify_data(request_data)
+        verif_result = cls.verify_data(request_data)
+        if verif_result.result == False:
+            return verif_result
         
         error_dict = {}
         file_et_index_map = cls._associate_files_with_indexes(request_data['files_list'])
@@ -405,9 +405,8 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         submission_id = model_builder.SubmissionBuilder.build_and_save(request_data, request_data['sanger_user_id'])
         if not submission_id:
             return models.Result(False, message="Submission couldn't be created.")
+
         submission = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
-        #print "SUBMISSION FILE TYPE ---- ", submission.file_type, vars(submission)
-        
         submission_logic_layer = app_logic.SubmissionBusinessLogic(submission.file_type)
         files_init = submission_logic_layer.init_and_submit_files(file_et_index_map, submission)
         if not files_init:
@@ -420,124 +419,116 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
     
  
 class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
-    ''' This class contains the logic useful for retrieving submissions. '''
-    
-    @multimethod(GeneralSubmissionContext)
-    def retrieve_full_representation(self, context):
-        #return data_access.SubmissionDataAccess.retrieve_all_user_submissions(context.user_id)
-        return data_access.SubmissionDataAccess.retrieve_all_submissions()
-        
-        
-    @multimethod(SpecificSubmissionContext)
-    def retrieve_full_representation(self, context):
-        return data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
-        
-    
-    @multimethod(GeneralSubmissionContext)
-    def retrieve_part_representation(self, context):
-        db_submissions = data_access.SubmissionDataAccess.retrieve_all_submissions()
-        serapis_subm = [serapis_models.Submission.build_from_db_model(s) for s in db_submissions]
-        return serapis_subm
+    ''' This abstract class should be inherited by all the strategies for submission retrieval. '''
+    __metaclass__ = abc.ABCMeta
 
+
+class SubmissionRetrievalAdminStrategy(SubmissionRetrievalStrategy):
     
-    @multimethod(SpecificSubmissionContext)
-    def retrieve_part_representation(self, context):
-        db_subm = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
-        serapis_subm = serapis_models.Submission.build_from_db_model(db_subm)
-        return serapis_subm
-    
-    
-    @multimethod(GeneralSubmissionContext, bool)
-    def process_request(self, context, full_repr=False):
+    @multimethod(GeneralSubmissionContext)
+    def process_request(self, context):
         ''' This method retrieves and returns all the submissions corresponding
             to the parameters provided in the GeneralContext.'''
-        if full_repr:
-            return self.retrieve_full_representation(context)
-        return self.retrieve_part_representation(context)
-    
+        subs = data_access.SubmissionDataAccess.retrieve_all_submissions()
+        print "Submissions got: ", [vars(s) for s in subs]
+        return subs
 
-    @multimethod(SpecificSubmissionContext, bool)
-    def process_request(self, context, full_repr=False):
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
         ''' This function is responsible for processing the request and returning the results to the client.'''
-        if full_repr:
-            return self.retrieve_full_representation(context)
-        return self.retrieve_part_representation(context)
-        
+        return data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+
+
+    
+class SubmissionRetrievalUserStrategy(SubmissionRetrievalStrategy):
+    
+    @multimethod(GeneralSubmissionContext)
+    def process_request(self, context):
+        ''' This method retrieves and returns all the submissions corresponding
+            to the parameters provided in the GeneralContext.'''
+        subms =  data_access.SubmissionDataAccess.retrieve_all_submissions()
+        return [serapis_models.Submission.build_from_db_model(s) for s in subms]
+
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        ''' This function is responsible for processing the request and returning the results to the client.'''
+        subm = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+        return serapis_models.Submission.build_from_db_model(subm)
+
+
         
 class FileRetrievalStrategy(ResourceRetrivalStrategy):
+    ''' Abstract class to be inherited by all the subclasses implementing file retrieval strategies.'''
+    __metaclass__ = abc.ABCMeta
+    
+        
+class FileRetrievalAdminStrategy(FileRetrievalStrategy):
 
     @multimethod(GeneralFileContext)
-    def retrieve_full_representation(self, context):
-        ''' This method is called when the request asks for 
-            the full representation of the files.'''
-        #return data_access.SubmissionDataAccess.retrieve_all_file_ids_for_submission(context.submission_id)
-        return data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
-    
-    @multimethod(SpecificFileContext)
-    def retrieve_full_representation(self, context):
-        ''' This method is called when the request asks for 
-            the full representation of a files.'''
-        return data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-    
-    
-    @multimethod(GeneralFileContext)
-    def retrieve_part_representation(self, context):
-        ''' This method is called when the request asks for 
-            a partial representation of the files.'''
-        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
-        part_files = [serapis_models.SubmittedFileModel.build_from_db_model(f) for f in files]
-        return part_files
-    
-    @multimethod(SpecificFileContext)
-    def retrieve_part_representation(self, context):
-        ''' This method is called when the request asks for 
-            a partial representation of a file.'''
-        db_file = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-        serapis_file = serapis_models.SubmittedFileModel.build_from_db_model(db_file)
-        return serapis_file
- 
-    
-    
-    @multimethod(GeneralFileContext, bool)
-    def process_request(self, context, full_repr=False):
+    def process_request(self, context):
         ''' This method retrieves and returns all the files selected by the criteria given
             as parameters in the GeneralContext provided by the client.
             Params: -- context 
-                    -- full_repr -- if it's true, then the request requires the
-                        full representation of the resource. The default is to 
-                        get a partial representation.
             Throws:
                 DoesNotExist -- if there is no submission with the id given as context param (Mongoengine specific error)
                 InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
             Returns:
                 list of files for this submission
         '''
-        if full_repr:
-            return self.retrieve_full_representation(context)
-        return self.retrieve_part_representation(context)
+        return data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         
 
-    @multimethod(SpecificFileContext, bool)
-    def process_request(self, context, full_repr=False):
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
         ''' This method retrieves and returns all the files selected by the criteria in the
             FileContext provided as parameter by the client.
             Retrieves the submitted file from the DB and returns it.
             Params: 
                 context -- contains the request parameters and data
-                full_repr -- if it's true, then the request requires the
-                             full representation of the resource. The default is to 
-                             get a partial representation.
             Returns:
                 a SubmittedFile object instance
             Throws:
                 InvalidId -- if the id is invalid
                 DoesNotExist -- if there is no resource with this id in the DB.'''
-        if full_repr:
-            return self.retrieve_full_representation(context)
-        return self.retrieve_part_representation(context)
+        #return data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
+        return data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
         
+
+class FileRetrievalUserStrategy(FileRetrievalStrategy):
+    
+    @multimethod(GeneralFileContext)
+    def process_request(self, context):
+        ''' This method retrieves and returns all the files selected by the criteria given
+            as parameters in the GeneralContext provided by the client.
+            Params: -- context 
+            Throws:
+                DoesNotExist -- if there is no submission with the id given as context param (Mongoengine specific error)
+                InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
+            Returns:
+                list of files for this submission
+        '''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        files = [serapis_models.SubmittedFileModel.build_from_db_model(f) for f in files]
+        return files
         
-        
+
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        ''' This method retrieves and returns all the files selected by the criteria in the
+            FileContext provided as parameter by the client.
+            Retrieves the submitted file from the DB and returns it.
+            Params: 
+                context -- contains the request parameters and data
+            Returns:
+                a SubmittedFile object instance
+            Throws:
+                InvalidId -- if the id is invalid
+                DoesNotExist -- if there is no resource with this id in the DB.'''
+        res_file = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
+        res_file = serapis_models.SubmittedFileModel.build_from_db_model(res_file)
+        return res_file
+    
+    
         
 class SubmissionModificationStrategy(ResourceModificationStrategy):
     ''' Not implemented yet.'''
@@ -546,12 +537,12 @@ class SubmissionModificationStrategy(ResourceModificationStrategy):
 
 class FileModificationStrategy(ResourceModificationStrategy):
     ''' This class contains the functionality for updating a file. '''
-  
    
     
     def update_file_from_user(self, context):
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
-        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+        file_to_update = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_to_update.file_type)
+        #file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
         has_new_entities = False
         if 'library_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.library_list, context.request_data['library_list']) == True: 
             logging.debug("Has new libraries!")
@@ -563,15 +554,15 @@ class FileModificationStrategy(ResourceModificationStrategy):
             logging.debug("Has new studies!")
             has_new_entities = True
         
-        file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
+        file_logic.file_data_access.update_file_mdata(file_to_update.id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
         if has_new_entities == True:
             file_to_update.reload()
             #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_to_update.file_type)
-            submitted = file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], context.file_id, file_to_update)
+            submitted = file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], file_to_update)
             if not submitted:
                 #return False
                 logging.error("Tasks not submitted, though they should have been, as new entities have been found in the update message!")
-            file_logic.check_and_update_all_statuses(context.file_id, file_to_update)
+            file_logic.check_and_update_all_statuses(file_to_update.id, file_to_update)
         return True
             
     
@@ -596,10 +587,11 @@ class FileModificationStrategy(ResourceModificationStrategy):
 
     #def update_file_from_task(self, submission_id, file_id, data):
     def update_file_from_task(self, context):
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id)
-        tasks_dict = file_logic.file_data_access.retrieve_tasks_dict(context.file_id)
+        subm_file = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(subm_file.file_type)
+        
         try: 
-            task_type = tasks_dict[context.request_data['task_id']]['type']
+            task_type = subm_file.tasks_dict[context.request_data['task_id']]['type']
         except KeyError:
             raise exceptions.TaskNotRegisteredError(faulty_expression=context.request_data['task_id'])
         
@@ -609,24 +601,24 @@ class FileModificationStrategy(ResourceModificationStrategy):
             errors = None
     
         if task_type in constants.IRODS_TASKS:
-            file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+            file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
         else:
             if context.request_data['status'] == constants.FAILURE_STATUS:
-                file_logic.file_data_access.update_task_status(context.file_id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+                file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
-                file_logic.file_data_access.update_file_mdata(context.file_id, context.request_data['result'], 
+                file_logic.file_data_access.update_file_mdata(subm_file.id, context.request_data['result'], 
                                                       task_type, 
                                                       task_id=context.request_data['task_id'], 
                                                       task_status=context.request_data['status'], 
                                                       errors=errors)
         # TESTING:
         if task_type == constants.UPLOAD_FILE_TASK:
-            file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+            file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
             serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
             
-        file_to_update = file_logic.file_data_access.retrieve_submitted_file(context.file_id)
+        file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
         serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
-        file_logic.check_and_update_all_file_statuses(context.file_id, file_to_update)
+        file_logic.check_and_update_all_file_statuses(subm_file.id, file_to_update)
     
     
     
@@ -715,8 +707,13 @@ class ResubmissionOperationsStrategy(object):
     def validate(self, request_data):
         validator.resubmission_message_validator(request_data)
  
+    
+ 
+
+class ResubmissionOperationsAdminStrategy(ResubmissionOperationsStrategy):
+    
     def backend_file_operation(self, context, file_obj, submission):
-        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
         if not context.request_data:
             # By default resubmit the failed and pending tasks:
             statuses = [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]
@@ -728,12 +725,12 @@ class ResubmissionOperationsStrategy(object):
         if 'task_ids' in context.request_data:
             return file_logic.resubmit_tasks_by_id(context.request_data['task_ids'], file_obj, submission)
     
-    
     @multimethod(SpecificFileContext)
     def process_request(self, context):
         ''' Resubmit tasks for all the files in a submission.'''
-        req_data = self.convert(context.request_data)
-        self.validate(req_data)
+        if context.request_data:
+            req_data = self.convert(context.request_data)
+            self.validate(req_data)
         file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
         submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
         return self.backend_file_operation(context, file_obj, submission)
@@ -749,6 +746,41 @@ class ResubmissionOperationsStrategy(object):
             results[str(f.id)] = self.backend_file_operation(file_context, f, submission).result
         return models.Result(results)
 
+    
+
+class ResubmissionOperationUserStrategy(ResubmissionOperationsStrategy):
+    
+    def backend_file_operation(self, context, file_obj, submission):
+        file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
+        statuses = [constants.PENDING_ON_USER_STATUS, constants.PENDING_ON_WORKER_STATUS, constants.FAILURE_STATUS]
+        return file_logic.resubmit_tasks_by_status(statuses, file_obj, submission)
+
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        ''' Resubmit tasks for all the files in a submission.'''
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
+        submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
+        return self.backend_file_operation(context, file_obj, submission)
+         
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        ''' Resubmit tasks for all the files in a submission.'''
+        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
+        submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+        results = {}
+        for f in files:
+            file_context = SpecificFileContext(None, context.submission_id, f.id)
+            results[str(f.id)] = self.backend_file_operation(file_context, f, submission).result
+        return models.Result(results)
+
+
+class AddFileToSubmissionStrategy(ResourceHandlingStrategy):
+    
+    def process_request(self, context):
+        submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
+        
+
+    
 
 class BackendOperationsStrategy(object):
     ''' This class contains the logic for various iRODS operations.'''
@@ -857,47 +889,7 @@ class MoveFilesToPermanentBackendCollection(BackendOperationsStrategy):
 class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
     ''' This class contains the functionality for adding metadata to a staged file.'''
     task_name = constants.ADD_META_TO_IRODS_FILE_TASK
-    
-#    @classmethod
-#    def backend_file_operation(cls, context, file_obj=None):
-#        if not file_obj:
-#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-#        file_logic = app_logic.FileBusinessLogicBuilder.build_from_file(context.file_id, file_obj)
-#        return file_logic.submit_submission_tasks([constants.ADD_META_TO_IRODS_FILE_TASK], context.file_id, file_obj)
-#    
-#    @classmethod
-#    def apply_atomically_on_all_files(cls, context):
-#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
-#        results = {}
-#        submission_logic = app_logic.SubmissionBusinessLogic(files[0].file_type)
-#        files_ready = submission_logic.check_files_ready_for_submission(files)
-#        if not files_ready.result:
-#            return files_ready
-#        for f in files:
-#            file_context = SpecificFileContext(None, context.submission_id, f.id)
-#            results[str(f.id)] = cls.backend_file_operation(file_context)
-#        return models.Result(results)
-#
-#    @classmethod
-#    def apply_nonatomically_on_all_files(cls, context):
-#        results = {}
-#        files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
-#        for file_to_submit in files:
-#            file_context = SpecificFileContext(None, context.submission_id, file_to_submit.id)
-#            res = cls.backend_file_operation(file_context, file_to_submit)
-#            results[str(file_to_submit.id)] = res.result
-#            if res.error_dict:
-#                logging.error("ERRORs dict: %s",str(res.error_dict))
-#        return models.Result(results)
 
-
-#    @classmethod
-#    def process_request(cls, context):
-#        req_data = cls.convert(context.request_data)
-#        cls.validate(cls, req_data)
-#        req_data = cls.extract_data(req_data)
-    
-            
 
 
 

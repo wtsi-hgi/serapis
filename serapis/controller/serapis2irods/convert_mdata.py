@@ -171,7 +171,7 @@ def convert_specific_file_mdata(file_type, file_mdata):
 
 
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project_list']
+    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     
@@ -211,7 +211,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 field_val = utils.unicode2string(field_val)
                 for tag_val in field_val.values():
                     irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
-            elif field_name == 'hgi_project_list':
+            elif field_name == 'hgi_project':
                 field_val = utils.unicode2string(field_val)
                 for tag_val in field_val:
                     irods_file_mdata.append(('hgi_project', utils.unicode2string(tag_val)))                
@@ -227,7 +227,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
     if hasattr(subm_file.index_file, 'file_path_client'):
         irods_file_mdata.append(('index_file_md5', utils.unicode2string(subm_file.index_file.md5)))
     irods_file_mdata.append(('submitter_user_id', utils.unicode2string(sanger_user_id)))
-    irods_file_mdata.append(('submission_date', int(utils.unicode2string(submission_date))))
+    irods_file_mdata.append(('submission_date', utils.unicode2string(submission_date)))
     result_list = list(set(irods_file_mdata))
     result_list.sort(key=lambda tup: tup[0])
     return result_list

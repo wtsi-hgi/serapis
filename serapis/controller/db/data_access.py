@@ -59,12 +59,12 @@ class SubmissionDataAccess(DataAccess):
 #                else:
 #                    hgi_projects = field_val
 #                update_db_dict['set__hgi_project_list'] = hgi_projects
-            elif field_name == 'hgi_project' and field_val:
+            elif field_name == 'hgi_project' and field_val != None:
                 #for prj in field_val:
                 if not utils.is_hgi_project(field_val):
                     raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
                 update_db_dict['set__hgi_project'] = field_val
-            elif field_name == 'upload_as_serapis' and field_val:
+            elif field_name == 'upload_as_serapis' and field_val != None:
                 update_db_dict['set__upload_as_serapis'] = field_val
             # File-related metadata:
             elif field_name == 'data_subtype_tags':
@@ -177,7 +177,7 @@ class SubmissionDataAccess(DataAccess):
     
     @classmethod
     def retrieve_all_files_for_submission(cls, subm_id):
-        return models.SubmittedFile.objects(submission_id=subm_id)
+        return models.SubmittedFile.objects(submission_id=str(subm_id))
         #return [f for f in files]
 
     
@@ -326,7 +326,20 @@ class FileDataAccess(DataAccess):
     @classmethod
     def retrieve_submitted_file(cls, file_id):
         return models.SubmittedFile.objects(_id=ObjectId(file_id)).get()
+    
+    @classmethod
+    def retrieve_submitted_file_by_submission(cls, submission_id, submission_file_id):
+        indexes = models.SubmittedFile.objects._collection.index_information()
+        print [str(i) for i in indexes]
+        #_cls_1_submission_id_1
+        return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).hint([('submission_id', 1)]).get()
         
+        #return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).get()
+        #.hint([('_id', 1)])
+        #hint(['_cls_1_submission_id']) _cls_1_submission_id_1
+        #self.assertEqual(BlogPost.objects.hint([('tags', 1)]).count(), 10)
+#        self.assertEqual(BlogPost.objects.hint([('ZZ', 1)]).count(), 10)
+
     @classmethod
     def retrieve_sample_list(cls, file_id):
         return models.SubmittedFile.objects(id=ObjectId(file_id)).only('sample_list').get().sample_list

@@ -496,13 +496,13 @@ class FileStatusCheckerForSubmissionTasks(object):
     @classmethod
     def _check_file_md5(cls, file_obj):
         error_dict = {}
-        f_md5_correct = cls.check_file_md5_eq(file_obj.file_path_client, file_obj.md5)
+        f_md5_correct = cls._check_file_md5_eq(file_obj.file_path_client, file_obj.md5)
         if not f_md5_correct:
             logging.error("Unequal md5: calculated file's md5 is different than the contents of %s.md5", file_obj.file_path_client)
             utils.append_to_errors_dict(str(file_obj.id), constants.UNEQUAL_MD5,error_dict)
         
         if file_obj.index_file.file_path_client:
-            index_md5_correct = cls.check_file_md5_eq(file_obj.index_file.file_path_client, file_obj.index_file.md5)
+            index_md5_correct = cls._check_file_md5_eq(file_obj.index_file.file_path_client, file_obj.index_file.md5)
             if not  index_md5_correct:
                 logging.error("Unequal md5: calculated index file's md5 is different than the contents of %s.md5", file_obj.index_file.file_path_client)
                 utils.append_to_errors_dict("index - "+str(file_obj.id), constants.UNEQUAL_MD5, error_dict)

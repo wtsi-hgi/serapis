@@ -30,6 +30,8 @@ from serapis.worker import entities
 
 
 
+
+
 ######################### CLASS THAT ONLY DEALS WITH SEQSCAPE DB OPERATIONS ####################
 class QuerySeqScape():
     
