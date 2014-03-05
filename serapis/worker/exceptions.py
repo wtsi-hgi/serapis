@@ -39,8 +39,7 @@ class iRODSException(Exception):
         self.extra_info = extra_info
         
     def __str__(self):
-        return ('Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+
-            str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info))
+        return 'Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+ str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info)
     
 
 class iPutException(iRODSException):
@@ -50,7 +49,7 @@ class iPutException(iRODSException):
         super(iPutException, self).__init__(error, output, cmd, msg, extra_info)
         
     def __str__(self):
-        super(iPutException, self).__str__()
+        return super(iPutException, self).__str__()
         
 class iMetaException(iRODSException):
     ''' Exception raised when running imeta on a file in iRODS.
@@ -59,7 +58,7 @@ class iMetaException(iRODSException):
         super(iMetaException, self).__init__(error, output, cmd, msg, extra_info)
         
     def __str__(self):
-        super(iMetaException, self).__str__()
+        return super(iMetaException, self).__str__()
         
 class iMVException(iRODSException):
     ''' Exception raised when running imv on a file in iRODS. '''
@@ -67,7 +66,7 @@ class iMVException(iRODSException):
         super(iMVException, self).__init__(error, output, cmd, msg, extra_info)
         
     def __str__(self):
-        super(iMVException, self).__str__()
+        return super(iMVException, self).__str__()
         
 class iMkDirException(iRODSException):
     ''' Exception raised when running imkdir to create a new collection in iRODS.'''
@@ -75,6 +74,7 @@ class iMkDirException(iRODSException):
         super(iMkDirException, self).__init__(error, output, cmd, msg, extra_info)
         
     def __str__(self):
-        super(iMkDirException, self).__str__()
+        return super(iMkDirException, self).__str__()
         
+
         
