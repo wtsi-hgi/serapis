@@ -270,93 +270,12 @@ class UploadFileTask(iRODSTask):
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
+        raise exceptions.iMetaException("ERRORRRRRR", "OUTPUT I GUESS")
+        
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
-    # Not USED!
-    def split_path(self, path):
-        ''' Given a path, splits it in a list of components,
-            where each component is a directory on the path.'''
-        allparts = []
-        while 1:
-            parts = os.path.split(path)
-            if parts[0] == path:  # sentinel for absolute paths
-                allparts.insert(0, parts[0])
-                break
-            elif parts[1] == path: # sentinel for relative paths
-                allparts.insert(0, parts[1])
-                break
-            else:
-                path = parts[0]
-                allparts.insert(0, parts[1])
-        return allparts
-
-        
-
-    # the current version for serapis
-    def run_serapis_yang(self, **kwargs):
-        file_id = kwargs['file_id']
-        src_file_path = kwargs['file_path']
-        response_status = kwargs['response_status']
-        submission_id = str(kwargs['submission_id'])
-        dest_coll_path = str(kwargs['dest_irods_path'])
- 
-        #dest_coll_path = "/humgen/projects/crohns/20130909"
-        
-        print "Hello world, this is my task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_coll_path
-        print "Source file: ", src_file_path
-
-        result = dict()
-        result[response_status] = constants.IN_PROGRESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
- 
-        result = dict()
-        errors_list = []
-        t1 = time.time()
-
-        retcode = subprocess.call(["iput", "-K", src_file_path, dest_coll_path])
-        print "IPUT retcode = ", retcode
-        if retcode != 0:
-            error_msg = "IRODS iput error !!!!!!!!!!!!!!!!!!!!!!", retcode
-            errors_list.append(error_msg)
-            print error_msg
-            result[response_status] = constants.FAILURE_STATUS
-            result[constants.FILE_ERROR_LOG] = errors_list
-            send_http_PUT_req(result, submission_id, file_id)
-        else:
-            # All goes well:
-            # t2 = time.time()
-            # print "TIME TAKEN: ", t2-t1
-            # ret = subprocess.call(["ichksum", dest_file_path])
-            # print "OUTPUT OF ICHECKSUM command: ", ret
-            # result[MD5] = ret.split()[1]
-            # print "CHECKSUM: ", result[MD5]
-            # result[response_status] = SUCCESS_STATUS
-            # send_http_PUT_req(result, submission_id, file_id, UPLOAD_FILE_MSG_SOURCE)
-
-            t2 = time.time()
-            print "TIME TAKEN: ", t2-t1
-            _, fname = os.path.split(src_file_path)
-            dest_file_path = os.path.join(dest_coll_path, fname)
-            ret = subprocess.Popen(["ichksum", dest_file_path], stdout=subprocess.PIPE)
-            out, err = ret.communicate()
-            if err:
-                error_msg = "IRODS ichksum error - ", err
-                errors_list.append(error_msg)
-                print error_msg
-                result[response_status] = constants.FAILURE_STATUS
-                result[FILE_ERROR_LOG] = errors_list
-                send_http_PUT_req(result, submission_id, file_id)
-            else:
-                result[MD5] = out.split()[1]
-                print "CHECKSUM: ", result[MD5]
-                result[response_status] = constants.SUCCESS_STATUS
-                send_http_PUT_req(result, submission_id, file_id)
-
-        print "ENDED UPLOAD TASK--------------------------------"
-        
-     
     def rollback(self, file_path, irods_coll):
         result = dict()
         (_, fname) = os.path.split(file_path)
@@ -472,6 +391,8 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
+        
+        # print isinstance(iPutException("a", "a"), iRODSException)
         if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
             if index_file_path:
                 os.kill(child_pid, signal.SIGKILL)
