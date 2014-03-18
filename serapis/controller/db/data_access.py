@@ -330,9 +330,12 @@ class FileDataAccess(DataAccess):
     @classmethod
     def retrieve_submitted_file_by_submission(cls, submission_id, submission_file_id):
         indexes = models.SubmittedFile.objects._collection.index_information()
-        print [str(i) for i in indexes]
-        #_cls_1_submission_id_1
-        return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).hint([('submission_id', 1)]).get()
+        print "INDEXES::::", [str(i) for i in indexes]
+        return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).get()
+        # Works, turned off for testing:
+        #return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).hint([('submission_id', 1)]).get()
+        
+        # SFile.objects(submission_id='000').hint([('_cls', 1), ('submission_id', 1)])
         
         #return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).get()
         #.hint([('_id', 1)])

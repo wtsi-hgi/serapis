@@ -296,6 +296,10 @@ class BatchTasksLauncher(object):
             queue_suffix = '.serapis'
             status = constants.PENDING_ON_WORKER_STATUS
         else:
+            # Is it really PENDING on USER? TODO: check before setting the status, and afterwards somehow to change the status when the workers come online....
+            # from celery.task.control import inspect
+            # from celery.worker import control
+            # http://stackoverflow.com/questions/8506914/detect-whether-celery-is-available-running
             queue_suffix = '.'+user_id
             status = constants.PENDING_ON_USER_STATUS
 

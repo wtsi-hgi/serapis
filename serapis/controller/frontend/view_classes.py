@@ -57,6 +57,7 @@ from pymongo.errors import InvalidId
 import time 
 
 #import errno
+# DIRTY!!! - shouldn't appear in views any mention of the type of DB I am using!!!!
 from mongoengine.queryset import DoesNotExist
 from mongoengine.errors import NotUniqueError
 #from celery.bin.celery import result
@@ -254,6 +255,10 @@ class SubmissionsMainPageRequestHandler(APIView):
             logging.error("Invalid request data on POST request to submissions.")
             result = {'errors' : e.faulty_expression, 'message' : e.message}
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        except NotUniqueError as e:
+            logging.error("Attempt to store file duplicates - files with the same md5")
+            result = {'errors' : str(e)}
+            return Response(result, status=status.HTTP_409_CONFLICT)
             
         #This should be here: 
 #        except:
@@ -521,6 +526,7 @@ class SubmittedFileRequestHandler(APIView):
             return Response(result, status=status.HTTP_200_OK)
 
             
+    # TODO: modify for the admin/user roles
     def post(self, request, submission_id, file_id, format=None):
         ''' Resubmit jobs for this file - used in case of permission denied.
             The user wants to submit files that mercury does not have permissions on,
@@ -537,8 +543,9 @@ class SubmittedFileRequestHandler(APIView):
             req_data = None
             if hasattr(request, 'DATA'):
                 req_data = request.Data
+            
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
-            strategy = controller_strategy.ResubmissionOperationsStrategy()
+            strategy = controller_strategy.ResubmissionOperationsStrategy() #ResubmissionOperationsAdminStrategy
             resubmission_result = strategy.process_request(context)
 
         except MultipleInvalid as e:
@@ -710,8 +717,8 @@ class WorkerSubmittedFileRequestHandler(APIView):
             context = controller_strategy.WorkerSpecificFileContext(submission_id, file_id, request_data=req_data)
             #strategy = controller_strategy.FileModificationStrategy()
             strategy = controller_strategy.FileModificationStrategy()
-            print "VARS de Strategy: ", vars(strategy)
-            print "CONTEXT type: ", type(context)
+            #print "VARS de Strategy: ", vars(strategy)
+            #print "CONTEXT type: ", type(context)
             strategy.process_request(context)
             
         except MultipleInvalid as e:
@@ -1531,7 +1538,19 @@ class SubmittedFileToiRODSPermanentRequestHandler(APIView):
        
        
        
-       
+##### WORKER EVENTS: ######
+
+class WorkerOnlineRequestHandler(APIView):
+    
+    def post(self, request):
+        print "REQUEST for worker-online received....", request
+        return Response(status=status.HTTP_200_OK)
+        
+class WorkerOfflineRequestHandler(APIView):
+    
+    def post(self, request):
+        print "REQUEST for worker OFFline received...", request
+        return Response(status=status.HTTP_200_OK)
        
        
 # ------------------------------ NOT USED ---------------------------

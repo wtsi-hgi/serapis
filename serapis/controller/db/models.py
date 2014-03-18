@@ -85,7 +85,6 @@ class Entity(DynamicEmbeddedDocument, SerapisModel):
     def __eq__(self, other):
         if other == None:
             return False
-        print "THE EQ WAS ACTUALLY called!!!"
         for id_field in constants.ENTITY_IDENTITYING_FIELDS:
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
@@ -193,11 +192,15 @@ class IndexFile(EmbeddedDocument, SerapisModel):
     irods_coll = StringField()
     file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
-
+    
     
 class SubmittedFile(DynamicDocument, SerapisModel):
+    
+    # Field used only to identify the file within a submission, so that the DB id remains hidden  
+    file_id = IntField()
+    
     # The internal id of the submission that this file is part of
-    submission_id = StringField()
+    submission_id = StringField(required=True)
     
     # The type of file (e.g. bam, vcf...)
     file_type = StringField(choices=constants.FILE_TYPES)
@@ -209,7 +212,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
     
     # The md5 of the file, as calculated on the client
-    md5 = StringField()
+    md5 = StringField() #unique=True
     
     #OPTIONAL or not really:
     index_file = EmbeddedDocumentField(IndexFile)
@@ -300,7 +303,11 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     # Mongo - specific metadata fields:
     meta = {                                            # Mongoengine specific field for metadata.
             'allow_inheritance': True,
-            'indexes' : ['_id', 'submission_id']
+            'indexes' : [{ 'fields' : ['-submission_id'], 'cls' : False}, 
+#                         {'fields' : ['index_file.md5'], 'unique' : True, 'sparse' : True},
+#                         {'fields' : ['md5'], 'sparse' : True, 'unique' : True} 
+                         ] 
+            #   
             }
     
     def get_internal_fields(self):
@@ -390,7 +397,7 @@ class Submission(DynamicDocument, SerapisModel):
     study = EmbeddedDocumentField(Study)
     
     meta = {
-        'indexes': ['_id', 'sanger_user_id'],
+        'indexes': ['sanger_user_id'],
             }
     
     def get_internal_fields(self):
@@ -410,8 +417,15 @@ class Submission(DynamicDocument, SerapisModel):
 #    }
 
 
+#
+#class WorkerNode(Document):
+#    name = StringField()
+#    queue = StringField()
+#    pid = IntField()
+    #workers_info = DictField()  # Should look like: { 'worker1@serapis' : {'queue' : 'UploadQ.serapis', 'pid' : 1234}}
+    
 
-
+################## TESTING STRUCTURES ##########################
 
 class MyEmbed(EmbeddedDocument):
     embedField = StringField(primary_key=True)
@@ -423,12 +437,15 @@ class MyEmbed(EmbeddedDocument):
         return False
 
 
-class TestDoc(Document):
+class TestDoc(DynamicDocument):
 #    id_field = ObjectId()
-    myField = StringField()
-#    secondField = StringField()
-    embed_list = ListField(EmbeddedDocumentField(MyEmbed))
-    
+    myField = StringField(unique=True)
+    secondField = StringField()
+#    embed_list = ListField(EmbeddedDocumentField(MyEmbed))
+    meta = {                                            # Mongoengine specific field for metadata.
+        'allow_inheritance': True,
+        'indexes' : [{ 'fields' : ['secondField'], 'cls' : False, 'sparse' : True}]
+        }
     
     
 class TestDoc2(Document):

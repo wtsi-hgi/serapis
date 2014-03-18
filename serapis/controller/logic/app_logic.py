@@ -39,7 +39,7 @@ import logging
 #import serapis.controller.db.data_access
 from multimethods import multimethod 
 
-
+from mongoengine.errors import NotUniqueError 
 
 
 #################################################################################
@@ -52,18 +52,35 @@ class BusinessLogic(object):
 class SubmissionBusinessLogic(BusinessLogic):
     ''' This class contains the main logic for a submission.'''
         
+    # BUG: here there shouldn't be used the file business logic builder directly, but instead use the FileBusinessLogic.build_file() or smth
     def __init__(self, file_type):
         self.file_logic = FileBusinessLogicBuilder.build_from_type(file_type)
     
+    # Not used -- TODO: to use it in order to make the init of submission and files in one step and delete the submission if the files can't be created!!!
+#    def init_submission(self, submission_data, user_id):
+#        submission_id = model_builder.SubmissionBuilder.build_and_save(submission_data, user_id)
+#        if not submission_id:
+#            return models.Result(False, message="Submission couldn't be created.")
+#        return data_access.SubmissionDataAccess.retrieve_submission(submission_id)
+#        
+        
     # TODO: see if I can do this operation as a batch of updates in mongodb
     # TODO: measure the time that it takes for this fct to run
     def init_and_submit_files(self, files_dict, submission):
         files_to_subm_list = []
         for i, tupl in enumerate(files_dict.items()):
-            file_path, index_file_path = tupl
-            new_file = self.file_logic.build_file(i+1, file_path, index_file_path, submission)
-            new_file.save(validate=False)
-            files_to_subm_list.append(new_file)
+            try:
+                file_path, index_file_path = tupl
+                new_file = self.file_logic.build_file(i+1, file_path, index_file_path, submission)
+                new_file.save(validate=False)
+                files_to_subm_list.append(new_file)
+            except NotUniqueError as e:
+                file_ids = [f.id for f in files_to_subm_list]
+                submission.files = file_ids
+                # This is wrong!!! It shouldn't delete the submission, but mark that exact file as IMPOSSIBLE_TO_ARCHIVE, DUPLICATE!!
+                data_access.SubmissionDataAccess.delete_submission(submission.id, submission)
+                print "NOT UNIQUE => DELETING SUBMISSION!!!!"
+                raise
 
         if not files_to_subm_list:
             submission.delete()
@@ -87,7 +104,7 @@ class FileBusinessLogic:
     __metaclass__ = abc.ABCMeta
     batch_tasks_launcher    = None
     file_builder            = None
-    meta_status_checker          = None
+    meta_status_checker     = None
     file_data_access        = None
     
     # PB: these methods can't be only classmethods, they have to be also abstract, otherwise one can call: FileBusinessLogic.resubmit, without 

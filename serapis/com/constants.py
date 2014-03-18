@@ -53,6 +53,11 @@ SEQSC_USER = "warehouse_ro"
 SEQSC_DB_NAME = "sequencescape_warehouse"
 
 
+########################## URLS ###############################################
+
+WORKER_EVENT_URL = "http://localhost:8000/api-rest/workers/events/"
+
+
 ########################## QUEUES ##############################################
 
 # This queue was only for testing purposes
@@ -82,6 +87,26 @@ SERAPIS_UPLOAD_Q = UPLOAD_Q+'.serapis'
 SERAPIS_PROCESS_MDATA_Q = PROCESS_MDATA_Q+'.serapis'
 
 SERAPIS_CALCULATE_MD5_Q = CALCULATE_MD5_Q+'.serapis'
+
+################### QUEUES CONFIG ###################################
+
+# This dict keeps the number of consumers per queue that should be deployed under ideal conditions:
+NR_CONSUMERS_PER_Q_DICT = {
+                           UPLOAD_Q : 4,
+                           PROCESS_MDATA_Q : 2,
+                           CALCULATE_MD5_Q : 3,
+                           IRODS_Q : 1
+                           }
+
+####################### RABBITMQ CONFIGS ###########################
+
+V_HOST = '/'
+RABBITMQ_REST_API_QUEUES = 'http://localhost:15672/api/queues'
+BROKER_USER = 'guest'
+BROKER_PASSWORD = 'guest'
+BROKER_HOST = 'localhost'
+BROKER_PORT = '5672' 
+ 
 
 
 ######################## FILE PERMISSIONS #######################################
@@ -340,10 +365,10 @@ SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
 TASK_STATUS_HIERARCHY = {
                         "PENDING" : 0,
                         PENDING_ON_WORKER_STATUS : 1,
+                        PENDING_ON_USER_STATUS : 1,
                         "RUNNING" : 2,
                         SUCCESS_STATUS : 3,
-                        FAILURE_STATUS : 4,
-                        PENDING_ON_USER_STATUS : 5 
+                        FAILURE_STATUS : 4
                         }
 
 UPDATE_JOBS = 'UPDATE_JOBS'
@@ -397,6 +422,7 @@ LIST_OF_ENTITY_TYPES = [SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE]
 SUBMISSION_TYPE = 'submission'
 
 
+
 ################################ ERRORS #############################################
 
 IO_ERROR                                    = "IO_ERROR"
@@ -411,7 +437,7 @@ NON_EXISTING_FILE                           = "NON_EXISTING_FILE"
 INDEX_OLDER_THAN_FILE                       = "INDEX_OLDER_THAN_FILE"
 UNMATCHED_INDEX_FILES                       = "UNMATCHED_INDEX_FILES"
 FILE_WITHOUT_INDEX                          = "FILE_WITHOUT_INDEX"
-TOO_MANY_INDEX_FILES                        = "TOO_MANY_INDEX_FILES" 
+TOO_MANY_INDEX_FILES                        = "TOO_MANY_INDEX_FILES"
 SEQSCAPE_DB_CONNECTION_ERROR                = "SEQSCAPE_DB_CONNECTION_ERROR"
 MISSING_MANDATORY_FIELDS                    = "MISSING_MANDATORY_FIELDS"
 COLLECTION_DOES_NOT_EXIST                   = "COLLECTION_DOES_NOT_EXIST"
@@ -420,9 +446,28 @@ PATH_IS_NOT_A_DIRECTORY                     = "PATH_IS_NOT_A_DIRECTORY"
 EMPTY_DIRECTORY                             = "EMPTY_DIRECTORY"
 FILE_DUPLICATES                             = "FILE_DUPLICATES"
 NO_IRODS_PATH_SPECIFIED                     = "NO_IRODS_PATH_SPECIFIED"
-FILE_STATUS_NOT_READY_FOR_SUBMISSION        = "FILE_STATUS_NOT_READY_FOR_SUBMISSION" 
+FILE_STATUS_NOT_READY_FOR_SUBMISSION        = "FILE_STATUS_NOT_READY_FOR_SUBMISSION"
+
+# IRODS TEST TASKS ERRORS:
+FILE_MISSING_FROM_IRODS = "FILE_MISSING_FROM_IRODS"
+FILE_REPLICA_MISSING_FROM_IRODS = "FILE_REPLICA_MISSING_FROM_IRODS"
+FILE_IN_INCONSISTENT_STATE_IN_IRODS = "FILE_IN_INCONSISTENT_STATE_IN_IRODS"
+
+INDEX_FILE_MISSING_FROM_IRODS = "FILE_MISSING_FROM_IRODS"
+INDEX_FILE_REPLICA_MISSING_FROM_IRODS = "INDEX_FILE_REPLICA_MISSING_FROM_IRODS"
+INDEX_FILE_IN_INCONSISTENT_STATE_IN_IRODS = "INDEX_FILE_IN_INCONSISTENT_STATE_IN_IRODS" 
 
 
+IRODS_ERRORS = {
+                FILE_MISSING_FROM_IRODS,
+                FILE_REPLICA_MISSING_FROM_IRODS,
+                FILE_IN_INCONSISTENT_STATE_IN_IRODS,
+                INDEX_FILE_MISSING_FROM_IRODS,
+                INDEX_FILE_REPLICA_MISSING_FROM_IRODS,
+                INDEX_FILE_IN_INCONSISTENT_STATE_IN_IRODS
+                }
+
+# TASK AND CONTROLLER ERRORS
 PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      IO_ERROR, 
                      UNEQUAL_MD5, 
@@ -441,9 +486,13 @@ PREDEFINED_ERRORS = {SEQSCAPE_DB_CONNECTION_ERROR,
                      EMPTY_DIRECTORY
                      }
 
+
+
+FILE_OK = "FILE_OK"
+
 FILES_LIST_CONTAINS_DUPLICATES = "FILES_LIST_CONTAINS_DUPLICATES" 
-PREDEFINED_WARNINGS = {FILES_LIST_CONTAINS_DUPLICATES
-                       
+PREDEFINED_WARNINGS = {
+                       FILES_LIST_CONTAINS_DUPLICATES
                        }
 
 #PREDEFINED_ERRORS = {1 : 'IO ERROR COPYING FILE',

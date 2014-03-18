@@ -76,6 +76,9 @@ urlpatterns = patterns('',
     ##### Messages from workers:
     url(r'^workers/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$', view_classes.WorkerSubmittedFileRequestHandler.as_view()),
     
+    url(r'^workers/events/online/$', view_classes.WorkerOnlineRequestHandler.as_view()),
+    url(r'^workers/events/offline/$', view_classes.WorkerOfflineRequestHandler.as_view())
+    
    )
 
 urlpatterns = format_suffix_patterns(urlpatterns)

@@ -381,5 +381,13 @@ class MdataProblem(SerapisException):
     def __str__(self):
         return 'Internal error - reason: '+self.reason
     
+#    
+######## Exceptions related to worker management and broker issues (Rabbitmq): #####
+#
+#class NonexistingQueue
+#
+#    
+#    
+    
     
     

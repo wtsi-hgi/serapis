@@ -270,7 +270,7 @@ class UploadFileTask(iRODSTask):
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
-        raise exceptions.iMetaException("ERRORRRRRR", "OUTPUT I GUESS")
+        #raise exceptions.iMetaException("ERRORRRRRR", "OUTPUT I GUESS")
         
         send_http_PUT_req(result, submission_id, file_id)
         current_task.update_state(state=constants.SUCCESS_STATUS)
@@ -1317,6 +1317,161 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         print "RESPONSE FROM SERVER: ", resp
         current_task.update_state(state=constants.FAILURE_STATUS)
         
+
+
+#class TestAndRecoverFromFailureTask(iRODSTask):
+
+
+class ReplicateFileTask(iRODSTask):
+    
+    def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        file_path_irods         = str(kwargs['file_path_irods'])
+        file_path_client        = str(kwargs['file_path_client'])
+        index_file_path_client  = str(kwargs['index_file_path_client'])
+    
+        # Check if there are 2 replicas or one
+        # if one -- check that the md5 of file is actually what I expect it to be (ichksum -a -K file_path_irods)
+        # if not => error, file corrupted, can't be replicated
+        # if ok => check in which zone the file is and replicate it in the other resc grp (red/green)
+        # return ok
+        
+        
+
+# Task performed by the user
+class TestIRODSFileTask(iRODSTask):
+    
+    def ichecksum_file(self, file_path_irods):
+        ''' Runs ichksum -a -K =>   this icommand calculates the md5 of the file in irods 
+                                    (across all replicas) and compares it against the stored md5
+            Returns: the md5 of the file, if all is ok
+            Throws an exception if not.
+        '''
+        ret = subprocess.Popen(["ichksum", "-a", "-L", file_path_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = ret.communicate()
+        if err:
+            raise exceptions.iChksumException(err, out, 'ichksum -a -K')
+        return out.split()[1]
+        
+        
+    def check_file_replicated_ok(self, file_path_irods):
+        ret = subprocess.Popen(["ils", '-L',file_path_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = ret.communicate()
+        if err:
+            print "This file doesn't exist in iRODS!"
+            # TODO: put a Upload task back into the queue
+            return constants.FILE_MISSING_FROM_IRODS 
+        else:
+            splits = out.split()
+            if len(splits) < 11:
+                # TODO: put task for irepl on this file
+                return constants.FILE_REPLICA_MISSING_FROM_IRODS
+        return constants.FILE_OK
+    
+    
+    def check_and_report_file_errors(self, file_path_irods):
+        error_message = constants.FILE_OK
+        # icksum - check the data in irods is actually ok:
+        try:
+            self.ichecksum_file(file_path_irods)
+        except exceptions.iChksumException as e:
+            return constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS
+        
+        return self.check_file_replicated(file_path_irods)
+        
+
+
+#### TO BE DELETE:        
+        # ils -L => check that there are 2 replicas:
+        ret = subprocess.Popen(["ils", '-L',file_path_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = ret.communicate()
+        if err:
+            print "This file doesn't exist in iRODS!"
+            # TODO: put a Upload task back into the queue
+            #return constants.FILE_MISSING_FROM_IRODS
+            error_message = constants.FILE_MISSING_FROM_IRODS 
+            
+        else:
+            splits = out.split()
+            if len(splits) < 11:
+                # TODO: put task for irepl on this file
+                #return constants.FILE_REPLICA_MISSING_FROM_IRODS
+                
+                error_message = constants.FILE_REPLICA_MISSING_FROM_IRODS
+            else:
+#                # Test file sizes between replicas:
+#                f_size1 = splits[3]
+#                f_size2 = splits[14]
+#                if f_size1 != f_size2:
+#                    # TODO: THe 2 replicas don't have the same size => re-upload with --force flag! (delete both replicas before, then resubmit)
+#                    #return constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS
+#                    error_message = constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS 
+                
+#                else:   # compare the file size of the replicas with the file size of the client:
+#                    f_size_client = str(os.path.getsize(file_path_client))
+#                    if f_size1 != f_size_client:
+#                        # TODO: The replicas and the client file don't have the same size! Re-upload -> just like above case
+#                        pass 
+            
+                # Check on md5:
+                md5_ils1 = splits[7]
+                md5_ils2 = splits[18]
+                
+                ret = subprocess.Popen(["ichksum", "-a", "-L", file_path_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = ret.communicate()
+                if err:
+                    print "ERROR ichksum!", file_path_irods
+                    # TODO: deal with the different md5s between the replicas problem
+                    #return constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS
+                    error_message = constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS 
+                else:
+                    md5_ick = out.split()[1]
+                    # Compare all md5s -- I can't think of any case in which these are different, but it's always good to check:
+                    if not md5_ick == md5_ils1 == md5_ils2:
+                        # TODO: md5s are not equal with each other => re-upload the file!
+                        #return constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS
+                        error_message = constants.FILE_IN_INCONSISTENT_STATE_IN_IRODS 
+        return error_message
+                    
+                    
+    def run(self, **kwargs):
+        current_task.update_state(state=constants.RUNNING_STATUS)
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        file_path_irods         = str(kwargs['file_path_irods'])
+        file_path_client        = str(kwargs['file_path_client'])
+        index_file_path_client  = str(kwargs['index_file_path_client'])
+        
+        # Check the actual file:
+        file_status = self.check_and_report_file_errors(file_path_irods)
+        
+        # Check the index file:
+        index_status = self.check_and_report_file_errors(index_file_path_client)
+
+        result = dict()
+        result['task_id']   = current_task.request.id
+        result['status']    = constants.FAILURE_STATUS
+        result['errors'] =  [str_exc]
+        resp = send_http_PUT_req(result, submission_id, file_id)
+        print "RESPONSE FROM SERVER: ", resp
+        current_task.update_state(state=constants.FAILURE_STATUS)
+        
+
+        # Possible outputs:
+        # - ok - recovered -- from: - only 1 replica in iRODS
+        #                           - ichcksum - not existing in iRODS => force ichksum the file
+        # - not recovered -- error can be:    - file not found in iRODS => must be reuploaded
+        #                                     - checksum doesn't correspond with what is in iRODS => file must be deleted and resubmitted
+        #                                    => reupload with --force flag (in which case the existing one is deleted first, and then resubmitted from the client)
+
+        # Run tests before imv to permanent collection:
+        # - check file sizes
+        # - check that both replicas are there
+        # - check the md5 of both replicas and recompute to make sure md5(client) = md5(file in iRODS)
+        
+
 
 # --------------------------- NOT USED ------------------------
 

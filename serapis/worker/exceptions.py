@@ -39,7 +39,10 @@ class iRODSException(Exception):
         self.extra_info = extra_info
         
     def __str__(self):
-        return 'Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+ str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info)
+        fields = [self.error, self.output, self.cmd, self.msg, self.extra_info]
+        all_fields = ' '.join(filter(None, fields))
+        return all_fields
+    #    return 'Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+ str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info)
     
 
 class iPutException(iRODSException):
@@ -76,5 +79,22 @@ class iMkDirException(iRODSException):
     def __str__(self):
         return super(iMkDirException, self).__str__()
         
-
+class iChksumException(iRODSException):
+    ''' Exception raised when running ichksum and the checksum of the file in irods != md5 stored.'''
+    def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
+        super(iChksumException, self).__init__(error, output, cmd, msg, extra_info)
         
+    def __str__(self):
+        return super(iChksumException, self).__str__()
+    
+class iLSException(iRODSException):
+    ''' Exception raised when the collection or the files doesn't exist.'''
+    def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
+        super(iLSException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iLSException, self).__str__()
+    
+    
+    
+

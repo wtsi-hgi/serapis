@@ -408,7 +408,11 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
 
         submission = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
         submission_logic_layer = app_logic.SubmissionBusinessLogic(submission.file_type)
+#        try:
         files_init = submission_logic_layer.init_and_submit_files(file_et_index_map, submission)
+#        except NotUniqueError as e:
+#        data_access.SubmissionDataAccess.delete_submission(submission_id, submission)
+#            raise NotUniqueError
         if not files_init:
             return models.Result(False, message='Files could not be initialised, the submission was not created.')
         
@@ -889,6 +893,15 @@ class MoveFilesToPermanentBackendCollection(BackendOperationsStrategy):
 class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
     ''' This class contains the functionality for adding metadata to a staged file.'''
     task_name = constants.ADD_META_TO_IRODS_FILE_TASK
+
+
+##### WORKERS EVENTS #######
+
+
+class WorkerOnlineStrategy:
+    pass
+
+
 
 
 
