@@ -36,6 +36,7 @@ from serapis.controller.logic import controller_strategy
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
+from renderer import SerapisJSONRenderer
 from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, BrowsableAPIRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
@@ -89,7 +90,8 @@ class ReferencesMainPageRequestHandler(APIView):
     ''' 
         A view that processes requests referring to reference genomes.
     '''
-    renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    #renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
     
     def get(self, request):
@@ -127,7 +129,8 @@ class ReferenceRequestHandler(APIView):
     """ 
         A view that processes requests for a specific reference genome.
     """
-    renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    #renderer_classes = (JSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, rest_permissions.AllowAny
     
     def get(self, request, reference_id):
@@ -160,8 +163,12 @@ class ReferenceRequestHandler(APIView):
 
 # /submissions/
 class SubmissionsMainPageRequestHandler(APIView):
+    ''' 
+        A view which helps processing the requsts for all submissions.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )#rest_permissions.AllowAny, ) #,rest_permissions.IsAdminUser,
-    
+
     # GET all the submissions for a user_id
     def get(self, request):
         ''' Retrieves all the submissions for this user. '''
@@ -272,6 +279,7 @@ class SubmissionsMainPageRequestHandler(APIView):
 
 # /submissions/submission_id
 class SubmissionRequestHandler(APIView):
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     authentication_classes = (BasicAuthentication, SessionAuthentication)
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
 
@@ -350,6 +358,13 @@ class SubmissionRequestHandler(APIView):
 
 # /submissions/submission_id/status/
 class SubmissionStatusRequestHandler(APIView):
+    ''' 
+        This view shows the status of a submission itself.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
+    
     def get(self, request, submission_id, format=None):
         ''' Retrieves the status of the submission. '''
         try:
@@ -367,6 +382,13 @@ class SubmissionStatusRequestHandler(APIView):
 
 
 class AllSubmittedFilesStatusesHandler(APIView):
+    ''' 
+        This view shows the status of all the files in a submission
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
+    
     def get(self, request, submission_id, format=None):
         ''' Retrieves the status of all files in this submission. '''
         try:
@@ -390,6 +412,13 @@ class AllSubmittedFilesStatusesHandler(APIView):
 
 # /submissions/submission_id/123/files/1/status
 class SubmittedFileStatusRequestHandler(APIView):
+    ''' 
+        This view shows the status of a particular file from a particular submission.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
+    
     def get(self, request, submission_id, file_id, format=None):
         ''' Retrieves the statuses of the submitted file (upload and mdata). 
         '''
@@ -417,6 +446,7 @@ class SubmittedFilesMainPageRequestHandler(APIView):
         GET - retrieves the list of files for this submission.
         POST - adds a new file to this submission.'''
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 
     def get(self, request, submission_id):
         try:
@@ -494,7 +524,10 @@ class SubmittedFileRequestHandler(APIView):
         GET - retrieves all the information for this file (metadata)
         POST - resubmits the jobs for this file
         PUT - updates a specific part of the metadata.
-        DELETE - deletes this file from this submission.'''
+        DELETE - deletes this file from this submission.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self, request, submission_id, file_id, format=None):
         ''' Retrieves the information regarding this file from this submission.
@@ -699,7 +732,11 @@ class SubmittedFileRequestHandler(APIView):
 # URL: /submissions/123/files/1123445/worker    
 class WorkerSubmittedFileRequestHandler(APIView):
     ''' Handles the requests for a specific file (existing already) that come from the workers.
-        PUT - updates a specific part of the metadata.'''
+        PUT - updates a specific part of the metadata.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
@@ -764,7 +801,11 @@ class WorkerSubmittedFileRequestHandler(APIView):
 class LibrariesMainPageRequestHandler(APIView):
     ''' Handles requests /submissions/123/files/3/libraries/.
         GET - retrieves all the libraries that this file contains as metadata.
-        POST - adds a new library to the metadata of this file'''
+        POST - adds a new library to the metadata of this file
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def get(self,  request, submission_id, file_id, format=None):
         try:
             result = dict()
@@ -838,6 +879,9 @@ class LibraryRequestHandler(APIView):
         PUT - updates fields of the metadata for the specified library
         DELETE - deletes the specified library from the library list of this file.
     '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def get(self, request, submission_id, file_id, library_id, format=None):
         try:
             result = dict()
@@ -944,6 +988,8 @@ class SamplesMainPageRequestHandler(APIView):
         GET - retrieves the list of all samples
         POST - adds a new sample to the list of samples that the file has.
     '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self,  request, submission_id, file_id, format=None):
         ''' Handles requests /submissions/123/files/3/samples/.
@@ -1024,6 +1070,8 @@ class SampleRequestHandler(APIView):
         PUT - updates fields of the metadata for the specified sample
         DELETE - deletes the specified sample from the sample list of this file.
     '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self, request, submission_id, file_id, sample_id, format=None):
         ''' Retrieves a specific sampl, identified by sample_id.'''
@@ -1136,6 +1184,8 @@ class StudyMainPageRequestHandler(APIView):
         GET - retrieves the list of all studies
         POST - adds a new study to the list of studies that the file has.
     '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self,  request, submission_id, file_id, format=None):
         try:
@@ -1210,7 +1260,9 @@ class StudyRequestHandler(APIView):
         PUT - updates fields of the metadata for the specified study
         DELETE - deletes the specified study from the study list of this file.
     '''
-
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
 
     def get(self, request, submission_id, file_id, study_id, format=None):
         try:
@@ -1313,6 +1365,12 @@ class StudyRequestHandler(APIView):
 # submissions/<submission_id>/irods/
 # Submit Submission to iRODS:
 class SubmissionIRODSRequestHandler(APIView):
+    ''' 
+        This view exposes the functionality for a submission concerning irods.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def post(self, request, submission_id, format=None):
         ''' Makes the submission to IRODS of all the files 
             contained in this submission in 2 steps hidden
@@ -1354,6 +1412,12 @@ class SubmissionIRODSRequestHandler(APIView):
 # submissions/<submission_id>/files/<file_id>/irods/
 # Submit ONE File to iRODS:
 class SubmittedFileIRODSRequestHandler(APIView):
+    ''' 
+        This view exposes the functionality of irods concerning a file.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def post(self, request, submission_id, file_id, format=None):
         ''' Submits the file to iRODS in 2 steps (hidden from the user):
             first the metadata is attached to the file while it is still
@@ -1387,6 +1451,12 @@ class SubmittedFileIRODSRequestHandler(APIView):
 # submissions/<submission_id>/irods/meta/'
 # Manipulating metadata in iRODS:
 class SubmissionIRODSMetaRequestHandler(APIView):
+    ''' 
+        This view exposes the functionality regarding the metadata of all the files in a submission.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def post(self, request, submission_id, format=None):
         ''' Attaches the metadata to all the files in the submission, 
             while they are still in the staging area'''
@@ -1431,6 +1501,13 @@ class SubmissionIRODSMetaRequestHandler(APIView):
     
 # submissions/<submission_id>/files/<file_id>/irods-temp/meta/
 class SubmittedFileIRODSMetaRequestHandler(APIView):
+    ''' 
+        This view exposes the functionality for all the files in a submission 
+        on the irods staging area (temporary storage zone).
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def post(self, request, submission_id, file_id, format=None):
         ''' Attaches the metadata to the file, while it's still in the staging area'''
         try:
@@ -1464,7 +1541,13 @@ class SubmittedFileIRODSMetaRequestHandler(APIView):
 
 # submissions/<submission_id>/irods/irods-perm/
 class SubmissionToiRODSPermanentRequestHandler(APIView):
-       
+    ''' 
+        This view exposes the functionality for a submission regarding 
+        the operations that can be done on the irods permanent zone.
+    '''
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
+    
     def post(self, request, submission_id, format=None):
         ''' Moves all the files in a submission from the staging area to the
             iRODS permanent and non-modifyable collection. '''
@@ -1503,6 +1586,9 @@ class SubmissionToiRODSPermanentRequestHandler(APIView):
        
 # submissions/<submission_id>/files/<file_id>/irods/irods-files
 class SubmittedFileToiRODSPermanentRequestHandler(APIView):
+    
+    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
     def post(self, request, submission_id, file_id, format=None):
         ''' Moves a staged file from the staging area to the
@@ -1552,25 +1638,5 @@ class WorkerOfflineRequestHandler(APIView):
         print "REQUEST for worker OFFline received...", request
         return Response(status=status.HTTP_200_OK)
        
-       
-# ------------------------------ NOT USED ---------------------------
-
-
-
-class GetFolderContent(APIView):
-    def post(self, request, format=None):
-        data = request.DATA
-        print "Data received - POST request: ", data
-        # CALL getFolder on WORKER...
-        return Response({"rasp" : "POST"})
     
-         
-# Get all submissions of this user_id
-class GetAllUserSubmissions(APIView):
-    def get(self, request, user_id, format=None):
-        submission_list = models.Submission.objects.filter(sanger_user_id=user_id)
-        return Response(submission_list)
-
-
-         
         
