@@ -41,7 +41,8 @@ import gzip
 import simplejson
 
 # Serapis imports:
-from serapis.worker import entities, warehouse_data_access
+from serapis.worker import entities, warehouse_data_access, irods_utils
+from serapis.worker.header_parser import BAMHeaderParser
 from serapis.com import constants
 from serapis.worker import exceptions
 from serapis.com import utils
@@ -72,7 +73,7 @@ from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 #BASE_URL = "http://localhost:8000/api-rest/submissions/"
 BASE_URL = "http://localhost:8000/api-rest/workers/submissions/"
 #workers/tasks/(?P<task_id>)/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$
-MD5 = "md5"
+#MD5 = "md5"
 
 
 #################################################################################
@@ -276,29 +277,28 @@ class UploadFileTask(iRODSTask):
         current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
-    def rollback(self, file_path, irods_coll):
-        result = dict()
-        (_, fname) = os.path.split(file_path)
-        print "IN ROLLBACK --- here it throws an exception, irods_coll = ", irods_coll, " and fname = ", fname
-        irods_file_path = os.path.join(irods_coll, fname)
-        
-        child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (_, err) = child_proc.communicate()
-        if err:
-            result['status'] = constants.SUCCESS_STATUS
-            return result
+    def rollback(self, fpath_irods, index_fpath_irods=None):
+        if index_fpath_irods and irods_utils.exists_in_irods(index_fpath_irods):
+            irods_utils.remove_file_irods(index_fpath_irods, force=True)
+        if irods_utils.exists_in_irods(fpath_irods):
+            irods_utils.remove_file_irods(fpath_irods, force=True)
+        print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
+        return True
+
+#        child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        (_, err) = child_proc.communicate()
+#        if err:
+#            result['status'] = constants.SUCCESS_STATUS
+#            return result
             
-        irm_child_proc = subprocess.Popen(["irm", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (_, err_irm) = irm_child_proc.communicate()
-        if err_irm:
-            print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", err_irm
-            error_msg = "IRODS irm error - return code="+str(irm_child_proc.returncode)+" message: "+err_irm
-            result['status'] = constants.FAILURE_STATUS
-            result['errors'] = error_msg
-        else:
-            print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
-            result['status'] = constants.SUCCESS_STATUS
-        return result
+#        irm_child_proc = subprocess.Popen(["irm", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        (_, err_irm) = irm_child_proc.communicate()
+#        if err_irm:
+#            print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", err_irm
+#            error_msg = "IRODS irm error - return code="+str(irm_child_proc.returncode)+" message: "+err_irm
+#            result['status'] = constants.FAILURE_STATUS
+#            result['errors'] = error_msg
+
 
     # run - running using process call - WORKING VERSION - used currently 11.oct2013
     def run_using_checkoutput(self, **kwargs):
@@ -335,36 +335,40 @@ class UploadFileTask(iRODSTask):
 
         ##### ONLY serapis can do this!!!!!!!!!!        
         # Check if the collection exists:
-        child_proc = subprocess.Popen(["ils", "-l", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = child_proc.pid
-        (out, err) = child_proc.communicate()
-        if err:
-            imkdir_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = imkdir_proc.pid
-            (out, err) = imkdir_proc.communicate()
-            if err:
-                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
+#        child_proc = subprocess.Popen(["ils", "-l", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        child_pid = child_proc.pid
+#        (out, err) = child_proc.communicate()
+#        if err:
+        if not irods_utils.exists_in_irods(irods_coll):
+            irods_utils.make_new_coll(irods_coll)
+#            imkdir_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#            child_pid = imkdir_proc.pid
+#            (out, err) = imkdir_proc.communicate()
+#            if err:
+#                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+#                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
         
-        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = iput_proc.pid
-        (out, err) = iput_proc.communicate()
-        print "IPUT the file resulted in: out = ", out, " err = ", err
-        if err:
-            print "IPUT error occured: ", err, " out: ", out
-            raise exceptions.iPutException(err, out, cmd="iput -K "+file_path, msg="Return code="+str(child_proc.returncode))
+        irods_utils.upload_irods_file(file_path)
+#        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        child_pid = iput_proc.pid
+#        (out, err) = iput_proc.communicate()
+#        print "IPUT the file resulted in: out = ", out, " err = ", err
+#        if err:
+#            print "IPUT error occured: ", err, " out: ", out
+#            raise exceptions.iPutException(err, out, cmd="iput -K "+file_path, msg="Return code="+str(child_proc.returncode))
 
         
         if index_file_path:
-            iiput_proc = subprocess.Popen(["iput", "-R","red", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            #iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = iiput_proc.pid
-            (out, err) = iiput_proc.communicate()
-            print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
-            if err:
-                raise exceptions.iPutException(err, out, cmd="iput -K "+index_file_path, 
-                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
+            irods_utils.upload_irods_file(index_file_path, irods_coll)
+#            iiput_proc = subprocess.Popen(["iput", "-R","red", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#            #iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#            child_pid = iiput_proc.pid
+#            (out, err) = iiput_proc.communicate()
+#            print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
+#            if err:
+#                raise exceptions.iPutException(err, out, cmd="iput -K "+index_file_path, 
+#                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
              
   
         result = {}
@@ -391,23 +395,30 @@ class UploadFileTask(iRODSTask):
         errors_list.append(exc)
         
         #ROLLBACK
-        
-        # print isinstance(iPutException("a", "a"), iRODSException)
         if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
             if index_file_path:
-                os.kill(child_pid, signal.SIGKILL)
-                try:
-                    result_rollb = self.rollback(index_file_path, irods_coll)
-                except Exception as e:
-                    errors_list.append(str(e))
-                if result_rollb['status'] == constants.FAILURE_STATUS:
-                    errors_list.append(result_rollb['errors'])
+                index_fpath_irods = irods_utils.assemble_irods_fpath(file_path, irods_coll)
+            fpath_irods = irods_utils.assemble_irods_fpath(file_path, irods_coll)
             try:
-                result_rollb = self.rollback(file_path, irods_coll)
+                self.rollback(fpath_irods, index_fpath_irods)
             except Exception as e:
                 errors_list.append(str(e))
-            if result_rollb['status'] == constants.FAILURE_STATUS:
-                errors_list.append(result_rollb['errors'])
+            
+#        if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
+#            if index_file_path:
+#                os.kill(child_pid, signal.SIGKILL)
+#                try:
+#                    result_rollb = self.rollback(index_file_path, irods_coll)
+#                except Exception as e:
+#                    errors_list.append(str(e))
+#                if result_rollb['status'] == constants.FAILURE_STATUS:
+#                    errors_list.append(result_rollb['errors'])
+#            try:
+#                result_rollb = self.rollback(file_path, irods_coll)
+#            except Exception as e:
+#                errors_list.append(str(e))
+#            if result_rollb['status'] == constants.FAILURE_STATUS:
+#                errors_list.append(result_rollb['errors'])
             
         # SEND RESULT BACK:
         result = {}
@@ -527,6 +538,7 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
                 return ref_path
         return None
                 
+                
     def used_samtools(self, file_path):
         if file_path.endswith('.gz'):
             infile = gzip.open(file_path, 'rb')
@@ -599,14 +611,12 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
 
         
 class ParseBAMHeaderTask(ParseFileHeaderTask):
-    #name = 'serapis.worker.ParseBAMHeaderTask'
     max_retries = 5             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
 #    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
-    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     
     def trigger_event(self, event_type, state, result):
         connection = self.app.broker_connection()
@@ -621,205 +631,13 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             connection.close()
 
    
-    # TODO: PARSE PU - if needed
-
-    ######### HEADER PARSING #####
-    def get_header_mdata(self, file_path):
-        ''' Parse BAM file header using pysam and extract the desired fields (HEADER_TAGS)
-            Returns a list of dicts, like: [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]'''
-        bamfile = pysam.Samfile(file_path, "rb" )
-        header = bamfile.header['RG']
-        for header_grp in header:
-            for header_elem_key in header_grp.keys():
-                if header_elem_key not in self.HEADER_TAGS:
-                    header_grp.pop(header_elem_key) 
-        print "HEADER -----------------", header
-        bamfile.close()
-        return header
-    
-    
-    def process_json_header(self, header_json):
-        ''' Gets the header and extracts from it a list of libraries, a list of samples, etc. '''
-        dictionary = defaultdict(set)
-        for map_json in header_json:
-            for k,v in map_json.items():
-                dictionary[k].add(v)
-        back_to_list = {}
-        for k,v in dictionary.items():
-            back_to_list[k] = list(v)
-        return back_to_list
-    
-    @staticmethod
-    def extract_lane_from_PUHeader(pu_header):
-        ''' This method extracts the lane from the string found in
-            the BAM header's RG section, under PU entry => between last _ and #. 
-            A PU entry looks like: '120815_HS16_08276_A_C0NKKACXX_4#1'. 
-        '''
-        if not pu_header:
-            return None
-        beats_list = pu_header.split("_")
-        if beats_list:
-            last_beat = beats_list[-1]
-            if last_beat[0].isdigit():
-                return int(last_beat[0])
-        return None
-
-    @staticmethod
-    def extract_tag_from_PUHeader(pu_header):
-        ''' This method extracts the tag nr from the string found in the 
-            BAM header - section RG, under PU entry => the nr after last #
-        '''
-        if not pu_header:
-            return None
-        last_hash_index = pu_header.rfind("#", 0, len(pu_header))
-        if last_hash_index != -1:
-            if pu_header[last_hash_index + 1 :].isdigit():
-                return int(pu_header[last_hash_index + 1 :])
-        return None
-
-    @staticmethod
-    def extract_run_from_PUHeader(pu_header):
-        ''' This method extracts the run nr from the string found in
-            the BAM header's RG section, under PU entry => between 2nd and 3rd _.
-        '''
-        if not pu_header:
-            return None
-        beats_list = pu_header.split("_")
-        run_beat = beats_list[2]
-        if run_beat[0] == '0':
-            return int(run_beat[1:])
-        return int(run_beat)
-    
-    @staticmethod
-    def extract_platform_from_PUHeader(pu_header):
-        ''' This method extracts the platform from the string found in 
-            the BAM header's RG section, under PU entry: 
-            e.g.'PU': '120815_HS16_08276_A_C0NKKACXX_4#1'
-            => after the first _ : HS = Illumina HiSeq
-        '''
-        if not pu_header:
-            return None
-        beats_list = pu_header.split("_")
-        platf_beat = beats_list[1]
-        pat = re.compile(r'([a-zA-Z]+)(?:[0-9])+')
-        if pat.match(platf_beat) != None:
-            return pat.match(platf_beat).groups()[0]
-        return None
-        
-       
-    @staticmethod
-    def build_run_id(pu_entry):
-        run = ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
-        lane = ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
-        tag = ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
-        if run and lane:
-            if tag:
-                return str(run) + '_' + str(lane) + '#' + str(tag)
-                #file_mdata.run_list.append(run_id)
-            else:
-                return str(run) + '_' + str(lane)
-        return None
-        
-    ######### ENTITIES IN HEADER LOOKUP ########################
-     
-
-    def select_new_incomplete_entities(self, header_entity_list, entity_type, file_submitted):
-        ''' Searches in the list of samples for each sample identifier (string) from header_library_name_list. 
-            If the sample exists already, nothing happens. 
-            If it doesn't exist, than it adds the sample to a list of incomplete samples. 
-            
-            Note: it only deals with library and sample types because these 
-                  are the only entities to be found in the BAM header.
-        '''
-#        if len(file_submitted.sample_list) == 0:
-#            return header_entity_list
-        if len(header_entity_list) == 0:
-            return []
-        incomplete_ent_list = []
-        for ent_name_h in header_entity_list:
-            if not file_submitted.fuzzy_contains_entity(ent_name_h, entity_type):
-                if entity_type == constants.LIBRARY_TYPE:
-                    if utils.is_internal_id(ent_name_h):
-                        search_field_name = 'internal_id'
-                    elif utils.is_name(ent_name_h):
-                        search_field_name = 'name'
-                elif entity_type == constants.SAMPLE_TYPE:
-                    if utils.is_accession_nr(ent_name_h):
-                        search_field_name = 'accession_number'
-                    elif utils.is_internal_id(ent_name_h):
-                        search_field_name = 'internal_id'
-                    else:
-                        search_field_name = 'name'
-                else:
-                    print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
-                    #entity_dict = {UNKNOWN_FIELD : ent_name_h}
-                    
-                if search_field_name != None:
-                    entity_dict = {search_field_name : ent_name_h}
-                    incomplete_ent_list.append(entity_dict)
-        return incomplete_ent_list
-    
-                
-    #----------------------- HELPER METHODS --------------------
- 
-        
-    def parse_header(self, header_processed, file_mdata):
-        file_mdata.seq_centers = header_processed['CN']
-        header_library_name_list = header_processed['LB']    # list of strings representing the library names found in the header
-        header_sample_name_list = header_processed['SM']     # list of strings representing sample names/identifiers found in header
-        
-        # NEW FIELDS:
-        if 'DT' in header_processed:
-            file_mdata.seq_date_list = list(set(header_processed['DT']))
-        ### TODO: here I assumed the PU field looks like in the SC_GMFUL5306338.bam, which is the following format:
-        #     'PU': '120815_HS16_08276_A_C0NKKACXX_4#1',
-        # TO CHANGE - sometimes it can be:
-        #    'PU': '7947_1#53',
-        if 'PU' in header_processed:
-            # PU can have different forms - try to match each of them:
-            
-            print "PU HEADER::::::::::::::::::::::::::::::::", header_processed['PU']
-            # First possible PU HEADER:
-            for pu_entry in header_processed['PU']:
-                pattern = re.compile(constants.REGEX_PU_1)
-                if pattern.match(pu_entry) != None:
-                    file_mdata.run_list.append(pu_entry)
-                else:
-                    run_id = self.build_run_id(pu_entry)
-                    if run_id:
-                        file_mdata.run_list.append(run_id)
-                    seq_machine = self.extract_platform_from_PUHeader(pu_entry)
-                    if seq_machine and seq_machine in constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING:
-                        platform = constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING[seq_machine]
-                        file_mdata.platform_list.append(platform)
-                    elif 'PL' in header_processed:
-                        file_mdata.platform_list = header_processed['PL']     # list of strings representing sample names/identifiers found in header
-        print "RUN LISTTTTTTTTTTTTTTTT: ", file_mdata.run_list
-       
-        
-        ########## COMPARE FINDINGS WITH EXISTING MDATA ##########
-        
-        new_libs_list = self.select_new_incomplete_entities(header_library_name_list, constants.LIBRARY_TYPE, file_mdata)  # List of incomplete libs
-        new_sampl_list = self.select_new_incomplete_entities(header_sample_name_list, constants.SAMPLE_TYPE, file_mdata)
-        print "NEW LIBS LISTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: ", new_libs_list
-
-        processSeqsc = warehouse_data_access.ProcessSeqScapeData()
-        processSeqsc.fetch_and_process_lib_unknown_mdata(new_libs_list, file_mdata)
-        processSeqsc.fetch_and_process_sample_mdata(new_sampl_list, file_mdata)
-        
-        print "LIBRARY UPDATED LIST: ", file_mdata.library_list
-        print "SAMPLE_UPDATED LIST: ", file_mdata.sample_list
-        print "NOT UNIQUE LIBRARIES LIST: ", file_mdata.not_unique_entity_error_dict
-
-        
-        if len(file_mdata.sample_list) == 1:
-            file_mdata.data_subtype_tags['sample-multiplicity'] = 'single-sample'
-            file_mdata.data_subtype_tags['individual-multiplicity'] = 'single-individual'
-        if len(file_mdata.run_list) > 1:
-            file_mdata.data_subtype_tags['lanelets'] = 'merged-lanelets'
-    
-        return file_mdata
-        
+    def infer_and_set_data_properties(self, submitted_file):
+        if len(submitted_file.sample_list) == 1:
+            submitted_file.data_subtype_tags['sample-multiplicity'] = 'single-sample'
+            submitted_file.data_subtype_tags['individual-multiplicity'] = 'single-individual'
+        if len(submitted_file.run_list) > 1:
+            submitted_file.data_subtype_tags['lanelets'] = 'merged-lanelets'
+   
         
     ###############################################################
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
@@ -829,11 +647,23 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         file_mdata          = deserialize(file_serialized)
         file_id             = kwargs['file_id']
         
+        header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
         
         file_mdata = entities.BAMFile.build_from_json(file_mdata)
-        header_json = self.get_header_mdata(file_mdata.file_path_client)              # header =  [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]
-        header_processed = self.process_json_header(header_json)    #  {'LB': ['lib_1', 'lib_2'], 'CN': ['SC'], 'SM': ['HG00242']} or ValueError
-        file_mdata = self.parse_header(header_processed, file_mdata)
+        file_mdata.seq_centers = header_metadata['seq_centers']
+        file_mdata.run_list = header_metadata['run_ids_list']
+        file_mdata.seq_date_list = header_metadata['seq_date_list']
+        file_mdata.platform_list = header_metadata['platform_list']
+        
+        libs_list = header_metadata['library_list']
+        samples_list = header_metadata['sample_list']
+        
+        access_seqsc = warehouse_data_access.ProcessSeqScapeData()
+        access_seqsc.fetch_and_process_libs(libs_list, file_mdata)
+        access_seqsc.fetch_and_process_samples(samples_list, file_mdata)
+        
+        print "LIBRARIES -- from worker: ", libs_list, " And in the file: ", file_mdata.library_list
+        self.infer_and_set_data_properties(file_mdata)
 
         errors = []
         if len(file_mdata.library_list) > 0 or len(file_mdata.sample_list) > 0:
@@ -872,7 +702,10 @@ class UpdateFileMdataTask(GatherMetadataTask):
 
     
     def select_incomplete_entities(self, entity_list):
-        ''' Searches in the list of entities for the entities that don't have minimal/complete metadata. '''
+        ''' 
+            Searches in the list of entities for the entities that don't have minimal/complete metadata.
+            Return a list of tuples denoting the incomplete entities. 
+        '''
         if len(entity_list) == 0:
             return []
         incomplete_entities = []
@@ -883,12 +716,14 @@ class UpdateFileMdataTask(GatherMetadataTask):
                 has_id_field = False
                 for id_field in constants.ENTITY_IDENTITYING_FIELDS:
                     if hasattr(entity, id_field) and getattr(entity, id_field) != None:
-                        incomplete_entities.append({id_field : getattr(entity, id_field)})
+                        incomplete_entities.append((id_field, getattr(entity, id_field)))
                         has_id_field = True
                         break
                 if not has_id_field:
-                    entity_dict = self.__filter_fields__(vars(entity))
-                    incomplete_entities.append(entity_dict)
+                    raise exceptions.NoEntityIdentifyingFieldsProvided("This entity has no identifying fields: "+entity)
+#                if not has_id_field:
+#                    entity_dict = self.__filter_fields__(vars(entity))
+#                    incomplete_entities.append(entity_dict)
         return incomplete_entities
         
         
@@ -900,18 +735,23 @@ class UpdateFileMdataTask(GatherMetadataTask):
         file_mdata          = deserialize(file_serialized)
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
+        
+        
         file_submitted = entities.SubmittedFile.build_from_json(file_mdata)
+        
         incomplete_libs_list    = self.select_incomplete_entities(file_submitted.library_list)
         incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
-        print "LIBS INCOMPLETE:------------ ", incomplete_libs_list
-        print "STUDIES INCOMPLETE: -------------", incomplete_studies_list
         
         processSeqsc = warehouse_data_access.ProcessSeqScapeData()
-        processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
-        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
-                 
+        processSeqsc.fetch_and_process_libs(incomplete_libs_list, file_submitted)
+        processSeqsc.fetch_and_process_samples(incomplete_samples_list, file_submitted)
+        processSeqsc.fetch_and_process_studies(incomplete_studies_list, file_submitted)
+        
+#        processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
+#        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
+#        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
+#                 
         result = {}
         result['task_id']   = current_task.request.id
         result['result']    = vars(file_submitted) 
@@ -1104,7 +944,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         return 0
         
     
-    def get_tuples_from_imeta_output(self, imeta_out):
+    def convert_file_meta_to_tuples(self, imeta_out):
         tuple_list = []
         lines = imeta_out.split('\n')
         attr_name, attr_val = None, None
@@ -1131,7 +971,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         (out, err) = child_proc.communicate()
         if err:
             print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
-        tuple_list = self.get_tuples_from_imeta_output(out)        
+        tuple_list = self.convert_file_meta_to_tuples(out)        
         self.test_file_meta_pairs(tuple_list, file_path_irods)
         
     
@@ -1140,7 +980,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         (out, err) = child_proc.communicate()
         if err:
             print "ERROR IMETA of file: ", index_file_path_irods, " err=",err," out=", out
-        tuple_list = self.get_tuples_from_imeta_output(out)        
+        tuple_list = self.convert_file_meta_to_tuples(out)        
         if len(tuple_list) != 2:
             print "ERROR -- index file "
             return -1

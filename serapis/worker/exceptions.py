@@ -95,6 +95,120 @@ class iLSException(iRODSException):
     def __str__(self):
         return super(iLSException, self).__str__()
     
+
+class iRMException(iRODSException):
+    ''' Exception raised when the irm command failed.'''
+    def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
+        super(iRMException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRMException, self).__str__()
     
     
+    
+################## TEST specific exceptions #############################
+
+class iRODSReplicaNotPairedException(iRODSException):
+    ''' Exception thrown when a file has one or more replicas not paired.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSReplicaNotPairedException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSReplicaNotPairedException, self).__str__()
+
+class iRODSFileMissingReplicaException(iRODSException):
+    ''' Exception thrown when a file has not been replicated.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileMissingReplicaException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileMissingReplicaException, self).__str__()
+
+
+class iRODSFileTooManyReplicasException(iRODSException):
+    ''' Exception thrown when a file has too many replicas.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileTooManyReplicasException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileTooManyReplicasException, self).__str__()
+
+
+class iRODSFileStoredOnResourceUnknownException(iRODSException):
+    ''' Exception thrown when a file is stored on an unknown resource.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileStoredOnResourceUnknownException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileStoredOnResourceUnknownException, self).__str__()
+
+
+class iRODSFileNotBackedupOnBothRescGrps(iRODSException):
+    ''' Exception thrown when a file hasn't got replicas on both red and green resource groups.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileNotBackedupOnBothRescGrps, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileNotBackedupOnBothRescGrps, self).__str__()
+    
+
+class iRODSFileDifferentMD5sException(iRODSException):
+    ''' Exception thrown when a file has a different md5 than the calculated md5 by serapis.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileDifferentMD5sException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileDifferentMD5sException, self).__str__()
+    
+
+class iRODSFileMetadataNotStardardException(iRODSException):
+    ''' Exception thrown when a file's metadata is not how it's supposed to be
+        e.g. either it is missing fields or it has too many fields of one kind.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSFileMetadataNotStardardException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSFileMetadataNotStardardException, self).__str__()
+    
+    
+################################## NON IRODS EXCEPTIONS ########################
+
+class NoEntityFoundException(Exception):
+    ''' Exception thrown when an entity is being looked up and not found in the DB.'''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(NoEntityFoundException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(NoEntityFoundException, self).__str__()
+
+
+class TooManyMatchingEntities(Exception):
+    ''' Exception thrown when the identifying field given for an entity 
+        for looked up matches more than one row in the DB.
+    '''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(TooManyMatchingEntities, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(TooManyMatchingEntities, self).__str__()
+
+    
+    
+class NoEntityIdentifyingFieldsProvided(Exception):
+    ''' Exception thrown when a POST/PUT request comes in containing the information
+        for creating/updating an entity, but the description of the entity does not contain
+        any identifier for that entity.'''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'No identifying fields for this entity provided.'
+        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)
+#        if self.faulty_expression != None:
+#            text += self.faulty_expression
+#        if self.message != None:
+#            text += ' - '
+#            text +=self.message
+#        return text 
 

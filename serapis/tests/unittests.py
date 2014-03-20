@@ -157,47 +157,6 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
 class TestTasks(unittest.TestCase):
     
     
-    def test_build_run_id(self):
-        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run_id = tasks.ParseBAMHeaderTask.build_run_id(pu_entry)
-        self.assertEqual(run_id, '7874_7#6')
-        
-        pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
-        run_id = tasks.ParseBAMHeaderTask.build_run_id(pu_entry)
-        self.assertEqual(run_id, '8271_2#88')
-        
-    def test_extract_run_from_PUHeader(self):
-        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = tasks.ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
-        self.assertEqual(run, 8276)
-        
-        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = tasks.ParseBAMHeaderTask.extract_run_from_PUHeader(pu_entry)
-        self.assertEqual(run, 7874)
-        
-    def test_extract_tag_from_PUHeader(self):
-        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = tasks.ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
-        self.assertEqual(run, 6)
-        
-        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = tasks.ParseBAMHeaderTask.extract_tag_from_PUHeader(pu_entry)
-        self.assertEqual(run, 1)
-        
-    def test_extract_lane_from_PUHeader(self):
-        pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
-        self.assertEqual(run, 4)
-        
-        pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
-        self.assertEqual(run, 7)
-        
-        pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
-        run = tasks.ParseBAMHeaderTask.extract_lane_from_PUHeader(pu_entry)
-        self.assertEqual(run, 2)
-        
-     
  
     def test_parse_vcf_file_header(self):
         vcf_parse_task = tasks.ParseVCFHeaderTask()

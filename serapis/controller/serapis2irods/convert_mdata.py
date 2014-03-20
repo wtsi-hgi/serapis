@@ -213,8 +213,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                     irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
             elif field_name == 'hgi_project':
                 field_val = utils.unicode2string(field_val)
-                for tag_val in field_val:
-                    irods_file_mdata.append(('hgi_project', utils.unicode2string(tag_val)))                
+                irods_file_mdata.append(('hgi_project', utils.unicode2string(field_val)))                
             else:
                 field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append((field_name, field_val))

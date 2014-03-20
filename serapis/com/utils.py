@@ -130,41 +130,45 @@ def cmp_timestamp_files(file_path1, file_path2):
 
 ############## FILE NAME/PATH/EXTENSION PROCESSING ###########
 
-def extract_fname_and_ext(path):
+def extract_fname_and_ext(fpath):
     ''' This function splits the filename in its last extension
         and the rest of it. The name might be confusion, as for
         files with multiple extensions, it only separates the last
         one from the rest of them. 
         e.g. UC123.bam.bai.md5 => fname=UC123.bam.bai, ext=md5
     '''
-    _, tail = os.path.split(path)
+    _, tail = os.path.split(fpath)
     fname, ext = os.path.splitext(tail)
     ext = ext[1:]
     return (fname, ext)
 
-def extract_index_fname(path):
+def extract_index_fname(fpath):
     ''' This function splits the filename in its last extension
         and its name. It ignores the rest of the extensions.
         e.g. UC123.bam.bai.md5 => fname=UC123, ext=md5
     '''
-    fname, ext = extract_fname_and_ext(path)
+    fname, ext = extract_fname_and_ext(fpath)
     real_ext = ext
     while ext in constants.ACCEPTED_FILE_EXTENSIONS:
         fname, ext = extract_fname_and_ext(fname)
     return (fname, real_ext)
 
-
-def extract_basename(file_path):
-    ''' Extracts the file name (and removes the extensions), given a file path.'''
-    _, tail = os.path.split(file_path)
-    fname, _ = os.path.splitext(tail)
+def extract_fname(fpath):
+    _, fname = os.path.split(fpath)
     return fname
 
-def extract_extension(file_path):
-    _, tail = os.path.split(file_path)
-    _, ext = os.path.splitext(tail)
-    return ext[1:]
-    
+def extract_basename(fpath):
+    ''' Extracts the file name (and removes the extensions), given a file path.'''
+    #_, fname = os.path.split(fpath)
+    fname = extract_fname(fpath)
+    basename, _ = os.path.splitext(fname)
+    return basename
+
+#def get_file_extension(fpath):
+#    _, tail = os.path.split(fpath)
+#    _, ext = os.path.splitext(tail)
+#    return ext[1:]
+#    
 def get_files_from_dir(dir_path):
     ''' This function returns all the files of the types of interest 
         (e.g.bam, vcf, and ignore .txt) from a directory given as parameter.
@@ -180,6 +184,48 @@ def get_files_from_dir(dir_path):
     return files_list
 
 
+def get_filename_from_path(fpath):
+    if fpath in ["\n", " ","","\t"]:
+        raise ValueError("File path empty")
+    f_path = fpath.lstrip().strip()
+    return os.path.basename(f_path)
+
+
+def get_filepaths_from_fofn(fofn):
+    files_list = open(fofn, 'r')
+    return filter(None, files_list)
+
+
+def get_filenames_from_filepaths(filepaths_list):
+    return [get_filename_from_path(file_path) for file_path in filepaths_list]
+
+
+def filter_list_of_files_by_type(list_of_files, filters):
+    ''' Filters the initial list of files and returns a new list of files
+        containing only the file types desired (i.e. given as filters parameter).
+    '''
+    files_filtered = []
+    for f in list_of_files:
+        _, tail = os.path.split(f)
+        _, ext = os.path.splitext(tail)
+        ext = ext[1:]
+        if ext in filters:
+            files_filtered.append(f)
+        else:
+            print "SMTH else in this dir:",f
+    return files_filtered
+
+def get_file_extension(fpath):
+    if not fpath:
+        return None
+    _, tail = os.path.split(fpath)
+    _, ext = os.path.splitext(tail)
+    return ext[1:].strip()
+
+
+def lists_contain_same_elements(list1, list2):
+        return set(list1) == set(list2)
+    
 
 #################### PROJECT SPECIFIC UTILITY FUNCTIONS #####################
 
@@ -274,10 +320,10 @@ def check_for_invalid_file_types(file_path_list):
     invalid_files = []
     for file_path in file_path_list:
         is_compressed = False
-        ext = extract_extension(file_path)
+        ext = get_file_extension(file_path)
         if ext in constants.COMPRESSION_FORMAT_EXTENSIONS:
             fname, ext = extract_fname_and_ext(file_path)
-            ext = extract_extension(fname)
+            ext = get_file_extension(fname)
             is_compressed = True
         if ext and not ext in constants.ACCEPTED_FILE_EXTENSIONS:
             invalid_files.append(file_path)
@@ -359,7 +405,7 @@ def is_hgi_project(project):
 
 
 def detect_file_type(file_path):
-    #file_extension = utils.extract_extension(file_path)
+    #file_extension = utils.get_file_extension(file_path)
     fname, f_ext = extract_fname_and_ext(file_path)
     if f_ext == 'bam':
         return constants.BAM_FILE
@@ -447,16 +493,21 @@ def levenshtein(a,b):
 
 
 def is_accession_nr(field):
-    ''' The ENA accession numbers all start with: ERS, SRS, DRS or EGA. '''
+    ''' 
+        The ENA accession numbers all start with: ERS, SRS, DRS or EGA. 
+    '''
+    if type(field) == int:
+        return False
     if field.startswith('ER') or field.startswith('SR') or field.startswith('DR') or field.startswith('EGA'):
         return True
     return False
 
 def is_internal_id(field):
-    pattern = re.compile('[0-9]{4,9}')
-    if pattern.match(field) == None:
-        return False
-    return True
+    if type(field) == int:
+        return True
+    if field.isdigit():
+        return True
+    return False
 
 def is_name(field):
     is_match = re.search('[0-9a-zA-Z]', field)

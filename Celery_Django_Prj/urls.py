@@ -8,9 +8,9 @@ from django.conf.urls import patterns, include, url
 
 #from multiprocessing import Process
 #import settings
-
-########## PROCESS BASED: ###############
-# Working with a backgroup process...
+#
+########### PROCESS BASED: ###############
+## Working with a backgroup process...
 #print "SETTINGS WSGI ARGS: ", settings.WSGI_APPLICATION
 #daemon_process = Process(target=results_processing.my_monitor)
 #daemon_process.daemon = True
@@ -55,9 +55,12 @@ urlpatterns = patterns('',
     
     url(r'^api-rest/', include('serapis.rest_urls', namespace='rest_framework')),
     
-    url(r'^admin/', include('serapis.controller.admin.frontend.urls', namespace='rest_framework')),
+    #url(r'^admin/', include('serapis.controller.admin.frontend.urls', namespace='rest_framework')),
     
-    
+    url(r'^api-auth/', include('rest_framework.urls',  namespace='rest_framework')),
+ 
+#    url(r'^api-auth/', include('rest_framework.urls',  namespace='rest_framework')),
+
     #url(r'^rest-api/', include('rest_framework_docs.urls')),
     
 #    url(r'api/doc/', include('tastypie_swagger.urls', namespace='tastypie_swagger')),
@@ -65,3 +68,4 @@ urlpatterns = patterns('',
 #    url(r'^api/', include(v1_api.urls),)
     
 )
+
