@@ -518,13 +518,6 @@ class TestDoc2(Document):
     #file_header_mdata_status = StringField(choices=FILE_HEADER_MDATA_STATUS)
     #file_header_mdata_seqsc_status = StringField(choices=FILE_MDATA_STATUS)
 
-  
-#
-#class BAMFileBatch(FileBatch):
-#    experiment_id = StringField
-#    
-#class VCFFileBatch(FileBatch):
-#    pass    
 
 
 
