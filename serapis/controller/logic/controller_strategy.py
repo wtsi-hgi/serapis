@@ -830,6 +830,8 @@ class BackendOperationsStrategy(object):
             validator.irods_post_validator(request_data)
 
     def extract_data(self, request_data):
+        if not request_data:
+            return  {'atomic' : False}
         if not 'atomic' in request_data:
             return {'atomic' : False}
         return {'atomic' : True}
