@@ -320,13 +320,13 @@ class BatchTasksLauncher(object):
                 task_id = self.task_launcher.launch_parse_file_header_task(file_obj, queue=constants.PROCESS_MDATA_Q+queue_suffix)
                 tasks_dict[task_id] = {'type' : constants.PARSE_HEADER_TASK, 'status' : status }
             elif task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
-                task_id = self.task_launcher.launch_add_mdata2irods_task(file_obj, file_obj)
+                task_id = self.task_launcher.launch_add_mdata2irods_task(file_obj)
                 tasks_dict[task_id] = {'type' : constants.ADD_META_TO_IRODS_FILE_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
             elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
-                task_id = self.task_launcher.launch_submit2irods_task(file_obj, file_obj)
+                task_id = self.task_launcher.launch_submit2irods_task(file_obj)
                 tasks_dict[task_id] = {'type' : constants.SUBMIT_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
             elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
-                task_id = self.task_launcher.launch_move_to_permanent_coll_task(file_obj, file_obj)
+                task_id = self.task_launcher.launch_move_to_permanent_coll_task(file_obj)
                 tasks_dict[task_id] = {'type' : constants.MOVE_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
         return tasks_dict
 
