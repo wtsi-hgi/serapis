@@ -782,7 +782,7 @@ class AddFileToSubmissionStrategy(ResourceHandlingStrategy):
     
     def process_request(self, context):
         submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
-        
+        # unfinished - intended to be used when adding new files to an existing submission
 
     
 
@@ -878,7 +878,9 @@ class BackendSubmissionStrategy(BackendOperationsStrategy):
         i.e. adding the metadata to it present in the DB and moving it from
         the staging area to the permanent backend collection.'''
     task_name = constants.SUBMIT_TO_PERMANENT_COLL_TASK
-    
+
+    def backend_file_operation(self, context, file_obj=None):
+        return super(BackendSubmissionStrategy, self).backend_file_operation(context)
 
 class BackendMetadataHandlingStrategy(BackendOperationsStrategy):
     ''' This class contains the functionality for adding/removing/updating the metadata of an iRODS data object (file).'''
@@ -889,12 +891,17 @@ class MoveFilesToPermanentBackendCollection(BackendOperationsStrategy):
         to the permanent backend collection, if they fulfill the requirements needed.'''
     task_name = constants.MOVE_TO_PERMANENT_COLL_TASK
     
+    def backend_file_operation(self, context, file_obj=None):
+        return super(MoveFilesToPermanentBackendCollection, self).backend_file_operation(context)
+
 
 class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
     ''' This class contains the functionality for adding metadata to a staged file.'''
     task_name = constants.ADD_META_TO_IRODS_FILE_TASK
 
-
+    def backend_file_operation(self, context, file_obj=None):
+        return super(AddMetadataToBackendFileStrategy, self).backend_file_operation(context)
+    
 ##### WORKERS EVENTS #######
 
 

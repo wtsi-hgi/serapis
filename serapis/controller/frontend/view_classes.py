@@ -107,6 +107,16 @@ class ReferencesMainPageRequestHandler(SerapisUserAPIView):
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
 #    
     def get(self, request):
+#        from django.contrib.auth.models import User
+#        user = User.objects.create_user('admin', 'ic4@sanger.ac.uk', 'pass')
+#
+#        # At this point, user is a User object that has already been saved
+#        # to the database. You can continue to change its attributes
+#        # if you want to change other fields.
+#        user.last_name = 'Colgiu'
+#        user.first_name = 'Irina'
+#        user.save()
+#        
         context = controller_strategy.GeneralReferenceGenomeContext()
         if roles.is_admin(request):
             strategy = controller_strategy.ReferenceGenomeRetrivalAdminStrategy()
@@ -352,7 +362,10 @@ class SubmissionRequestHandler(SerapisUserAPIView):
         ''' Deletes the submission given by submission_id. '''
         try:
             result = dict()
-            was_deleted = controller.delete_submission(submission_id)
+            context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
+            strategy = controller_strategy.ResourceDeletionStrategy()
+            was_deleted = strategy.process_request(context)
+            #was_deleted = controller.delete_submission(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=status.HTTP_404_NOT_FOUND)

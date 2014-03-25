@@ -348,7 +348,7 @@ class UploadFileTask(iRODSTask):
 #                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
 #                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
         
-        irods_utils.upload_irods_file(file_path)
+        irods_utils.upload_irods_file(file_path, irods_coll)
 #        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 #        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 #        child_pid = iput_proc.pid
