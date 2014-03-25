@@ -242,11 +242,12 @@ class FileBusinessLogic:
         if not is_ready.result:
             return is_ready
         
+        #def submit_list_of_tasks(self, list_of_tasks, file_obj, user_id, as_serapis=True):
         # Submitting a list of tasks:
         submitted_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks([task_name], 
-                                                                          file_id, 
-                                                                          user_id=None, 
-                                                                          file_obj=file_obj)
+                                                                          file_obj=file_obj, 
+                                                                          user_id=None
+                                                                          )
         file_obj.tasks_dict.update(submitted_tasks_dict)
         file_submission_status = cls._infer_file_submission_status(task_name)
         cls.after_tasks_submission(file_id, [task_name], file_obj.tasks_dict, file_submission_status)
