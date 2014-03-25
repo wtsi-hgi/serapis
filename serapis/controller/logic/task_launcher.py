@@ -29,6 +29,7 @@ from serapis.com import constants, utils
 from serapis.worker import tasks
 from serapis.controller import serapis2irods
 from serapis.controller.db import data_access, models
+from serapis.controller.logic import serapis_models
 from serapis.controller.serapis2irods import serapis2irods_logic
 from serapis import serializers
 
@@ -96,12 +97,12 @@ class TaskLauncher(object):
     
     
     @staticmethod
+    @abc.abstractmethod
     def launch_update_file_task(file_obj, queue=constants.SERAPIS_PROCESS_MDATA_Q):
         if not file_obj:
             logging.error("LAUNCH update file metadata called with null parameters. The task  wasn't submitted to the queue!")
             return None
         logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
-        #file_serialized = serializers.serialize(file_submitted)
         file_serialized = serializers.serialize_excluding_meta(file_obj)
         task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                     'file_id' : file_obj.file_id,
@@ -131,12 +132,10 @@ class TaskLauncher(object):
         if not file_obj:
             logging.error("LAUNCH ADD METADATA TO IRODS -- called with null parameters. Task was NOT submitted to the queue.")
             return None
-#        if not file_obj:
-#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
 #            
         logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
         irods_mdata_dict = serapis2irods_logic.gather_mdata(file_obj)
-        irods_mdata_dict = serializers.serialize(irods_mdata_dict)
+        #irods_mdata_dict = serializers.serialize(irods_mdata_dict)
         
         index_mdata, index_file_path_irods = None, None
         if hasattr(file_obj.index_file, 'file_path_client') and getattr(file_obj.index_file, 'file_path_client'):
@@ -241,6 +240,10 @@ class TaskLauncherBAMFile(TaskLauncher):
         logging.info("PUTTING THE PARSE HEADER TASK IN THE QUEUE")
         file_serialized = serializers.serialize_excluding_meta(file_obj)
         #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
+        
+#        serapis_file = serapis_models.BAMFileModel.build_from_db_model(file_obj)
+#        file_serialized = serializers.serialize(serapis_file)
+        print "FILE TYPE -- after serializing: ", type(file_serialized)
         task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,

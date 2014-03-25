@@ -27,6 +27,7 @@ from rest_framework import serializers
 from mongoengine.fields import *
 
 from serapis.controller.db import models
+from serapis.controller.logic import serapis_models
 
 import simplejson
 import json
@@ -86,7 +87,7 @@ def serialize1(data):
 
 
 def serialize(data):
-    #return simplejson.dumps(data, default=encode_model, indent=4)
+    return simplejson.dumps(data, default=encode_model, indent=4)
     #return simplejson.dumps(data, default=encode2, ensure_ascii=False)
     return data
 

@@ -643,9 +643,13 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
     # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
-        file_serialized     = kwargs['file_mdata']
-        file_mdata          = deserialize(file_serialized)
+        #file_serialized     = kwargs['file_mdata']
+        #file_mdata          = deserialize(file_serialized)
+        file_mdata           = kwargs['file_mdata']
+        file_mdata          = deserialize(file_mdata)
+        
         file_id             = kwargs['file_id']
+        submission_id       = kwargs['submission_id']
         
         header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
         
@@ -677,7 +681,7 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         result['result'] = filter_none_fields(vars(file_mdata))
         result['status'] = constants.SUCCESS_STATUS
         result['task_id'] = current_task.request.id
-        resp = send_http_PUT_req(result, file_mdata.submission_id, file_id)
+        resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER -- parse: ", resp
         if (resp.status_code == requests.codes.ok):
             print "OK"
@@ -733,6 +737,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
         file_id             = kwargs['file_id']
         file_serialized     = kwargs['file_mdata']
         file_mdata          = deserialize(file_serialized)
+        #file_mdata          = file_serialized
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         
@@ -1055,7 +1060,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             (out, err) = child_proc.communicate()
             if err:
                 print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path_irods, " error: ", err, " output: ",out
-                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
+                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+dest_file_path_irods+" "+attr_name+" "+attr_val)
             print "ROLLING BACK THE ADD MDATA FOR FILE..."
         
         if index_file_path_irods:
@@ -1082,7 +1087,12 @@ class AddMdataToIRODSFileTask(iRODSTask):
         
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
-        errors = self.rollback(kwargs)
+        try:
+            errors = self.rollback(kwargs)
+        except exceptions.iMetaException as e:
+            # This is thrown probably because I am trying to imeta rm a pair that hasn't yet been added
+            pass
+    
         result = dict()
         result['task_id']   = current_task.request.id
         result['status']    = constants.FAILURE_STATUS
