@@ -135,7 +135,8 @@ class ResourceModificationStrategy(ResourceHandlingStrategy):
 class ReferenceGenomeRetrievalStrategy(ResourceHandlingStrategy):
     @classmethod
     def validate(cls, request_data):
-        validator.reference_genome_schema(request_data)
+        if request_data:
+            validator.reference_genome_schema(request_data)
         
 
 class ReferenceGenomeRetrivalUserStrategy(ReferenceGenomeRetrievalStrategy):
@@ -167,7 +168,8 @@ class ReferenceGenomeInsertionStrategy(ResourceCreationStrategy):
     
     @classmethod
     def validate(cls, request_data):
-        validator.reference_genome_schema(request_data)
+        if request_data:
+            validator.reference_genome_schema(request_data)
         
     def process_request(self, context):
         if not context.request_data:
@@ -186,7 +188,8 @@ class ReferenceGenomeModificationStrategy(ResourceModificationStrategy):
     
     @classmethod
     def validate(cls, request_data):
-        validator.reference_genome_schema(request_data)
+        if request_data:
+            validator.reference_genome_schema(request_data)
         
     # context = ReferenceGenomeContext type
     def process_request(self, context):
@@ -313,7 +316,8 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
     
     @classmethod
     def validate(cls, request_data):
-        validator.submission_post_validator(request_data)
+        if request_data:
+            validator.submission_post_validator(request_data)
         
     @classmethod
     def extract_data(cls, request_data):
@@ -709,7 +713,8 @@ class ResubmissionOperationsStrategy(object):
         return utils.unicode2string(request_data)
     
     def validate(self, request_data):
-        validator.resubmission_message_validator(request_data)
+        if request_data:
+            validator.resubmission_message_validator(request_data)
  
     
  
@@ -821,7 +826,8 @@ class BackendOperationsStrategy(object):
         return utils.unicode2string(request_data)
     
     def validate(self, request_data):
-        validator.irods_post_validator(request_data)
+        if request_data:
+            validator.irods_post_validator(request_data)
 
     def extract_data(self, request_data):
         if not 'atomic' in request_data:
