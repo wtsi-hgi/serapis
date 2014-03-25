@@ -872,8 +872,8 @@ class BackendOperationsStrategy(object):
         self.validate(req_data)
         req_data = self.extract_data(req_data)
         if req_data['atomic']:
-            return self.apply_atomically_on_all_files()
-        return self.apply_nonatomically_on_all_files()
+            return self.apply_atomically_on_all_files(context)
+        return self.apply_nonatomically_on_all_files(context)
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
