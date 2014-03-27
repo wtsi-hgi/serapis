@@ -1536,10 +1536,34 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
 #    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
+    
+    def get(self, request, submission_id, file_id):
+        ''' 
+            Retrieves the metadata from the DB in the form that will be sent to irods.
+        '''
+        try:
+            result = {}
+            context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id)
+            strategy = controller_strategy.
+            
+            
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+    
     def post(self, request, submission_id, file_id, format=None):
         ''' Attaches the metadata to the file, while it's still in the staging area'''
         try:
-            result = dict()
+            result = {}
             #added_meta = controller.add_meta_to_staged_file(file_id)
             req_data = request.DATA if hasattr(request, 'DATA') else None
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
@@ -1559,6 +1583,7 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
+            # BUG: if here returns always TRUE!!!!!!!!!!!!!!
             if submission_result.result:
                 return Response(result, status=202)
             if submission_result.error_dict:

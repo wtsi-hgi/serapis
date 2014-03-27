@@ -30,6 +30,7 @@ from serapis.controller import db_model_operations
 from serapis.controller.logic import status_checker
 from serapis.controller.db import data_access, models, model_builder
 from serapis.controller import exceptions
+from serapis.controller.serapis2irods import serapis2irods_logic, convert_mdata
 #from serapis import controller
 #from serapis.controller.db import data_access
 
@@ -285,6 +286,24 @@ class FileBusinessLogic:
         
     
    
+    @classmethod
+    def retrieve_all_file_meta_from_DB(cls, file_id, file_obj=None):
+        if not file_obj:
+            data_access.FileDataAccess.retrieve_submitted_file(file_id)
+        irods_mdata_dict = serapis2irods_logic.gather_mdata(file_obj)
+        return irods_mdata_dict
+    
+    
+    @classmethod
+    def retrieve_all_index_file_meta_from_DB(cls, file_id, file_obj=None):
+        if not file_obj:
+            data_access.FileDataAccess.retrieve_submitted_file(file_id)
+        index_mdata = None
+        if hasattr(file_obj.index_file, 'file_path_client') and getattr(file_obj.index_file, 'file_path_client'):
+            index_mdata = convert_mdata.convert_index_file_mdata(file_obj.index_file.md5, file_obj.md5)
+        else:
+            raise exceptions.NoIndexFileException(file_id)
+        return index_mdata
     
 #    @classmethod
 #    def update_entity_in_filemeta(cls, entity_json, entity_type, sender, file_id, submitted_file=None):

@@ -30,7 +30,9 @@ from serapis.worker import tasks
 from serapis.controller import serapis2irods
 from serapis.controller.db import data_access, models
 from serapis.controller.logic import serapis_models
-from serapis.controller.serapis2irods import serapis2irods_logic
+#from serapis.controller.serapis2irods import serapis2irods_logic
+from serapis.controller.logic import app_logic
+from serapis.controller import exceptions
 from serapis import serializers
 
 
@@ -132,34 +134,31 @@ class TaskLauncher(object):
         if not file_obj:
             logging.error("LAUNCH ADD METADATA TO IRODS -- called with null parameters. Task was NOT submitted to the queue.")
             return None
-#            
         logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
-        irods_mdata_dict = serapis2irods_logic.gather_mdata(file_obj)
-        #irods_mdata_dict = serializers.serialize(irods_mdata_dict)
+
+        file_mdata = app_logic.FileBusinessLogic.retrieve_all_file_meta_from_DB(file_obj.file_id, file_obj)
+        fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client)
         
-        index_mdata, index_file_path_irods = None, None
-        if hasattr(file_obj.index_file, 'file_path_client') and getattr(file_obj.index_file, 'file_path_client'):
-            index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_obj.index_file.md5, file_obj.md5)
-            (_, index_file_name) = os.path.split(file_obj.index_file.file_path_client)
-            index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
+        index_mdata, index_fpath_irods = None, None
+        try:
+            index_mdata = app_logic.FileBusinessLogic.retrieve_all_index_file_meta_from_DB(file_obj.file_id, file_obj)
+        except exceptions.NoIndexFileException:
+            logging.warn("THIS FILE HAS NO INDEX FILE!!! INDEX FILE MISSING!!!")
+            pass
         else:
-            logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
-    
-        (_, file_name) = os.path.split(file_obj.file_path_client)
-        file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
+            index_fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.index_file.file_path_client) 
         
         task = add_mdata_to_IRODS_file_task.apply_async(kwargs={
                                                       'file_id' : file_obj.file_id,
                                                       'submission_id' : file_obj.submission_id,
-                                                      'file_mdata_irods' : irods_mdata_dict,
+                                                      'file_mdata_irods' : file_mdata,
                                                       'index_file_mdata_irods': index_mdata,
-                                                      'file_path_irods' : file_path_irods,
-                                                      'index_file_path_irods' : index_file_path_irods,
+                                                      'file_path_irods' : fpath_irods,
+                                                      'index_file_path_irods' : index_fpath_irods,
                                                      },
                                                  queue=constants.IRODS_Q)
         return task.id
-    
-    
+
     
     @staticmethod
     def launch_move_to_permanent_coll_task(file_obj):
@@ -169,15 +168,17 @@ class TaskLauncher(object):
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj)
         
-        # Inferring the file's location in iRODS staging area: 
-        (_, file_name) = os.path.split(file_obj.file_path_client)
-        file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
-        
+        # Inferring the file's location in iRODS staging area:
+        fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client) 
+#        (_, file_name) = os.path.split(file_obj.file_path_client)
+#        file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
+#        
         # If there is an index => putting together the metadata for it
-        index_file_path_irods = None
+        index_fpath_irods = None
         if hasattr(file_obj.index_file, 'file_path_client'):
-            (_, index_file_name) = os.path.split(file_obj.index_file.file_path_client)
-            index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
+#            (_, index_file_name) = os.path.split(file_obj.index_file.file_path_client)
+#            index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
+            index_fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.index_file.file_path_client)
         else:
             logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
         
@@ -185,8 +186,8 @@ class TaskLauncher(object):
         task = move_to_permanent_coll_task.apply_async(kwargs={
                                                                'file_id' : file_obj.file_id,
                                                                'submission_id' : file_obj.submission_id,
-                                                               'file_path_irods' : file_path_irods,
-                                                               'index_file_path_irods' : index_file_path_irods,
+                                                               'file_path_irods' : fpath_irods,
+                                                               'index_file_path_irods' : index_fpath_irods,
                                                                'permanent_coll_irods' : permanent_coll_irods
                                                                },
                                                        queue=constants.IRODS_Q
@@ -243,7 +244,6 @@ class TaskLauncherBAMFile(TaskLauncher):
         
 #        serapis_file = serapis_models.BAMFileModel.build_from_db_model(file_obj)
 #        file_serialized = serializers.serialize(serapis_file)
-        print "FILE TYPE -- after serializing: ", type(file_serialized)
         task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,

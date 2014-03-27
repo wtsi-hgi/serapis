@@ -910,6 +910,22 @@ class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
     def backend_file_operation(self, context, file_obj=None):
         return super(AddMetadataToBackendFileStrategy, self).backend_file_operation(context)
     
+
+class RetrieveMetadataForBackendFileStrategy(BackendMetadataHandlingStrategy):
+    ''' 
+        This class contains the functionality for getting the metadata from the temporary
+        DB and presenting it to the user in the form that will be sent to iRODS.
+        This class is a bit unappropriately placed here - since it hasn't got to do directly
+        with the backend.
+        TODO: Maybe in the future - check if a file has metadata attached to it in iRODS, and
+        if it does, fetch that one, if not, process the data available for this file in the DB
+        and return exactly the metadata that will be stored in iRODS in the future.
+    '''
+
+    @abc.abstractmethod
+    def backend_file_operation(self, context, file_obj=None):
+        return app_logic.FileBusinessLogic.retrieve_all_file_meta_from_DB(context.file_id)
+
 ##### WORKERS EVENTS #######
 
 

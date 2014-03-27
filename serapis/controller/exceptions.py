@@ -381,7 +381,18 @@ class MdataProblem(SerapisException):
     def __str__(self):
         return 'Internal error - reason: '+self.reason
     
-#    
+
+class NoIndexFileException(SerapisException):
+    ''' 
+        This exception is thrown when a file hasn't got an index file attached to it.
+    '''
+    def __init__(self, file_id):
+        self.file_id = file_id
+        
+    def __str__(self):
+        return "File %s hasn't got an index attached to it" % self.file_id
+        
+
 ######## Exceptions related to worker management and broker issues (Rabbitmq): #####
 #
 #class NonexistingQueue

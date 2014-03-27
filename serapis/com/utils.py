@@ -386,6 +386,14 @@ def build_irods_staging_path(submission_id):
     '''
     return os.path.join(constants.IRODS_STAGING_AREA, submission_id)
 
+def build_irods_file_staging_path(submission_id, file_path_client):
+    ''' 
+        This function puts together the path where a file is stored in irods staging area.
+    '''
+    (_, fname) = os.path.split(file_path_client)
+    return os.path.join(constants.IRODS_STAGING_AREA, submission_id, fname)
+        
+
 #def build_file_path_irods(client_file_path, irods_coll_path):
 #    (_, src_file_name) = os.path.split(client_file_path)  
 #    return os.path.join(irods_coll_path, src_file_name)
