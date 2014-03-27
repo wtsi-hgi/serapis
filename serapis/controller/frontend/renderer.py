@@ -36,7 +36,7 @@ class SerapisJSONRenderer(BaseRenderer):
             out = str(obj)
         elif isinstance(obj, mongoengine.queryset.QuerySet):
             out = list(obj)
-        elif isinstance(obj, (list,dict)):
+        elif isinstance(obj, (list,dict, tuple)):
             out = obj
         elif isinstance(obj, object):
             out = obj.__dict__

@@ -922,9 +922,18 @@ class RetrieveMetadataForBackendFileStrategy(BackendMetadataHandlingStrategy):
         and return exactly the metadata that will be stored in iRODS in the future.
     '''
 
-    @abc.abstractmethod
     def backend_file_operation(self, context, file_obj=None):
-        return app_logic.FileBusinessLogic.retrieve_all_file_meta_from_DB(context.file_id)
+        return serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(context.file_id)
+
+
+    @multimethod(SpecificSubmissionContext)
+    def process_request(self, context):
+        return serapis2irods.serapis2irods_logic.get_all_files_metadata_for_submission(context.submission_id)
+    
+    
+    @multimethod(SpecificFileContext)
+    def process_request(self, context):
+        return self.backend_file_operation(context)
 
 ##### WORKERS EVENTS #######
 

@@ -1485,6 +1485,36 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
 #    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
+    
+    def get(self, request, submission_id):
+        ''' 
+            This retrieves the metadata for all the files in the specified submission,
+            and returns it in the form that it will be sent to irods,
+        '''
+        try:
+            result = {}
+            context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
+            strategy = controller_strategy.RetrieveMetadataForBackendFileStrategy()
+            file_metadata = strategy.process_request(context)
+            print "RESULT BEFORE RETURNING IT::::::::::::::::::::::", file_metadata
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = file_metadata
+            return Response(result, status=status.HTTP_200_OK)
+            
+    
+    
     def post(self, request, submission_id, format=None):
         ''' Attaches the metadata to all the files in the submission, 
             while they are still in the staging area'''
@@ -1544,9 +1574,8 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         try:
             result = {}
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id)
-            strategy = controller_strategy.
-            
-            
+            strategy = controller_strategy.RetrieveMetadataForBackendFileStrategy()
+            file_metadata = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -1559,6 +1588,10 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         except exceptions.IncorrectMetadataError as e:
             result['errors'] = e.message
             return Response(result, status=424)
+        else:
+            result['result'] = file_metadata
+            return Response(result, status=status.HTTP_200_OK)
+            
     
     def post(self, request, submission_id, file_id, format=None):
         ''' Attaches the metadata to the file, while it's still in the staging area'''

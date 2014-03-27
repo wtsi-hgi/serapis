@@ -24,7 +24,7 @@
 #from serapis.controller import db_model_operations
 from serapis.controller.db import data_access
 import convert_mdata
-
+from serapis.controller import exceptions
 
 
 def gather_mdata(file_to_submit, user_id=None, submission_date=None):
@@ -43,3 +43,34 @@ def gather_mdata(file_to_submit, user_id=None, submission_date=None):
     for mdata in irods_mdata_dict:
         print mdata
     return irods_mdata_dict
+
+
+def get_all_file_meta_from_DB(file_id, file_obj=None):
+    if not file_obj:
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+    irods_mdata_dict = gather_mdata(file_obj)
+    return irods_mdata_dict
+
+
+def get_all_index_file_meta_from_DB(file_id, file_obj=None):
+    if not file_obj:
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+    index_mdata = None
+    if hasattr(file_obj.index_file, 'file_path_client') and getattr(file_obj.index_file, 'file_path_client'):
+        index_mdata = convert_mdata.convert_index_file_mdata(file_obj.index_file.md5, file_obj.md5)
+    else:
+        raise exceptions.NoIndexFileException(file_id)
+    return index_mdata
+
+
+def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
+    if not submission_obj:
+        submission_obj = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
+    result_dict = {}
+    for f_id in submission_obj.files_list:
+        result_dict[str(f_id)] = get_all_file_meta_from_DB(str(f_id))
+    return result_dict
+
+
+
+

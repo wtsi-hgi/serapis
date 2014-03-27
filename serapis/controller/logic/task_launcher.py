@@ -31,7 +31,6 @@ from serapis.controller import serapis2irods
 from serapis.controller.db import data_access, models
 from serapis.controller.logic import serapis_models
 #from serapis.controller.serapis2irods import serapis2irods_logic
-from serapis.controller.logic import app_logic
 from serapis.controller import exceptions
 from serapis import serializers
 
@@ -136,12 +135,12 @@ class TaskLauncher(object):
             return None
         logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
 
-        file_mdata = app_logic.FileBusinessLogic.retrieve_all_file_meta_from_DB(file_obj.file_id, file_obj)
+        file_mdata = serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_obj.file_id, file_obj)
         fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client)
         
         index_mdata, index_fpath_irods = None, None
         try:
-            index_mdata = app_logic.FileBusinessLogic.retrieve_all_index_file_meta_from_DB(file_obj.file_id, file_obj)
+            index_mdata = serapis2irods.serapis2irods_logic.get_all_index_file_meta_from_DB(file_obj.file_id, file_obj)
         except exceptions.NoIndexFileException:
             logging.warn("THIS FILE HAS NO INDEX FILE!!! INDEX FILE MISSING!!!")
             pass
