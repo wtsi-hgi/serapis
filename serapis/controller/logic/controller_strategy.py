@@ -598,6 +598,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         subm_file = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
         file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(subm_file.file_type)
         
+        print "RECEIVED THE FOLLOWING IN UPDATE_FILE_FROM_TASK::::::::::::: ", vars(context)
         try: 
             task_type = subm_file.tasks_dict[context.request_data['task_id']]['type']
         except KeyError:

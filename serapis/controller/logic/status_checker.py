@@ -147,26 +147,6 @@ class StudyMetaStatusChecker(EntityMetaStatusChecker):
     @classmethod    
     def check_and_report_status(cls, study, error_report_dict, warning_report_dict=None):
         return super(StudyMetaStatusChecker, cls).check_and_report_status(study, error_report_dict, warning_report_dict)
-        
-#        if study.has_minimal == False:
-#            study_id_field = study.get_entity_identifying_field()
-#            has_min_mdata = True
-#            for field in cls.mandatory_fields_list: 
-#                if not hasattr(study, field) or not getattr(study, field):
-#                    cls._register_missing_field(field, study_id_field, constants.STUDY_TYPE, error_report_dict)
-#                    has_min_mdata = False
-#                elif type(getattr(study, field)) == list and len(getattr(study, field)) == 0:
-#                    cls._register_missing_field(field, study_id_field, constants.STUDY_TYPE, error_report_dict)
-#                    has_min_mdata = False
-#                else:
-#                    removed = cls._unregister_missing_field(field, study.internal_id, constants.STUDY_TYPE, error_report_dict)
-#                    if not removed:
-#                        cls._unregister_missing_field(field, study.name, constants.STUDY_TYPE, error_report_dict)
-#    
-#            if has_min_mdata == True:
-#                study.has_minimal = True
-#        return study.has_minimal
-
 
 
 class SampleMetaStatusChecker(EntityMetaStatusChecker):
@@ -181,31 +161,6 @@ class SampleMetaStatusChecker(EntityMetaStatusChecker):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
         return super(SampleMetaStatusChecker, cls).check_and_report_status(sample, error_report_dict, warning_report_dict)
 
-#        if sample.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-#            if sample.name != None or sample.internal_id != None:
-#                has_min_mdata = True
-#                sample_id_field = sample.get_entity_identifying_field()
-#                for field in cls.mandatory_fields_list:
-#                    if not hasattr(sample, field) or not getattr(sample, field):
-#                        cls._register_missing_field(field, sample_id_field, constants.SAMPLE_TYPE, error_report_dict)
-#                        has_min_mdata = False
-#                    else:
-#                        removed = cls._unregister_missing_field(field, sample.internal_id, constants.SAMPLE_TYPE, error_report_dict)
-#                        if not removed:
-#                            cls._unregister_missing_field(field, sample.name, constants.SAMPLE_TYPE, error_report_dict)
-#    
-#                has_optional_fields = False
-#                for field in constants.SAMPLE_OPTIONAL_FIELDS:
-#                    if hasattr(sample, field) and getattr(sample, field):
-#                        cls._unregister_missing_field(field, sample_id_field, constants.SAMPLE_TYPE, error_report_dict)
-#                        has_optional_fields = True
-#                    else:
-#                        cls._register_missing_field(field, sample_id_field, constants.SAMPLE_TYPE, error_report_dict)
-#                if not has_optional_fields:
-#                    has_min_mdata = False
-#                sample.has_minimal = has_min_mdata
-#        return sample.has_minimal
-
 
 class LibraryMetaStatusChecker(EntityMetaStatusChecker):
     ''' This class holds the functionality required for checking the status of a library,
@@ -218,26 +173,6 @@ class LibraryMetaStatusChecker(EntityMetaStatusChecker):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
         return super(LibraryMetaStatusChecker, cls).check_and_report_status(library, error_report_dict, warning_report_dict)
     
-#    @classmethod
-#    def check_and_report_status(cls, library, error_report_dict):
-#        ''' Checks if the library has the minimal mdata. Returns boolean.'''
-#        if library.has_minimal == False:
-#            if library.name != None or library.internal_id != None:  # TODO: and lib_source and lib_selection
-#            #    if library.library_source != None and library.library_selection != None and library.coverage != None:
-#                lib_id_field = library.get_entity_identifying_field()
-#                has_min_mdata = True
-#                for field in cls.mandatory_fields_list:
-#                    if not hasattr(library, field) or not getattr(library, field) or getattr(library, field) == 'unspecified':
-#                        cls._register_missing_field(field, lib_id_field, constants.LIBRARY_TYPE, error_report_dict)
-#                        has_min_mdata = False
-#                    else:
-#                        cls._unregister_missing_field(field, lib_id_field, constants.LIBRARY_TYPE, error_report_dict)
-#                
-#                if has_min_mdata == True:    
-#                    library.has_minimal = True
-#        return library.has_minimal
-
-
 
 class FileMetaStatusChecker(MetadataStatusChecker):
     ''' This is an abstract class which holds the functionality needed to check the status

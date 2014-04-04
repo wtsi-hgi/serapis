@@ -236,17 +236,25 @@ class Sample(Entity):
         print "ERROR: SEQSC -> SERAPIS MAPPER: THE SAMPLE FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         return val
 
+    @classmethod
+    def mangle_data(cls, sample):
+        if not hasattr(sample, 'organism') or getattr(sample, 'organism') is None: 
+            if hasattr(sample, 'common_name') and getattr(sample, 'common_name') is not None:
+                sample.organism = sample.common_name
+                del sample.common_name
+#        if sample_mdata['organism'] == None:
+#            if 'common_name' in sample_mdata and sample_mdata['common_name'] is not None:
+#                sample_mdata['organism'] = sample_mdata['common_name']
+#        return sample_mdata
   
-    @staticmethod
-    def build_from_seqscape(sample_mdata):
+    @classmethod
+    def build_from_seqscape(cls, sample_mdata):
         sample = Sample()
         for field_name, field_val in sample_mdata.iteritems():
             if field_val != None: 
                 norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
                 setattr(sample, field_name, norm_field_val)
-        if not hasattr(sample, 'organism') and hasattr(sample, 'common_name'):
-            sample.organism = sample.common_name
-            del sample.common_name 
+        cls.mangle_data(sample)
         return sample
     
 

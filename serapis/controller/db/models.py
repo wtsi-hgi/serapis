@@ -346,7 +346,7 @@ class BAMFile(SubmittedFile):
     
 class VCFFile(SubmittedFile):
     file_format = StringField(choices=constants.VCF_FORMATS)
-    used_samtools = BooleanField()
+    used_samtools = StringField()
     used_unified_genotyper = BooleanField()
 #    reference = StringField()
      

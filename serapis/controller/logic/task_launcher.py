@@ -91,9 +91,10 @@ class TaskLauncher(object):
                                                 'file_path' : file_obj.file_path_client,
                                                 'index_file_path' : file_obj.index_file.file_path_client, 
                                                 'submission_id' : file_obj.submission_id,
-                                                'irods_coll' : dest_irods_coll
+                                                'irods_coll' : dest_irods_coll, 
                                                 }, 
-                                            queue=queue)
+                                            #queue=queue)
+                                            )
         return task.id
     
     
@@ -304,6 +305,7 @@ class BatchTasksLauncher(object):
             # http://stackoverflow.com/questions/8506914/detect-whether-celery-is-available-running
             queue_suffix = '.'+user_id
             status = constants.PENDING_ON_USER_STATUS
+            
 
         # Submitting the tasks:
         tasks_dict = {}            

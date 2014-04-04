@@ -310,10 +310,45 @@ def get_submitted_file_status(file_id, file_obj=None):
     return result
 
 
+def get_submitted_file_status_no_updstatus(file_id, file_obj=None):
+    ''' 
+        Retrieves and returns the statuses of this file. 
+    '''
+    if not file_obj:
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+    result = {'file_path' : file_obj.file_path_client}
+    # !!! PROBLEM: If there are more tasks of the same type - this should be a list (DIct just for testing! 
+    i = 0
+    tasks_status_dict = []
+    task_dict = file_obj.tasks_dict
+#    for task_id, task_info_dict in task_dict.iteritems():
+#        task_type = task_info_dict['type']
+#        async = AsyncResult(task_id)
+#        if async:
+#            state = str(async.state)
+#            task_state_grade = constants.TASK_STATUS_HIERARCHY[state]
+#            db_state_grade = constants.TASK_STATUS_HIERARCHY[task_info_dict['status']]
+#            if task_state_grade > db_state_grade:
+#                tasks_status_dict.append((task_type, state))
+#            else:
+#                tasks_status_dict.append((task_type, task_info_dict['status']))
+#            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+#        else:
+#            tasks_status_dict.append((task_type, task_info_dict['status']))
+#        i +=1
+    tasks_status_dict = task_dict
+    result['tasks'] = tasks_status_dict
+    result['file_submission_status'] = file_obj.file_submission_status
+    result['file_metadata_status'] = file_obj.file_mdata_status
+    return result
+
+
+
 def get_all_submitted_files_status(submission_id):
 #    submission = db_model_operations.retrieve_submission(submission_id)
     files_list = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
-    result = {str(file_obj.id) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
+    #result = {str(file_obj.id) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
+    result = {str(file_obj.id) : get_submitted_file_status_no_updstatus(file_obj.id, file_obj) for file_obj in files_list}
     return result
 
 

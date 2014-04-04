@@ -28,6 +28,7 @@ from rest_framework import status
 
 #from serapis.forms import UploadForm
 from serapis.controller.frontend import validator, controller, permissions, roles
+from serapis.controller.frontend.parsers import GZIPParser
 from serapis import serializers
 from serapis.com import utils
 from serapis.controller.db import models
@@ -88,7 +89,7 @@ def catch_multiple_invalid_error(e):
 class SerapisUserAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
-    
+    parser_classes = (JSONParser, GZIPParser)
 
 class SerapisWorkerAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
@@ -764,7 +765,8 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
     '''
 #    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
-#    
+
+#    parser_classes = (JSONParser, GZIPParser)
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''

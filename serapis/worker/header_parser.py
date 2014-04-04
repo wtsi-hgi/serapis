@@ -1,7 +1,9 @@
 
+import abc
 import re
 import pysam
-from collections import defaultdict
+import gzip
+from collections import defaultdict, namedtuple
 
 from serapis.com import constants, utils
 
@@ -13,8 +15,6 @@ class MetadataHandling(object):
         identifier_type = None
         if utils.is_internal_id(identifier):
             identifier_type = 'internal_id'
-#        elif utils.is_name(identifier):
-#            identifier_type = 'name'
         else:
             identifier_type = 'name'
         return identifier_type
@@ -34,8 +34,11 @@ class MetadataHandling(object):
     
     @classmethod
     def guess_all_identifiers_type(cls, entity_list, entity_type):
-        ''' This method gets a list of entities as parameter and returns a list of k-v pairs,
-            in which the key = entity_identifier_name, and value = identifier itself.
+        ''' 
+            This method gets a list of entities as parameter and returns a list of tuples,
+            in which:
+                first value = entity_identifier_type(e.g.EGA, name,etc.), 
+                second value = the value of the identifier itself.
         '''
         if len(entity_list) == 0:
             return []
@@ -51,13 +54,39 @@ class MetadataHandling(object):
             entity_dict = (identifier_name, identifier)
             result_entity_list.append(entity_dict)
         return result_entity_list
+    
+    
+
+# Named tuples for each header type used as container for returning results:
+BAMHeader = namedtuple('BAMHeader', ['seq_centers', 
+                                     'seq_date_list', 
+                                     'run_ids_list',
+                                     'platform_list',
+                                     'library_list',
+                                     'sample_list',
+                                     ])
+VCFHeader = namedtuple('VCFHeader', [
+                                     'vcf_format', 
+                                     'samtools_version',
+                                     'reference',
+                                     'sample_list'
+                                     ])
 
 
 class HeaderParser(object):
-    pass
+    ''' 
+        Abstract class to be inherited by all the classes that contain header parsing functionality.
+    '''    
+    @classmethod
+    @abc.abstractmethod
+    def parse_header(self):
+        raise NotImplementedError
+
 
 class BAMHeaderParser(HeaderParser):
-
+    ''' 
+        Class containing the functionality for parsing BAM file's header.
+    '''
     HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
     
     @classmethod
@@ -196,7 +225,6 @@ class BAMHeaderParser(HeaderParser):
                 platf_list = fields_lists['PL']
         return list(set(platf_list))
     
-    
 
     @classmethod    
     def parse_header(cls, path):
@@ -218,20 +246,127 @@ class BAMHeaderParser(HeaderParser):
         library_ids_list = header_fields_lists['LB']    # list of strings representing the library names found in the header
         sample_ids_list = header_fields_lists['SM']     # list of strings representing sample names/identifiers found in header
     
-        libs_list = MetadataHandling.guess_all_identifiers_type(library_ids_list, constants.LIBRARY_TYPE)
-        samples_list = MetadataHandling.guess_all_identifiers_type(sample_ids_list, constants.SAMPLE_TYPE)
 
-        result = {
-                'seq_centers' : seq_centers,
-                'seq_date_list' : seq_date_list,
-                'run_ids_list' : run_ids_list,
-                'platform_list' : platform_list,
-                'library_list' : libs_list,
-                'sample_list' : samples_list
-                } 
-        return result
+#        result = {
+#                'seq_centers' : seq_centers,
+#                'seq_date_list' : seq_date_list,
+#                'run_ids_list' : run_ids_list,
+#                'platform_list' : platform_list,
+#                'library_list' : library_ids_list,
+#                'sample_list' : sample_ids_list
+#                } 
+        return BAMHeader(
+                           seq_centers=seq_centers,
+                           seq_date_list=seq_date_list,
+                           run_ids_list=run_ids_list,
+                           platform_list=platform_list,
+                           library_list=library_ids_list,
+                           sample_list=sample_ids_list
+                           )
     
     
+class VCFHeaderParser(HeaderParser):
+    ''' 
+        This class contains the functionality needed for VCF file's header.
+    '''
+    @classmethod
+    def extract_sample_list_from_header(cls, header):
+        ''' 
+            This function extracts the list of samples from the file header  and returns it.
+            Params: 
+                the header (string)
+            Returns:
+                list of samples identifiers
+        '''
+        samples = []
+        for line in header.split('\n'):
+            if line.startswith('#CHROM'):
+                columns = line.split()
+                for col in columns:
+                    if col not in ['#CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO', 'FORMAT']:
+                        samples.append(col)
+        return samples
     
+    
+    @classmethod
+    def extract_reference_from_file_header(cls, header):
+        ''' 
+            This function checks if there is any mention in the header 
+            regarding the reference file used and returns it if so.  
+        '''
+        ref_path = None
+        for line in header.split('\n'):
+            if line.startswith('##reference'):
+                items = line.split('=')
+                if len(items) == 2:
+                    ref_path = items[1]
+                    if ref_path.startswith('file://'):
+                        ref_path = ref_path[7:]
+                break
+        return ref_path
+                
+    
+    @classmethod
+    def extract_samtools_version(cls, header):
+        '''' 
+            This function checks if there is any mention in the header
+            that samtools was used for processing, and returns the samtools version if so.
+        '''
+        samtools_version = None
+        for line in header.split('\n'):
+            if line.startswith('##samtools'):
+                items = line.split('=')
+                if len(items) == 2:
+                    samtools_version = items[1]
+                break
+        return samtools_version
+
+    @classmethod
+    def extract_vcf_format(cls, header):
+        ''' 
+            This function checks if there is any mention in the header
+            regarding the vcf format, and returns the format number if so.
+        '''
+        vcf_format = None
+        for line in header.split('\n'):
+            if line.startswith('##fileformat'):
+                items = line.split('=')
+                if len(items) == 2:
+                    vcf_format = items[1]
+                break
+        return vcf_format
+                
+    
+    @classmethod
+    def extract_file_header(cls, fpath):
+        ''' 
+            This function extracts the file header and returns it.
+        '''
+        header = ''
+        if fpath.endswith('.gz'):
+            infile = gzip.open(fpath, 'rb')
+        else:
+            infile = open(fpath)
+        for line in infile:
+            if line.startswith("#"):
+                header += line
+            else:
+                break
+        infile.close()
+        return header
+    
+    @classmethod
+    def parse_header(cls, fpath):
+        header = cls.extract_file_header(fpath)
+        vcf_format = cls.extract_vcf_format(header)
+        samtools_version = cls.extract_samtools_version(header)
+        reference = cls.extract_reference_from_file_header(header)
+        sample_list = cls.extract_sample_list_from_header(header)
+        return VCFHeader(
+                           vcf_format=vcf_format,
+                           samtools_version=samtools_version,
+                           reference=reference,
+                           sample_list=sample_list,
+                           ) 
     
         

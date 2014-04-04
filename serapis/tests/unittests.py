@@ -161,48 +161,6 @@ class TestTasks(unittest.TestCase):
     def test_parse_vcf_file_header(self):
         vcf_parse_task = tasks.ParseVCFHeaderTask()
         
-        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/7-helic.vqsr.vcf.gz'
-        samples = vcf_parse_task.get_samples_from_file_header(file_path)
-        self.assertEqual(len(samples), 941)
-        
-        
-        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/kaz-21.vqsr.vcf.gz'
-        samples = vcf_parse_task.get_samples_from_file_header(file_path)
-        self.assertEqual(len(samples), 100)
-        
-        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/X.vqsr.vcf.gz'
-        samples = vcf_parse_task.get_samples_from_file_header(file_path)
-        self.assertEqual(len(samples), 970)
-        
-        
-        
-        file_path = '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
-        samples = vcf_parse_task.get_samples_from_file_header(file_path)
-        self.assertEqual(len(samples), 5)
-    
-        # Test the run fct:
-        true_samples = [{'accession_number' : 'EGAN00001089419'}, {'accession_number' : 'EGAN00001094533'}, {'accession_number' : 'EGAN00001094534'}, 
-                            {'accession_number' : 'EGAN00001097231'}, {'accession_number' : 'EGAN00001097232'}] 
-        incomplete_entities = vcf_parse_task.build_search_dict(samples, constants.SAMPLE_TYPE)
-        self.assertListEqual(true_samples, incomplete_entities)
-        
-        vcf_file = entities.VCFFile()
-        processSeqsc = tasks.ProcessSeqScapeData()
-        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
-        self.assertEqual(len(vcf_file.sample_list), len(samples))
-        
-        for sample in vcf_file.sample_list:
-            if sample.accession_number == 'EGAN00001089419':
-                self.assertEqual(sample.internal_id, 1504427)
-                self.assertEqual(sample.name,'SC_PSC5414004')
-                self.assertEqual(sample.cohort, 'SC_PSC')
-            elif sample.accession_number == 'EGAN00001094533':
-                self.assertEqual(sample.internal_id, 1557862)
-                self.assertEqual(sample.name, 'SC_PSC5465266')
-                self.assertEqual(sample.organism, 'Homo Sapiens')
-                self.assertEqual(sample.country_of_origin, 'Canada')
-                self.assertEqual(sample.ethnicity, 'White')    
-            
      
 
 

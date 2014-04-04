@@ -234,8 +234,8 @@ class ProcessSeqScapeData():
                 print "LIB MDATA: ", lib, type(lib)
                 lib_mdata = self.query_for_library(lib[0], lib[1])
                 lib_mdata = self.process_query_result(lib_mdata)
-                lookedup_libs.append(lib_mdata)
-                
+                lib = entities.Library.build_from_seqscape(lib_mdata)
+                lookedup_libs.append(lib)
             except exceptions.NoEntityFoundException:
                 new_lib = entities.Library()
                 setattr(new_lib, lib[0], lib[1])
@@ -260,7 +260,8 @@ class ProcessSeqScapeData():
             try:
                 sampl_mdata = self.query_for_sample(sample[0], sample[1])
                 sampl_mdata = self.process_query_result(sampl_mdata)
-                lookup_samples.append(sampl_mdata)
+                sample = entities.Sample.build_from_seqscape(sampl_mdata)
+                lookup_samples.append(sample)
             except exceptions.NoEntityFoundException:
                 new_sampl = entities.Sample()
                 setattr(new_sampl, sample[0], sample[1])
@@ -284,6 +285,7 @@ class ProcessSeqScapeData():
             try:
                 study_mdata = self.query_for_study(study[0], study[1])
                 study_mdata = self.process_query_result(study_mdata)
+                study = entities.Study.build_from_seqscape(study_mdata)
                 lookup_studies.append(study_mdata)
             except exceptions.NoEntityFoundException:
                 new_study = entities.Study()

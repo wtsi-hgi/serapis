@@ -162,7 +162,10 @@ submitted_file_schema = Schema({
     'errors' : list,
     
     # VCF file specific fields:
-    'used_samtools': bool
+    'used_samtools': str,
+    'file_format': str,
+    'used_unified_genotyper': bool
+#    reference = StringField()
     
 })
 

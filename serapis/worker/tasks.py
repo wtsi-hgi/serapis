@@ -23,7 +23,7 @@
 
 
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from subprocess import call, check_output
 import atexit
 import errno
@@ -31,7 +31,7 @@ import hashlib
 import logging
 import os
 import sys
-import pysam
+#import pysam
 import re
 import requests
 import signal
@@ -39,13 +39,18 @@ import subprocess
 import time
 import gzip
 import simplejson
+import gzip
+import zlib
+
 
 # Serapis imports:
 from serapis.worker import entities, warehouse_data_access, irods_utils
-from serapis.worker.header_parser import BAMHeaderParser
+from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
+from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, TaskResult
 from serapis.com import constants
 from serapis.worker import exceptions
 from serapis.com import utils
+
 
 # Celery imports:
 from celery import Task, current_task
@@ -71,9 +76,7 @@ from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 
 #BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
 #BASE_URL = "http://localhost:8000/api-rest/submissions/"
-BASE_URL = "http://localhost:8000/api-rest/workers/submissions/"
 #workers/tasks/(?P<task_id>)/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$
-#MD5 = "md5"
 
 
 #################################################################################
@@ -106,10 +109,6 @@ def deserialize(data):
 #def deserialize(data):
 #    return json.loads(data)
 
-def build_url(submission_id, file_id):
-    url_str = [BASE_URL, str(submission_id), "/files/", str(file_id),"/"]
-    url_str = ''.join(url_str)
-    return url_str
 
 #def build_url(submission_id, file_id, task_id):
 #    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
@@ -118,20 +117,14 @@ def build_url(submission_id, file_id):
 #    return url_str
 
 
-def build_result(submission_id, file_id):
-    result = dict()
-    result['submission_id'] = submission_id
-    result['file_id'] = file_id
-    return result
+# Just commented now - 3.04.
+#def build_result(submission_id, file_id):
+#    result = dict()
+#    result['submission_id'] = submission_id
+#    result['file_id'] = file_id
+#    return result
 
 
-def filter_none_fields(data_dict):
-    filtered_dict = dict()
-    print "TYPE OF DATA DICT::::::::::::::::::::::", type(data_dict), " and dict; ", data_dict
-    for key in data_dict:
-        if data_dict[key] != None and data_dict[key] != 'null':
-            filtered_dict[key] = data_dict[key]
-    return filtered_dict
 
 
 ################ TO BE MOVED ########################
@@ -139,28 +132,26 @@ def filter_none_fields(data_dict):
 #curl -v --noproxy 127.0.0.1 -H "Accept: application/json" -H "Content-type: application/json" -d '{"files_list" : ["/nfs/users/nfs_i/ic4/9940_2#5.bam"]}' http://127.0.0.1:8000/api-rest/submissions/
 
 
-def send_http_PUT_req(msg, submission_id, file_id):
-#    logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-#    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-
-    if 'submission_id' in msg:
-        msg.pop('submission_id')
-    if 'file_id' in msg:
-        msg.pop('file_id')
-    if type(msg) == dict:
-        msg = filter_none_fields(msg)
-        msg = entities.SubmittedFile.to_json(msg)
-    print "REQUEST DATA TO SEND================================", msg  
-    url_str = build_url(submission_id, file_id)
-    #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
-    print "URL WHERE to send the data: ", url_str
-    response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json'})
-    if not response.status_code == '500':
-        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response.text
-    else:
-        print "SENT PUT REQUEST. 500 RESPONSE RECEIVED: " #, response
-    return response
-
+#def send_http_PUT_req(msg, submission_id, file_id):
+##    logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
+##    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
+#
+#    if type(msg) == dict:
+#        msg = filter_none_fields(msg)
+#        msg = entities.SubmittedFile.to_json(msg)
+#    print "REQUEST DATA TO SEND================================", msg  
+#    url_str = build_url(submission_id, file_id)
+#    #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
+#    print "URL WHERE to send the data: ", url_str
+#    
+#    str_size = sys.getsizeof(msg)
+#    print "THe SIZE OF MESSAGE::::::::::::::::;::::::::::::::::::::::::", str_size
+#    response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json', 'content-encoding': 'gzip'})
+#    if not response.status_code == '500':
+#        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response#, " RESPONSE CONTENT: ", response.text
+#    else:
+#        print "SENT PUT REQUEST. 500 RESPONSE RECEIVED: " #, response
+#    return response
 
 
 #########################################################################
@@ -168,7 +159,15 @@ def send_http_PUT_req(msg, submission_id, file_id):
 #########################################################################
 
 
-class iRODSTask(Task):
+  
+class SerapisTask(Task):
+
+    def report_result_via_http(self, task_result):
+        task_result = task_result._replace(task_id=current_task.request.id)
+        return HTTPResultHandler.send_result(task_result)
+    
+
+class iRODSTask(SerapisTask):
     abstract = True
     ignore_result = True
     acks_late = False           # ACK as soon as one worker got the task
@@ -180,7 +179,7 @@ class iRODSTask(Task):
 
 
 
-class GatherMetadataTask(Task):
+class GatherMetadataTask(SerapisTask):
     abstract = True
     ignore_result = True
     acks_late = True
@@ -206,13 +205,17 @@ class GatherMetadataTask(Task):
         str_exc = str(str_exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.FAILURE_STATUS
-        result['errors'] = [str_exc]
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER: ", resp
-        current_task.update_state(state=constants.FAILURE_STATUS)
+#        result = {}
+#        result['task_id'] = current_task.request.id
+#        result['status'] = constants.FAILURE_STATUS
+#        result['errors'] = [str_exc]
+#        #resp = send_http_PUT_req(result, submission_id, file_id)
+        #resp = self.report_result_via_http(result, submission_id, file_id)
+        print "ENTERS IN GATHER METADATA ON_FAILUREEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=str_exc)
+        self.report_result_via_http(task_result)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
+        
 
 class ParseFileHeaderTask(GatherMetadataTask):
     abstract = True
@@ -271,10 +274,10 @@ class UploadFileTask(iRODSTask):
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
-        #raise exceptions.iMetaException("ERRORRRRRR", "OUTPUT I GUESS")
-        
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+        #send_http_PUT_req(result, submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result={'md5' :"123"})
+        self.report_result_via_http(task_result)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
@@ -302,7 +305,7 @@ class UploadFileTask(iRODSTask):
 
     # run - running using process call - WORKING VERSION - used currently 11.oct2013
     def run_using_checkoutput(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id         = str(kwargs['file_id'])
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
@@ -318,8 +321,9 @@ class UploadFileTask(iRODSTask):
         result = {}
         result['task_id'] = current_task.request.id
         result['status'] = constants.SUCCESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=result['status'])
+        self.report_result_via_http(result, submission_id, file_id)
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=result['status'])
         
 
     # Run using Popen and communicate() - 18.10.2013
@@ -371,11 +375,15 @@ class UploadFileTask(iRODSTask):
 #                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
              
   
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=result['status'])
+        #result = {}
+        #result['task_id'] = current_task.request.id
+        #result['status'] = constants.SUCCESS_STATUS
+        #self.report_result_via_http(result, submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+        
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=result['status'])
 
         
 
@@ -425,8 +433,11 @@ class UploadFileTask(iRODSTask):
         result['task_id'] = current_task.request.id
         result['errors'] = errors_list
         result['status'] = constants.FAILURE_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.FAILURE_STATUS)
+        #self.report_result_via_http(result, submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors_list)
+        self.report_result_via_http(task_result)
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
 
          
            
@@ -450,7 +461,7 @@ class CalculateMD5Task(GatherMetadataTask):
         return md5.hexdigest()
     
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id         = kwargs['file_id']
         submission_id   = kwargs['submission_id']
         file_path       = kwargs['file_path']
@@ -471,140 +482,103 @@ class CalculateMD5Task(GatherMetadataTask):
 #        index_md5 = "987654321"
         
         # Report the results:
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        result['result'] = {'md5' : file_md5}
+#        result = {}
+#        result['task_id'] = current_task.request.id
+#        result['status'] = constants.SUCCESS_STATUS
+#        result['result'] = {'md5' : file_md5}
+#        if index_file_path:
+#            result['result']['index_file'] = {'md5' : index_md5}
+        result = {'md5' : file_md5}
         if index_file_path:
-            result['result']['index_file'] = {'md5' : index_md5}
-        print "CHECKSUM result: ", result['result']
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+            result['index_file'] = {'md5' : index_md5}
+        print "CHECKSUM result: ", result
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=result)
+        self.report_result_via_http(task_result)
+        
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
 
         
 class ParseVCFHeaderTask(ParseFileHeaderTask):
-    
-    def build_search_dict(self, entity_list, entity_type):
-        list_of_entities = []
-        for entity in entity_list:
-            if entity_type == constants.LIBRARY_TYPE:
-                if utils.is_name(entity):
-                    search_field_name = 'name'
-                elif utils.is_internal_id(entity):
-                    search_field_name = 'internal_id'
-            elif entity_type == constants.SAMPLE_TYPE:
-                if utils.is_accession_nr(entity):
-                    search_field_name = 'accession_number'
-                else:
-                    search_field_name = 'name'
-            else:
-                print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
-                #entity_dict = {UNKNOWN_FIELD : ent_name_h}
-   
-            if search_field_name != None:
-                entity_dict = {search_field_name : entity}
-                list_of_entities.append(entity_dict)
-        return list_of_entities
-    
-    def get_samples_from_file_header(self, file_path):
-        samples = []
-        if file_path.endswith('.gz'):
-            infile = gzip.open(file_path, 'rb')
-        else:
-            infile = open(file_path)
-        for line in infile:
-            if line.startswith("#CHROM"):
-                columns = line.split()
-                for col in columns:
-                    if col not in ['#CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO', 'FORMAT']:
-                        samples.append(col)
-                break
-        infile.close()
-        return samples
+#    
+#    def build_search_dict(self, entity_list, entity_type):
+#        list_of_entities = []
+#        for entity in entity_list:
+#            if entity_type == constants.LIBRARY_TYPE:
+#                if utils.is_internal_id(entity):
+#                    search_field_name = 'internal_id'
+#                else:
+#                    search_field_name = 'name'
+#            elif entity_type == constants.SAMPLE_TYPE:
+#                if utils.is_accession_nr(entity):
+#                    search_field_name = 'accession_number'
+#                else:
+#                    search_field_name = 'name'
+#            else:
+#                print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
+#                #entity_dict = {UNKNOWN_FIELD : ent_name_h}
+#   
+#            if search_field_name != None:
+#                entity_dict = {search_field_name : entity}
+#                list_of_entities.append(entity_dict)
+#        return list_of_entities
     
     
-    def get_reference_from_file_header(self, file_path):
-        if file_path.endswith('.gz'):
-            infile = gzip.open(file_path, 'rb')
-        else:
-            infile = open(file_path)
-        for line in infile:
-            if line.startswith('##reference'):
-                items = line.split('=')
-                ref_path = items[1]
-                if ref_path.startswith('file://'):
-                    ref_path = ref_path[6:]
-                    infile.close()
-                return ref_path
-        return None
-                
-                
-    def used_samtools(self, file_path):
-        if file_path.endswith('.gz'):
-            infile = gzip.open(file_path, 'rb')
-        else:
-            infile = open(file_path)
-        for line in infile:
-            if line.startswith('##samtools'):
-                infile.close()
-                return True
-        return None
-
-    def get_file_format(self, file_path):
-        if file_path.endswith('.gz'):
-            infile = gzip.open(file_path, 'rb')
-        else:
-            infile = open(file_path)
-        for line in infile:
-            if line.startswith('##fileformat'):
-                items = line.split('=')
-                infile.close()
-                return items[1]
-        return None
-                
-                
-        
-
     def run(self, *args, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_path       = kwargs['file_path']
         file_id         = kwargs['file_id']
         submission_id   = kwargs['submission_id']
         
-        samples = self.get_samples_from_file_header(file_path)
-        print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
-#        print samples
+
+        vcf_header_info = VCFHeaderParser.parse_header(file_path)
         
         vcf_file = entities.VCFFile()
-        incomplete_entities = self.build_search_dict(samples, constants.SAMPLE_TYPE)
-#        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
+        vcf_file.used_samtools = vcf_header_info.samtools_version
+        vcf_file.reference = vcf_header_info.reference
+        vcf_file.file_format = vcf_header_info.vcf_format
         
-        processSeqsc = warehouse_data_access.ProcessSeqScapeData()
-        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
-#        print vars(vcf_file)
         
-#        reference = self.get_reference_from_file_header(file_path)
-#        if reference:
-#            if reference.startswith('file://'):
-#                reference = reference[7:]
-#            vcf_file.reference_genome = reference
+        sample_list = MetadataHandling.guess_all_identifiers_type(vcf_header_info.sample_list, constants.SAMPLE_TYPE)
+
+        access_seqsc = warehouse_data_access.ProcessSeqScapeData()
+        access_seqsc.fetch_and_process_samples(sample_list, vcf_file)
         
-        used_samtools = self.used_samtools(file_path)
-        if used_samtools:
-            vcf_file.used_samtools = used_samtools
+#        
+#        samples = self.get_samples_from_file_header(file_path)
+#        print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
+##        print samples
+#        
+#        vcf_file = entities.VCFFile()
+#        incomplete_entities = self.build_search_dict(samples, constants.SAMPLE_TYPE)
+##        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
+#        
+#        processSeqsc = warehouse_data_access.ProcessSeqScapeData()
+#        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
+##        print vars(vcf_file)
+#        
+##        reference = self.get_reference_from_file_header(file_path)
+##        if reference:
+##            if reference.startswith('file://'):
+##                reference = reference[7:]
+##            vcf_file.reference_genome = reference
+#        
+#        used_samtools = self.used_samtools(file_path)
+#        if used_samtools:
+#            vcf_file.used_samtools = used_samtools
+#            
+#        file_format = self.get_file_format(file_path)
+#        if file_format:
+#            vcf_file.file_format = file_format
+#        
             
-        file_format = self.get_file_format(file_path)
-        if file_format:
-            vcf_file.file_format = file_format
-        
-            
-        result = {}
-        result['result'] = filter_none_fields(vars(vcf_file))
-        result['status'] = constants.SUCCESS_STATUS
-        result['task_id'] = current_task.request.id
-        #rint "TSK IDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD ", result['task_id']
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER -- parse: ", resp
+#        result = {}
+#        result['result'] = vcf_file
+#        result['status'] = constants.SUCCESS_STATUS
+#        result['task_id'] = current_task.request.id
+        #resp = send_http_PUT_req(result, submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=vcf_file)
+        self.report_result_via_http(task_result)
 #        if (resp.status_code == requests.codes.ok):
 #            print "OK"
 
@@ -639,29 +613,38 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             submitted_file.data_subtype_tags['lanelets'] = 'merged-lanelets'
    
         
-    ###############################################################
-    # TODO: - TO THINK: each line with its exceptions? if anything else will throw ValueError I won't know the origin or assume smth false
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         #file_serialized     = kwargs['file_mdata']
         #file_mdata          = deserialize(file_serialized)
         file_mdata           = kwargs['file_mdata']
         file_mdata          = deserialize(file_mdata)
-        
         file_id             = kwargs['file_id']
         submission_id       = kwargs['submission_id']
         
+
         header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
-        
         file_mdata = entities.BAMFile.build_from_json(file_mdata)
-        file_mdata.seq_centers = header_metadata['seq_centers']
-        file_mdata.run_list = header_metadata['run_ids_list']
-        file_mdata.seq_date_list = header_metadata['seq_date_list']
-        file_mdata.platform_list = header_metadata['platform_list']
+        file_mdata.seq_centers = header_metadata.seq_centers
+        file_mdata.run_list = header_metadata.run_ids_list
+        file_mdata.seq_date_list = header_metadata.seq_date_list
+        file_mdata.platform_list = header_metadata.platform_list
         
-        libs_list = header_metadata['library_list']
-        samples_list = header_metadata['sample_list']
+        lib_ids_list = header_metadata.library_list
+        sample_ids_list = header_metadata.sample_list
+       
         
+#        file_mdata.seq_centers = header_metadata['seq_centers']
+#        file_mdata.run_list = header_metadata['run_ids_list']
+#        file_mdata.seq_date_list = header_metadata['seq_date_list']
+#        file_mdata.platform_list = header_metadata['platform_list']
+#        
+#        lib_ids_list = header_metadata['library_list']
+#        sample_ids_list = header_metadata['sample_list']
+#        
+        libs_list = MetadataHandling.guess_all_identifiers_type(lib_ids_list, constants.LIBRARY_TYPE)
+        samples_list = MetadataHandling.guess_all_identifiers_type(sample_ids_list, constants.SAMPLE_TYPE)
+
         access_seqsc = warehouse_data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_libs(libs_list, file_mdata)
         access_seqsc.fetch_and_process_samples(samples_list, file_mdata)
@@ -675,18 +658,21 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         else:
             errors.append(constants.FILE_HEADER_EMPTY)
         
-        result = {}
-        if errors:
-            result['errors'] = errors
-        result['result'] = filter_none_fields(vars(file_mdata))
-        result['status'] = constants.SUCCESS_STATUS
-        result['task_id'] = current_task.request.id
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER -- parse: ", resp
-        if (resp.status_code == requests.codes.ok):
-            print "OK"
+#        result = {}
+#        if errors:
+#            result['errors'] = errors
+#        result['result'] = file_mdata
+#        result['status'] = constants.SUCCESS_STATUS
+#        result['task_id'] = current_task.request.id
+         
+        #resp = send_http_PUT_req(result, submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata, errors=errors)
+        self.report_result_via_http(task_result)
+#        print "RESPONSE FROM SERVER -- parse: ", resp
+#        if (resp.status_code == requests.codes.ok):
+#            print "OK"
 
-        current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
+        #current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
         
         
 
@@ -733,8 +719,9 @@ class UpdateFileMdataTask(GatherMetadataTask):
         
     # TODO: check if each sample in discussion is complete, if complete skip
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id             = kwargs['file_id']
+        submission_id       = kwargs['submission_id']
         file_serialized     = kwargs['file_mdata']
         file_mdata          = deserialize(file_serialized)
         #file_mdata          = file_serialized
@@ -757,13 +744,14 @@ class UpdateFileMdataTask(GatherMetadataTask):
 #        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
 #        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
 #                 
-        result = {}
-        result['task_id']   = current_task.request.id
-        result['result']    = vars(file_submitted) 
-        result['status']    = constants.SUCCESS_STATUS
-        response = send_http_PUT_req(result, file_submitted.submission_id, file_id)
-        print "RESPONSE FROM SERVER: ", response
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+#        result = {}
+#        result['task_id']   = current_task.request.id
+#        result['result']    = vars(file_submitted) 
+#        result['status']    = constants.SUCCESS_STATUS
+        #response = send_http_PUT_req(result, file_submitted.submission_id, file_id)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata)
+        self.report_result_via_http(task_result)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
 
@@ -774,7 +762,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 #    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
 
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
         file_mdata_irods        = kwargs['file_mdata_irods']
@@ -844,11 +832,13 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
                 print "ERROR WHILE MOVING FILE: ", err, " AND OUTPUT : ", out
                 raise exceptions.iMVException(out, err, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg=child_proc.returncode)
 
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+#        result = {}
+#        result['task_id'] = current_task.request.id
+#        result['status'] = constants.SUCCESS_STATUS
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
         
         
     def rollback(self, kwargs):
@@ -899,13 +889,13 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
             str_exc = str(exc)
         str_exc = str_exc.replace("\"","" )
         str_exc = str_exc.replace("\'", "")
-        result = dict()
-        result['task_id']   = current_task.request.id
-        result['status']    = constants.FAILURE_STATUS
-        result['errors'] =  [str_exc].extend(errors)
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER: ", resp
-        current_task.update_state(state=constants.FAILURE_STATUS)
+#        result = dict()
+#        result['task_id']   = current_task.request.id
+#        result['status']    = constants.FAILURE_STATUS
+#        result['errors'] =  [str_exc].extend(errors)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
+        self.report_result_via_http(task_result)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
 
         
     
@@ -993,7 +983,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
        
         
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
         file_mdata_irods        = kwargs['file_mdata_irods']
@@ -1038,11 +1028,13 @@ class AddMdataToIRODSFileTask(iRODSTask):
                 print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
             
 
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+#        result = {}
+#        result['task_id'] = current_task.request.id
+#        result['status'] = constants.SUCCESS_STATUS
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
     
     
     def rollback(self, kwargs):
@@ -1093,13 +1085,14 @@ class AddMdataToIRODSFileTask(iRODSTask):
             # This is thrown probably because I am trying to imeta rm a pair that hasn't yet been added
             pass
     
-        result = dict()
-        result['task_id']   = current_task.request.id
-        result['status']    = constants.FAILURE_STATUS
-        result['errors'] =  [str_exc].extend(errors)
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER: ", resp
-        current_task.update_state(state=constants.FAILURE_STATUS)
+#        result = dict()
+#        result['task_id']   = current_task.request.id
+#        result['status']    = constants.FAILURE_STATUS
+#        result['errors'] =  [str_exc].extend(errors)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
+        self.report_result_via_http(task_result)
+        #resp = send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
 
 
 
@@ -1109,7 +1102,7 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
     
 
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
         file_path_irods         = kwargs['file_path_irods']
@@ -1143,11 +1136,15 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
                 print "imv index fil:", index_file_path_irods,"error: err=", err, " output=",out
                 raise exceptions.iMVException(err, out, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg="Return code: "+str(child_proc.returncode))
             
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        send_http_PUT_req(result, submission_id, file_id)
-        current_task.update_state(state=constants.SUCCESS_STATUS)
+#        result = {}
+#        result['task_id'] = current_task.request.id
+#        result['status'] = constants.SUCCESS_STATUS
+
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+        
+        #send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.SUCCESS_STATUS)
         
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -1159,13 +1156,15 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         str_exc = str_exc.replace("\'", "")
         
         #errors = self.rollback(kwargs)
-        result = dict()
-        result['task_id']   = current_task.request.id
-        result['status']    = constants.FAILURE_STATUS
-        result['errors'] =  [str_exc]
-        resp = send_http_PUT_req(result, submission_id, file_id)
-        print "RESPONSE FROM SERVER: ", resp
-        current_task.update_state(state=constants.FAILURE_STATUS)
+#        result = dict()
+#        result['task_id']   = current_task.request.id
+#        result['status']    = constants.FAILURE_STATUS
+#        result['errors'] =  [str_exc]
+        
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
+        self.report_result_via_http(task_result)
+        #resp = send_http_PUT_req(result, submission_id, file_id)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
         
 
 
@@ -1287,7 +1286,7 @@ class TestIRODSFileTask(iRODSTask):
                     
                     
     def run(self, **kwargs):
-        current_task.update_state(state=constants.RUNNING_STATUS)
+        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
         file_path_irods         = str(kwargs['file_path_irods'])
@@ -1306,7 +1305,7 @@ class TestIRODSFileTask(iRODSTask):
         result['errors'] =  [str_exc]
         resp = send_http_PUT_req(result, submission_id, file_id)
         print "RESPONSE FROM SERVER: ", resp
-        current_task.update_state(state=constants.FAILURE_STATUS)
+        #current_task.update_state(state=constants.FAILURE_STATUS)
         
 
         # Possible outputs:
