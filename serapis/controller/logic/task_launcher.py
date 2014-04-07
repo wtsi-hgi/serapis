@@ -93,8 +93,8 @@ class TaskLauncher(object):
                                                 'submission_id' : file_obj.submission_id,
                                                 'irods_coll' : dest_irods_coll, 
                                                 }, 
-                                            #queue=queue)
-                                            )
+                                            queue=queue)
+                                            
         return task.id
     
     
@@ -200,7 +200,7 @@ class TaskLauncher(object):
             logging.error("LAUNCH SUBMIT TO IRODS TASK -- called with null parameters -- tasj was NOT submitted to the queue.")
             return None
         
-        irods_mdata_dict = serapis2irods_logic.gather_mdata(file_obj)
+        irods_mdata_dict = serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_obj.file_id, file_obj)
         irods_mdata_dict = serializers.serialize(irods_mdata_dict)
         
         # Inferring the file's location in iRODS staging area: 
@@ -369,37 +369,11 @@ class BatchTasksLauncherVCFFile(BatchTasksLauncher):
 
 
     def submit_initial_tasks(self, file_obj, user_id, as_serapis=True):
-        return super(BatchTasksLauncherVCFFile, self).submit_initial_tasks(file_obj, user_id, as_serapis=True)
+        return super(BatchTasksLauncherVCFFile, self).submit_initial_tasks(file_obj, user_id, as_serapis)
     
     def submit_list_of_tasks(self, list_of_tasks, file_obj, user_id, as_serapis=True):
-        return super(BatchTasksLauncherVCFFile, self).submit_list_of_tasks(list_of_tasks, file_obj, user_id, as_serapis=True)
+        return super(BatchTasksLauncherVCFFile, self).submit_list_of_tasks(list_of_tasks, file_obj, user_id, as_serapis)
 
-
-#class SubmissionBatchTaskLauncher(object):
-#    ''' This class contains the functionality for the submission-tasks to be submitted to the queues.'''
-#
-#    def submit_list_of_tasks(self, list_of_tasks, file_id, user_id, file_obj=None):
-#        if not file_id and not file_obj:
-#            logging.error("SUBMIT LIST OF TASK method called in BatchTasksLauncher, but no file id or file_obj provided--returning None")
-#            return None
-#        if not file_obj:
-#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-#
-#        status = constants.PENDING_ON_WORKER_STATUS
-#        tasks_dict = {}
-#        for task_name in list_of_tasks:
-#            if task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
-#                task_id = self.task_launcher.launch_add_mdata2irods_task(file_id, file_obj)
-#                tasks_dict[task_id] = {'type' : constants.ADD_META_TO_IRODS_FILE_TASK, 'status' : status}
-#            elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
-#                task_id = self.task_launcher.launch_submit2irods_task(file_id, file_obj)
-#                tasks_dict[task_id] = {'type' : constants.SUBMIT_TO_PERMANENT_COLL_TASK, 'status' : status}
-#            elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
-#                task_id = self.task_launcher.launch_move_to_permanent_coll_task(file_id, file_obj)
-#                tasks_dict[task_id] = {'type' : constants.MOVE_TO_PERMANENT_COLL_TASK, 'status' : status}
-#        return tasks_dict
-#
-#    
 
 
 

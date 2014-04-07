@@ -500,29 +500,7 @@ class CalculateMD5Task(GatherMetadataTask):
 
         
 class ParseVCFHeaderTask(ParseFileHeaderTask):
-#    
-#    def build_search_dict(self, entity_list, entity_type):
-#        list_of_entities = []
-#        for entity in entity_list:
-#            if entity_type == constants.LIBRARY_TYPE:
-#                if utils.is_internal_id(entity):
-#                    search_field_name = 'internal_id'
-#                else:
-#                    search_field_name = 'name'
-#            elif entity_type == constants.SAMPLE_TYPE:
-#                if utils.is_accession_nr(entity):
-#                    search_field_name = 'accession_number'
-#                else:
-#                    search_field_name = 'name'
-#            else:
-#                print "ENTITY IS NEITHER LIBRARY NOR SAMPLE -- Error????? "
-#                #entity_dict = {UNKNOWN_FIELD : ent_name_h}
-#   
-#            if search_field_name != None:
-#                entity_dict = {search_field_name : entity}
-#                list_of_entities.append(entity_dict)
-#        return list_of_entities
-    
+
     
     def run(self, *args, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
