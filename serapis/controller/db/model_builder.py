@@ -112,7 +112,7 @@ class VCFFileBuilder(FileBuilder):
     @classmethod
     def get_file_instance(cls, file_path):
         ''' Returns the adequate file instance.'''
-        return models.BAMFile(file_path_client=file_path)
+        return models.VCFFile(file_path_client=file_path)
     
     
     
