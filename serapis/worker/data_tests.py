@@ -375,6 +375,18 @@ class VCFFileMetadataTests(FileMetadataTests):
     def test_index_meta_irods(cls, index_file_path_irods):
         return super(VCFFileMetadataTests, cls).test_index_meta_irods(index_file_path_irods)
 
+    @classmethod
+    def run_file_meta_test(cls, fpath_irods):
+        file_type = utils.detect_file_type(fpath_irods)
+        # TODO: get the extensions from constants.py
+        if file_type in [constants.VCF_FILE]:
+            cls.test_file_meta_irods(fpath_irods)
+        elif file_type in [constants.TBI_FILE]:
+            cls.test_index_meta_irods(fpath_irods)
+        else:
+            raise BaseException("This file is neither a bam nor a bai --- format not accepted!!!")
+        return True
+
     
         #check_replicas_by_number(replica_list)
     #    check_replicas_are_paired(replica_list)
