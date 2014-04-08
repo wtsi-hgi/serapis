@@ -384,7 +384,7 @@ class VCFFileMetadataTests(FileMetadataTests):
         elif file_type in [constants.TBI_FILE]:
             cls.test_index_meta_irods(fpath_irods)
         else:
-            raise BaseException("This file is neither a bam nor a bai --- format not accepted!!!")
+            raise BaseException("This file is neither a VCF nor a TBI --- format not accepted!!!")
         return True
 
     
@@ -398,9 +398,9 @@ class FileTestSuiteRunner(object):
     @classmethod
     def get_metadata_test_class(cls, fpath_irods):
         file_type = utils.detect_file_type(fpath_irods)
-        if file_type == constants.BAM_FILE:
+        if file_type in [constants.BAM_FILE, constants.BAI_FILE]:
             return BAMFileMetadataTests
-        elif file_type == constants.VCF_FILE:
+        elif file_type in [constants.VCF_FILE, constants.TBI_FILE]:
             return VCFFileMetadataTests
         else:
             print "FILE TYPE UNKNOWN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
