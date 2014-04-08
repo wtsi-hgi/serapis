@@ -94,10 +94,10 @@ def upload_irods_file(fpath_client, irods_coll, force=False):
 
 ################# ICHKSUM ICOMMAND #########################################
 
-def get_md5_from_ichksum(fpath_irods, *opts):
+def get_md5_from_ichksum(fpath_irods, opts=[]):
     md5_ick = None
     process_opts_list = ["ichksum"].extend(opts)
-    process_opts_list.apend(fpath_irods)
+    process_opts_list.append(fpath_irods)
     ret = subprocess.Popen(process_opts_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = ret.communicate()
     if err:
