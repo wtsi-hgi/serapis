@@ -99,9 +99,12 @@ class GeneralFileTests(object):
     def compare_file_md5(cls, fpath_irods):
         md5_ick = irods_utils.get_md5_from_ichksum(fpath_irods)
         md5_calc = irods_utils.get_value_for_key_from_imeta(fpath_irods, "file_md5")
-        if md5_calc != md5_ick:
-            raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick)
-        return True
+        if md5_calc and md5_ick:
+            if md5_calc != md5_ick:
+                raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick)
+            else:
+                return True
+        return None
         
     
     @classmethod
@@ -394,7 +397,7 @@ class FileTestSuiteRunner(object):
     @classmethod
     def run_metadata_tests_on_file(cls, fpath_irods):
         meta_test_class = cls.get_metadata_test_class(fpath_irods)
-        return meta_test_class.test_and_report(meta_test_class.run_file_meta_test, [fpath_irods])
+        return meta_test_class.run_file_meta_test, [fpath_irods]
         
     
     @classmethod
