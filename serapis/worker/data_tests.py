@@ -201,7 +201,6 @@ class GeneralFileTests(object):
         test = "Check replicas by resource"    
         result = cls.test_and_report(cls.check_replicas_by_resource, [replica_list])
         error_report[test] = result
-        
         return error_report
     
     

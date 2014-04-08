@@ -44,7 +44,7 @@ import zlib
 
 
 # Serapis imports:
-from serapis.worker import entities, warehouse_data_access, irods_utils
+from serapis.worker import entities, warehouse_data_access, irods_utils, data_tests
 from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
 from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, TaskResult
 from serapis.com import constants
@@ -840,84 +840,84 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 class AddMdataToIRODSFileTask(iRODSTask):
 #    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
-
-    def test_file_meta_pairs(self, tuple_list, file_path_irods):
-        key_occ_dict = defaultdict(int)
-        for item in tuple_list:
-            key_occ_dict[item[0]] += 1
-    #    for k, v in key_occ_dict.iteritems():
-    #        print k+" : "+str(v)+"\n"
-        UNIQUE_FIELDS = ['study_title', 'study_internal_id', 'study_accession_number', 
-                         'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
-                         'study_type', 'study_visibility', 'submission_date', 'submission_id',
-                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
-                         'data_type', 'seq_center']
-        AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
-                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date',
-                        'hgi_project']
-        
-        #print key_occ_dict
-        for attr in UNIQUE_FIELDS:
-            if attr in key_occ_dict:
-                if key_occ_dict[attr] != 1:
-                    print "ERROR -- field freq != 1!!!" + attr+" freq = ", str(key_occ_dict[attr])
-                    return -1
-            else:
-                print "ERROR -- field entirely missing!!! attr="+attr+ " in file: "+file_path_irods
-        
-        for attr in AT_LEAST_ONE:
-            if attr in key_occ_dict:
-                if key_occ_dict[attr] < 1:
-                    print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+str(key_occ_dict[attr])
-                    return -1
-            else:
-                print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+str(key_occ_dict[attr]) + " file: "+file_path_irods
-                return -1
-        return 0
-        
-    
-    def convert_file_meta_to_tuples(self, imeta_out):
-        tuple_list = []
-        lines = imeta_out.split('\n')
-        attr_name, attr_val = None, None
-        for line in lines:
-            if line.startswith('attribute'):
-                index = len('attribute: ')
-                attr_name = line[index:]
-                attr_name = attr_name.strip()
-            elif line.startswith('value: '):
-                index = len('value: ')
-                attr_val = line[index:]
-                attr_val = attr_val.strip()
-                if not attr_val:
-                    print "Attribute's value is NONE!!! "+attr_name
-            
-            if attr_name and attr_val:
-                tuple_list.append((attr_name, attr_val))
-                attr_name, attr_val = None, None
-        return tuple_list
-    
-    
-    def test_file_meta_irods(self, file_path_irods):
-        child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (out, err) = child_proc.communicate()
-        if err:
-            print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
-        tuple_list = self.convert_file_meta_to_tuples(out)        
-        self.test_file_meta_pairs(tuple_list, file_path_irods)
-        
-    
-    def test_index_meta_irods(self, index_file_path_irods):
-        child_proc = subprocess.Popen(["imeta", "ls","-d", index_file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (out, err) = child_proc.communicate()
-        if err:
-            print "ERROR IMETA of file: ", index_file_path_irods, " err=",err," out=", out
-        tuple_list = self.convert_file_meta_to_tuples(out)        
-        if len(tuple_list) != 2:
-            print "ERROR -- index file "
-            return -1
-        return 0
-       
+#
+#    def test_file_meta_pairs(self, tuple_list, file_path_irods):
+#        key_occ_dict = defaultdict(int)
+#        for item in tuple_list:
+#            key_occ_dict[item[0]] += 1
+#    #    for k, v in key_occ_dict.iteritems():
+#    #        print k+" : "+str(v)+"\n"
+#        UNIQUE_FIELDS = ['study_title', 'study_internal_id', 'study_accession_number', 
+#                         'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
+#                         'study_type', 'study_visibility', 'submission_date', 'submission_id',
+#                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
+#                         'data_type', 'seq_center']
+#        AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
+#                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date',
+#                        'hgi_project']
+#        
+#        #print key_occ_dict
+#        for attr in UNIQUE_FIELDS:
+#            if attr in key_occ_dict:
+#                if key_occ_dict[attr] != 1:
+#                    print "ERROR -- field freq != 1!!!" + attr+" freq = ", str(key_occ_dict[attr])
+#                    return -1
+#            else:
+#                print "ERROR -- field entirely missing!!! attr="+attr+ " in file: "+file_path_irods
+#        
+#        for attr in AT_LEAST_ONE:
+#            if attr in key_occ_dict:
+#                if key_occ_dict[attr] < 1:
+#                    print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+str(key_occ_dict[attr])
+#                    return -1
+#            else:
+#                print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+str(key_occ_dict[attr]) + " file: "+file_path_irods
+#                return -1
+#        return 0
+#        
+#    
+#    def convert_file_meta_to_tuples(self, imeta_out):
+#        tuple_list = []
+#        lines = imeta_out.split('\n')
+#        attr_name, attr_val = None, None
+#        for line in lines:
+#            if line.startswith('attribute'):
+#                index = len('attribute: ')
+#                attr_name = line[index:]
+#                attr_name = attr_name.strip()
+#            elif line.startswith('value: '):
+#                index = len('value: ')
+#                attr_val = line[index:]
+#                attr_val = attr_val.strip()
+#                if not attr_val:
+#                    print "Attribute's value is NONE!!! "+attr_name
+#            
+#            if attr_name and attr_val:
+#                tuple_list.append((attr_name, attr_val))
+#                attr_name, attr_val = None, None
+#        return tuple_list
+#    
+#    
+#    def test_file_meta_irods(self, file_path_irods):
+#        child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        (out, err) = child_proc.communicate()
+#        if err:
+#            print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
+#        tuple_list = self.convert_file_meta_to_tuples(out)        
+#        self.test_file_meta_pairs(tuple_list, file_path_irods)
+#        
+#    
+#    def test_index_meta_irods(self, index_file_path_irods):
+#        child_proc = subprocess.Popen(["imeta", "ls","-d", index_file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        (out, err) = child_proc.communicate()
+#        if err:
+#            print "ERROR IMETA of file: ", index_file_path_irods, " err=",err," out=", out
+#        tuple_list = self.convert_file_meta_to_tuples(out)        
+#        if len(tuple_list) != 2:
+#            print "ERROR -- index file "
+#            return -1
+#        return 0
+#       
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
@@ -932,30 +932,31 @@ class AddMdataToIRODSFileTask(iRODSTask):
         print "params received: index file path: ",index_file_path_irods, " index meta: ",index_file_mdata_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
+        # Adding metadata to the file:
         irods_utils.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
-                
-        test_result = self.test_file_meta_irods(file_path_irods)
-        if test_result < 0 :
-            print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", file_mdata_irods
+        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
             
         print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
-            for attr_name_val in index_file_mdata_irods:
-                attr_name = str(attr_name_val[0])
-                attr_val = str(attr_name_val[1])
-                if attr_name and attr_val:
-                    child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                    print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
-                    (out, err) = child_proc.communicate()
-                    if err:
-                        print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
-                        if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                            raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
-            test_result = self.test_index_meta_irods(index_file_path_irods)
-            if test_result < 0 :
-                print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
-            
+            irods_utils.add_all_kv_pairs_with_imeta(index_file_mdata_irods, index_file_mdata_irods)
+            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_mdata_irods)
+
+#            for attr_name_val in index_file_mdata_irods:
+#                attr_name = str(attr_name_val[0])
+#                attr_val = str(attr_name_val[1])
+#                if attr_name and attr_val:
+#                    child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#                    print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
+#                    (out, err) = child_proc.communicate()
+#                    if err:
+#                        print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
+#                        if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+#                            raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
+#            test_result = self.test_index_meta_irods(index_file_path_irods)
+#            if test_result < 0 :
+#                print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
+#            
 
 #        result = {}
 #        result['task_id'] = current_task.request.id
@@ -972,33 +973,35 @@ class AddMdataToIRODSFileTask(iRODSTask):
         dest_file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
-        errors = []
-        for attr_name_val in file_mdata_irods:
-            print "print --- in ROLLBACK -- attribute name and val tuple: =====================================", attr_name_val
-            attr_name = str(attr_name_val[0])
-            attr_val = str(attr_name_val[1])
-            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (out, err) = child_proc.communicate()
-            if err:
-                print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path_irods, " error: ", err, " output: ",out
-                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+dest_file_path_irods+" "+attr_name+" "+attr_val)
-            print "ROLLING BACK THE ADD MDATA FOR FILE..."
-        
+        irods_utils.remove_all_kv_pairds_with_imeta(dest_file_path_irods, file_mdata_irods)
+#        for attr_name_val in file_mdata_irods:
+#            print "print --- in ROLLBACK -- attribute name and val tuple: =====================================", attr_name_val
+#            attr_name = str(attr_name_val[0])
+#            attr_val = str(attr_name_val[1])
+#            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#            (out, err) = child_proc.communicate()
+#            if err:
+#                print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path_irods, " error: ", err, " output: ",out
+#                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+dest_file_path_irods+" "+attr_name+" "+attr_val)
+#            print "ROLLING BACK THE ADD MDATA FOR FILE..."
+#        
         if index_file_path_irods:
-            for attr_name_val in index_file_mdata_irods:
-                attr_name = str(attr_name_val[0])
-                attr_val = str(attr_name_val[1])
-                subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                (out, err) = child_proc.communicate()
-                if err:
-                    print "Error - imeta in ROLLBACK index file: ",index_file_path_irods, "ERROR = ",err, " output: ", out
-                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
-                print "ROLLING BACK THE ADD MDATA INDEX ..."
-        if errors:
-            print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
-            return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
-        print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
-        return {'status' : constants.SUCCESS_STATUS}
+            irods_utils.remove_all_kv_pairds_with_imeta(index_file_path_irods, index_file_mdata_irods)
+#            for attr_name_val in index_file_mdata_irods:
+#                attr_name = str(attr_name_val[0])
+#                attr_val = str(attr_name_val[1])
+#                subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#                (out, err) = child_proc.communicate()
+#                if err:
+#                    print "Error - imeta in ROLLBACK index file: ",index_file_path_irods, "ERROR = ",err, " output: ", out
+#                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
+#                print "ROLLING BACK THE ADD MDATA INDEX ..."
+#        if errors:
+#            print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
+#            return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
+#        print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
+#        return {'status' : constants.SUCCESS_STATUS}
+        return True
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -1012,8 +1015,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         try:
             errors = self.rollback(kwargs)
         except exceptions.iMetaException as e:
-            # This is thrown probably because I am trying to imeta rm a pair that hasn't yet been added
-            pass
+            errors.append(str(e))
     
 #        result = dict()
 #        result['task_id']   = current_task.request.id

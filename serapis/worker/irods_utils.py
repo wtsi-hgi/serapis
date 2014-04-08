@@ -96,7 +96,8 @@ def upload_irods_file(fpath_client, irods_coll, force=False):
 
 def get_md5_from_ichksum(fpath_irods, opts=[]):
     md5_ick = None
-    process_opts_list = ["ichksum"].extend(opts)
+    process_opts_list = ["ichksum"]
+    process_opts_list.extend(opts)
     process_opts_list.append(fpath_irods)
     ret = subprocess.Popen(process_opts_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = ret.communicate()
@@ -121,6 +122,14 @@ def add_kv_pair_with_imeta(fpath_irods, key, value):
         if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
             raise exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
     
+def remove_kv_pair_with_imeta(fpath_irods, key, value):
+    child_proc = subprocess.Popen(["imeta", "rm", "-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    (out, err) = child_proc.communicate()
+    if err:
+        print "ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error: ", err, " output: ",out
+        if not err.find(constants.CAT_INVALID_ARGUMENT):
+            raise exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
+
     
 def add_all_kv_pairs_with_imeta(fpath_irods, list_of_tuples):
     ''' Adds all the key-value tuples as metadata to the file received as param.
@@ -135,6 +144,24 @@ def add_all_kv_pairs_with_imeta(fpath_irods, list_of_tuples):
         val = str(attr_val[1])
         if attr and val:
             add_kv_pair_with_imeta(fpath_irods, attr, val)
+    return True
+            
+            
+def remove_all_kv_pairds_with_imeta(fpath_irods, list_of_tuples):
+    ''' 
+        This function removes all the key-value metadata pairs 
+        from the file metadata using imeta command.
+        Params:
+            - irods file path
+            - a list of key-value tuples containing the file metadata to be removed
+        Throws:
+            - iMetaException if an error occurs while removing the key-value tuples.
+    '''
+    for attr_name_val in list_of_tuples:
+        attr = str(attr_name_val[0])
+        val = str(attr_name_val[1])
+        if attr and val:
+            remove_kv_pair_with_imeta(fpath_irods, attr, val)
     return True
             
 
