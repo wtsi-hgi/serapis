@@ -317,11 +317,11 @@ class BAMFileMetadataTests(FileMetadataTests):
     
     @classmethod
     def run_file_meta_test(cls, fpath_irods):
-        file_type = utils.get_file_extension(fpath_irods)
+        file_type = utils.detect_file_type(fpath_irods)
         # TODO: get the extensions from constants.py
-        if file_type in ['bam']:
+        if file_type in [constants.BAM_FILE]:
             cls.test_file_meta_irods(fpath_irods)
-        elif file_type in ['bai']:
+        elif file_type in [constants.BAI_FILE]:
             cls.test_index_meta_irods(fpath_irods)
         else:
             raise BaseException("This file is neither a bam nor a bai --- format not accepted!!!")
@@ -503,7 +503,7 @@ def test_complete(lustre_fofn, irods_coll):
     print_error_report(error_report)
     
     
-test_coll('/humgen/projects/serapis_staging/test-coll/complete-tests')
+#test_coll('/humgen/projects/serapis_staging/test-coll/complete-tests')
 #test_coll('/humgen/projects/serapis_staging/5316f86c9bbf8f028b0f0fba')
 
 #        checksum_all_replicas(fpath_irods) 

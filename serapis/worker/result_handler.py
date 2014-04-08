@@ -124,7 +124,7 @@ class HTTPResultHandler(object):
         #print "REQUEST BODY TO BE SENT TO THE CONTROLLER WITH RESULTS:::::::::::::::::;;", data_json
         response = HTTPRequestHandler.put(url, data_json)
         if response.status_code != '200':
-            print "SENT PUT REQUEST -- ERROR -- RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response.text
+            print "SENT PUT REQUEST -- ERROR -- RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response
         else:
             print "SENT PUT REQUEST. 200 RESPONSE RECEIVED: ", response
         return response

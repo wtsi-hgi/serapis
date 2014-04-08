@@ -930,7 +930,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         
         print "ADD MDATA TO IRODS JOB...works! File metadata received: ", file_mdata_irods
         print "params received: index file path: ",index_file_path_irods, " index meta: ",index_file_mdata_irods
-        file_mdata_irods = deserialize(file_mdata_irods)
+        #file_mdata_irods = deserialize(file_mdata_irods)
         
         # Adding metadata to the file:
         irods_utils.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
@@ -939,8 +939,8 @@ class AddMdataToIRODSFileTask(iRODSTask):
         print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
-            irods_utils.add_all_kv_pairs_with_imeta(index_file_mdata_irods, index_file_mdata_irods)
-            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_mdata_irods)
+            irods_utils.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
 
 #            for attr_name_val in index_file_mdata_irods:
 #                attr_name = str(attr_name_val[0])
@@ -1005,7 +1005,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", vars(exc)
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         

@@ -126,7 +126,7 @@ def remove_kv_pair_with_imeta(fpath_irods, key, value):
     child_proc = subprocess.Popen(["imeta", "rm", "-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     (out, err) = child_proc.communicate()
     if err:
-        print "ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error: ", err, " output: ",out
+        print "ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error text is: ", err, " output: ",out
         if not err.find(constants.CAT_INVALID_ARGUMENT):
             raise exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
 
