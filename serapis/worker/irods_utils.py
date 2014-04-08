@@ -2,6 +2,7 @@
 import os
 import subprocess
 import exceptions
+from collections import defaultdict
 
 from serapis.com import constants, utils
 
@@ -106,8 +107,29 @@ def get_md5_from_ichksum(fpath_irods):
 #################### FILE METADATA FROM IRODS ##############################
 
 def add_kv_pair_with_imeta(fpath_irods, key, value):
-    pass
+    child_proc = subprocess.Popen(["imeta", "add","-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    (out, err) = child_proc.communicate()
+    if err:
+        print "ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out
+        if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
+            raise exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
     
+    
+def add_all_kv_pairs_with_imeta(fpath_irods, list_of_tuples):
+    ''' Adds all the key-value tuples as metadata to the file received as param.
+        Params:
+            - irods file path 
+            - a list of key-value tuples containing the metadata for this file.
+        Throws:
+            - iMetaException if an error occurs while adding a k-v tuple
+    '''
+    for attr_val in list_of_tuples:
+        attr = str(attr_val[0])
+        val = str(attr_val[1])
+        if attr and val:
+            add_kv_pair_with_imeta(fpath_irods, attr, val)
+    return True
+            
 
 def get_value_for_key_from_imeta(fpath_irods, key):
     md5_val = None
@@ -159,6 +181,16 @@ def get_file_meta_from_irods(file_path_irods):
     return convert_imeta_result_to_tuples(out)
 
 
+def get_all_key_counts(tuple_list):
+    ''' 
+        This function calculates the number of occurences of
+        each key in the list of tuples received as parameter.
+    '''
+    key_freq_dict = defaultdict(int)
+    for item in tuple_list:
+        key_freq_dict[item[0]] += 1
+    return key_freq_dict
+    
 
 
 

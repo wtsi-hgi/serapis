@@ -615,6 +615,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             if context.request_data['status'] == constants.FAILURE_STATUS:
                 file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
+                
                 file_logic.file_data_access.update_file_mdata(subm_file.id, context.request_data['result'], 
                                                       task_type, 
                                                       task_id=context.request_data['task_id'], 

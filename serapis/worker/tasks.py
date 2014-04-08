@@ -932,16 +932,8 @@ class AddMdataToIRODSFileTask(iRODSTask):
         print "params received: index file path: ",index_file_path_irods, " index meta: ",index_file_mdata_irods
         file_mdata_irods = deserialize(file_mdata_irods)
         
-        for attr_val in file_mdata_irods:
-            attr = str(attr_val[0])
-            val = str(attr_val[1])
-            if attr and val:
-                child_proc = subprocess.Popen(["imeta", "add","-d", file_path_irods, attr, val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                (out, err) = child_proc.communicate()
-                if err:
-                    print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
-                    if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                        raise exceptions.iMetaException(err, out, cmd="imeta add -d "+file_path_irods+" "+attr+" "+val)
+        irods_utils.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+                
         test_result = self.test_file_meta_irods(file_path_irods)
         if test_result < 0 :
             print "ERRORRRRRRRRRRRRRRRRRRR -- Metadata incomplete!!! GOT from the server: ", file_mdata_irods
@@ -1014,6 +1006,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
         file_id = str(kwargs['file_id'])
         submission_id = str(kwargs['submission_id'])
         
+        errors = [str(exc)]
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         try:
