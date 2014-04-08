@@ -107,10 +107,11 @@ class TestFunctions(unittest.TestCase):
 
     def test_get_tuples_from_imeta_output(self):
         irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/meta_tests2.txt'
-        file_meta_tuples = irods_utils.iRODSMetadataOperations.get_file_meta_from_irods(irods_file_path)
+        file_meta = irods_utils.iRODSMetadataOperations.get_file_meta_from_irods(irods_file_path)
+        meta_tuples = irods_utils.iRODSMetadataProcessing.convert_imeta_result_to_tuples(file_meta)
         #metadata_tuples = convert_file_meta_to_tuples(file_meta)
         must_be = [('run_id', '9126_4#2'), ('file_type', 'bam')]
-        self.assertSetEqual(set(file_meta_tuples), set(must_be))
+        self.assertSetEqual(set(meta_tuples), set(must_be))
         
 #        irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/meta_tests2.txt'
 #        self.assertRaises(exceptions.iRODSFileMetadataNotStardardException, data_tests.GeneralFileTests.test_file_meta_irods, irods_file_path)

@@ -242,7 +242,7 @@ class iRODSMetadataOperations(object):
         return True
                 
     @staticmethod            
-    def remove_all_kv_pairds_with_imeta(fpath_irods, list_of_tuples):
+    def remove_all_kv_pairs_with_imeta(fpath_irods, list_of_tuples):
         ''' 
             This function removes all the key-value metadata pairs 
             from the file metadata using imeta command.
