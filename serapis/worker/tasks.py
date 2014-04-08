@@ -44,7 +44,8 @@ import zlib
 
 
 # Serapis imports:
-from serapis.worker import entities, warehouse_data_access, irods_utils, data_tests
+from serapis.worker import entities, warehouse_data_access, data_tests
+from serapis.worker.irods_utils import assemble_irods_fpath, iRODSChecksumOperations, iRODSListOperations,iRODSMetadataOperations, iRODSMetadataProcessing, iRODSModifyOperations
 from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
 from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, TaskResult
 from serapis.com import constants
@@ -164,13 +165,6 @@ class GatherMetadataTask(SerapisTask):
         str_exc = str(str_exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         
-#        result = {}
-#        result['task_id'] = current_task.request.id
-#        result['status'] = constants.FAILURE_STATUS
-#        result['errors'] = [str_exc]
-#        #resp = send_http_PUT_req(result, submission_id, file_id)
-        #resp = self.report_result_via_http(result, submission_id, file_id)
-        print "ENTERS IN GATHER METADATA ON_FAILUREEEEEEEEEEEEEEEEEEEEEEEEEEEE"
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=str_exc)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
@@ -240,26 +234,12 @@ class UploadFileTask(iRODSTask):
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
-        if index_fpath_irods and irods_utils.exists_in_irods(index_fpath_irods):
-            irods_utils.remove_file_irods(index_fpath_irods, force=True)
-        if irods_utils.exists_in_irods(fpath_irods):
-            irods_utils.remove_file_irods(fpath_irods, force=True)
+        if index_fpath_irods and iRODSListOperations.exists_in_irods(index_fpath_irods):
+            iRODSModifyOperations.remove_file_irods(index_fpath_irods, force=True)
+        if iRODSListOperations.exists_in_irods(fpath_irods):
+            iRODSModifyOperations.remove_file_irods(fpath_irods, force=True)
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
-
-#        child_proc = subprocess.Popen(["ils", "-l", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        (_, err) = child_proc.communicate()
-#        if err:
-#            result['status'] = constants.SUCCESS_STATUS
-#            return result
-            
-#        irm_child_proc = subprocess.Popen(["irm", irods_file_path], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        (_, err_irm) = irm_child_proc.communicate()
-#        if err_irm:
-#            print "ERROR: ROLLBACK FAILED!!!! iRM retcode = ", err_irm
-#            error_msg = "IRODS irm error - return code="+str(irm_child_proc.returncode)+" message: "+err_irm
-#            result['status'] = constants.FAILURE_STATUS
-#            result['errors'] = error_msg
 
 
     # run - running using process call - WORKING VERSION - used currently 11.oct2013
@@ -281,7 +261,6 @@ class UploadFileTask(iRODSTask):
         result['task_id'] = current_task.request.id
         result['status'] = constants.SUCCESS_STATUS
         self.report_result_via_http(result, submission_id, file_id)
-        #send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=result['status'])
         
 
@@ -295,53 +274,18 @@ class UploadFileTask(iRODSTask):
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
         
-
-        ##### ONLY serapis can do this!!!!!!!!!!        
-        # Check if the collection exists:
-#        child_proc = subprocess.Popen(["ils", "-l", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        child_pid = child_proc.pid
-#        (out, err) = child_proc.communicate()
-#        if err:
-        if not irods_utils.exists_in_irods(irods_coll):
-            irods_utils.make_new_coll(irods_coll)
-#            imkdir_proc = subprocess.Popen(["imkdir", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#            child_pid = imkdir_proc.pid
-#            (out, err) = imkdir_proc.communicate()
-#            if err:
-#                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-#                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+irods_coll, msg="Return code="+str(child_proc.returncode))
+        # Upload file:
+        if not iRODSListOperations.exists_in_irods(irods_coll):
+            iRODSModifyOperations.make_new_coll(irods_coll)
+        iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
         
-        irods_utils.upload_irods_file(file_path, irods_coll)
-#        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        child_pid = iput_proc.pid
-#        (out, err) = iput_proc.communicate()
-#        print "IPUT the file resulted in: out = ", out, " err = ", err
-#        if err:
-#            print "IPUT error occured: ", err, " out: ", out
-#            raise exceptions.iPutException(err, out, cmd="iput -K "+file_path, msg="Return code="+str(child_proc.returncode))
-
-        
+        # Upload index:
         if index_file_path:
-            irods_utils.upload_irods_file(index_file_path, irods_coll)
-#            iiput_proc = subprocess.Popen(["iput", "-R","red", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#            #iiput_proc = subprocess.Popen(["iput", "-K", index_file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#            child_pid = iiput_proc.pid
-#            (out, err) = iiput_proc.communicate()
-#            print "IPUT the INDEX file resulted in: out = ", out, " err = ", err
-#            if err:
-#                raise exceptions.iPutException(err, out, cmd="iput -K "+index_file_path, 
-#                                           msg="Return code="+str(child_proc.returncode), extra_info="index")
-             
-  
-        #result = {}
-        #result['task_id'] = current_task.request.id
-        #result['status'] = constants.SUCCESS_STATUS
-        #self.report_result_via_http(result, submission_id, file_id)
+            iRODSModifyOperations.upload_irods_file(index_file_path, irods_coll)
+
+        # Report results:
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
         self.report_result_via_http(task_result)
-        
-        #send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=result['status'])
 
         
@@ -364,38 +308,16 @@ class UploadFileTask(iRODSTask):
         #ROLLBACK
         if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
             if index_file_path:
-                index_fpath_irods = irods_utils.assemble_irods_fpath(file_path, irods_coll)
-            fpath_irods = irods_utils.assemble_irods_fpath(file_path, irods_coll)
+                index_fpath_irods = assemble_irods_fpath(file_path, irods_coll)
+            fpath_irods = assemble_irods_fpath(file_path, irods_coll)
             try:
                 self.rollback(fpath_irods, index_fpath_irods)
             except Exception as e:
                 errors_list.append(str(e))
-            
-#        if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
-#            if index_file_path:
-#                os.kill(child_pid, signal.SIGKILL)
-#                try:
-#                    result_rollb = self.rollback(index_file_path, irods_coll)
-#                except Exception as e:
-#                    errors_list.append(str(e))
-#                if result_rollb['status'] == constants.FAILURE_STATUS:
-#                    errors_list.append(result_rollb['errors'])
-#            try:
-#                result_rollb = self.rollback(file_path, irods_coll)
-#            except Exception as e:
-#                errors_list.append(str(e))
-#            if result_rollb['status'] == constants.FAILURE_STATUS:
-#                errors_list.append(result_rollb['errors'])
-            
+
         # SEND RESULT BACK:
-        result = {}
-        result['task_id'] = current_task.request.id
-        result['errors'] = errors_list
-        result['status'] = constants.FAILURE_STATUS
-        #self.report_result_via_http(result, submission_id, file_id)
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors_list)
         self.report_result_via_http(task_result)
-        #send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=constants.FAILURE_STATUS)
 
          
@@ -431,22 +353,8 @@ class CalculateMD5Task(GatherMetadataTask):
 #        # Calculate file md5:
         if index_file_path:
             index_md5 = self.calculate_md5(index_file_path)
-        
-#        t1 = time.time()
-#        file_md5 = self.calculate_md5(file_path)
-#        delta = time.time() - t1
-#        print "TIME TAKEN TO CALCULATE md5 = ", delta
-#        
         file_md5 = "123456789"
-#        index_md5 = "987654321"
         
-        # Report the results:
-#        result = {}
-#        result['task_id'] = current_task.request.id
-#        result['status'] = constants.SUCCESS_STATUS
-#        result['result'] = {'md5' : file_md5}
-#        if index_file_path:
-#            result['result']['index_file'] = {'md5' : index_md5}
         result = {'md5' : file_md5}
         if index_file_path:
             result['index_file'] = {'md5' : index_md5}
@@ -469,55 +377,17 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         
 
         vcf_header_info = VCFHeaderParser.parse_header(file_path)
-        
         vcf_file = entities.VCFFile()
         vcf_file.used_samtools = vcf_header_info.samtools_version
         vcf_file.reference = vcf_header_info.reference
         vcf_file.file_format = vcf_header_info.vcf_format
         
-        
         sample_list = MetadataHandling.guess_all_identifiers_type(vcf_header_info.sample_list, constants.SAMPLE_TYPE)
-
         access_seqsc = warehouse_data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_samples(sample_list, vcf_file)
-        
-#        
-#        samples = self.get_samples_from_file_header(file_path)
-#        print "NR samplessssssssssssssssssssssssssssssssssssssssssssssssssssss: ", len(samples)
-##        print samples
-#        
-#        vcf_file = entities.VCFFile()
-#        incomplete_entities = self.build_search_dict(samples, constants.SAMPLE_TYPE)
-##        print "INCOMPLETE SAMPLES LISTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~~~", incomplete_entities
-#        
-#        processSeqsc = warehouse_data_access.ProcessSeqScapeData()
-#        processSeqsc.fetch_and_process_sample_mdata(incomplete_entities, vcf_file)
-##        print vars(vcf_file)
-#        
-##        reference = self.get_reference_from_file_header(file_path)
-##        if reference:
-##            if reference.startswith('file://'):
-##                reference = reference[7:]
-##            vcf_file.reference_genome = reference
-#        
-#        used_samtools = self.used_samtools(file_path)
-#        if used_samtools:
-#            vcf_file.used_samtools = used_samtools
-#            
-#        file_format = self.get_file_format(file_path)
-#        if file_format:
-#            vcf_file.file_format = file_format
-#        
-            
-#        result = {}
-#        result['result'] = vcf_file
-#        result['status'] = constants.SUCCESS_STATUS
-#        result['task_id'] = current_task.request.id
-        #resp = send_http_PUT_req(result, submission_id, file_id)
+    
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=vcf_file)
         self.report_result_via_http(task_result)
-#        if (resp.status_code == requests.codes.ok):
-#            print "OK"
 
 
         
@@ -552,8 +422,6 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-        #file_serialized     = kwargs['file_mdata']
-        #file_mdata          = deserialize(file_serialized)
         file_mdata           = kwargs['file_mdata']
         file_mdata          = deserialize(file_mdata)
         file_id             = kwargs['file_id']
@@ -570,15 +438,6 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         lib_ids_list = header_metadata.library_list
         sample_ids_list = header_metadata.sample_list
        
-        
-#        file_mdata.seq_centers = header_metadata['seq_centers']
-#        file_mdata.run_list = header_metadata['run_ids_list']
-#        file_mdata.seq_date_list = header_metadata['seq_date_list']
-#        file_mdata.platform_list = header_metadata['platform_list']
-#        
-#        lib_ids_list = header_metadata['library_list']
-#        sample_ids_list = header_metadata['sample_list']
-#        
         libs_list = MetadataHandling.guess_all_identifiers_type(lib_ids_list, constants.LIBRARY_TYPE)
         samples_list = MetadataHandling.guess_all_identifiers_type(sample_ids_list, constants.SAMPLE_TYPE)
 
@@ -594,21 +453,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             file_mdata.header_has_mdata = True
         else:
             errors.append(constants.FILE_HEADER_EMPTY)
-        
-#        result = {}
-#        if errors:
-#            result['errors'] = errors
-#        result['result'] = file_mdata
-#        result['status'] = constants.SUCCESS_STATUS
-#        result['task_id'] = current_task.request.id
-         
-        #resp = send_http_PUT_req(result, submission_id, file_id)
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata, errors=errors)
         self.report_result_via_http(task_result)
-#        print "RESPONSE FROM SERVER -- parse: ", resp
-#        if (resp.status_code == requests.codes.ok):
-#            print "OK"
-
         #current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
         
         
@@ -648,9 +494,6 @@ class UpdateFileMdataTask(GatherMetadataTask):
                         break
                 if not has_id_field:
                     raise exceptions.NoEntityIdentifyingFieldsProvided("This entity has no identifying fields: "+entity)
-#                if not has_id_field:
-#                    entity_dict = self.__filter_fields__(vars(entity))
-#                    incomplete_entities.append(entity_dict)
         return incomplete_entities
         
         
@@ -664,8 +507,6 @@ class UpdateFileMdataTask(GatherMetadataTask):
         #file_mdata          = file_serialized
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
-        
-        
         file_submitted = entities.SubmittedFile.build_from_json(file_mdata)
         
         incomplete_libs_list    = self.select_incomplete_entities(file_submitted.library_list)
@@ -677,15 +518,6 @@ class UpdateFileMdataTask(GatherMetadataTask):
         processSeqsc.fetch_and_process_samples(incomplete_samples_list, file_submitted)
         processSeqsc.fetch_and_process_studies(incomplete_studies_list, file_submitted)
         
-#        processSeqsc.fetch_and_process_lib_known_mdata(incomplete_libs_list, file_submitted)
-#        processSeqsc.fetch_and_process_sample_mdata(incomplete_samples_list, file_submitted)
-#        processSeqsc.fetch_and_process_study_mdata(incomplete_studies_list, file_submitted)
-#                 
-#        result = {}
-#        result['task_id']   = current_task.request.id
-#        result['result']    = vars(file_submitted) 
-#        result['status']    = constants.SUCCESS_STATUS
-        #response = send_http_PUT_req(result, file_submitted.submission_id, file_id)
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_submitted)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
@@ -840,84 +672,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 class AddMdataToIRODSFileTask(iRODSTask):
 #    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
-#
-#    def test_file_meta_pairs(self, tuple_list, file_path_irods):
-#        key_occ_dict = defaultdict(int)
-#        for item in tuple_list:
-#            key_occ_dict[item[0]] += 1
-#    #    for k, v in key_occ_dict.iteritems():
-#    #        print k+" : "+str(v)+"\n"
-#        UNIQUE_FIELDS = ['study_title', 'study_internal_id', 'study_accession_number', 
-#                         'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
-#                         'study_type', 'study_visibility', 'submission_date', 'submission_id',
-#                         'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
-#                         'data_type', 'seq_center']
-#        AT_LEAST_ONE = ['organism', 'sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
-#                        'data_subtype_tag', 'platform', 'sample_internal_id', 'sex', 'run_id', 'seq_date',
-#                        'hgi_project']
-#        
-#        #print key_occ_dict
-#        for attr in UNIQUE_FIELDS:
-#            if attr in key_occ_dict:
-#                if key_occ_dict[attr] != 1:
-#                    print "ERROR -- field freq != 1!!!" + attr+" freq = ", str(key_occ_dict[attr])
-#                    return -1
-#            else:
-#                print "ERROR -- field entirely missing!!! attr="+attr+ " in file: "+file_path_irods
-#        
-#        for attr in AT_LEAST_ONE:
-#            if attr in key_occ_dict:
-#                if key_occ_dict[attr] < 1:
-#                    print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+str(key_occ_dict[attr])
-#                    return -1
-#            else:
-#                print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+str(key_occ_dict[attr]) + " file: "+file_path_irods
-#                return -1
-#        return 0
-#        
-#    
-#    def convert_file_meta_to_tuples(self, imeta_out):
-#        tuple_list = []
-#        lines = imeta_out.split('\n')
-#        attr_name, attr_val = None, None
-#        for line in lines:
-#            if line.startswith('attribute'):
-#                index = len('attribute: ')
-#                attr_name = line[index:]
-#                attr_name = attr_name.strip()
-#            elif line.startswith('value: '):
-#                index = len('value: ')
-#                attr_val = line[index:]
-#                attr_val = attr_val.strip()
-#                if not attr_val:
-#                    print "Attribute's value is NONE!!! "+attr_name
-#            
-#            if attr_name and attr_val:
-#                tuple_list.append((attr_name, attr_val))
-#                attr_name, attr_val = None, None
-#        return tuple_list
-#    
-#    
-#    def test_file_meta_irods(self, file_path_irods):
-#        child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        (out, err) = child_proc.communicate()
-#        if err:
-#            print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
-#        tuple_list = self.convert_file_meta_to_tuples(out)        
-#        self.test_file_meta_pairs(tuple_list, file_path_irods)
-#        
-#    
-#    def test_index_meta_irods(self, index_file_path_irods):
-#        child_proc = subprocess.Popen(["imeta", "ls","-d", index_file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#        (out, err) = child_proc.communicate()
-#        if err:
-#            print "ERROR IMETA of file: ", index_file_path_irods, " err=",err," out=", out
-#        tuple_list = self.convert_file_meta_to_tuples(out)        
-#        if len(tuple_list) != 2:
-#            print "ERROR -- index file "
-#            return -1
-#        return 0
-#       
+
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
@@ -933,37 +688,16 @@ class AddMdataToIRODSFileTask(iRODSTask):
         #file_mdata_irods = deserialize(file_mdata_irods)
         
         # Adding metadata to the file:
-        irods_utils.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
         data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
             
         print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         # Adding mdata to the index file:
         if index_file_path_irods and index_file_mdata_irods:
-            irods_utils.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
             data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
-
-#            for attr_name_val in index_file_mdata_irods:
-#                attr_name = str(attr_name_val[0])
-#                attr_val = str(attr_name_val[1])
-#                if attr_name and attr_val:
-#                    child_proc = subprocess.Popen(["imeta", "add","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#                    print "Index file is present!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", index_file_path_irods
-#                    (out, err) = child_proc.communicate()
-#                    if err:
-#                        print "ERROR imeta index file: ", index_file_path_irods, " err=", err, " out=", out
-#                        if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-#                            raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr+" "+val)
-#            test_result = self.test_index_meta_irods(index_file_path_irods)
-#            if test_result < 0 :
-#                print "ERRORRRRRRRRRRRRRRRRRRR -- INDEX metadata incomplete!!! GOT from the server: ", index_file_mdata_irods
-#            
-
-#        result = {}
-#        result['task_id'] = current_task.request.id
-#        result['status'] = constants.SUCCESS_STATUS
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
         self.report_result_via_http(task_result)
-        #send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
     
     
@@ -973,34 +707,9 @@ class AddMdataToIRODSFileTask(iRODSTask):
         dest_file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
-        irods_utils.remove_all_kv_pairds_with_imeta(dest_file_path_irods, file_mdata_irods)
-#        for attr_name_val in file_mdata_irods:
-#            print "print --- in ROLLBACK -- attribute name and val tuple: =====================================", attr_name_val
-#            attr_name = str(attr_name_val[0])
-#            attr_val = str(attr_name_val[1])
-#            child_proc = subprocess.Popen(["imeta", "rm", "-d", dest_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#            (out, err) = child_proc.communicate()
-#            if err:
-#                print "ERROR -- imeta in ROLLBACK file path: ",dest_file_path_irods, " error: ", err, " output: ",out
-#                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+dest_file_path_irods+" "+attr_name+" "+attr_val)
-#            print "ROLLING BACK THE ADD MDATA FOR FILE..."
-#        
+        iRODSMetadataOperations.remove_all_kv_pairds_with_imeta(dest_file_path_irods, file_mdata_irods)
         if index_file_path_irods:
-            irods_utils.remove_all_kv_pairds_with_imeta(index_file_path_irods, index_file_mdata_irods)
-#            for attr_name_val in index_file_mdata_irods:
-#                attr_name = str(attr_name_val[0])
-#                attr_val = str(attr_name_val[1])
-#                subprocess.Popen(["imeta", "rm","-d", index_file_path_irods, attr_name, attr_val], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#                (out, err) = child_proc.communicate()
-#                if err:
-#                    print "Error - imeta in ROLLBACK index file: ",index_file_path_irods, "ERROR = ",err, " output: ", out
-#                    raise exceptions.iMetaException(err, out, cmd="imeta add -d "+index_file_path_irods+" "+attr_name+" "+attr_val)
-#                print "ROLLING BACK THE ADD MDATA INDEX ..."
-#        if errors:
-#            print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
-#            return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
-#        print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
-#        return {'status' : constants.SUCCESS_STATUS}
+            iRODSMetadataOperations.remove_all_kv_pairds_with_imeta(index_file_path_irods, index_file_mdata_irods)
         return True
             
         
@@ -1016,14 +725,8 @@ class AddMdataToIRODSFileTask(iRODSTask):
             errors = self.rollback(kwargs)
         except exceptions.iMetaException as e:
             errors.append(str(e))
-    
-#        result = dict()
-#        result['task_id']   = current_task.request.id
-#        result['status']    = constants.FAILURE_STATUS
-#        result['errors'] =  [str_exc].extend(errors)
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
         self.report_result_via_http(task_result)
-        #resp = send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=constants.FAILURE_STATUS)
 
 
@@ -1086,19 +789,10 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
-        
-        #errors = self.rollback(kwargs)
-#        result = dict()
-#        result['task_id']   = current_task.request.id
-#        result['status']    = constants.FAILURE_STATUS
-#        result['errors'] =  [str_exc]
-        
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
         self.report_result_via_http(task_result)
-        #resp = send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=constants.FAILURE_STATUS)
         
-
 
 #class TestAndRecoverFromFailureTask(iRODSTask):
 

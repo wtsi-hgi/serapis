@@ -3,7 +3,8 @@ import abc
 import os, subprocess
 from collections import defaultdict
 
-import exceptions, irods_utils
+import exceptions
+from irods_utils import iRODSChecksumOperations, iRODSListOperations, iRODSMetadataOperations, iRODSMetadataProcessing
 from serapis.com import utils, constants
         
 
@@ -48,7 +49,7 @@ class GeneralFileTests(object):
         file_types = cls.get_all_file_types(filepaths_list)
     
         # Getting the irods fnames:
-        irods_fnames = irods_utils.list_files_in_coll(irods_coll)
+        irods_fnames = iRODSListOperations.list_files_in_coll(irods_coll)
         irods_fnames = utils.filter_list_of_files_by_type(irods_fnames, file_types) #['bam', 'bai']
     
         # Comparing fofn and irods collection contents:
@@ -97,8 +98,8 @@ class GeneralFileTests(object):
     
     @classmethod
     def compare_file_md5(cls, fpath_irods):
-        md5_ick = irods_utils.calc_md5_with_ichksum(fpath_irods)
-        md5_calc = irods_utils.get_value_for_key_from_imeta(fpath_irods, "file_md5")
+        md5_ick = iRODSChecksumOperations.calc_md5_with_ichksum(fpath_irods)
+        md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
         if md5_calc and md5_ick:
             if md5_calc != md5_ick:
                 raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick)
@@ -109,7 +110,7 @@ class GeneralFileTests(object):
     
     @classmethod
     def compare_file_md5_for_all_coll(cls, irods_coll):
-        irods_fpaths = irods_utils.list_files_full_path_in_coll(irods_coll)
+        irods_fpaths = iRODSListOperations.list_files_full_path_in_coll(irods_coll)
         map(cls.compare_file_md5, irods_fpaths)
         return True
     
@@ -250,7 +251,7 @@ class FileMetadataTests(object):
     @classmethod
     @abc.abstractmethod
     def test_file_meta_pairs(cls, tuple_list, file_path_irods):
-        keys_count_dict = irods_utils.get_all_key_counts(tuple_list)
+        keys_count_dict = iRODSMetadataProcessing.get_all_key_counts(tuple_list)
         unique_problematic_keys = cls.test_all_unique_keys(keys_count_dict)
         mandatory_keys_missing = cls.test_all_mandatory_keys(keys_count_dict)
         if unique_problematic_keys or mandatory_keys_missing:
@@ -261,13 +262,15 @@ class FileMetadataTests(object):
     @classmethod
     @abc.abstractmethod
     def test_file_meta_irods(cls, file_path_irods):
-        file_meta_tuples = irods_utils.get_file_meta_from_irods(file_path_irods)
+        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(file_path_irods)
+        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
         return cls.test_file_meta_pairs(file_meta_tuples, file_path_irods)
         
     @classmethod
     @abc.abstractmethod
     def test_index_meta_irods(cls, index_file_path_irods):
-        file_meta_tuples = irods_utils.get_file_meta_from_irods(index_file_path_irods)
+        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(index_file_path_irods)
+        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
         if len(file_meta_tuples) != 2:
             raise exceptions.iRODSFileMetadataNotStardardException("Error index file's metadata", file_meta_tuples, cmd="Index file doesn't have all its metadata. ")
         return True
@@ -467,7 +470,7 @@ class FileTestSuiteRunner(object):
 
 def run_test_suit_on_coll(irods_coll):  
     all_tests_report = {}
-    fpaths_irods = irods_utils.list_files_full_path_in_coll(irods_coll)
+    fpaths_irods = iRODSListOperations.list_files_full_path_in_coll(irods_coll)
     for fpath_irods in fpaths_irods:
         file_error_report = FileTestSuiteRunner.run_test_suite_on_file(fpath_irods)
         all_tests_report[fpath_irods] = file_error_report

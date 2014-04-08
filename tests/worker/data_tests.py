@@ -89,7 +89,7 @@ class TestFunctions(unittest.TestCase):
     
     def test_list_files_full_path_in_coll(self):
         irods_coll = "/humgen/projects/serapis_staging/test-coll/unittest-1"
-        result = irods_utils.list_files_full_path_in_coll(irods_coll)
+        result = irods_utils.iRODSListOperations.list_files_full_path_in_coll(irods_coll)
         expected_result = ['/humgen/projects/serapis_staging/test-coll/unittest-1/test_file1.bam',
                            '/humgen/projects/serapis_staging/test-coll/unittest-1/test_file2.bam']
         self.assertSetEqual(set(expected_result), set(result))
@@ -107,7 +107,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_get_tuples_from_imeta_output(self):
         irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/meta_tests2.txt'
-        file_meta_tuples = irods_utils.get_file_meta_from_irods(irods_file_path)
+        file_meta_tuples = irods_utils.iRODSMetadataOperations.get_file_meta_from_irods(irods_file_path)
         #metadata_tuples = convert_file_meta_to_tuples(file_meta)
         must_be = [('run_id', '9126_4#2'), ('file_type', 'bam')]
         self.assertSetEqual(set(file_meta_tuples), set(must_be))
