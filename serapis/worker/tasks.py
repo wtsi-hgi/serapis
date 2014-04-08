@@ -105,53 +105,12 @@ def serialize(data):
 def deserialize(data):
     return simplejson.loads(data)
 
-#
-#def deserialize(data):
-#    return json.loads(data)
-
-
-#def build_url(submission_id, file_id, task_id):
-#    #url_str = [BASE_URL, "user_id=", user_id, "/submission_id=", str(submission_id), "/file_id=", str(file_id),"/"]
-#    url_str = [BASE_URL, task_id,"/submissions/", str(submission_id), "/files/", str(file_id),"/"]
-#    url_str = ''.join(url_str)
-#    return url_str
-
-
-# Just commented now - 3.04.
-#def build_result(submission_id, file_id):
-#    result = dict()
-#    result['submission_id'] = submission_id
-#    result['file_id'] = file_id
-#    return result
-
-
 
 
 ################ TO BE MOVED ########################
 
 #curl -v --noproxy 127.0.0.1 -H "Accept: application/json" -H "Content-type: application/json" -d '{"files_list" : ["/nfs/users/nfs_i/ic4/9940_2#5.bam"]}' http://127.0.0.1:8000/api-rest/submissions/
 
-
-#def send_http_PUT_req(msg, submission_id, file_id):
-##    logging.info("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-##    logging.debug("IN SEND REQ _ RECEIVED MSG OF TYPE: "+ str(type(msg)) + " and msg: "+str(msg))
-#
-#    if type(msg) == dict:
-#        msg = filter_none_fields(msg)
-#        msg = entities.SubmittedFile.to_json(msg)
-#    print "REQUEST DATA TO SEND================================", msg  
-#    url_str = build_url(submission_id, file_id)
-#    #response = requests.put(url_str, data=serialize(msg), proxies=None, headers={'Content-Type' : 'application/json'})
-#    print "URL WHERE to send the data: ", url_str
-#    
-#    str_size = sys.getsizeof(msg)
-#    print "THe SIZE OF MESSAGE::::::::::::::::;::::::::::::::::::::::::", str_size
-#    response = requests.put(url_str, data=msg, headers={'Content-Type' : 'application/json', 'content-encoding': 'gzip'})
-#    if not response.status_code == '500':
-#        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response#, " RESPONSE CONTENT: ", response.text
-#    else:
-#        print "SENT PUT REQUEST. 500 RESPONSE RECEIVED: " #, response
-#    return response
 
 
 #########################################################################
@@ -727,7 +686,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
 #        result['result']    = vars(file_submitted) 
 #        result['status']    = constants.SUCCESS_STATUS
         #response = send_http_PUT_req(result, file_submitted.submission_id, file_id)
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata)
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_submitted)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
 
@@ -1047,7 +1006,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             print "ROLLBACK ADD META HAS ERRORS!!!!!!!!!!!!!!!!!!", str(errors)
             return {'status' : constants.FAILURE_STATUS, 'errors' : errors}
         print "ROLLBACK ADD MDATA SUCCESSFUL!!!!!!!!!!!!!!!!!"
-        return {'status' : constants.SUCCESS_STATUS, 'errors' : errors}
+        return {'status' : constants.SUCCESS_STATUS}
             
         
     def on_failure(self, exc, task_id, args, kwargs, einfo):

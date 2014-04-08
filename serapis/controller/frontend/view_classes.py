@@ -505,7 +505,8 @@ class SubmittedFilesMainPageRequestHandler(SerapisUserAPIView):
         '''
         try:
             result = dict()
-            context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
+            data = request.DATA if hasattr(request, 'DATA') else None
+            context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id,request_data=data)
             if roles.is_admin(request):
                 strategy = controller_strategy.ResubmissionOperationsAdminStrategy()
             else:

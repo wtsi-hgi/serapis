@@ -105,6 +105,10 @@ def get_md5_from_ichksum(fpath_irods):
 
 #################### FILE METADATA FROM IRODS ##############################
 
+def add_kv_pair_with_imeta(fpath_irods, key, value):
+    pass
+    
+
 def get_value_for_key_from_imeta(fpath_irods, key):
     md5_val = None
     ret = subprocess.Popen(["imeta", "ls", "-d", fpath_irods, key], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -123,7 +127,7 @@ def get_value_for_key_from_imeta(fpath_irods, key):
     return md5_val
 
 
-def __convert_file_meta_to_tuples(imeta_out):
+def convert_imeta_result_to_tuples(imeta_out):
     tuple_list = []
     lines = imeta_out.split('\n')
     attr_name, attr_val = None, None
@@ -152,7 +156,7 @@ def get_file_meta_from_irods(file_path_irods):
     if err:
         print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
         raise exceptions.iRODSFileMetadataNotStardardException(err, out, cmd="Command = imeta ls -d "+file_path_irods)
-    return __convert_file_meta_to_tuples(out)
+    return convert_imeta_result_to_tuples(out)
 
 
 

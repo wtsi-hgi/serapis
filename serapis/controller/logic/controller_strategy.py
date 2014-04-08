@@ -752,7 +752,7 @@ class ResubmissionOperationsAdminStrategy(ResubmissionOperationsStrategy):
         submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
         results = {}
         for f in files:
-            file_context = SpecificFileContext(None, context.submission_id, f.id)
+            file_context = SpecificFileContext(None, context.submission_id, f.id,request_data=context.request_data)
             results[str(f.id)] = self.backend_file_operation(file_context, f, submission).result
         return models.Result(results)
 
