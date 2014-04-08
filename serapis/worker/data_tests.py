@@ -97,7 +97,7 @@ class GeneralFileTests(object):
     
     @classmethod
     def compare_file_md5(cls, fpath_irods):
-        md5_ick = irods_utils.get_md5_from_ichksum(fpath_irods)
+        md5_ick = irods_utils.calc_md5_with_ichksum(fpath_irods)
         md5_calc = irods_utils.get_value_for_key_from_imeta(fpath_irods, "file_md5")
         if md5_calc and md5_ick:
             if md5_calc != md5_ick:

@@ -94,9 +94,11 @@ def upload_irods_file(fpath_client, irods_coll, force=False):
 
 ################# ICHKSUM ICOMMAND #########################################
 
-def get_md5_from_ichksum(fpath_irods):
+def get_md5_from_ichksum(fpath_irods, *opts):
     md5_ick = None
-    ret = subprocess.Popen(["ichksum", fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process_opts_list = ["ichksum"].extend(opts)
+    process_opts_list.apend(fpath_irods)
+    ret = subprocess.Popen(process_opts_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = ret.communicate()
     if err:
         print "ERROR ichksum!", fpath_irods
@@ -104,6 +106,11 @@ def get_md5_from_ichksum(fpath_irods):
         md5_ick = out.split()[1]
     return md5_ick
 
+
+def calc_md5_with_ichksum(fpath_irods):
+    return get_md5_from_ichksum(fpath_irods, ['-K'])
+    
+    
 #################### FILE METADATA FROM IRODS ##############################
 
 def add_kv_pair_with_imeta(fpath_irods, key, value):
