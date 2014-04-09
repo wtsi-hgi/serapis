@@ -1,4 +1,27 @@
 
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
+
+
 import sys
 import requests
 import logging
@@ -123,7 +146,7 @@ class HTTPResultHandler(object):
         data_json = SerapisJSONEncoder.to_json(data)
         #print "REQUEST BODY TO BE SENT TO THE CONTROLLER WITH RESULTS:::::::::::::::::;;", data_json
         response = HTTPRequestHandler.put(url, data_json)
-        if response.status_code != '200':
+        if response.status_code != requests.codes.ok:
             print "SENT PUT REQUEST -- ERROR -- RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response
         else:
             print "SENT PUT REQUEST. 200 RESPONSE RECEIVED: ", response
