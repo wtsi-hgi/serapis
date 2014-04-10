@@ -231,19 +231,10 @@ class FileBusinessLogic:
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
             
-#        is_ready = cls.is_file_ready_for_task(task_name, file_id, file_obj)
-#        if not is_ready.result:
-#            return is_ready
-
-#        file_check_result = cls._check_file_md5(file_id, file_obj)
-#        if not file_check_result.result:
-#            return file_check_result
-
         is_ready = status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(task_name, file_obj)
         if not is_ready.result:
             return is_ready
         
-        #def submit_list_of_tasks(self, list_of_tasks, file_obj, user_id, as_serapis=True):
         # Submitting a list of tasks:
         submitted_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks([task_name], 
                                                                           file_obj=file_obj, 

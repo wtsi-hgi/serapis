@@ -436,7 +436,7 @@ class FileTestSuiteRunner(object):
     @classmethod
     def run_metadata_tests_on_file(cls, fpath_irods):
         meta_test_class = cls.get_metadata_test_class(fpath_irods)
-        return meta_test_class.run_file_meta_test, [fpath_irods]
+        return meta_test_class.run_file_meta_test(fpath_irods)
         
     
     @classmethod

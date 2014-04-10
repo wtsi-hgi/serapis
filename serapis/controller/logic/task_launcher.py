@@ -39,6 +39,9 @@ import os
 import abc
 import logging
 
+from celery import chain
+from celery import signature
+
 
 ####################### OTHER CONFIGS ###############################
 
@@ -57,6 +60,7 @@ calculate_md5_task      = tasks.CalculateMD5Task()
 
 add_mdata_to_IRODS_file_task    = tasks.AddMdataToIRODSFileTask()
 move_to_permanent_coll_task     = tasks.MoveFileToPermanentIRODSCollTask()
+test_file_task                  = tasks.RunFileTestsTask()
 
 submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
 
@@ -80,7 +84,7 @@ class TaskLauncher(object):
 #    def launch_upload_task(file_id, submission_id, file_path, index_file_path, dest_irods_path, queue=constants.SERAPIS_UPLOAD_Q):
     def launch_upload_task(file_obj, queue=constants.SERAPIS_UPLOAD_Q):
         ''' Launches the job to a specific queue. If queue=None, the job
-            will be placed in the normal upload queue.'''
+            will be placed in the serapis upload queue.'''
         if not file_obj:
             logging.error("LAUNCH Upload file task called with null parameters. Task was not submitted to the queue!")
             return None
@@ -130,7 +134,37 @@ class TaskLauncher(object):
         return task.id
     
     @staticmethod
-    def launch_add_mdata2irods_task(file_obj):
+    def create_signature_test_file_task(file_obj):
+        if not file_obj:
+            logging.error("LAUNCH ADD METADATA TO IRODS -- called with null parameters. Task was NOT submitted to the queue.")
+            return None
+        logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
+        
+        fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client)
+        index_fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.index_file.file_path_client)
+        
+        task_args = {
+                              'file_id' : file_obj.file_id,
+                              'submission_id' : file_obj.submission_id,
+                              'file_path_irods' : fpath_irods,
+                              'index_file_path_irods' : index_fpath_irods,
+                              'queue': constants.IRODS_Q, 
+                              'immutable': True
+                     }
+        return task_args
+#        task_sign = test_file_task.s(kwargs={
+#                                              'file_id' : file_obj.file_id,
+#                                              'submission_id' : file_obj.submission_id,
+#                                              'file_path_irods' : fpath_irods,
+#                                              'index_file_path_irods' : index_fpath_irods,
+#                                             },
+#                                     queue=constants.IRODS_Q, immutable=True)
+#        print "TASK SIGNATURE:::::", str(task_sign)
+#        return task_sign
+    
+    
+    @staticmethod
+    def create_signature_add_mdata_task(file_obj):
         if not file_obj:
             logging.error("LAUNCH ADD METADATA TO IRODS -- called with null parameters. Task was NOT submitted to the queue.")
             return None
@@ -148,17 +182,61 @@ class TaskLauncher(object):
         else:
             index_fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.index_file.file_path_client) 
         
-        task = add_mdata_to_IRODS_file_task.apply_async(kwargs={
-                                                      'file_id' : file_obj.file_id,
-                                                      'submission_id' : file_obj.submission_id,
-                                                      'file_mdata_irods' : file_mdata,
-                                                      'index_file_mdata_irods': index_mdata,
-                                                      'file_path_irods' : fpath_irods,
-                                                      'index_file_path_irods' : index_fpath_irods,
-                                                     },
-                                                 queue=constants.IRODS_Q)
-        return task.id
+        task_args = { 
+                              'file_id' : file_obj.file_id,
+                              'submission_id' : file_obj.submission_id,
+                              'file_mdata_irods' : file_mdata,
+                              'index_file_mdata_irods': index_mdata,
+                              'file_path_irods' : fpath_irods,
+                              'index_file_path_irods' : index_fpath_irods,
+                              'queue': constants.IRODS_Q, 
+                              'immutable': True
+                     
+                     }
+        return task_args
+                                                 
+#        task_sign = add_mdata_to_IRODS_file_task.s(kwargs={
+#                                                      'file_id' : file_obj.file_id,
+#                                                      'submission_id' : file_obj.submission_id,
+#                                                      'file_mdata_irods' : file_mdata,
+#                                                      'index_file_mdata_irods': index_mdata,
+#                                                      'file_path_irods' : fpath_irods,
+#                                                      'index_file_path_irods' : index_fpath_irods,
+#                                                     },
+#                                                 queue=constants.IRODS_Q, immutable=True)
+#        print "TASK SIGNATURE:::::", str(task_sign)
+#        return task_sign
 
+        #signature('tasks.add', args=(2, 2), countdown=10)
+        
+        #res = chain(add.s(2, 2), add.s(4), add.s(8))()
+        
+#        task = add_mdata_to_IRODS_file_task.apply_async(kwargs={
+#                                                      'file_id' : file_obj.file_id,
+#                                                      'submission_id' : file_obj.submission_id,
+#                                                      'file_mdata_irods' : file_mdata,
+#                                                      'index_file_mdata_irods': index_mdata,
+#                                                      'file_path_irods' : fpath_irods,
+#                                                      'index_file_path_irods' : index_fpath_irods,
+#                                                     },
+#                                                 queue=constants.IRODS_Q)
+#        return task.id
+
+    @staticmethod
+    def launch_add_mdata2irods_task(file_obj):
+        add_meta_task_args = TaskLauncher.create_signature_add_mdata_task(file_obj)
+        test_task_args = TaskLauncher.create_signature_test_file_task(file_obj)
+        
+        add_task_sign = add_mdata_to_IRODS_file_task.s(**add_meta_task_args).set(queue=constants.IRODS_Q, immutable=True)
+        test_task_sign = test_file_task.s(**test_task_args).set(queue=constants.IRODS_Q, immutable=True)
+        #chain_res = add_task_id.apply_async(queue=constants.IRODS_Q, immutable=True) | test_task_args.apply_async(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
+        
+        chain_res = chain(add_task_sign, test_task_sign).apply_async() #(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
+        print "CHAIN RESULT:::::::::::::::::::::::::::::::", chain_res
+        print "CHAIN PARENT RESULT:..........",chain_res.parent.id
+        return chain_res.parent.id
+        
+        
     
     @staticmethod
     def launch_move_to_permanent_coll_task(file_obj):
@@ -286,11 +364,6 @@ class BatchTasksLauncher(object):
     @abc.abstractmethod
 #    def submit_list_of_tasks(self, list_of_tasks, file_id, user_id, file_obj=None, as_serapis=True):
     def submit_list_of_tasks(self, list_of_tasks, file_obj, user_id, as_serapis=True):
-#        if not file_id and not file_obj:
-#            logging.error("SUBMIT LIST OF TASK method called in BatchTasksLauncher, but no file id or file_obj provided--returning None")
-#            return None
-#        if not file_obj:
-#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
         if not file_obj:
             logging.error("SUBMIT LIST OF TASK method called in BatchTasksLauncher, but no file id or file_obj provided--returning None")
             return None
@@ -306,7 +379,6 @@ class BatchTasksLauncher(object):
             queue_suffix = '.'+user_id
             status = constants.PENDING_ON_USER_STATUS
             
-
         # Submitting the tasks:
         tasks_dict = {}            
         for task_name in list_of_tasks:
@@ -375,9 +447,26 @@ class BatchTasksLauncherVCFFile(BatchTasksLauncher):
         return super(BatchTasksLauncherVCFFile, self).submit_list_of_tasks(list_of_tasks, file_obj, user_id, as_serapis)
 
 
+class PipelineTasksLauncher(TaskLauncher):
+    pass
 
+class BAMPipelineTasksLauncher(PipelineTasksLauncher):
+    
+    @classmethod
+    def chain_list_of_tasks(cls, list_of_tasks, file_obj, user_id, as_serapis=True):
+        res = chain(add.s(2, 2), add.s(4), add.s(8))()
+        print "RESULT OF THE CHAINNNNNNNNNNNNNNNNNNNNNNNNN: ", str(res)
+    
+    @classmethod
+    def chain_presubmission_tasks(cls, file_obj, user_id, as_serapis=True):
+        if as_serapis:
+            queue_suffix = '.serapis'
+            status = constants.PENDING_ON_WORKER_STATUS
+        else:
+            queue_suffix = '.'+user_id
+            status = constants.PENDING_ON_USER_STATUS
 
-
+        
 
 
 

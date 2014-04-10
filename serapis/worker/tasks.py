@@ -137,7 +137,15 @@ class iRODSTask(SerapisTask):
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         print "TASK: %s returned with STATUS: %s", task_id, status
 
+class iRODSTestingTask(SerapisTask):
+    abstract = True
+    ignore_result = True
+    max_retries = 1             # NO RETRIES!
+    #track_started = True        # the task will report its status as STARTED when it starts
 
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        print "TASK: %s returned with STATUS: %s", task_id, status
+    
 
 class GatherMetadataTask(SerapisTask):
     abstract = True
@@ -277,6 +285,8 @@ class UploadFileTask(iRODSTask):
         # Upload file:
         if not iRODSListOperations.exists_in_irods(irods_coll):
             iRODSModifyOperations.make_new_coll(irods_coll)
+        
+        # Upload file:
         iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
         
         # Upload index:
@@ -672,10 +682,11 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 class AddMdataToIRODSFileTask(iRODSTask):
 #    time_limit = 1200           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 600       # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
-
+    
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
+        print "ARGS RECEIVED:::::::::::", kwargs
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
         file_mdata_irods        = kwargs['file_mdata_irods']
@@ -683,17 +694,18 @@ class AddMdataToIRODSFileTask(iRODSTask):
         file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
+        print "ADD METADATA ------- MY TASK ID IS: :::::", current_task.request.id #, " ADN MY PARENT's TASK ID IS: ", current_task.request.parent.id
         print "ADD MDATA TO IRODS JOB...works! File metadata received: ", file_mdata_irods
         
-        # Adding metadata to the file:
-        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
-        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
-
-        # Adding mdata to the index file:            
-        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
-        if index_file_path_irods and index_file_mdata_irods:
-            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
-            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
+#        # Adding metadata to the file:
+#        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+#        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
+#
+#        # Adding mdata to the index file:            
+#        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
+#        if index_file_path_irods and index_file_mdata_irods:
+#            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+#            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
         # Reporting results:
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
@@ -792,6 +804,40 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
+        
+
+
+class RunFileTestsTask(iRODSTestingTask):
+    
+    def run(self, *args, **kwargs):
+        file_id                 = str(kwargs['file_id'])
+        submission_id           = str(kwargs['submission_id'])
+        file_path_irods         = str(kwargs['file_path_irods'])
+        index_file_path_irods  = str(kwargs['index_file_path_irods'])
+        
+        print "RUN TESTS --- MY TASK ID IS: :::::", current_task.request.id
+        
+        # Test the actual file:
+        file_error_report = data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
+        print "FIL ERROR REPORT IS:::::::::", file_error_report
+        
+        # Test the index file:
+        index_error_report = data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
+        print "FIL ERROR REPORT IS:::::::::", index_error_report
+        
+        result = {}
+        status = constants.SUCCESS_STATUS
+        if any(v is False for v in file_error_report.itervalues()):
+            status = constants.FAILURE_STATUS
+            result.update(file_error_report)
+        
+        if any(v is False for v in index_error_report.itervalues()):
+            status = constants.FAILURE_STATUS
+            result.update(index_error_report)
+            
+        # Report the results:
+        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=status, result=result)
+        self.report_result_via_http(task_result)
         
 
 #class TestAndRecoverFromFailureTask(iRODSTask):
