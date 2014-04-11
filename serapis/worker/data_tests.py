@@ -26,10 +26,10 @@
 
 import abc
 import os, subprocess
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 import exceptions
-from irods_utils import iRODSChecksumOperations, iRODSListOperations, iRODSMetadataOperations, iRODSMetadataProcessing
+from irods_utils import iRODSListOperations, iRODSMetadataOperations, FileChecksumUtilityFunctions, FileListingUtilityFunctions, FileMetadataUtilityFunctions
 from serapis.com import utils, constants
         
 
@@ -38,43 +38,40 @@ from serapis.com import utils, constants
 ############################################################
 #################### ACTUAL TESTS ##########################
 
-    
+TestResult = namedtuple('TestResult', ['result', 'errors', 'test_executed'])
+
+#def TaskResult(submission_id, file_id, status, result=None, errors=None, task_id=None):
+#    return TaskResultTuple(submission_id=submission_id, file_id=file_id, status=status, errors=errors, result=result, task_id=task_id)
+
 
 class GeneralFileTests(object):
-    
-    @classmethod
-    def get_all_file_types(cls, filepaths_list):
-        file_types = set()
-        for f in filepaths_list:
-            ext = utils.get_file_extension(f)
-            if ext:
-                file_types.add(ext)
-        return file_types
     
     
     @classmethod
     def test_and_report(cls, test_fct, arg_list):
-        ''' Calls the function received as parameter and returns the reported error.
-            The purpose of this function 
+        ''' 
+            Calls the function received as parameter and returns the reported error.
+            The purpose of this function is to run test functions.
         '''
         try:
             test_fct(*arg_list)
         except exceptions.iRODSException as e:
             return str(e)
-        return "OK"
+        return True
     
     ##### TESTING THAT ALL FILES ARE IN : #####
     
     
     @classmethod
     def compare_fofn_and_irods_coll(cls, fofn, irods_coll):
+        
         # Getting the lustre fnames:
         filepaths_list = utils.get_filepaths_from_fofn(fofn)
         lustre_fnames = utils.get_filenames_from_filepaths(filepaths_list)
-        file_types = cls.get_all_file_types(filepaths_list)
+        file_types = utils.get_all_file_types(filepaths_list)
     
         # Getting the irods fnames:
-        irods_fnames = iRODSListOperations.list_files_in_coll(irods_coll)
+        irods_fnames = FileListingUtilityFunctions.list_files_in_coll(irods_coll)
         irods_fnames = utils.filter_list_of_files_by_type(irods_fnames, file_types) #['bam', 'bai']
     
         # Comparing fofn and irods collection contents:
@@ -99,31 +96,11 @@ class GeneralFileTests(object):
     
     @classmethod
     def checksum_all_replicas(cls, fpath_irods):
-        ''' This checksums all the replicas by actually calculating the md5 of each replica.
-            Hence it takes a very long time to run.
-            Runs ichksum -a -K =>   this icommand calculates the md5 of the file in irods 
-                                    (across all replicas) and compares it against the stored md5
-            Params:
-                the path of the file in irods
-            Returns: 
-                the md5 of the file, if all is ok
-            Throws an exception if not.
-        '''
-        md5_ick = None
-        ret = subprocess.Popen(["ichksum", "-a", "-K", fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = ret.communicate()
-        if err:
-            print "ERROR ichksum!", err, "for file", fpath_irods
-            raise exceptions.iRODSFileDifferentMD5sException(err, out, "ichksum -a -K returned error!!!")
-        else:
-            print "OUT returned by ichksum: ", out
-            md5_ick = out.split()[1]
-        return md5_ick
-    
+        return FileChecksumUtilityFunctions.get_md5_and_checksum_all_replicas(fpath_irods)
     
     @classmethod
     def compare_file_md5(cls, fpath_irods):
-        md5_ick = iRODSChecksumOperations.calc_md5_with_ichksum(fpath_irods)
+        md5_ick = FileChecksumUtilityFunctions.get_md5_and_checksum_file(fpath_irods)
         md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
         if md5_calc and md5_ick:
             if md5_calc != md5_ick:
@@ -135,44 +112,23 @@ class GeneralFileTests(object):
     
     @classmethod
     def compare_file_md5_for_all_coll(cls, irods_coll):
-        irods_fpaths = iRODSListOperations.list_files_full_path_in_coll(irods_coll)
-        map(cls.compare_file_md5, irods_fpaths)
-        return True
+        irods_fpaths = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_coll)
+        return map(cls.compare_file_md5, irods_fpaths)
+        #return True
     
     
     ######################## TEST REPLICAS ##################################################
     
     
-    @classmethod
-    def get_file_replicas(cls, fpath_irods):
-        ret = subprocess.Popen(["ils", '-l',fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = ret.communicate()
-        if err:
-            print "This file doesn't exist in iRODS!"
-            raise exceptions.iLSException(err, out, cmd="ils -l "+fpath_irods)
-        else:
-            replicas = out.split('\n')
-            replicas = filter(None, replicas)
-            return replicas
-            
-    
-    @classmethod
-    def extract_resource_from_replica_list(cls, replica_list):
-        ''' Given a list of replicas, it extracts the list of resources
-            on which the file has replicas.
-        '''
-        repl_resc_list = []
-        for replica in replica_list:
-            repl_items = replica.split()
-            repl_resc_list.append(repl_items[2])
-        return repl_resc_list
+   
     
     
     @classmethod        
     def check_replicas_by_resource(cls, replica_list):
         ''' Check that the replicas are on different resources,
             i.e. that a file has at least one replica in each resource group.'''
-        repl_resc_list = cls.extract_resource_from_replica_list(replica_list)
+        #repl_resc_list = cls.extract_resource_from_replica_list(replica_list)
+        repl_resc_list = [repl.resc_name for repl in replica_list]
         resource_dict = {"red" : 0, "green" : 0}
         for repl_resc in repl_resc_list:
             if repl_resc.find("-rd") != -1:
@@ -202,8 +158,9 @@ class GeneralFileTests(object):
     @classmethod
     def check_replicas_are_paired(cls, replica_list):
         for replica in replica_list:
-            repl_items = replica.split()
-            if len(repl_items) < 7:
+#            repl_items = replica.split()
+#            if len(repl_items) < 7:
+            if replica.is_paired is False:
                 raise exceptions.iRODSReplicaNotPairedException("Replica not paired.")
         return True
      
@@ -213,7 +170,8 @@ class GeneralFileTests(object):
     
     @classmethod
     def run_file_replicas_test(cls, fpath_irods):
-        replica_list = cls.get_file_replicas(fpath_irods)
+        #replica_list = cls.get_file_replicas(fpath_irods)
+        replica_list = FileListingUtilityFunctions.list_all_file_replicas(fpath_irods)
         
         error_report = {}
         test = "Check replicas by number"    
@@ -239,8 +197,8 @@ class FileMetadataTests(object):
         if key in keys_count_dict:
             if keys_count_dict[key] > 1:
                 raise exceptions.iRODSFileMetadataNotStardardException("Field "+key+" should be unique and it's not => "+str(keys_count_dict[key]))
-            else:
-                raise exceptions.iRODSFileMetadataNotStardardException("Field "+key+ " is missing!")
+        else:
+            raise exceptions.iRODSFileMetadataNotStardardException("Field "+key+ " is missing!")
         
     @classmethod
     @abc.abstractmethod
@@ -273,33 +231,41 @@ class FileMetadataTests(object):
                 problematic_keys.append(attr)
         return problematic_keys
         
+#    @classmethod
+#    @abc.abstractmethod
+#    def test_file_meta_pairs(cls, tuple_list, file_path_irods):
+#        keys_count_dict = iRODSMetadataProcessing.get_all_key_counts(tuple_list)
+        
+    
     @classmethod
     @abc.abstractmethod
-    def test_file_meta_pairs(cls, tuple_list, file_path_irods):
-        keys_count_dict = iRODSMetadataProcessing.get_all_key_counts(tuple_list)
+    def test_file_meta_irods(cls, fpath_irods):
+        meta_tuples = FileMetadataUtilityFunctions.get_file_metadata_tuples(fpath_irods)
+        keys_count_dict = FileMetadataUtilityFunctions.get_all_key_counts(meta_tuples)
         unique_problematic_keys = cls.test_all_unique_keys(keys_count_dict)
         mandatory_keys_missing = cls.test_all_mandatory_keys(keys_count_dict)
         if unique_problematic_keys or mandatory_keys_missing:
             msg = "ERROR METADATA: unique fields problematic: "+str(unique_problematic_keys)+"Mandatory fields missing: "+str(mandatory_keys_missing)
             raise exceptions.iRODSFileMetadataNotStardardException(msg)
         return True
-    
-    @classmethod
-    @abc.abstractmethod
-    def test_file_meta_irods(cls, file_path_irods):
-        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(file_path_irods)
-        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
-        return cls.test_file_meta_pairs(file_meta_tuples, file_path_irods)
+#        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(file_path_irods)
+#        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
+#        return cls.test_file_meta_pairs(file_meta_tuples, file_path_irods)
         
     @classmethod
     @abc.abstractmethod
     def test_index_meta_irods(cls, index_file_path_irods):
-        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(index_file_path_irods)
-        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
-        if len(file_meta_tuples) != 2:
-            raise exceptions.iRODSFileMetadataNotStardardException("Error index file's metadata", file_meta_tuples, cmd="Index file doesn't have all its metadata. ")
+        meta_tuples = FileMetadataUtilityFunctions.get_file_metadata_tuples(index_file_path_irods)
+        if len(meta_tuples) != 2:
+            raise exceptions.iRODSFileMetadataNotStardardException("Error index file's metadata", meta_tuples, cmd="Index file doesn't have all its metadata. ")
         return True
-    
+        
+#        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(index_file_path_irods)
+#        file_meta_tuples = iRODSMetadataProcessing.convert_imeta_result_to_tuples(metadata_output)
+#        if len(file_meta_tuples) != 2:
+#            raise exceptions.iRODSFileMetadataNotStardardException("Error index file's metadata", file_meta_tuples, cmd="Index file doesn't have all its metadata. ")
+#        return True
+#    
 
 
 class BAMFileMetadataTests(FileMetadataTests):
@@ -495,7 +461,7 @@ class FileTestSuiteRunner(object):
 
 def run_test_suit_on_coll(irods_coll):  
     all_tests_report = {}
-    fpaths_irods = iRODSListOperations.list_files_full_path_in_coll(irods_coll)
+    fpaths_irods = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_coll)
     for fpath_irods in fpaths_irods:
         file_error_report = FileTestSuiteRunner.run_test_suite_on_file(fpath_irods)
         all_tests_report[fpath_irods] = file_error_report

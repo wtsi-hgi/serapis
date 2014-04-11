@@ -470,7 +470,7 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         
 
 class UpdateFileMdataTask(GatherMetadataTask):
-    max_retries = 5             # 3 RETRIES if the task fails in the first place
+    max_retries = 5             # 5 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = False       # the task will NOT report its status as STARTED when it starts
 #    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
@@ -698,14 +698,14 @@ class AddMdataToIRODSFileTask(iRODSTask):
         print "ADD MDATA TO IRODS JOB...works! File metadata received: ", file_mdata_irods
         
 #        # Adding metadata to the file:
-#        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
-#        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
-#
-#        # Adding mdata to the index file:            
-#        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
-#        if index_file_path_irods and index_file_mdata_irods:
-#            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
-#            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
+        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
+
+        # Adding mdata to the index file:            
+        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
+        if index_file_path_irods and index_file_mdata_irods:
+            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
         # Reporting results:
         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
@@ -808,6 +808,7 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
 
 
 class RunFileTestsTask(iRODSTestingTask):
+    max_retries = 3             # 3 RETRIES if the task fails in the first place
     
     def run(self, *args, **kwargs):
         file_id                 = str(kwargs['file_id'])
@@ -818,12 +819,12 @@ class RunFileTestsTask(iRODSTestingTask):
         print "RUN TESTS --- MY TASK ID IS: :::::", current_task.request.id
         
         # Test the actual file:
-        file_error_report = data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
-        print "FIL ERROR REPORT IS:::::::::", file_error_report
+        file_error_report = data_tests.FileTestSuiteRunner.run_test_suite_on_file(file_path_irods)
+        print "FILE ERROR REPORT IS:::::::::", file_error_report
         
         # Test the index file:
-        index_error_report = data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
-        print "FIL ERROR REPORT IS:::::::::", index_error_report
+        index_error_report = data_tests.FileTestSuiteRunner.run_test_suite_on_file(index_file_path_irods)
+        print "INDEX FILE ERROR REPORT IS:::::::::", index_error_report
         
         result = {}
         status = constants.SUCCESS_STATUS

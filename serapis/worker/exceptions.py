@@ -45,8 +45,20 @@ class iRODSException(Exception):
     #    return 'Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+ str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info)
     
 
+class UnexpectedIRODSiCommandOutputException(iRODSException):
+    ''' 
+        This exception is raised when the output of an icommand is something unexpected.
+    '''
+    def __init__(self, error_src, cmd=None, msg=None, extra_info=None):
+        super(UnexpectedIRODSiCommandOutputException, self).__init__(error_src, None, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(UnexpectedIRODSiCommandOutputException, self).__str__()
+    
+    
 class iPutException(iRODSException):
-    ''' Exception raised when iput-ing a file to iRODS.
+    ''' 
+        Exception raised when iput-ing a file to iRODS.
     '''
     def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
         super(iPutException, self).__init__(error, output, cmd, msg, extra_info)

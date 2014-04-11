@@ -25,10 +25,16 @@
 import os
 import subprocess
 import exceptions
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from serapis.com import constants, utils
 
+
+######################## DATA STRUCTURES ###############################
+
+FileListing = namedtuple('FileListing', ['owner', 'replica_id', 'resc_name','size', 'timestamp', 'is_paired', 'fname'])
+
+IChecksumResult = namedtuple('IChecksumResult', ['md5'])
 
 ######################## UTILS ##########################################
 
@@ -40,51 +46,51 @@ def assemble_irods_fpath(client_fpath, irods_coll):
 
 ######################## ICOMMANDS CALLING FUNCTIONS #####################
 
-class iRODSListOperations(object):
+class iRODSOperations(object):
+    '''
+        This is an abstract class, parent of all the classes implementing 
+        wrappers around the icommands.
+    '''
+    pass
+
+
+class iRODSListOperations(iRODSOperations):
     
     @staticmethod
-    def list_files_in_coll(irods_coll):
-        ''' This function returns the list of file names in this irods collection.
-            Params:
-                irods collection path
-            Returns:
-                list of file names in this collection
-            Throws:
-                iLSException - if the collection doesn't exist or the user is not allowed to ils it.
-        '''
+    def get_ils_coll_output(irods_coll):
         child_proc = subprocess.Popen(["ils", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
             print "ERROR ILS serapis_staging!!!! "
             raise exceptions.iLSException(err, out, cmd="ils "+irods_coll)
-        files_irods = out.split('\n')
-        files_irods = [f.strip() for f in files_irods]
-        files_irods = filter(None, files_irods)
-        return files_irods[1:]
+        return out
     
     
+    
+#    def get_file_replicas(fpath_irods):
+#    def list_file_with_ils(fpath_irods):
     @staticmethod
-    def list_files_full_path_in_coll(irods_coll):
-        ''' This function returns a list of files' full path of all
-            the files in the collection provided as parameter.
+    def get_ilsl_file_output(fpath_irods):
+        ''' This function runs ils command and returns a list of lines
+            received as result, which correspond to a replica each:
+            e.g.
+             '  serapis           1 irods-ddn-rd10a-4           14344 2014-03-11.18:43   md5-check.out'
+                serapis           2 irods-ddn-gg07-2           217896 2014-03-12.11:42 & md5-check.out'
+            
         '''
-        file_names = iRODSListOperations.list_files_in_coll(irods_coll)
-        return [os.path.join(irods_coll, fname) for fname in file_names]
-    
-    @staticmethod
-    def exists_in_irods(path_irods):
-        ''' 
-            This function checks if a path exists already in irods or not.
-            It can be a path to a collection or to a file.
-        '''
-        child_proc = subprocess.Popen(["ils", "-l", path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (_, err) = child_proc.communicate()
+        ret = subprocess.Popen(["ils", '-l',fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = ret.communicate()
         if err:
-            return False
-        return True
+            print "This file doesn't exist in iRODS!"
+            if err.find('does not exist'):
+                raise exceptions.iLSException(err, out, cmd="ils -l "+fpath_irods)
+        else:
+            return out
+            
+    
     
 
-class iRODSModifyOperations(object):
+class iRODSModifyOperations(iRODSOperations):
     
     @staticmethod
     def make_new_coll(irods_coll):
@@ -150,41 +156,59 @@ class iRODSModifyOperations(object):
 
 ################# ICHKSUM ICOMMAND #########################################
 
-class iRODSChecksumOperations(object):
+class iRODSChecksumOperations(iRODSOperations):
     
     @staticmethod
-    def get_md5_from_ichksum(fpath_irods, opts=[]):
+    def run_ichksum_and_get_output(fpath_irods, opts=[]):
         ''' 
             This function gets the checksum of a file.
             If the checksum doesn't exist in iCAT, it returns None.
             This function can be run by users with READ access over this file.
         '''
-        md5_ick = None
+        #md5_ick = None
         process_opts_list = ["ichksum"]
         process_opts_list.extend(opts)
         process_opts_list.append(fpath_irods)
         ret = subprocess.Popen(process_opts_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = ret.communicate()
         if err:
-            print "ERROR ichksum:", err, " File: ", fpath_irods
+            print "ERROR ichksum!", err, "for file", fpath_irods
+            if err.find('chksum error'):
+                raise exceptions.iRODSFileDifferentMD5sException(err, out, "ichksum -a -K returned error!!!")
+            elif err.find('does not exist'):
+                raise exceptions.iLSException(err, out, "File doesn't exist!")
         else:
-            md5_ick = out.split()[1]
-        return md5_ick
+            return out
     
     @staticmethod    
-    def calc_md5_with_ichksum(fpath_irods):
+    def checksum_file_and_get_output(fpath_irods):
         ''' 
             This function gets the checksum of a file or calculates it if 
             the md5 doesn't exist in iCAT.
-            Throws an error if the user running it doesn't have own permission
-            over the file he/she wants to ichksum.
+            Throws an error if the user running it doesn't have OWN permission
+            over the file he/she wants to ichksum and there is no checksum stored in iCAT,
+            because it attempts to write the checksum to iCAT after checksumming the file.
         '''
-        return iRODSChecksumOperations.get_md5_from_ichksum(fpath_irods, ['-K'])
+        return iRODSChecksumOperations.run_ichksum_and_get_output(fpath_irods, ['-K'])
     
-    
+    @staticmethod
+    def checksum_all_file_replicas_and_get_output(fpath_irods):
+        ''' This checksums all the replicas by actually calculating the md5 of each replica.
+            Hence it takes a very long time to run.
+            Runs ichksum -a -K =>   this icommand calculates the md5 of the file in irods 
+                                    (across all replicas) and compares it against the stored md5
+            Params:
+                the path of the file in irods
+            Returns: 
+                the md5 of the file, if all is ok
+            Throws an exception if not.
+        '''
+        return iRODSChecksumOperations.run_ichksum_and_get_output(fpath_irods, ['-K', '-a'])
+
+
 #################### FILE METADATA FROM IRODS ##############################
 
-class iRODSMetadataOperations(object):
+class iRODSMetadataOperations(iRODSOperations):
     
     @staticmethod
     def get_file_meta_from_irods(file_path_irods):
@@ -283,8 +307,16 @@ class iRODSMetadataOperations(object):
         return True
                 
 
+####################################### ICOMMANDS OUTPUT PROCESSING ####################
 
-class iRODSMetadataProcessing(object):
+class iRODSiCommandsOutputProcessing(object):
+    ''' 
+        This is the parent abstract class of all the classes
+        implementing iRODS output processing functionality.
+    '''
+    pass
+
+class iRODSiMetaOutputProcessing(iRODSiCommandsOutputProcessing):
     
     @staticmethod
     def convert_imeta_result_to_tuples(imeta_out):
@@ -310,17 +342,182 @@ class iRODSMetadataProcessing(object):
         return tuple_list
 
     
+    
+    # FileListing = namedtuple('FileListing', ['owner', 'replica_id', 'resc_name','size', 'timestamp', 'is_paired', 'fname'])
+
+
+class iRODSIlsOutputProcessing():
+    
     @staticmethod
-    def get_all_key_counts(tuple_list):
+    def process_ils_output(ils_output):
+        ''' 
+            This function gets as parameter the result of ils -l.
+            e.g.
+            [serapis           1 irods-ddn-rd10a-4           14344 2014-03-11.18:43   md5-check.out,...,]
+            and parses it in order to put the information in a FileListing structure.
+        '''
+        replica_list = []
+        replica_lines = ils_output.split('\n')
+        replica_lines = filter(None, replica_lines)
+        for repl_line in replica_lines:
+            items = repl_line.split()
+            if len(items) < 6:
+                raise exceptions.UnexpectedIRODSiCommandOutputException(ils_output)
+            if len(items) == 7:
+                is_paired = True
+            else:
+                is_paired = False
+            replica = FileListing(owner=items[0], replica_id=items[1], resc_name=items[2], size=items[3], timestamp=items[4], is_paired=is_paired)
+            replica_list.append(replica)
+        return replica_list
+            
+
+
+    @staticmethod
+    def extract_resource_from_replica_list(cls, replica_list):
+        ''' Given a list of replicas, it extracts the list of resources
+            on which the file has replicas.
+        '''
+        repl_resc_list = []
+        for replica in replica_list:
+            repl_items = replica.split()
+            repl_resc_list.append(repl_items[2])
+        return repl_resc_list
+    
+
+    @staticmethod
+    def process_ils_coll_output(ilsl_output):
+        ''' This function returns the list of file names in this irods collection.
+            Params:
+                irods collection path
+            Returns:
+                list of file names in this collection
+            Throws:
+                iLSException - if the collection doesn't exist or the user is not allowed to ils it.
+        '''
+        files_irods = ilsl_output.split('\n')
+        files_irods = [f.strip() for f in files_irods]
+        files_irods = filter(None, files_irods)
+        return files_irods[1:]
+    
+    
+class iRODSiChecksumOutputProcessing():
+  
+    @staticmethod
+    def process_ichksum_output(ichksum_output):
+        ''' 
+            This function processes the ichcksum result
+            by extracting the md5 from it and returning it.
+            Params:
+                - the output of ichksum command:
+                e.g.     compare_meta_md5_with_calc.txt    c780edc691b70a04085713d3e7a73848
+                    Total checksum performed = 1, Failed checksum = 0
+            Returns:
+                - a IChecksumResult
+        '''
+        ichksum_tokens = ichksum_output.split()
+        if len(ichksum_tokens < 1):
+            raise exceptions.UnexpectedIRODSiCommandOutputException(ichksum_output)
+        md5 = ichksum_tokens[1]
+        return IChecksumResult(md5=md5)
+
+
+################################# UTILITY FUNCTIONS AROUND ICOMMANDS ##########
+
+
+class FileChecksumUtilityFunctions:
+    
+    @staticmethod
+    def get_md5_and_checksum_file(fpath_irods):
+        ''' 
+            This function gets the checksum of a file or calculates it if 
+            the md5 doesn't exist in iCAT.
+            Throws an error if the user running it doesn't have OWN permission
+            over the file he/she wants to ichksum and there is no checksum stored in iCAT,
+            because it attempts to write the checksum to iCAT after checksumming the file.
+        '''
+        ichksum_out = iRODSChecksumOperations.checksum_file_and_get_output(fpath_irods)
+        return iRODSiChecksumOutputProcessing.process_ichksum_output(ichksum_out)
+    
+    @staticmethod
+    def get_md5_and_checksum_all_replicas(fpath_irods):
+        ''' This checksums all the replicas by actually calculating the md5 of each replica.
+            Hence it takes a very long time to run.
+            Runs ichksum -a -K =>   this icommand calculates the md5 of the file in irods 
+                                    (across all replicas) and compares it against the stored md5
+            Params:
+                the path of the file in irods
+            Returns: 
+                the md5 of the file, if all is ok
+            Throws an exception if not.
+        '''
+        ichksum_out = iRODSChecksumOperations.checksum_all_file_replicas_and_get_output(fpath_irods)
+        return iRODSiChecksumOutputProcessing.process_ichksum_output(ichksum_out)
+    
+
+
+class FileListingUtilityFunctions: 
+  
+    @staticmethod
+    def exists_in_irods(path_irods):
+        ''' 
+            This function checks if a path exists already in irods or not.
+            It can be a path to a collection or to a file.
+        '''
+        try:
+            iRODSListOperations.list_file_with_ils(path_irods)
+        except exceptions.iLSException:
+            return False
+        return True
+
+    @staticmethod
+    def list_files_full_path_in_coll(irods_coll):
+        ''' 
+            This function returns a list of files' full path of all
+            the files in the collection provided as parameter.
+        '''
+        file_names = iRODSListOperations.list_files_in_coll(irods_coll)
+        return [os.path.join(irods_coll, fname) for fname in file_names]
+    
+    @staticmethod
+    def list_files_in_coll(irods_coll):
+        ''' 
+            Returns a list of file names from the collection given as parameter.
+        '''
+        ils_output = iRODSListOperations.get_ils_coll_output(irods_coll)
+        return iRODSIlsOutputProcessing.process_ils_output(ils_output)
+    
+    @staticmethod
+    def list_all_file_replicas(fpath_irods):
+        ''' 
+            Returns a list of all file replicas of the file given as parameter. 
+        '''
+        ils_output = iRODSListOperations.get_ilsl_file_output(fpath_irods)
+        return iRODSIlsOutputProcessing.process_ils_output(ils_output)
+    
+    
+class FileMetadataUtilityFunctions:
+    
+    @staticmethod
+    def get_file_metadata_tuples(fpath_irods):
+        ''' 
+            This function extracts the metadata for a file from irods
+            and returns it as a list of tuples (key, value).
+        '''
+        imeta_out = iRODSMetadataOperations.get_file_meta_from_irods(fpath_irods)
+        return iRODSiMetaOutputProcessing.convert_imeta_result_to_tuples(imeta_out)
+        
+        
+    @staticmethod
+    def get_all_key_counts(metadata_tuples):
         ''' 
             This function calculates the number of occurences of
             each key in the list of tuples received as parameter.
         '''
         key_freq_dict = defaultdict(int)
-        for item in tuple_list:
+        for item in metadata_tuples:
             key_freq_dict[item[0]] += 1
         return key_freq_dict
+
+
     
-
-
-
