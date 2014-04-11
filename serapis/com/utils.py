@@ -373,6 +373,19 @@ def check_all_files_same_type(file_paths_list):
     return file_type
 
 
+def get_all_file_types(fpaths_list):
+    ''' 
+        This function receives a list of file paths as argument and extracts
+        from it a set of all the files types of the files in the list. 
+    '''
+    file_types = set()
+    for f in fpaths_list:
+        ext = get_file_extension(f)
+        if ext:
+            file_types.add(ext)
+    return file_types
+
+
     
 #def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
 #    if not hgi_subprj:

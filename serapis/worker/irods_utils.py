@@ -227,7 +227,7 @@ class iRODSMetadataOperations(object):
         child_proc = subprocess.Popen(["imeta", "add","-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            print "ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out
+            print "ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out, "KEY=", key, "VALUE=",value
             if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                 raise exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
         
