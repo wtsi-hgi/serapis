@@ -68,8 +68,8 @@ class TestFunctions(unittest.TestCase):
         self.seqsc.fetch_and_process_samples([("name", sampl_name)], subm_file)
         self.assertEqual(len(subm_file.sample_list), 1)
         sampl = subm_file.sample_list[0]
-        self.assertEqual(sampl['internal_id'], 1283390)
-        self.assertEqual(sampl['accession_number'], "EGAN00001029324")
+        self.assertEqual(sampl.internal_id, 1283390)
+        self.assertEqual(sampl.accession_number, "EGAN00001029324")
         
         
         sampl_acc_nr = "EGAN00001059977"
@@ -78,8 +78,8 @@ class TestFunctions(unittest.TestCase):
         
         self.assertEqual(len(subm_file.sample_list), 1)
         sample = subm_file.sample_list[0]
-        self.assertEqual(sample['name'], 'SC_SISuCVD5295404')
-        self.assertEqual(sample['internal_id'], 1359036)
+        self.assertEqual(sample.name, 'SC_SISuCVD5295404')
+        self.assertEqual(sample.internal_id, 1359036)
         
     
     def test_fetch_and_process_libs(self):
