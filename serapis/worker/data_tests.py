@@ -103,8 +103,8 @@ class GeneralFileTests(object):
         md5_ick = FileChecksumUtilityFunctions.get_md5_and_checksum_file(fpath_irods)
         md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
         if md5_calc and md5_ick:
-            if md5_calc != md5_ick:
-                raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick)
+            if md5_calc != md5_ick.md5:
+                raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick.md5)
             else:
                 return True
         return None
