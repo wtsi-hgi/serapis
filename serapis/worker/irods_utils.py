@@ -59,7 +59,8 @@ class iRODSListOperations(iRODSOperations):
     
     @staticmethod
     def run_ils_and_get_output(path_irods, options=[]):
-        cmd_list = ['ils'].extend(options)
+        cmd_list = ['ils']
+        cmd_list.extend(options)
         cmd_list.append(path_irods)
         child_proc = subprocess.Popen(*cmd_list, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
