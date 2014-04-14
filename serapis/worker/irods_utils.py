@@ -418,7 +418,7 @@ class iRODSiChecksumOutputProcessing():
                 - a IChecksumResult
         '''
         ichksum_tokens = ichksum_output.split()
-        if len(ichksum_tokens < 1):
+        if len(len(ichksum_tokens) < 1):
             raise exceptions.UnexpectedIRODSiCommandOutputException(ichksum_output)
         md5 = ichksum_tokens[1]
         return IChecksumResult(md5=md5)
