@@ -349,7 +349,7 @@ class iRODSiMetaOutputProcessing(iRODSiCommandsOutputProcessing):
 class iRODSIlsOutputProcessing():
     
     @staticmethod
-    def process_ils_output(ils_output):
+    def process_ils_file_output(ils_output):
         ''' 
             This function gets as parameter the result of ils -l.
             e.g.
@@ -369,7 +369,7 @@ class iRODSIlsOutputProcessing():
             else:
                 is_paired = False
                 file_name = items[5]
-            replica = FileListing(owner=items[0], replica_id=items[1], resc_name=items[2], size=items[3], timestamp=items[4], is_paired=is_paired, file_name)
+            replica = FileListing(owner=items[0], replica_id=items[1], resc_name=items[2], size=items[3], timestamp=items[4], is_paired=is_paired, fname=file_name)
             replica_list.append(replica)
         return replica_list
     
@@ -487,7 +487,7 @@ class FileListingUtilityFunctions:
             Returns a list of file names from the collection given as parameter.
         '''
         ils_output = iRODSListOperations.get_ils_coll_output(irods_coll)
-        return iRODSIlsOutputProcessing.process_ils_output(ils_output)
+        return iRODSIlsOutputProcessing.process_ils_coll_output(ils_output)
     
     @staticmethod
     def list_all_file_replicas(fpath_irods):
@@ -495,7 +495,7 @@ class FileListingUtilityFunctions:
             Returns a list of all file replicas of the file given as parameter. 
         '''
         ils_output = iRODSListOperations.get_ilsl_file_output(fpath_irods)
-        return iRODSIlsOutputProcessing.process_ils_output(ils_output)
+        return iRODSIlsOutputProcessing.process_ils_file_output(ils_output)
     
     
 class FileMetadataUtilityFunctions:
