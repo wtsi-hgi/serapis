@@ -365,24 +365,26 @@ class iRODSIlsOutputProcessing():
                 raise exceptions.UnexpectedIRODSiCommandOutputException(ils_output)
             if len(items) == 7:
                 is_paired = True
+                file_name = items[6]
             else:
                 is_paired = False
-            replica = FileListing(owner=items[0], replica_id=items[1], resc_name=items[2], size=items[3], timestamp=items[4], is_paired=is_paired)
+                file_name = items[5]
+            replica = FileListing(owner=items[0], replica_id=items[1], resc_name=items[2], size=items[3], timestamp=items[4], is_paired=is_paired, file_name)
             replica_list.append(replica)
         return replica_list
-            
+    
+    # FileListing = namedtuple('FileListing', ['owner', 'replica_id', 'resc_name','size', 'timestamp', 'is_paired', 'fname'])
 
-
-    @staticmethod
-    def extract_resource_from_replica_list(cls, replica_list):
-        ''' Given a list of replicas, it extracts the list of resources
-            on which the file has replicas.
-        '''
-        repl_resc_list = []
-        for replica in replica_list:
-            repl_items = replica.split()
-            repl_resc_list.append(repl_items[2])
-        return repl_resc_list
+#    @staticmethod
+#    def extract_resource_from_replica_list(cls, replica_list):
+#        ''' Given a list of replicas, it extracts the list of resources
+#            on which the file has replicas.
+#        '''
+#        repl_resc_list = []
+#        for replica in replica_list:
+#            repl_items = replica.split()
+#            repl_resc_list.append(repl_items[2])
+#        return repl_resc_list
     
 
     @staticmethod
@@ -476,7 +478,7 @@ class FileListingUtilityFunctions:
             This function returns a list of files' full path of all
             the files in the collection provided as parameter.
         '''
-        file_names = iRODSListOperations.list_files_in_coll(irods_coll)
+        file_names = FileListingUtilityFunctions.list_files_in_coll(irods_coll)
         return [os.path.join(irods_coll, fname) for fname in file_names]
     
     @staticmethod
