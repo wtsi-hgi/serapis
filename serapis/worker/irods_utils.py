@@ -56,14 +56,28 @@ class iRODSOperations(object):
 
 class iRODSListOperations(iRODSOperations):
     
+    
     @staticmethod
-    def get_ils_coll_output(irods_coll):
-        child_proc = subprocess.Popen(["ils", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    def run_ils_and_get_output(path_irods, options=[]):
+        cmd_list = ['ils'].extend(options)
+        cmd_list.append(path_irods)
+        child_proc = subprocess.Popen(*cmd_list, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
             print "ERROR ILS serapis_staging!!!! "
-            raise exceptions.iLSException(err, out, cmd="ils "+irods_coll)
+            raise exceptions.iLSException(err, out, cmd="ils "+path_irods)
         return out
+    
+    
+    @staticmethod
+    def get_ils_coll_output(irods_coll):
+        return iRODSListOperations.run_ils_and_get_output(irods_coll)
+#        child_proc = subprocess.Popen(["ils", irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#        (out, err) = child_proc.communicate()
+#        if err:
+#            print "ERROR ILS serapis_staging!!!! "
+#            raise exceptions.iLSException(err, out, cmd="ils "+irods_coll)
+#        return out
     
     
     
@@ -71,21 +85,22 @@ class iRODSListOperations(iRODSOperations):
 #    def list_file_with_ils(fpath_irods):
     @staticmethod
     def get_ilsl_file_output(fpath_irods):
-        ''' This function runs ils command and returns a list of lines
-            received as result, which correspond to a replica each:
+        ''' This function runs ils -l command on a file path and returns a list of lines
+            received as result, which correspond each to a file replica:
             e.g.
              '  serapis           1 irods-ddn-rd10a-4           14344 2014-03-11.18:43   md5-check.out'
                 serapis           2 irods-ddn-gg07-2           217896 2014-03-12.11:42 & md5-check.out'
             
         '''
-        ret = subprocess.Popen(["ils", '-l',fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = ret.communicate()
-        if err:
-            print "This file doesn't exist in iRODS!"
-            if err.find('does not exist'):
-                raise exceptions.iLSException(err, out, cmd="ils -l "+fpath_irods)
-        else:
-            return out
+        return iRODSListOperations.run_ils_and_get_output(fpath_irods, ['-l'])
+#        ret = subprocess.Popen(["ils", '-l',fpath_irods], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#        out, err = ret.communicate()
+#        if err:
+#            print "This file doesn't exist in iRODS!"
+#            #if err.find('does not exist'):
+#            raise exceptions.iLSException(err, out, cmd="ils -l "+fpath_irods)
+#        else:
+#            return out
             
     
     
@@ -467,7 +482,8 @@ class FileListingUtilityFunctions:
             It can be a path to a collection or to a file.
         '''
         try:
-            iRODSListOperations.list_file_with_ils(path_irods)
+            #iRODSListOperations.list_file_with_ils(path_irods)
+            iRODSListOperations.get_ilsl_file_output(path_irods)
         except exceptions.iLSException:
             return False
         return True
