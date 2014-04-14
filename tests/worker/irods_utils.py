@@ -36,7 +36,7 @@ class TestFileListingUtilityFunctions(unittest.TestCase):
         
     def test_exists_in_irods2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.outttt'
-        assert_that(calling(FileListingUtilityFunctions, irods_path), raises(exceptions.iLSException))
+        assert_that(calling(FileListingUtilityFunctions.exists_in_irods)._with(irods_path), raises(exceptions.iLSException))
         
     def test_list_files_full_path_in_coll1(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-1'
@@ -47,5 +47,5 @@ class TestFileListingUtilityFunctions(unittest.TestCase):
         
     def test_list_files_full_path_in_coll2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-nonexisting'
-        assert_that(calling(FileListingUtilityFunctions.list_files_full_path_in_coll(irods_path)), raises(exceptions.iLSException))
+        assert_that(calling(FileListingUtilityFunctions.list_files_full_path_in_coll)._with(irods_path)), raises(exceptions.iLSException))
         

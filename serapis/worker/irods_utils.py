@@ -62,7 +62,7 @@ class iRODSListOperations(iRODSOperations):
         cmd_list = ['ils']
         cmd_list.extend(options)
         cmd_list.append(path_irods)
-        child_proc = subprocess.Popen(*cmd_list, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        child_proc = subprocess.Popen(cmd_list, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
             print "ERROR ILS serapis_staging!!!! "
