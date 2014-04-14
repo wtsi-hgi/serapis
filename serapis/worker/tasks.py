@@ -45,7 +45,7 @@ import zlib
 
 # Serapis imports:
 from serapis.worker import entities, warehouse_data_access, data_tests
-from serapis.worker.irods_utils import assemble_irods_fpath, iRODSChecksumOperations, iRODSListOperations,iRODSMetadataOperations, iRODSMetadataProcessing, iRODSModifyOperations
+from serapis.worker.irods_utils import assemble_irods_fpath, iRODSListOperations,iRODSMetadataOperations, iRODSModifyOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
 from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
 from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, TaskResult
 from serapis.com import constants
@@ -242,9 +242,9 @@ class UploadFileTask(iRODSTask):
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
-        if index_fpath_irods and iRODSListOperations.exists_in_irods(index_fpath_irods):
+        if index_fpath_irods and FileListingUtilityFunctions.exists_in_irods(index_fpath_irods):
             iRODSModifyOperations.remove_file_irods(index_fpath_irods, force=True)
-        if iRODSListOperations.exists_in_irods(fpath_irods):
+        if FileListingUtilityFunctions.exists_in_irods(fpath_irods):
             iRODSModifyOperations.remove_file_irods(fpath_irods, force=True)
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
@@ -283,7 +283,7 @@ class UploadFileTask(iRODSTask):
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
         
         # Upload file:
-        if not iRODSListOperations.exists_in_irods(irods_coll):
+        if not FileListingUtilityFunctions.exists_in_irods(irods_coll):
             iRODSModifyOperations.make_new_coll(irods_coll)
         
         # Upload file:
