@@ -32,20 +32,21 @@ class TestFileListingUtilityFunctions(unittest.TestCase):
     
     def test_exists_in_irods1(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        assert_that(not_none(FileListingUtilityFunctions.exists_in_irods(irods_path)))
+        assert_that(FileListingUtilityFunctions.exists_in_irods(irods_path), equal_to(True))
         
     def test_exists_in_irods2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.outttt'
-        assert_that(calling(FileListingUtilityFunctions.exists_in_irods)._with(irods_path), raises(exceptions.iLSException))
+        assert_that(FileListingUtilityFunctions.exists_in_irods(irods_path), equal_to(False))
+        #assert_that(calling(FileListingUtilityFunctions.exists_in_irods).with_args(irods_path), raises(exceptions.iLSException))
         
     def test_list_files_full_path_in_coll1(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-1'
         files_listed = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_path)
         must_be = ['/humgen/projects/serapis_staging/test-coll/unittest-1/test_file1.bam', 
                    '/humgen/projects/serapis_staging/test-coll/unittest-1/test_file2.bam'] 
-        assert_that(files_listed, only_contains(must_be))
+        assert_that(files_listed, contains_inanyorder(*must_be))
         
     def test_list_files_full_path_in_coll2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-nonexisting'
-        assert_that(calling(FileListingUtilityFunctions.list_files_full_path_in_coll)._with(irods_path)), raises(exceptions.iLSException))
+        assert_that(calling(FileListingUtilityFunctions.list_files_full_path_in_coll).with_args(irods_path), raises(exceptions.iLSException))
         
