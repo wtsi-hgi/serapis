@@ -28,7 +28,8 @@ import hamcrest
 
 from serapis.worker import data_tests
 #from serapis.worker.data_tests import * 
-from serapis.worker import  exceptions, irods_utils
+from serapis.worker import  exceptions
+from serapis.worker.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
 from serapis.com import utils
 
 
@@ -36,47 +37,57 @@ class TestFunctions(unittest.TestCase):
     
     def test_get_file_replicas(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
+        #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         self.assertEqual(len(replicas), 4)
     
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.err'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
+#        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         self.assertEqual(len(replicas), 2)
     
     def test_extract_resource_from_replica_list(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
-        resc_list = data_tests.GeneralFileTests.extract_resource_from_replica_list(replicas)
+#       replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        #resc_list = data_tests.GeneralFileTests.extract_resource_from_replica_list(replicas)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
+        resc_list = [repl.resc_name for repl in replicas]
         must_be = ['irods-ddn-gg07-4', 'irods-ddn-gg07-2', 'irods-ddn-gg07-3', 'irods-ddn-rd10a-4']
         self.assertSetEqual(set(resc_list), set(must_be))
 
     def test_check_replicas_by_resource(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
         result = data_tests.GeneralFileTests.check_replicas_by_resource(replicas)
         self.assertTrue(result)
         
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/same_resc_test.txt'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        
         self.assertRaises(exceptions.iRODSFileNotBackedupOnBothRescGrps, data_tests.GeneralFileTests.check_replicas_by_resource, replicas)
         
     def test_check_replicas_by_number(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
         self.assertRaises(exceptions.iRODSFileTooManyReplicasException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
         
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/no_replica_test.txt'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
+#        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         self.assertRaises(exceptions.iRODSFileMissingReplicaException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
         
     
     def test_check_replicas_are_paired(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.err'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+#        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
         self.assertTrue(data_tests.GeneralFileTests.check_replicas_are_paired(replicas))
         
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+#        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
         self.assertRaises(exceptions.iRODSReplicaNotPairedException, data_tests.GeneralFileTests.check_replicas_are_paired, replicas)
         
     
@@ -112,7 +123,7 @@ class TestFunctions(unittest.TestCase):
     
     def test_list_files_full_path_in_coll(self):
         irods_coll = "/humgen/projects/serapis_staging/test-coll/unittest-1"
-        result = irods_utils.iRODSListOperations.list_files_full_path_in_coll(irods_coll)
+        result = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_coll)
         expected_result = ['/humgen/projects/serapis_staging/test-coll/unittest-1/test_file1.bam',
                            '/humgen/projects/serapis_staging/test-coll/unittest-1/test_file2.bam']
         self.assertSetEqual(set(expected_result), set(result))
@@ -130,8 +141,9 @@ class TestFunctions(unittest.TestCase):
 
     def test_get_tuples_from_imeta_output(self):
         irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/meta_tests2.txt'
-        file_meta = irods_utils.iRODSMetadataOperations.get_file_meta_from_irods(irods_file_path)
-        meta_tuples = irods_utils.iRODSMetadataProcessing.convert_imeta_result_to_tuples(file_meta)
+        #file_meta = iRODSMetadataOperations.get_file_meta_from_irods(irods_file_path)
+        #meta_tuples = irods_utils.iRODSMetadataProcessing.convert_imeta_result_to_tuples(file_meta)
+        meta_tuples = FileMetadataUtilityFunctions.get_file_metadata_tuples(irods_file_path)
         #metadata_tuples = convert_file_meta_to_tuples(file_meta)
         must_be = [('run_id', '9126_4#2'), ('file_type', 'bam')]
         self.assertSetEqual(set(meta_tuples), set(must_be))
