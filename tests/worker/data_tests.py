@@ -64,7 +64,7 @@ class TestFunctions(unittest.TestCase):
         
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/same_resc_test.txt'
         #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
-        
+        replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
         self.assertRaises(exceptions.iRODSFileNotBackedupOnBothRescGrps, data_tests.GeneralFileTests.check_replicas_by_resource, replicas)
         
     def test_check_replicas_by_number(self):
