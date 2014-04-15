@@ -53,11 +53,14 @@ class GeneralFileTests(object):
             Calls the function received as parameter and returns the reported error.
             The purpose of this function is to run test functions.
         '''
+        result, errors, executed = None, None, True
         try:
-            test_fct(*arg_list)
+            result = test_fct(*arg_list)
         except exceptions.iRODSException as e:
-            return str(e)
-        return True
+            errors = str(e)
+        if result is None:
+            executed = False
+        return TestResult(result=result, errors=errors,test_executed=executed)
     
     ##### TESTING THAT ALL FILES ARE IN : #####
     
@@ -169,7 +172,7 @@ class GeneralFileTests(object):
     
     
     @classmethod
-    def run_file_replicas_test(cls, fpath_irods):
+    def run_file_replicas_test_suit(cls, fpath_irods):
         #replica_list = cls.get_file_replicas(fpath_irods)
         replica_list = FileListingUtilityFunctions.list_all_file_replicas(fpath_irods)
         
@@ -418,13 +421,14 @@ class FileTestSuiteRunner(object):
         error_report[test] = result
     
         test = "3. Check replicas"
-        result = GeneralFileTests.run_file_replicas_test(fpath_irods)
-        error_report[test] = result
+        result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
+        error_report.update(result)
         
 #        meta_test_class = cls.get_metadata_test_class(fpath_irods)
 #        result = meta_test_class.test_and_report(meta_test_class.run_file_meta_test, [fpath_irods])
         test = "4. Test all metadata is there"
-        result = cls.run_metadata_tests_on_file(fpath_irods)
+        #result = cls.run_metadata_tests_on_file(fpath_irods)
+        result = GeneralFileTests.test_and_report(cls.run_metadata_tests_on_file, [fpath_irods])
         error_report[test] = result
         return error_report
     
@@ -444,7 +448,7 @@ class FileTestSuiteRunner(object):
 #    
 #    try:
 #        test = "3. Check replicas"
-#        run_file_replicas_test(fpath_irods)
+#        run_file_replicas_test_suit(fpath_irods)
 #        error_report[test] = "OK"
 #    except iRODSException as e:
 #        error_report[test] = str(e)
@@ -514,7 +518,7 @@ def test_complete(lustre_fofn, irods_coll):
 
 #        checksum_all_replicas(fpath_irods) 
 #        compare_file_md5(fpath_irods)
-#        run_file_replicas_test(fpath_irods)
+#        run_file_replicas_test_suit(fpath_irods)
 #        run_file_meta_test(fpath_irods)
     
 

@@ -701,13 +701,13 @@ class AddMdataToIRODSFileTask(iRODSTask):
         
 #        # Adding metadata to the file:
         iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
-        data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
+        #data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
 
         # Adding mdata to the index file:            
         print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         if index_file_path_irods and index_file_mdata_irods:
             iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
-            data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
+        #    data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
         # Reporting results:
         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
