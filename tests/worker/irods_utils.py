@@ -26,17 +26,17 @@ from hamcrest import *
 
 
 from serapis.worker import exceptions
-from serapis.worker.irods_utils import FileListingUtilityFunctions
+from serapis.worker.irods_utils import FileListingUtilityFunctions, DataObjectUtilityFunctions
 
 class TestFileListingUtilityFunctions(unittest.TestCase):
     
     def test_exists_in_irods1(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
-        assert_that(FileListingUtilityFunctions.exists_in_irods(irods_path), equal_to(True))
+        assert_that(DataObjectUtilityFunctions.exists_in_irods(irods_path), equal_to(True))
         
     def test_exists_in_irods2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.outttt'
-        assert_that(FileListingUtilityFunctions.exists_in_irods(irods_path), equal_to(False))
+        assert_that(DataObjectUtilityFunctions.exists_in_irods(irods_path), equal_to(False))
         #assert_that(calling(FileListingUtilityFunctions.exists_in_irods).with_args(irods_path), raises(exceptions.iLSException))
         
     def test_list_files_full_path_in_coll1(self):
