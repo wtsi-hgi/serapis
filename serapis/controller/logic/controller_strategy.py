@@ -452,21 +452,26 @@ class SubmissionRetrievalUserStrategy(SubmissionRetrievalStrategy):
     
     @multimethod(GeneralSubmissionContext)
     def process_request(self, context):
-        ''' This method retrieves and returns all the submissions corresponding
+        ''' 
+            This method retrieves and returns all the submissions corresponding
             to the parameters provided in the GeneralContext.'''
         subms =  data_access.SubmissionDataAccess.retrieve_all_submissions()
         return [serapis_models.Submission.build_from_db_model(s) for s in subms]
 
     @multimethod(SpecificSubmissionContext)
     def process_request(self, context):
-        ''' This function is responsible for processing the request and returning the results to the client.'''
+        ''' 
+            This function is responsible for processing the request and returning the results to the client.
+        '''
         subm = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
         return serapis_models.Submission.build_from_db_model(subm)
 
 
         
 class FileRetrievalStrategy(ResourceRetrivalStrategy):
-    ''' Abstract class to be inherited by all the subclasses implementing file retrieval strategies.'''
+    ''' 
+        Abstract class to be inherited by all the subclasses implementing file retrieval strategies.
+    '''
     __metaclass__ = abc.ABCMeta
     
         
@@ -474,7 +479,8 @@ class FileRetrievalAdminStrategy(FileRetrievalStrategy):
 
     @multimethod(GeneralFileContext)
     def process_request(self, context):
-        ''' This method retrieves and returns all the files selected by the criteria given
+        ''' 
+            This method retrieves and returns all the files selected by the criteria given
             as parameters in the GeneralContext provided by the client.
             Params: -- context 
             Throws:
@@ -889,6 +895,10 @@ class BackendSubmissionStrategy(BackendOperationsStrategy):
         the staging area to the permanent backend collection.'''
     task_name = constants.SUBMIT_TO_PERMANENT_COLL_TASK
 
+#     def apply_atomically_on_all_files(self, context):
+#         ''' Calls the move all files in a submission to irods permanent zone.'''
+#         
+        
     def backend_file_operation(self, context, file_obj=None):
         return super(BackendSubmissionStrategy, self).backend_file_operation(context)
 
@@ -899,7 +909,7 @@ class BackendMetadataHandlingStrategy(BackendOperationsStrategy):
 class MoveFilesToPermanentBackendCollection(BackendOperationsStrategy):
     ''' This class contains the functionality for moving files from the staging area 
         to the permanent backend collection, if they fulfill the requirements needed.'''
-    task_name = constants.MOVE_TO_PERMANENT_COLL_TASK
+    task_name = constants.MOVE_FILE_TO_PERMANENT_COLL_TASK
     
     def backend_file_operation(self, context, file_obj=None):
         return super(MoveFilesToPermanentBackendCollection, self).backend_file_operation(context)

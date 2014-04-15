@@ -35,11 +35,14 @@ BASE_URL = "http://localhost:8000/api-rest/workers/submissions/"
 MAX_REQUEST_BODY_SIZE = 500000
 
 
-TaskResultTuple = namedtuple('TaskResult', ['submission_id', 'file_id', 'status', 'errors', 'result', 'task_id'])
+FileTaskResultTuple = namedtuple('FileTaskResult', ['submission_id', 'file_id', 'status', 'errors', 'result', 'task_id'])
+SubmissionTaskResultTuple = namedtuple('FileTaskResult', ['submission_id', 'status', 'errors', 'result', 'task_id'])
 
-def TaskResult(submission_id, file_id, status, result=None, errors=None, task_id=None):
-    return TaskResultTuple(submission_id=submission_id, file_id=file_id, status=status, errors=errors, result=result, task_id=task_id)
+def FileTaskResult(submission_id, file_id, status, result=None, errors=None, task_id=None):
+    return FileTaskResultTuple(submission_id=submission_id, file_id=file_id, status=status, errors=errors, result=result, task_id=task_id)
 
+def SubmissionTaskResult(submission_id, status, result=None, errors=None, task_id=None):
+    return SubmissionTaskResultTuple(submission_id=submission_id, status=status, errors=errors, result=result, task_id=task_id)
 
 class SerapisJSONEncoder():
     @classmethod

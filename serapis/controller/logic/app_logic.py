@@ -219,7 +219,7 @@ class FileBusinessLogic:
     def _infer_file_submission_status(cls, task_name):
         if task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
             return constants.SUBMISSION_IN_PREPARATION_STATUS
-        elif task_name in [constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.MOVE_TO_PERMANENT_COLL_TASK]:
+        elif task_name in [constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.MOVE_FILE_TO_PERMANENT_COLL_TASK]:
             return constants.SUBMISSION_IN_PROGRESS_STATUS
     
     @classmethod

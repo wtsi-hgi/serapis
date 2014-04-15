@@ -290,7 +290,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
             
         if cls._check_task_type_status(file_to_submit.tasks_dict, constants.ADD_META_TO_IRODS_FILE_TASK, constants.SUCCESS_STATUS) == True:
             upd_dict['file_submission_status'] = constants.METADATA_ADDED_TO_STAGED_FILE
-        if (cls._check_task_type_status(file_to_submit.tasks_dict, constants.MOVE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
+        if (cls._check_task_type_status(file_to_submit.tasks_dict, constants.MOVE_FILE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
             cls._check_task_type_status(file_to_submit.tasks_dict, constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS)):
                 upd_dict['file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
         if upd_dict:
@@ -490,7 +490,7 @@ class FileStatusCheckerForSubmissionTasks(object):
     def is_file_ready_for_task(cls, task_name, file_obj):
         if task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
             return cls._is_ready_for_add_meta_task(file_obj)
-        elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
+        elif task_name == constants.MOVE_FILE_TO_PERMANENT_COLL_TASK:
             return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
         elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
             return cls._is_ready_for_submit_task(file_obj)

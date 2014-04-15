@@ -38,11 +38,22 @@ IChecksumResult = namedtuple('IChecksumResult', ['md5'])
 
 ######################## UTILS ##########################################
 
-def assemble_irods_fpath(client_fpath, irods_coll):
-    fname = utils.extract_fname(client_fpath)
+def assemble_new_irods_fpath(fpath, irods_coll):
+    ''' 
+        This function puts together the new file path of a file which has been moved
+        or copied from fpath to an irods collection.
+    '''
+    fname = utils.extract_fname(fpath)
     return os.path.join(irods_coll, fname)
-    
-    
+
+def assemble_irods_username(username, zone):
+    return username+"#"+zone
+
+def assemble_irods_sanger_username(username):
+    return assemble_irods_username(username, constants.IRODS_SANGER_ZONE)
+
+def assemble_irods_humgen_username(username):
+    return assemble_irods_username(username, constants.IRODS_HUMGEN_ZONE)
 
 ######################## ICOMMANDS CALLING FUNCTIONS #####################
 
@@ -323,6 +334,42 @@ class iRODSMetadataOperations(iRODSOperations):
         return True
                 
 
+class iRODSiChmodOperations(iRODSOperations):
+    
+    @staticmethod
+    def run_ichmod(path_irods, user, permission, recursive=False):
+        ''' 
+            This function runs ichmod in order to change the permissions on 
+            a file or collection, or recursively on every data object in a collection.
+        '''
+        child_proc = subprocess.Popen(["ichmod", permission, user, path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            print "ERROR -- imeta in ROLLBACK file path: ",path_irods, " error text is: ", err, " output: ",out
+            if not err.find(constants.CAT_NO_ACCESS_PERMISSION):
+                raise exceptions.iRODSNoAccessException(err, out, cmd="ichmod "+permission+" "+user+" "+path_irods)
+        return True
+
+
+
+class iRODSiMVOperations(iRODSOperations):
+    
+    @staticmethod
+    def run_imv(src_path_irods, dest_path_irods):
+        ''' 
+            This function runs imv in order to move a file/collection,
+            from the source path to a destination path.
+        '''
+        print "IMKDIR done, going to imv....."
+        child_proc = subprocess.Popen(["imv", src_path_irods, dest_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            print "imv FAILED, err=", err, " out=", out, " while moving file: ", src_path_irods
+            raise exceptions.iMVException(err, out, cmd="imv "+src_path_irods+" "+dest_path_irods, msg="Return code: "+str(child_proc.returncode))
+        return True
+        
+    
+    
 ####################################### ICOMMANDS OUTPUT PROCESSING ####################
 
 class iRODSiCommandsOutputProcessing(object):
@@ -477,19 +524,6 @@ class FileChecksumUtilityFunctions:
 class FileListingUtilityFunctions: 
   
     @staticmethod
-    def exists_in_irods(path_irods):
-        ''' 
-            This function checks if a path exists already in irods or not.
-            It can be a path to a collection or to a file.
-        '''
-        try:
-            #iRODSListOperations.list_file_with_ils(path_irods)
-            iRODSListOperations.get_ilsl_file_output(path_irods)
-        except exceptions.iLSException:
-            return False
-        return True
-
-    @staticmethod
     def list_files_full_path_in_coll(irods_coll):
         ''' 
             This function returns a list of files' full path of all
@@ -538,5 +572,77 @@ class FileMetadataUtilityFunctions:
             key_freq_dict[item[0]] += 1
         return key_freq_dict
 
+
+class DataObjectUtilityFunctions:
+    
+    @staticmethod
+    def exists_in_irods(path_irods):
+        ''' 
+            This function checks if a path exists already in irods or not.
+            It can be a path to a collection or to a file.
+        '''
+        try:
+            #iRODSListOperations.list_file_with_ils(path_irods)
+            iRODSListOperations.get_ilsl_file_output(path_irods)
+        except exceptions.iLSException:
+            return False
+        return True    
+
+    @staticmethod
+    def create_collection(irods_path):
+        ''' 
+            This function creates a new irods collection at the given path.
+        '''
+        return iRODSModifyOperations.make_new_coll(irods_path)
+
+
+class DataObjectPermissionChangeUtilityFunctions:
+
+    @staticmethod
+    def change_permisssions_to_null_access(path_irods, user_or_grp, recursive=False):
+        ''' 
+            This function is used for changing the current permissions
+            that a user has over a data object to READ permissions.
+        '''
+        return iRODSiChmodOperations.run_ichmod(path_irods, user_or_grp, constants.iRODS_NULL_PERMISSION, recursive)
+        
+    @staticmethod
+    def change_permisssions_to_read_access(path_irods, user_or_grp, recursive=False):
+        ''' 
+            This function is used for changing the current permissions
+            that a user has over a data object to READ permissions.
+        '''
+        return iRODSiChmodOperations.run_ichmod(path_irods, user_or_grp, constants.iRODS_READ_PERMISSION, recursive)
+    
+    @staticmethod
+    def change_permisssions_to_modify_access(path_irods, user_or_grp, recursive=False):
+        ''' 
+            This function is used for changing the current permissions
+            that a user has over a data object to READ permissions.
+        '''
+        return iRODSiChmodOperations.run_ichmod(path_irods, user_or_grp, constants.iRODS_MODIFY_PERMISSION, recursive)
+    
+    @staticmethod
+    def change_permisssions_to_own_access(path_irods, user_or_grp, recursive=False):
+        ''' 
+            This function is used for changing the current permissions
+            that a user has over a data object to READ permissions.
+        '''
+        return iRODSiChmodOperations.run_ichmod(path_irods, user_or_grp, constants.iRODS_OWN_PERMISSION, recursive)
+    
+    
+
+class DataObjectMovingUtilityFunctions:
+    
+    @staticmethod
+    def move_data_object(src_path, dest_path):
+        ''' 
+            This function is used for moving a data object to a new path.
+        '''
+        return iRODSiMVOperations.run_imv(src_path, dest_path)
+    
+    
+    
+    
 
     

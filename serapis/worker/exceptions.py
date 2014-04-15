@@ -116,6 +116,14 @@ class iRMException(iRODSException):
     def __str__(self):
         return super(iRMException, self).__str__()
     
+
+class iRODSNoAccessException(iRODSException):
+    ''' Exception raised when the user doesn't have access to the wanted file/coll in iRODS.'''
+    def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
+        super(iRODSNoAccessException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSNoAccessException, self).__str__()
     
     
 ################## TEST specific exceptions #############################

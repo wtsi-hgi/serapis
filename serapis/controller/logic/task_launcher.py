@@ -24,7 +24,7 @@
 
 
 
-
+from serapis.controller.logic.models_utils import SubmissionModelUtilityFunctions
 from serapis.com import constants, utils
 from serapis.worker import tasks
 from serapis.controller import serapis2irods
@@ -60,6 +60,7 @@ calculate_md5_task      = tasks.CalculateMD5Task()
 
 add_mdata_to_IRODS_file_task    = tasks.AddMdataToIRODSFileTask()
 move_to_permanent_coll_task     = tasks.MoveFileToPermanentIRODSCollTask()
+move_coll_to_permanent_coll_task= tasks.MoveCollectionToPermanentiRODSCollTask()
 test_file_task                  = tasks.RunFileTestsTask()
 
 submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
@@ -231,10 +232,13 @@ class TaskLauncher(object):
         test_task_sign = test_file_task.s(**test_task_args).set(queue=constants.IRODS_Q, immutable=True)
         #chain_res = add_task_id.apply_async(queue=constants.IRODS_Q, immutable=True) | test_task_args.apply_async(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
         
-        chain_res = chain(add_task_sign, test_task_sign).apply_async() #(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
+        #chain_res = chain(add_task_sign, test_task_sign).apply_async() #(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
+        chain_res = add_task_sign.apply_async(link=test_task_sign(**test_task_args))
+        
         print "CHAIN RESULT:::::::::::::::::::::::::::::::", chain_res
-        print "CHAIN PARENT RESULT:..........",chain_res.parent.id
-        return chain_res.parent.id
+        #print "CHAIN PARENT RESULT:..........",chain_res.parent.id
+        #return chain_res.parent.id
+        return chain_res.id
         
         
     
@@ -243,19 +247,15 @@ class TaskLauncher(object):
         if not file_obj:
             logging.info("LAUNCH MOVE TO PERMANENT COLL TASK -- called with null params -- task was NOT submitted to the queue.")
             return None
-        if not file_obj:
-            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj)
+#        if not file_obj:
+#            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj)
         
         # Inferring the file's location in iRODS staging area:
         fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client) 
-#        (_, file_name) = os.path.split(file_obj.file_path_client)
-#        file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
 #        
         # If there is an index => putting together the metadata for it
         index_fpath_irods = None
         if hasattr(file_obj.index_file, 'file_path_client'):
-#            (_, index_file_name) = os.path.split(file_obj.index_file.file_path_client)
-#            index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
             index_fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.index_file.file_path_client)
         else:
             logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
@@ -266,11 +266,16 @@ class TaskLauncher(object):
                                                                'submission_id' : file_obj.submission_id,
                                                                'file_path_irods' : fpath_irods,
                                                                'index_file_path_irods' : index_fpath_irods,
-                                                               'permanent_coll_irods' : permanent_coll_irods
+                                                               'permanent_coll_irods' : permanent_coll_irods,
+                                                               'access_group': file_obj.hgi_project,
+                                                               'owner_username': SubmissionModelUtilityFunctions.get_uploader_username(file_obj.submission_id)
                                                                },
                                                        queue=constants.IRODS_Q
                                                        )
         return task.id
+    
+    
+ 
     
     @staticmethod
     def launch_submit2irods_task(file_obj):
@@ -307,6 +312,28 @@ class TaskLauncher(object):
                                                  queue=constants.IRODS_Q)
         return task.id
     
+
+class SubmissionTaskLauncher(TaskLauncher):
+    
+    @staticmethod
+    def launch_move_coll_to_perm_coll_task(submission):
+        if not submission:
+            logging.info("Launch move collection to other collection -- called with NULL params -- task not launched!")
+            return None
+        
+        uploader_username = SubmissionModelUtilityFunctions.get_uploader_username(submission.id, submission)
+        submission_staging_area_path = utils.build_irods_staging_path(submission.id)
+        task = move_coll_to_permanent_coll_task.apply_async(kwargs={
+                                                                    'submission_id': submission.id,
+                                                                    'access_group': submission.hgi_project,
+                                                                    'owner_username': uploader_username,
+                                                                    'src_coll_irods': submission_staging_area_path,
+                                                                    'permanent_coll_irods': submission.irods_collection
+                                                                    },
+                                                            queue=constants.IRODS_Q
+                                                            )
+        return task.id
+        
 
 
 class TaskLauncherBAMFile(TaskLauncher):
@@ -401,9 +428,9 @@ class BatchTasksLauncher(object):
             elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
                 task_id = self.task_launcher.launch_submit2irods_task(file_obj)
                 tasks_dict[task_id] = {'type' : constants.SUBMIT_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
-            elif task_name == constants.MOVE_TO_PERMANENT_COLL_TASK:
+            elif task_name == constants.MOVE_FILE_TO_PERMANENT_COLL_TASK:
                 task_id = self.task_launcher.launch_move_to_permanent_coll_task(file_obj)
-                tasks_dict[task_id] = {'type' : constants.MOVE_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
+                tasks_dict[task_id] = {'type' : constants.MOVE_FILE_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
         return tasks_dict
 
 

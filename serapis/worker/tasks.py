@@ -45,9 +45,11 @@ import zlib
 
 # Serapis imports:
 from serapis.worker import entities, warehouse_data_access, data_tests
-from serapis.worker.irods_utils import assemble_irods_fpath, iRODSListOperations,iRODSMetadataOperations, iRODSModifyOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
+from serapis.worker.irods_utils import assemble_new_irods_fpath, assemble_irods_humgen_username, assemble_irods_sanger_username 
+from serapis.worker.irods_utils import iRODSMetadataOperations, iRODSModifyOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
+from serapis.worker.irods_utils import DataObjectPermissionChangeUtilityFunctions, DataObjectMovingUtilityFunctions, DataObjectUtilityFunctions
 from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
-from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, TaskResult
+from serapis.worker.result_handler import HTTPRequestHandler, HTTPResultHandler, FileTaskResult, SubmissionTaskResult
 from serapis.com import constants
 from serapis.worker import exceptions
 from serapis.com import utils
@@ -173,7 +175,7 @@ class GatherMetadataTask(SerapisTask):
         str_exc = str(str_exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
         
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=str_exc)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=str_exc)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
         
@@ -236,15 +238,15 @@ class UploadFileTask(iRODSTask):
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
         #send_http_PUT_req(result, submission_id, file_id)
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result={'md5' :"123"})
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result={'md5' :"123"})
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
-        if index_fpath_irods and FileListingUtilityFunctions.exists_in_irods(index_fpath_irods):
+        if index_fpath_irods and DataObjectUtilityFunctions.exists_in_irods(index_fpath_irods):
             iRODSModifyOperations.remove_file_irods(index_fpath_irods, force=True)
-        if FileListingUtilityFunctions.exists_in_irods(fpath_irods):
+        if DataObjectUtilityFunctions.exists_in_irods(fpath_irods):
             iRODSModifyOperations.remove_file_irods(fpath_irods, force=True)
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
@@ -283,8 +285,8 @@ class UploadFileTask(iRODSTask):
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
         
         # Upload file:
-        if not FileListingUtilityFunctions.exists_in_irods(irods_coll):
-            iRODSModifyOperations.make_new_coll(irods_coll)
+        if not DataObjectUtilityFunctions.exists_in_irods(irods_coll):
+            DataObjectUtilityFunctions.create_collection(irods_coll)
         
         # Upload file:
         iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
@@ -294,7 +296,7 @@ class UploadFileTask(iRODSTask):
             iRODSModifyOperations.upload_irods_file(index_file_path, irods_coll)
 
         # Report results:
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=result['status'])
 
@@ -318,15 +320,15 @@ class UploadFileTask(iRODSTask):
         #ROLLBACK
         if type(exc) == exceptions.iPutException or type(exc) == SoftTimeLimitExceeded:
             if index_file_path:
-                index_fpath_irods = assemble_irods_fpath(file_path, irods_coll)
-            fpath_irods = assemble_irods_fpath(file_path, irods_coll)
+                index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
+            fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
             try:
                 self.rollback(fpath_irods, index_fpath_irods)
             except Exception as e:
                 errors_list.append(str(e))
 
         # SEND RESULT BACK:
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors_list)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors_list)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
 
@@ -369,7 +371,7 @@ class CalculateMD5Task(GatherMetadataTask):
         if index_file_path:
             result['index_file'] = {'md5' : index_md5}
         print "CHECKSUM result: ", result
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=result)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=result)
         self.report_result_via_http(task_result)
         
         #send_http_PUT_req(result, submission_id, file_id)
@@ -396,7 +398,7 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         access_seqsc = warehouse_data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_samples(sample_list, vcf_file)
     
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=vcf_file)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=vcf_file)
         self.report_result_via_http(task_result)
 
 
@@ -463,7 +465,7 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
             file_mdata.header_has_mdata = True
         else:
             errors.append(constants.FILE_HEADER_EMPTY)
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata, errors=errors)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata, errors=errors)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
         
@@ -528,7 +530,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
         processSeqsc.fetch_and_process_samples(incomplete_samples_list, file_submitted)
         processSeqsc.fetch_and_process_studies(incomplete_studies_list, file_submitted)
         
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_submitted)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_submitted)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
 
@@ -614,7 +616,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 #        result = {}
 #        result['task_id'] = current_task.request.id
 #        result['status'] = constants.SUCCESS_STATUS
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
         self.report_result_via_http(task_result)
         #send_http_PUT_req(result, submission_id, file_id)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
@@ -672,7 +674,7 @@ class SubmitToIRODSPermanentCollTask(iRODSTask):
 #        result['task_id']   = current_task.request.id
 #        result['status']    = constants.FAILURE_STATUS
 #        result['errors'] =  [str_exc].extend(errors)
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
 
@@ -708,7 +710,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
         # Reporting results:
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.SUCCESS_STATUS)
     
@@ -737,7 +739,7 @@ class AddMdataToIRODSFileTask(iRODSTask):
             errors = self.rollback(kwargs)
         except exceptions.iMetaException as e:
             errors.append(str(e))
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
 
@@ -755,42 +757,29 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         file_path_irods         = kwargs['file_path_irods']
         permanent_coll_irods    = kwargs['permanent_coll_irods']
         index_file_path_irods   = kwargs['index_file_path_irods']
-              
-        child_proc = subprocess.Popen(["ils", "-l", permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        child_pid = child_proc.pid
-        (out, err) = child_proc.communicate()
-        if err:
-            child_proc = subprocess.Popen(["imkdir", permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            child_pid = child_proc.pid
-            (out, err) = child_proc.communicate()
-            if err:
-                if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                    print "imkdir ", permanent_coll_irods, " error: ", err, " and output: ", out
-                    raise exceptions.iMkDirException(err, out, cmd="imkdir "+permanent_coll_irods, msg="Return code="+str(child_proc.returncode))       
-        
-        print "IMKDIR done, going to imv....."
-        child_proc = subprocess.Popen(["imv", file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        (out, err) = child_proc.communicate()
-        if err:
-            print "imv FAILED, err=", err, " out=", out, " while moving file: ", file_path_irods
-            raise exceptions.iMVException(err, out, cmd="imv "+file_path_irods+" "+permanent_coll_irods, msg="Return code: "+str(child_proc.returncode))
+        owners_username         = kwargs['owner_username']
+        access_group            = kwargs['access_group']
 
-        print "imv file worked, going to imv the index....."
+
+        # Create the irods collection if it doesn't exist
+        if not DataObjectUtilityFunctions.exists_in_irods(permanent_coll_irods):
+            DataObjectUtilityFunctions.create_collection(permanent_coll_irods)
+
+        # Move file and index to the permanent irods collection
+        DataObjectMovingUtilityFunctions.move_data_object(file_path_irods, permanent_coll_irods)
         if index_file_path_irods:
-            child_proc = subprocess.Popen(["imv", index_file_path_irods, permanent_coll_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            (out, err) = child_proc.communicate()
-            if err:
-                print "imv index fil:", index_file_path_irods,"error: err=", err, " output=",out
-                raise exceptions.iMVException(err, out, cmd="imv "+index_file_path_irods+" "+permanent_coll_irods, msg="Return code: "+str(child_proc.returncode))
-            
-#        result = {}
-#        result['task_id'] = current_task.request.id
-#        result['status'] = constants.SUCCESS_STATUS
+            DataObjectMovingUtilityFunctions.move_data_object(index_file_path_irods, permanent_coll_irods)
 
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
-        self.report_result_via_http(task_result)
+        # Change permissions over the file just move:
+        uname_irods = assemble_irods_sanger_username(owners_username)
+        new_file_location =  assemble_new_irods_fpath(file_path_irods, permanent_coll_irods)
+        DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_null_access(new_file_location, uname_irods)
+        DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_read_access(new_file_location, access_group)
         
-        #send_http_PUT_req(result, submission_id, file_id)
+        # Report results back to the controller:
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+
         #current_task.update_state(state=constants.SUCCESS_STATUS)
         
         
@@ -801,11 +790,43 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         
         str_exc = str(exc).replace("\"","" )
         str_exc = str_exc.replace("\'", "")
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
         
 
+class MoveCollectionToPermanentiRODSCollTask(iRODSTask):
+    
+    def run(self, **kwargs):
+        submission_id           = str(kwargs['submission_id'])
+        access_group            = kwargs['access_group']
+        owners_username          = kwargs['owner_username']
+        src_path                = kwargs['src_coll_irods']
+        permanent_coll_irods    = kwargs['permanent_coll_irods']
+        
+        # Create the dest collection if it doesn't exist:
+        if not DataObjectUtilityFunctions.exists_in_irods(permanent_coll_irods):
+            DataObjectUtilityFunctions.create_collection(permanent_coll_irods)
+
+        # Move the irods collection from source to destination 
+        DataObjectMovingUtilityFunctions.move_data_object(src_path, permanent_coll_irods)
+        
+        # Change permissions for the group:
+        DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_read_access(permanent_coll_irods, access_group, recursive=True)
+        
+        # Take away the priviledges of the uploader user:
+        irods_username = assemble_irods_sanger_username(owners_username)
+        DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_null_access(permanent_coll_irods, irods_username, recursive=True)
+        
+        # Take away the priviledges from serapis:
+        serapis_uname = assemble_irods_humgen_username('serapis')
+        DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_modify_access(permanent_coll_irods, serapis_uname, recursive=True)
+
+        # Report back the results:        
+        task_result = SubmissionTaskResult(submission_id=submission_id, status=constants.SUCCESS_STATUS)
+        self.report_result_via_http(task_result)
+
+        
 
 class RunFileTestsTask(iRODSTestingTask):
     max_retries = 3             # 3 RETRIES if the task fails in the first place
@@ -837,7 +858,7 @@ class RunFileTestsTask(iRODSTestingTask):
             result.update(index_error_report)
             
         # Report the results:
-        task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=status, result=result)
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=status, result=result)
         self.report_result_via_http(task_result)
         
 
