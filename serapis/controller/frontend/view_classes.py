@@ -697,6 +697,9 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
+        except exceptions.TaskNotRegisteredError as e:
+            result['errors'] = e.msg
+            return Response(result, status=status.HTTP_403_FORBIDDEN)
         except exceptions.DeprecatedDocument as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 

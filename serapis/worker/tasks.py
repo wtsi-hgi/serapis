@@ -856,11 +856,11 @@ class RunFileTestsTask(iRODSTestingTask):
         
         result = {}
         status = constants.SUCCESS_STATUS
-        if self.check_all_tests_passed(file_error_report):
+        if not self.check_all_tests_passed(file_error_report):
             status = constants.FAILURE_STATUS
             result.update(file_error_report)
         
-        if self.check_all_tests_passed(index_error_report):
+        if not self.check_all_tests_passed(index_error_report):
             status = constants.FAILURE_STATUS
             result.update(index_error_report)
             

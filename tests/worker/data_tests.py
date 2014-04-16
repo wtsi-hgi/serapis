@@ -32,6 +32,8 @@ from serapis.worker import  exceptions
 from serapis.worker.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
 from serapis.com import utils
 
+from serapis.worker.data_tests import TestResult
+
 
 class TestFunctions(unittest.TestCase):
     
@@ -151,5 +153,6 @@ class TestFunctions(unittest.TestCase):
 #        irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/meta_tests2.txt'
 #        self.assertRaises(exceptions.iRODSFileMetadataNotStardardException, data_tests.GeneralFileTests.test_file_meta_irods, irods_file_path)
 #        
+
 if __name__ == "__main__":
     unittest.main()
