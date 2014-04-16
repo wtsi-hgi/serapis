@@ -27,48 +27,66 @@ import convert_mdata
 from serapis.controller import exceptions
 
 
-def gather_mdata(file_to_submit, user_id=None, submission_date=None):
-    if user_id == None:
-        user_id = data_access.FileDataAccess.retrieve_sanger_user_id(file_to_submit.id)
-    if submission_date == None:
-        submission_date = data_access.SubmissionDataAccess.retrieve_submission_date(file_to_submit.id)
+def gather_file_mdata(file_to_submit, submission=None):
+    if file_to_submit is None:
+        return None
+    if submission is None:
+        submission = data_access.SubmissionDataAccess.retrieve_submission(file_to_submit.submission_id)
+        #user_id = data_access.FileDataAccess.retrieve_sanger_user_id(file_to_submit.id)
+#     if submission_date == None:
+#         submission_date = data_access.SubmissionDataAccess.retrieve_submission_date(file_to_submit.id)
     #print "SUBMISSION DATEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE: ", submission_date
     
     if hasattr(file_to_submit, 'file_reference_genome_id') and getattr(file_to_submit, 'file_reference_genome_id') != None:
         ref_genome = data_access.ReferenceGenomeDataAccess.retrieve_reference_by_md5(file_to_submit.file_reference_genome_id)
-        irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission_date, ref_genome, user_id)
+        irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission.submission_date, ref_genome, submission.sanger_user_id)
     else:
-        irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission_date, sanger_user_id=user_id)
+        irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission.submission_date, sanger_user_id=submission.sanger_user_id)
     print "IRODS MDATA DICT --- AFTER UPDATE:"
     for mdata in irods_mdata_dict:
         print mdata
     return irods_mdata_dict
 
+def gather_index_file_mdata(indexed_file, submission=None):
+    if submission is None:
+        submission = data_access.SubmissionDataAccess.retrieve_submission(indexed_file.submission_id)
 
-def get_all_file_meta_from_DB(file_id, file_obj=None):
-    if not file_obj:
-        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-    irods_mdata_dict = gather_mdata(file_obj)
-    return irods_mdata_dict
-
-
-def get_all_index_file_meta_from_DB(file_id, file_obj=None):
-    if not file_obj:
-        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
-    index_mdata = None
-    if hasattr(file_obj.index_file, 'file_path_client') and getattr(file_obj.index_file, 'file_path_client'):
-        index_mdata = convert_mdata.convert_index_file_mdata(file_obj.index_file.md5, file_obj.md5)
+    if hasattr(indexed_file.index_file, 'file_path_client') and getattr(indexed_file.index_file, 'file_path_client'):
+        index_mdata = convert_mdata.convert_index_file_mdata(indexed_file.index_file.md5, indexed_file.md5)
     else:
-        raise exceptions.NoIndexFileException(file_id)
+        raise exceptions.NoIndexFileException(indexed_file.id)
     return index_mdata
 
 
+def get_all_file_meta_from_DB(file_id, file_obj=None, submission=None):
+    if not file_obj:
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+    return gather_file_mdata(file_obj, submission=submission)
+
+
+def get_all_index_file_meta_from_DB(file_id, file_obj=None, submission=None):
+    if not file_obj:
+        file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
+    return gather_index_file_mdata(file_obj, submission)
+    
+
+
+# def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
+#     if not submission_obj:
+#         submission_obj = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
+#     result_dict = {}
+#     for f_id in submission_obj.files_list:
+#         result_dict[str(f_id)] = get_all_file_meta_from_DB(str(f_id))
+#     return result_dict
+
 def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
+    # BUG - TODO: This is not actually getting all the file metadata, because it ignores the index file's metadata.
     if not submission_obj:
         submission_obj = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
+    files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
     result_dict = {}
-    for f_id in submission_obj.files_list:
-        result_dict[str(f_id)] = get_all_file_meta_from_DB(str(f_id))
+    for file_obj in files:
+        result_dict[str(file_obj.id)] = get_all_file_meta_from_DB(file_obj.id, file_obj, submission_obj)
     return result_dict
 
 

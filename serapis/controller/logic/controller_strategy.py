@@ -630,10 +630,10 @@ class FileModificationStrategy(ResourceModificationStrategy):
         # TESTING:
         if task_type == constants.UPLOAD_FILE_TASK:
             file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
-            serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+            serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
             
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
-        serapis2irods.serapis2irods_logic.gather_mdata(file_to_update)
+        serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
         file_logic.check_and_update_all_file_statuses(subm_file.id, file_to_update)
     
     
