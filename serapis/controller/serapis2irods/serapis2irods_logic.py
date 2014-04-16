@@ -44,8 +44,8 @@ def gather_file_mdata(file_to_submit, submission=None):
     else:
         irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission.submission_date, sanger_user_id=submission.sanger_user_id)
     print "IRODS MDATA DICT --- AFTER UPDATE:"
-    for mdata in irods_mdata_dict:
-        print mdata
+#     for mdata in irods_mdata_dict:
+#         print mdata
     return irods_mdata_dict
 
 def gather_index_file_mdata(indexed_file, submission=None):
@@ -93,7 +93,11 @@ def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
     t2 = time.time()
     result_dict = {}
     for file_obj in files:
+        t4 = time.time()
         result_dict[str(file_obj.id)] = get_all_file_meta_from_DB(file_obj.id, file_obj, submission_obj)
+        t5 = time.time()
+        total4 = t5-t4
+        print "FOR EACH FILE GATHER METADATA TOOK: ", str(total4)
     t3 = time.time()
     total2 = t3-t2
     print "Query for files and file processing took: ", str(total2)

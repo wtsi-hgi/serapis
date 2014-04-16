@@ -170,13 +170,18 @@ def convert_specific_file_mdata(file_type, file_mdata):
     return irods_specific_mdata
 
 
+import time
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
     FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     
     for field_name in FILE_PREFIXED_FIELDS_LIST:
+        t1 = time.time()
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
+            t2 = time.time()
+            total = t2 - t1
+            print "Time taken to check if the file has attribute: (in convert_metadata)", str(total)
             field_val = getattr(subm_file, field_name)
             field_val = utils.unicode2string(str(field_val))
             if field_name == 'id':
