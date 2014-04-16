@@ -20,6 +20,7 @@
 #################################################################################
 
 
+import time
 
 #from serapis.controller import db_model_operations
 from serapis.controller.db import data_access
@@ -81,12 +82,21 @@ def get_all_index_file_meta_from_DB(file_id, file_obj=None, submission=None):
 
 def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
     # BUG - TODO: This is not actually getting all the file metadata, because it ignores the index file's metadata.
+    t0 = time.time()
     if not submission_obj:
         submission_obj = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
+    t1 = time.time()
+    total1 = t1-t0
+    print "QUERY FOR SUBMISSION BY ID TOOK: ", str(total1)
     files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
+    
+    t2 = time.time()
     result_dict = {}
     for file_obj in files:
         result_dict[str(file_obj.id)] = get_all_file_meta_from_DB(file_obj.id, file_obj, submission_obj)
+    t3 = time.time()
+    total2 = t3-t2
+    print "Query for files and file processing took: ", str(total2)
     return result_dict
 
 

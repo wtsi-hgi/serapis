@@ -1506,7 +1506,7 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
             file_metadata = strategy.process_request(context)
             t1 = time.time()
             total = t1-t0
-            print "RESULT BEFORE RETURNING IT::::::::::::::::::::::", file_metadata
+            #print "RESULT BEFORE RETURNING IT::::::::::::::::::::::", file_metadata
             print "TIME TAKED TO GET THE METADATA::::::::", total
         except InvalidId:
             result['errors'] = "InvalidId"
