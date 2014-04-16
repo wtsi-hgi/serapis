@@ -99,7 +99,12 @@ class GeneralFileTests(object):
     
     @classmethod
     def checksum_all_replicas(cls, fpath_irods):
-        return FileChecksumUtilityFunctions.get_md5_and_checksum_all_replicas(fpath_irods)
+        ''' 
+            This function checksums all the file's replicas and returns True 
+            if everything is ok, or throws an exception otherwise.
+        '''
+        FileChecksumUtilityFunctions.get_md5_and_checksum_all_replicas(fpath_irods)
+        return True
     
     @classmethod
     def compare_file_md5(cls, fpath_irods):
@@ -248,7 +253,11 @@ class FileMetadataTests(object):
         unique_problematic_keys = cls.test_all_unique_keys(keys_count_dict)
         mandatory_keys_missing = cls.test_all_mandatory_keys(keys_count_dict)
         if unique_problematic_keys or mandatory_keys_missing:
-            msg = "ERROR METADATA: unique fields problematic: "+str(unique_problematic_keys)+"Mandatory fields missing: "+str(mandatory_keys_missing)
+            msg = "ERROR METADATA: unique fields problematic: "
+            if unique_problematic_keys:
+                msg = msg + str(unique_problematic_keys)
+            if mandatory_keys_missing:
+                msg = msg + str(mandatory_keys_missing)
             raise exceptions.iRODSFileMetadataNotStardardException(msg)
         return True
 #        metadata_output = iRODSMetadataOperations.get_file_meta_from_irods(file_path_irods)
@@ -377,12 +386,11 @@ class VCFFileMetadataTests(FileMetadataTests):
         file_type = utils.detect_file_type(fpath_irods)
         # TODO: get the extensions from constants.py
         if file_type in [constants.VCF_FILE]:
-            cls.test_file_meta_irods(fpath_irods)
+            return cls.test_file_meta_irods(fpath_irods)
         elif file_type in [constants.TBI_FILE]:
-            cls.test_index_meta_irods(fpath_irods)
+            return cls.test_index_meta_irods(fpath_irods)
         else:
             raise BaseException("This file is neither a VCF nor a TBI --- format not accepted!!!")
-        return True
 
     
         #check_replicas_by_number(replica_list)

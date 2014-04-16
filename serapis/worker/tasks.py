@@ -831,6 +831,13 @@ class MoveCollectionToPermanentiRODSCollTask(iRODSTask):
 class RunFileTestsTask(iRODSTestingTask):
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     
+    def check_all_tests_passed(self, file_error_report):
+        tests_results = [val.result for val in file_error_report.itervalues()]
+        tests_results = filter(None, tests_results)
+        if any(v is False for v in tests_results):
+            return False
+        return True
+    
     def run(self, *args, **kwargs):
         file_id                 = str(kwargs['file_id'])
         submission_id           = str(kwargs['submission_id'])
@@ -849,11 +856,11 @@ class RunFileTestsTask(iRODSTestingTask):
         
         result = {}
         status = constants.SUCCESS_STATUS
-        if any(v is False for v in file_error_report.itervalues()):
+        if self.check_all_tests_passed(file_error_report):
             status = constants.FAILURE_STATUS
             result.update(file_error_report)
         
-        if any(v is False for v in index_error_report.itervalues()):
+        if self.check_all_tests_passed(index_error_report):
             status = constants.FAILURE_STATUS
             result.update(index_error_report)
             

@@ -232,8 +232,9 @@ class TaskLauncher(object):
         test_task_sign = test_file_task.s(**test_task_args).set(queue=constants.IRODS_Q, immutable=True)
         #chain_res = add_task_id.apply_async(queue=constants.IRODS_Q, immutable=True) | test_task_args.apply_async(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
         
-        #chain_res = chain(add_task_sign, test_task_sign).apply_async() #(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
-        chain_res = add_task_sign.apply_async(link=test_task_sign(**test_task_args))
+        chain_res = chain(add_task_sign, test_task_sign).apply_async() #(queue=constants.IRODS_Q, immutable=True)   #queue=constants.IRODS_Q, immutable=True
+        # It seems to be working like this as well, I am not sure what the difference is:
+        #chain_res = add_task_sign.apply_async(link=test_task_sign(**test_task_args))
         
         print "CHAIN RESULT:::::::::::::::::::::::::::::::", chain_res
         #print "CHAIN PARENT RESULT:..........",chain_res.parent.id
