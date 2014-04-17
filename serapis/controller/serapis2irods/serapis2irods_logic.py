@@ -94,7 +94,7 @@ def get_all_files_metadata_for_submission(submission_id, submission_obj=None):
     result_dict = {}
     for file_obj in files:
         t4 = time.time()
-        result_dict[str(file_obj.id)] = get_all_file_meta_from_DB(file_obj.id, file_obj, submission_obj)
+        result_dict[str(file_obj.id)] = get_all_file_meta_from_DB(file_obj, submission_obj)
         t5 = time.time()
         total4 = t5-t4
         print "FOR EACH FILE GATHER METADATA TOOK: ", str(total4)
