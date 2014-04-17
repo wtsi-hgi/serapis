@@ -221,7 +221,7 @@ class FileMetadataTests(object):
     @abc.abstractmethod
     def test_all_unique_keys(cls, keys_count_dict):
         problematic_keys = []
-        for attr in cls.unique_fields:
+        for attr in cls.file_mandatory_unique_fields:
             try:
                 cls.test_key_is_unique(attr, keys_count_dict)
             except exceptions.iRODSFileMetadataNotStardardException:
@@ -232,7 +232,7 @@ class FileMetadataTests(object):
     @abc.abstractmethod
     def test_all_mandatory_keys(cls, keys_count_dict):
         problematic_keys = []
-        for attr in cls.at_least_one_fields:
+        for attr in cls.file_mandatory_1_or_more_fields:
             try:
                 cls.test_mandatory_key_present(attr, keys_count_dict)
             except exceptions.iRODSFileMetadataNotStardardException:
@@ -268,7 +268,7 @@ class FileMetadataTests(object):
     @abc.abstractmethod
     def test_index_meta_irods(cls, index_file_path_irods):
         meta_tuples = FileMetadataUtilityFunctions.get_file_metadata_tuples(index_file_path_irods)
-        if len(meta_tuples) != 2:
+        if len(meta_tuples) != 3:
             raise exceptions.iRODSFileMetadataNotStardardException("Error index file's metadata", meta_tuples, cmd="Index file doesn't have all its metadata. ")
         return True
         
@@ -282,16 +282,18 @@ class FileMetadataTests(object):
 
 class BAMFileMetadataTests(FileMetadataTests):
     
-    unique_fields = ['study_title', 'study_internal_id', 'study_accession_number', 
+    file_mandatory_unique_fields = ['study_title', 'study_internal_id', 'study_accession_number', 
                      'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
                      'study_type', 'study_visibility', 'submission_date', 'submission_id',
                      'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
                      'data_type', 'seq_center', 'hgi_project'
                      ]
     
-    at_least_one_fields = ['sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
+    file_mandatory_1_or_more_fields = ['sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
                     'data_subtype_tag', 'platform', 'sample_internal_id', 'run_id', 'seq_date',
                     ]
+    
+    
 
     @classmethod
     def test_key_is_unique(cls, key, keys_count_dict):
@@ -344,12 +346,12 @@ class BAMFileMetadataTests(FileMetadataTests):
 class VCFFileMetadataTests(FileMetadataTests):
     
      
-    unique_fields = ['hgi_project', 'study_title', 'study_internal_id', 'study_accession_number', 
+    file_mandatory_unique_fields = ['hgi_project', 'study_title', 'study_internal_id', 'study_accession_number', 
                      'index_file_md5', 'study_name', 'file_id', 'file_md5', 'study_description',
                      'study_type', 'study_visibility', 'submission_date', 'submission_id',
                      'ref_file_md5', 'file_type', 'ref_name', 'faculty_sponsor', 'submitter_user_id', 
                      'data_type']
-    at_least_one_fields = ['sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
+    file_mandatory_1_or_more_fields = ['sanger_sample_id', 'pi_user_id', 'coverage', 'sample_name', 'taxon_id',
                     'data_subtype_tag', 'sample_internal_id']
 
 

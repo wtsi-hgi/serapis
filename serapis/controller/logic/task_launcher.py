@@ -170,13 +170,16 @@ class TaskLauncher(object):
             logging.error("LAUNCH ADD METADATA TO IRODS -- called with null parameters. Task was NOT submitted to the queue.")
             return None
         logging.info("PUTTING THE ADD METADATA TASK IN THE QUEUE")
-
-        file_mdata = serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_obj.file_id, file_obj)
+        
+        # TODO: this shouldn't be here, but putting it here saves an extra DB query
+        submission = data_access.SubmissionDataAccess.retrieve_submission(file_obj.submission_id)
+        
+        file_mdata = serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_obj, submission)
         fpath_irods = utils.build_irods_file_staging_path(file_obj.submission_id, file_obj.file_path_client)
         
         index_mdata, index_fpath_irods = None, None
         try:
-            index_mdata = serapis2irods.serapis2irods_logic.get_all_index_file_meta_from_DB(file_obj.file_id, file_obj)
+            index_mdata = serapis2irods.serapis2irods_logic.get_all_index_file_meta_from_DB(file_obj, submission)
         except exceptions.NoIndexFileException:
             logging.warn("THIS FILE HAS NO INDEX FILE!!! INDEX FILE MISSING!!!")
             pass

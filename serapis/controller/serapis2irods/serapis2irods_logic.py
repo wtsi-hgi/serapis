@@ -49,11 +49,11 @@ def gather_file_mdata(file_to_submit, submission=None):
     return irods_mdata_dict
 
 def gather_index_file_mdata(indexed_file, submission=None):
-    if submission is None:
-        submission = data_access.SubmissionDataAccess.retrieve_submission(indexed_file.submission_id)
-
+    # Submission - not used for now, not sure what metadata should the index file have
+#     if submission is None:
+#         submission = data_access.SubmissionDataAccess.retrieve_submission(indexed_file.submission_id)
     if hasattr(indexed_file.index_file, 'file_path_client') and getattr(indexed_file.index_file, 'file_path_client'):
-        index_mdata = convert_mdata.convert_index_file_mdata(indexed_file.index_file.md5, indexed_file.md5)
+        index_mdata = convert_mdata.convert_index_file_mdata(indexed_file.id, indexed_file.index_file.md5, indexed_file.md5)
     else:
         raise exceptions.NoIndexFileException(indexed_file.id)
     return index_mdata

@@ -21,6 +21,8 @@
 
 
 import logging
+from collections import namedtuple
+
 from serapis.com import constants, utils
 
 
@@ -239,13 +241,17 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
 #data.sort(key=lambda tup: tup[1])
 #
 ## For index files:
-def convert_index_file_mdata(file_md5, indexed_file_md5, user_id, submission_id, submission_date):
+
+#IndexFileMetadata = namedtuple('IndexFileMetadata', ['indexed_file_id', 'file_md5', 'indexed_file_md5'])
+
+def convert_index_file_mdata(indexed_file_id, file_md5, indexed_file_md5):
     irods_file_mdata = []
+    irods_file_mdata.append(('indexed_file_id', utils.unicode2string(indexed_file_id)))
     irods_file_mdata.append(('file_md5', utils.unicode2string(file_md5)))
     irods_file_mdata.append(('indexed_file_md5', utils.unicode2string(indexed_file_md5)))
-    irods_file_mdata.append(('submitter_user_id', utils.unicode2string(user_id)))
-    irods_file_mdata.append(('submission_date', utils.unicode2string(submission_date)))
-    irods_file_mdata.append(('submission_id'), utils.unicode2string(submission_id))
+#     irods_file_mdata.append(('submitter_user_id', utils.unicode2string(user_id)))
+#     irods_file_mdata.append(('submission_date', utils.unicode2string(submission_date)))
+#     irods_file_mdata.append(('submission_id'), utils.unicode2string(submission_id))
     return irods_file_mdata
 
 
