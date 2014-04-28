@@ -74,24 +74,20 @@ class HTTPRequestHandler(object):
         return sys.getsizeof(data)
     
 #     @classmethod
-#     def __compress(cls, data):
-#         return data
+#     def __compress1(cls, data):
+#         print "data received:", data
+#         out = StringIO.StringIO()
+#         with gzip.GzipFile(fileobj=out, mode="w") as f:
+#             f.write(data)
+#         ret = out.getvalue()
+#         return ret
 #     
-    @classmethod
-    def __compress1(cls, data):
-        print "data received:", data
-        out = StringIO.StringIO()
-        with gzip.GzipFile(fileobj=out, mode="w") as f:
-            f.write(data)
-        ret = out.getvalue()
-        return ret
-    
-    @classmethod
-    def __uncompress1(cls, data):
-        buff = StringIO(data.read())
-        deflatedContent = gzip.GzipFile(fileobj=buff)
-        req_data = deflatedContent.read()
-        return req_data
+#     @classmethod
+#     def __uncompress1(cls, data):
+#         buff = StringIO(data.read())
+#         deflatedContent = gzip.GzipFile(fileobj=buff)
+#         req_data = deflatedContent.read()
+#         return req_data
 
     
     @classmethod
@@ -101,84 +97,20 @@ class HTTPRequestHandler(object):
     @classmethod
     def __decompress(cls, compressed):
         return compressed.decode("zlib")
-    
-#        
-#        return zlib.compress(data)
-        
-#    To compress a file:
-        #str_object1 = open('my_log_file', 'rb').read()
-        #str_object2 = zlib.compress(str_object1, 9)
-        #f = open('compressed_file', 'wb')
-        #f.write(str_object2)
-        #f.close()
-        #To decompress a file:
-        #
-        #str_object1 = open('compressed_file', 'rb').read()
-        #str_object2 = zlib.decompress(str_object1)
-        #f = open('my_recovered_log_file', 'wb')
-        #f.write(str_object2)
-        #f.close()
-                
-#     @classmethod
-#     def put(cls, url, data, headers={}):
-#         body_size = cls.__get_size(data)
-# #        if body_size > MAX_REQUEST_BODY_SIZE:
-# #            data = cls.__compress(data)
-# #            #headers['Content-Encoding'] = 'gzip'
-# #            #headers['Content-Type'] = 'application/gzip'
-# #            #print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
-# #        else:
-#         headers['Content-Type'] = 'application/json'
-#         print "SIZE OF THE MESSAGE BODY IS -----------------", body_size
-#         return requests.put(url, data=data, headers=headers)
-#         
 
 
     @classmethod
-    def attach_file(cls, url, data, headers={}):
+    def send_post_request(cls, url, data, headers={}):
+        print "SIZE OF THE ORIGINAL DATA< BEFORE COMPRESSION: ", cls.__get_size(data)
         data = cls.__compress(data)
-        #headers['Content-Type'] = 'application/gzip'
         headers['Content-Type'] = 'multipart/form-data'
-        #files = {'file' : ('body-contents.gzip', data, 'application/gzip')}
         files = {'file' : ('body-contents.gzip', data)}
-        
-        #headers['Content-Encoding'] = 'gzip'
-        #headers['Content-Type'] = 'application/gzip'
         print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
         return requests.post(url, files=files)
 
  
-    
-    
-#     @classmethod
-#     def attach_file(cls, url, data, headers={}):
-#         data = cls.__compress(data)
-#         #headers['Content-Type'] = 'application/gzip'
-#         #headers['Content-Type'] = 'multipart/form-data'
-#         from requests_toolbelt import MultipartEncoder
-#         
-#         #files = {'file' : ('body-contents.gzip', data, 'application/gzip')}
-#         m = MultipartEncoder(fields={'file': ('body-contents.gzip', data, 'application/gzip')})
-#         
-#         
-#         #headers['Content-Encoding'] = 'gzip'
-#         #headers['Content-Type'] = 'application/gzip'
-#         print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
-#         return requests.put(url, data=m, headers={'Content-Type': m.content_type})
-#        
-#     from requests_toolbelt import MultipartEncoder
-# import requests
-# 
-# m = MultipartEncoder(
-#     fields={'field0': 'value', 'field1': 'value',
-#             'field2': ('filename', open('file.py', 'rb'), 'text/plain')}
-#     )
-# 
-# r = requests.post('http://httpbin.org/post', data=m,
-#                   headers={'Content-Type': m.content_type})
-    
     @classmethod
-    def attach_body(cls, url, data, headers={}):
+    def send_put_request(cls, url, data, headers={}):
         headers['Content-Type'] = 'application/json'
         print "SIZE OF THE MESSAGE BODY IS -----------------", data
         return requests.put(url, data=data, headers=headers)
@@ -186,20 +118,12 @@ class HTTPRequestHandler(object):
 
 
     @classmethod
-    def put(cls, url, data, headers={}):
+    def make_request(cls, url, data, headers={}):
         body_size = cls.__get_size(data)
         if body_size > MAX_REQUEST_BODY_SIZE:
-            return cls.attach_file(url, data, headers)
+            return cls.send_post_request(url, data, headers)
         else:
-            return cls.attach_body(url, data, headers)
-#            data = cls.__compress(data)
-#            #headers['Content-Encoding'] = 'gzip'
-#            #headers['Content-Type'] = 'application/gzip'
-#            #print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
-#        else:
-        
-        
-        #files = {'file': ('report.xls', open('report.xls', 'rb'), 'application/vnd.ms-excel', {'Expires': '0'})}
+            return cls.send_put_request(url, data, headers)
         
         
 class HTTPResultHandler(object):
@@ -239,8 +163,7 @@ class HTTPResultHandler(object):
         data = dict(task_result._asdict())
         data = self.mangle_result(data)
         data_json = SerapisJSONEncoder.to_json(data)
-        #print "REQUEST BODY TO BE SENT TO THE CONTROLLER WITH RESULTS:::::::::::::::::;;", data_json
-        response = HTTPRequestHandler.put(url, data_json)
+        response = HTTPRequestHandler.make_request(url, data_json)
         if response.status_code != requests.codes.ok:
             print "SENT PUT REQUEST -- ERROR -- RESPONSE RECEIVED: ", response, " RESPONSE CONTENT: ", response
         else:
