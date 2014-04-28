@@ -257,7 +257,7 @@ class iRODSMetadataOperations(iRODSOperations):
         elif out.find('does not exist') != -1:
             raise exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have file_md5 in its metadata.", cmd="imeta ls -d "+fpath_irods)
         else:
-            print "OUT: ", out, "ERR: ", err, "Problematic file: ", fpath_irods
+            #print "OUT: ", out, "ERR: ", err, "Problematic file: ", fpath_irods
             lines = out.split('\n')
             md5_line = lines[2]
             md5_line_items = md5_line.split(" ")

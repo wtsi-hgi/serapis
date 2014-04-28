@@ -568,7 +568,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
             logging.debug("Has new studies!")
             has_new_entities = True
         
-        file_logic.file_data_access.update_file_mdata(file_to_update.id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
+        file_logic.file_data_access.save_task_updates(file_to_update.id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
         if has_new_entities == True:
             file_to_update.reload()
             #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_to_update.file_type)
@@ -604,7 +604,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         subm_file = data_access.FileDataAccess.retrieve_submitted_file_by_submission(context.submission_id, context.file_id)
         file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(subm_file.file_type)
         
-        print "RECEIVED THE FOLLOWING IN UPDATE_FILE_FROM_TASK::::::::::::: ", vars(context)
+        #print "RECEIVED THE FOLLOWING IN UPDATE_FILE_FROM_TASK::::::::::::: ", vars(context)
         try: 
             task_type = subm_file.tasks_dict[context.request_data['task_id']]['type']
         except KeyError:
@@ -621,16 +621,23 @@ class FileModificationStrategy(ResourceModificationStrategy):
             if context.request_data['status'] == constants.FAILURE_STATUS:
                 file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
-                
-                file_logic.file_data_access.update_file_mdata(subm_file.id, context.request_data['result'], 
-                                                      task_type, 
-                                                      task_id=context.request_data['task_id'], 
-                                                      task_status=context.request_data['status'], 
-                                                      errors=errors)
+                if task_type in [constants.PARSE_HEADER_TASK, constants.CALC_MD5_TASK]:
+                    file_logic.file_data_access.save_task_updates(subm_file.id, context.request_data['result'],
+                                                              task_type, 
+                                                              task_id=context.request_data['task_id'], 
+                                                              task_status=context.request_data['status'], 
+                                                              errors=errors
+                                                              )
+                else:
+                    file_logic.file_data_access.save_task_patches(subm_file.id, context.request_data['result'], 
+                                                          task_type, 
+                                                          task_id=context.request_data['task_id'], 
+                                                          task_status=context.request_data['status'], 
+                                                          errors=errors)
         # TESTING:
-        if task_type == constants.UPLOAD_FILE_TASK:
-            file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
-            serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
+#         if task_type == constants.UPLOAD_FILE_TASK:
+#             file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
+#             serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
             
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
         serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)

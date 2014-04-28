@@ -410,7 +410,7 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
 #    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
-    
+    # Testing events, not used!
     def trigger_event(self, event_type, state, result):
         connection = self.app.broker_connection()
         evd = self.app.events.Dispatcher(connection=connection)
@@ -425,6 +425,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
 
    
     def infer_and_set_data_properties(self, submitted_file):
+        if not hasattr(submitted_file, 'data_subtype_tags'):
+            submitted_file.data_subtype_tags = {}
         if len(submitted_file.sample_list) == 1:
             submitted_file.data_subtype_tags['sample-multiplicity'] = 'single-sample'
             submitted_file.data_subtype_tags['individual-multiplicity'] = 'single-individual'
@@ -434,14 +436,17 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-        file_mdata           = kwargs['file_mdata']
-        file_mdata          = deserialize(file_mdata)
+#         file_mdata           = kwargs['file_mdata']
+#         file_mdata          = deserialize(file_mdata)
+        file_path_client    = kwargs['file_path']
         file_id             = kwargs['file_id']
         submission_id       = kwargs['submission_id']
         
 
-        header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
-        file_mdata = entities.BAMFile.build_from_json(file_mdata)
+#         header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
+#         file_mdata = entities.BAMFile.build_from_json(file_mdata)
+        header_metadata = BAMHeaderParser.parse_header(file_path_client)
+        file_mdata = entities.BAMFile()
         file_mdata.seq_centers = header_metadata.seq_centers
         file_mdata.run_list = header_metadata.run_ids_list
         file_mdata.seq_date_list = header_metadata.seq_date_list

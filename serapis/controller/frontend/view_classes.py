@@ -1501,13 +1501,7 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
             result = {}
             context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
             strategy = controller_strategy.RetrieveMetadataForBackendFileStrategy()
-
-            t0 = time.time()
             file_metadata = strategy.process_request(context)
-            t1 = time.time()
-            total = t1-t0
-            #print "RESULT BEFORE RETURNING IT::::::::::::::::::::::", file_metadata
-            print "TIME TAKED TO GET THE METADATA::::::::", total
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=status.HTTP_404_NOT_FOUND)

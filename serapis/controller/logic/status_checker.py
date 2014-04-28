@@ -203,7 +203,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
     @classmethod
     def check_entities_status(cls, file_obj):
         has_min_mdata = True
-        ################### hmmm, should this be here or somewhere else? (i.e. bam file/ vcf file status checker...
+        ################### hmmm, should this be here or somewhere else? (i.e. bam file/ vcf file status checker...)
         # Check the entity lists:
         # Check if any of them is empty:
         if len(file_obj.sample_list) == 0:
@@ -220,16 +220,10 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         # Check if all the entities from the list have min mdata: 
         for study in file_obj.study_list:                   #(cls, entity, error_report_dict, warning_report_dict=None):
             if not StudyMetaStatusChecker.check_and_report_status(study, file_obj.missing_mandatory_fields_dict):
-            #if check_if_study_has_minimal_mdata(study, file_obj) == False:
-                #print "NOT ENOUGH STUDY MDATA............................."
                 has_min_mdata = False
         for sample in file_obj.sample_list:
             if not SampleMetaStatusChecker.check_and_report_status(sample, file_obj.missing_mandatory_fields_dict, file_obj.missing_optional_fields_dict):
-            #if check_if_sample_has_minimal_mdata(sample, file_to_submit) == False:
-                #print "NOT ENOUGH SAMPLE MDATA............................."
                 has_min_mdata = False
-#        if file_obj.file_type == constants.BAM_FILE:
-#            return check_bam_file_mdata(file_obj) and has_min_mdata
         return has_min_mdata
         
     
@@ -351,16 +345,8 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
             cls._unregister_missing_field('no specific library', file_to_submit.id, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
         return entities_min_mdata and has_min_mdata
     
-    
     @classmethod
-    def check_and_report_status(cls, file_to_submit):
-        file_meta_status = super(BAMFileMetaStatusChecker, cls).check_and_report_status(file_to_submit)
-        if file_meta_status == False:
-            return False
-        # Getting the status of the entities:
-        entities_min_mdata = cls.check_entities_status(file_to_submit)
-        
-        # Getting the status of the file regarding its fields:
+    def check_and_report_file_status(cls, file_to_submit):
         has_min_mdata = True
         for field in cls.mandatory_specific_fields_list:
             if not hasattr(file_to_submit, field):
@@ -376,7 +362,19 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
                     has_min_mdata = False
                 else:
                     cls._unregister_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-        return has_min_mdata and entities_min_mdata
+            return has_min_mdata
+    
+    @classmethod
+    def check_and_report_status(cls, file_to_submit):
+        file_meta_status = super(BAMFileMetaStatusChecker, cls).check_and_report_status(file_to_submit)
+        if file_meta_status == False:
+            return False
+        # Getting the status of the entities:
+        entities_min_mdata = cls.check_entities_status(file_to_submit)
+        
+        # Getting the status of the file regarding its fields:
+        file_min_mdata = cls.check_and_report_file_status(file_to_submit)
+        return file_min_mdata and entities_min_mdata
         
 
 
