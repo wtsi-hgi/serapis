@@ -26,6 +26,9 @@ import sys
 import requests
 import logging
 import simplejson
+import zlib
+import gzip
+import StringIO
 
 from collections import namedtuple
 from serapis.worker import entities
@@ -70,14 +73,35 @@ class HTTPRequestHandler(object):
     def __get_size(cls, data):
         return sys.getsizeof(data)
     
+#     @classmethod
+#     def __compress(cls, data):
+#         return data
+#     
+    @classmethod
+    def __compress1(cls, data):
+        print "data received:", data
+        out = StringIO.StringIO()
+        with gzip.GzipFile(fileobj=out, mode="w") as f:
+            f.write(data)
+        ret = out.getvalue()
+        return ret
+    
+    @classmethod
+    def __uncompress1(cls, data):
+        buff = StringIO(data.read())
+        deflatedContent = gzip.GzipFile(fileobj=buff)
+        req_data = deflatedContent.read()
+        return req_data
+
+    
     @classmethod
     def __compress(cls, data):
-        return data
-#        import StringIO
-#        out = StringIO.StringIO()
-#        with gzip.GzipFile(fileobj=out, mode="w") as f:
-#            f.write(data)
-#            return out.getvalue()
+        return data.encode("zlib")
+    
+    @classmethod
+    def __decompress(cls, compressed):
+        return compressed.decode("zlib")
+    
 #        
 #        return zlib.compress(data)
         
@@ -95,19 +119,87 @@ class HTTPRequestHandler(object):
         #f.write(str_object2)
         #f.close()
                 
+#     @classmethod
+#     def put(cls, url, data, headers={}):
+#         body_size = cls.__get_size(data)
+# #        if body_size > MAX_REQUEST_BODY_SIZE:
+# #            data = cls.__compress(data)
+# #            #headers['Content-Encoding'] = 'gzip'
+# #            #headers['Content-Type'] = 'application/gzip'
+# #            #print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
+# #        else:
+#         headers['Content-Type'] = 'application/json'
+#         print "SIZE OF THE MESSAGE BODY IS -----------------", body_size
+#         return requests.put(url, data=data, headers=headers)
+#         
+
+
+    @classmethod
+    def attach_file(cls, url, data, headers={}):
+        data = cls.__compress(data)
+        #headers['Content-Type'] = 'application/gzip'
+        headers['Content-Type'] = 'multipart/form-data'
+        #files = {'file' : ('body-contents.gzip', data, 'application/gzip')}
+        files = {'file' : ('body-contents.gzip', data)}
+        
+        #headers['Content-Encoding'] = 'gzip'
+        #headers['Content-Type'] = 'application/gzip'
+        print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
+        return requests.post(url, files=files)
+
+ 
+    
+    
+#     @classmethod
+#     def attach_file(cls, url, data, headers={}):
+#         data = cls.__compress(data)
+#         #headers['Content-Type'] = 'application/gzip'
+#         #headers['Content-Type'] = 'multipart/form-data'
+#         from requests_toolbelt import MultipartEncoder
+#         
+#         #files = {'file' : ('body-contents.gzip', data, 'application/gzip')}
+#         m = MultipartEncoder(fields={'file': ('body-contents.gzip', data, 'application/gzip')})
+#         
+#         
+#         #headers['Content-Encoding'] = 'gzip'
+#         #headers['Content-Type'] = 'application/gzip'
+#         print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
+#         return requests.put(url, data=m, headers={'Content-Type': m.content_type})
+#        
+#     from requests_toolbelt import MultipartEncoder
+# import requests
+# 
+# m = MultipartEncoder(
+#     fields={'field0': 'value', 'field1': 'value',
+#             'field2': ('filename', open('file.py', 'rb'), 'text/plain')}
+#     )
+# 
+# r = requests.post('http://httpbin.org/post', data=m,
+#                   headers={'Content-Type': m.content_type})
+    
+    @classmethod
+    def attach_body(cls, url, data, headers={}):
+        headers['Content-Type'] = 'application/json'
+        print "SIZE OF THE MESSAGE BODY IS -----------------", data
+        return requests.put(url, data=data, headers=headers)
+        
+
+
     @classmethod
     def put(cls, url, data, headers={}):
         body_size = cls.__get_size(data)
-#        if body_size > MAX_REQUEST_BODY_SIZE:
+        if body_size > MAX_REQUEST_BODY_SIZE:
+            return cls.attach_file(url, data, headers)
+        else:
+            return cls.attach_body(url, data, headers)
 #            data = cls.__compress(data)
 #            #headers['Content-Encoding'] = 'gzip'
 #            #headers['Content-Type'] = 'application/gzip'
 #            #print "SIZE AFTER COMPRESSION:::::::",  cls.__get_size(data)
 #        else:
-        headers['Content-Type'] = 'application/json'
-        print "SIZE OF THE MESSAGE BODY IS -----------------", body_size
-        return requests.put(url, data=data, headers=headers)
         
+        
+        #files = {'file': ('report.xls', open('report.xls', 'rb'), 'application/vnd.ms-excel', {'Expires': '0'})}
         
         
 class HTTPResultHandler(object):

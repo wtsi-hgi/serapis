@@ -39,7 +39,7 @@ from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
 from renderer import SerapisJSONRenderer
 from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, BrowsableAPIRenderer
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
@@ -770,11 +770,120 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
 #    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
 
-#    parser_classes = (JSONParser, GZIPParser)
+    parser_classes = (JSONParser, MultiPartParser, GZIPParser)
+    
+    
+    def post(self, request, submission_id, file_id, format=None):
+        ''' Updates the corresponding info for this file.'''
+        
+        print "REQUEST DATA:::::::::::::::::::::::::::::::::::: ", vars(request)
+        
+        #   import zlib
+        
+
+        
+        if hasattr(request, 'FILES'):
+            req_data = request.FILES['file']
+            print "ENTERED ON HAS FILES BRANCHHHHHHHHHHHHHH!!!", req_data
+            #req_data = req_data.decode("zlib")
+ 
+            req_data = req_data.read()
+            req_data = req_data.decode("zlib")
+            req_data = serializers.deserialize(req_data)
+            print "DATA OBTAINED AFTERWARDs====================================", req_data
+        else:
+            # Return some error code - empty POST...
+            pass
+                       
+            #with open(, 'wb+') as destination:
+            #for chunk in req_data.chunks():
+#                print chunk   
+                #destination.write(chunk)
+#          @classmethod
+#          def __decompress(cls, compressed):
+#              return compressed.decode("zlib")
+    
+#             import gzip
+#             import StringIO
+#             buff = StringIO(req_data.read())
+#             deflatedContent = gzip.GzipFile(fileobj=buff)
+#             req_data = deflatedContent.read()
+
+        #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
+        #print "FILES data - extracted:------------------", vars(req_data)
+#         elif hasattr(request, 'DATA'):
+#             req_data = request.DATA
+#             print "ENTERED ON HAS DATA BRANCH!!!!!!!!!!!!!!!!!!!!"
+        try:
+            result = {}
+#            print "What type is the data coming in????", type(data)
+#            data = utils.unicode2string(data)
+#            #print "After converting to string: -------", str(data)
+#            validator.submitted_file_schema(data)
+#            controller.update_file_submitted(submission_id, file_id, data)
+
+            logging.debug("Received PUT request -- submission id: %s",str(submission_id))
+            print "TYPE OF REQUEST DATA IS: ", type(req_data)
+            
+            context = controller_strategy.WorkerSpecificFileContext(submission_id, file_id, request_data=req_data)
+            #strategy = controller_strategy.FileModificationStrategy()
+            strategy = controller_strategy.FileModificationStrategy()
+            #print "VARS de Strategy: ", vars(strategy)
+            #print "CONTEXT type: ", type(context)
+            strategy.process_request(context)
+            
+        except MultipleInvalid as e:
+            path = ''
+            for p in e.path:
+                if path:
+                    path = path+ '->' + p
+                else:
+                    path = p
+            result['errors'] = "Message contents invalid: "+e.msg + " "+ path
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        except InvalidId:
+            result['errors'] = "Invalid id"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except DoesNotExist:        # thrown when searching for a submission
+            result['errors'] = "File not found" 
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.ResourceNotFoundError as e:
+            result['errors'] = e.strerror
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+            result['errors'] = e.strerror
+            return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
+                                                    # but was unable to be followed due to semantic errors.
+        except exceptions.DeprecatedDocument as e:
+            result['errors'] = e.strerror
+            return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
+                                                    # where a client GETs a resource's state, modifies it, and PUTs it back 
+                                                    # to the server, when meanwhile a third party has modified the state on the server, 
+                                                    # leading to a conflict
+        else:
+            result['message'] = "Successfully updated"
+            #result_serial = serializers.serialize(result)
+            # return Response(result_serial, status=200)
+            return Response(result, status=status.HTTP_200_OK)
+    
+
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
-        req_data = request.DATA
+        if hasattr(request, 'DATA'):
+            req_data = request.DATA
+        elif hasattr(request, 'FILES'):
+            req_data = request.FILES
+            
+            print "REQUEST DATA:::::::::::::::::::::::::::::::::::: ", vars(request)
+            print "FILES data - extracted:------------------", vars(req_data)
+
+#             import gzip
+#             import StringIO
+#             buff = StringIO(req_data.read())
+#             deflatedContent = gzip.GzipFile(fileobj=buff)
+#             req_data = deflatedContent.read()
+
         #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
             result = {}
