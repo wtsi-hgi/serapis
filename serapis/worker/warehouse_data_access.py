@@ -25,6 +25,7 @@
 
 
 from MySQLdb import Error as mysqlError, connect, cursors
+from Celery_Django_Prj import configs
 from serapis.com import constants
 from serapis.worker import entities, exceptions
 
@@ -175,7 +176,7 @@ class ProcessSeqScapeData():
     def __init__(self):
         # TODO: retry to connect 
         # TODO: try: catch: OperationalError (2003) - can't connect to MySQL, to deal with this error!!!
-        self.connection = QuerySeqScape.connect(constants.SEQSC_HOST, constants.SEQSC_PORT, constants.SEQSC_USER, constants.SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
+        self.connection = QuerySeqScape.connect(configs.SEQSC_HOST, configs.SEQSC_PORT, configs.SEQSC_USER, configs.SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
 
     def query_for_library(self, library_identif_name, library_identifier):

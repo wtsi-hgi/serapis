@@ -28,7 +28,6 @@
 #################################################################################
 
 
-SOFTWARE_PYTHON_PACKAGES = '/software/python-2.7.3/lib/python2.7/site-packages'
 
 #MDATA_ROUTING_KEY   = 'mdata'
 #UPLOAD_EXCHANGE     = 'UploadExchange'
@@ -45,12 +44,6 @@ SOFTWARE_PYTHON_PACKAGES = '/software/python-2.7.3/lib/python2.7/site-packages'
 
 #    ssh -L 3307:mcs7.internal.sanger.ac.uk:3379 ic4@hgi-team
 
-# For a run from my machine:
-SEQSC_HOST = "127.0.0.1"
-SEQSC_PORT = 3307
-#SEQSC_PORT = 20002
-SEQSC_USER = "warehouse_ro"
-SEQSC_DB_NAME = "sequencescape_warehouse"
 
 
 ########################## URLS ###############################################
@@ -98,14 +91,6 @@ NR_CONSUMERS_PER_Q_DICT = {
                            IRODS_Q : 1
                            }
 
-####################### RABBITMQ CONFIGS ###########################
-
-V_HOST = '/'
-RABBITMQ_REST_API_QUEUES = 'http://localhost:15672/api/queues'
-BROKER_USER = 'guest'
-BROKER_PASSWORD = 'guest'
-BROKER_HOST = 'localhost'
-BROKER_PORT = '5672' 
  
 
 
@@ -141,6 +126,7 @@ PARSE_HEADER_TASK = "PARSE_HEADER_TASK"
 UPDATE_MDATA_TASK = "UPDATE_MDATA_TASK"
 CALC_MD5_TASK     = "CALC_MD5_TASK"
 UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
+TEST_FILE_TASK    = "TEST_FILE_TASK"
 #
 ## iRODS tasks:
 
@@ -153,7 +139,10 @@ UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
 ADD_META_TO_IRODS_FILE_TASK = 'ADD_META_TO_IRODS_FILE_TASK'
 
 # Move the file from the staging area to the permanent collection:
-MOVE_TO_PERMANENT_COLL_TASK = 'MOVE_TO_PERMANENT_COLL_TASK'
+MOVE_FILE_TO_PERMANENT_COLL_TASK = 'MOVE_FILE_TO_PERMANENT_COLL_TASK'
+
+# Move the entire collection from the staging area to the permanent collection:
+MOVE_COLL_TO_PERMANENT_COLL_TASK = 'MOVE_COLL_TO_PERMANENT_COLL_TASK'
 
 # Do the above 2 steps at once:
 SUBMIT_TO_PERMANENT_COLL_TASK = 'SUBMIT_TO_PERMANENT_COLL_TASK'
@@ -163,9 +152,9 @@ SUBMIT_TO_PERMANENT_COLL_TASK = 'SUBMIT_TO_PERMANENT_COLL_TASK'
 PRESUBMISSION_TASKS = [UPLOAD_FILE_TASK, PARSE_HEADER_TASK, UPDATE_MDATA_TASK, CALCULATE_MD5_Q]
 
 # Tasks to be executed for the file submission to the permanent collection:
-SUBMISSION_TASKS    = [SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_TO_PERMANENT_COLL_TASK]
+SUBMISSION_TASKS    = [SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_FILE_TO_PERMANENT_COLL_TASK, MOVE_COLL_TO_PERMANENT_COLL_TASK]
 
-IRODS_TASKS         = [UPLOAD_FILE_TASK, SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_TO_PERMANENT_COLL_TASK]
+IRODS_TASKS         = [UPLOAD_FILE_TASK, SUBMIT_TO_PERMANENT_COLL_TASK, ADD_META_TO_IRODS_FILE_TASK, MOVE_FILE_TO_PERMANENT_COLL_TASK, MOVE_COLL_TO_PERMANENT_COLL_TASK]
 
 METADATA_TASKS      = [PARSE_HEADER_TASK, UPDATE_MDATA_TASK, CALC_MD5_TASK]
 
@@ -398,7 +387,6 @@ JOB_TYPES = (UPDATE_JOBS,
 
 #IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
 
-IRODS_STAGING_AREA = "/humgen/projects/serapis_staging"
 
 #DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
 #IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/staging_area" #serapis_staging
@@ -407,15 +395,13 @@ IRODS_STAGING_AREA = "/humgen/projects/serapis_staging"
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'
 
-# event states:
 
-#
 # ENTITY_TYPES 
 LIBRARY_TYPE    = 'library'
 SAMPLE_TYPE     = 'sample'
 STUDY_TYPE      = 'study'
 
-
+# List of entities:
 LIST_OF_ENTITY_TYPES = [SAMPLE_TYPE, LIBRARY_TYPE, STUDY_TYPE]
 
 #OTHER TYPES:
@@ -504,12 +490,14 @@ PREDEFINED_WARNINGS = {
 #              }
 
 #----------------------------- SEQSCAPE TABLES: ----------------------
-CURRENT_WELLS_SEQSC_TABLE = "current_wells"
-CURRENT_MULTIPLEXED_LIBRARY_TABLE = "current_multiplexed_library_tubes"
-CURRENT_LIBRARY_TUBES = "current_library_tubes"
-CURRENT_SAMPLES = "current_samples"
+CURRENT_WELLS_SEQSC_TABLE           = "current_wells"
+CURRENT_MULTIPLEXED_LIBRARY_TABLE   = "current_multiplexed_library_tubes"
+CURRENT_LIBRARY_TUBES               = "current_library_tubes"
+CURRENT_SAMPLES                     = "current_samples"
 
 #----------------------------------- ENTITIES SPECIFICS ----------------
+
+################### STUDY - specific fields ##################
 
 STUDY_TYPES = {"Whole Genome Sequencing",
                 "Metagenomics",
@@ -533,7 +521,7 @@ STUDY_VISIBILITY = {"Hold",
                     }
 
 
-#----- LIBRARY -------
+################### LIBRARY - specific fields ####################
 
 LIBRARY_SOURCES = { "GENOMIC" : "(Genomic DNA (includes PCR products from genomic DNA))",
                     "TRANSCRIPTOMIC" : "(Transcription products or non genomic DNA (EST, cDNA, RT-PCR, screened libraries))",
@@ -599,11 +587,11 @@ BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
                                }
 
 
-# ------------------- TASKS CONSTANTS (= const used on the workers' side) ----------------
+# ------------------- WORKER - specific constants (for tasks) ----------------
 MAX_STRING_DISIMILARITY_RATIO = 0.25
 
-ENTITY_META_FIELDS = ['is_complete', 'has_minimal', 'last_updates_source']
-FILE_META_FIELDS = ['last_updates_source', 'tasks_dict', 'missing_optional_fields_dict', 'missing_mandatory_fields_dict']
+ENTITY_META_FIELDS  = ['is_complete', 'has_minimal', 'last_updates_source']
+FILE_META_FIELDS    = ['last_updates_source', 'tasks_dict', 'missing_optional_fields_dict', 'missing_mandatory_fields_dict']
 
 #ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 
@@ -624,6 +612,31 @@ SEQSC_FIELDS = {'organism' : ['Homo sapiens', 'human']
 
 ########################## iRODS ERRORS #########################
 
+CAT_INVALID_ARGUMENT        = "CAT_INVALID_ARGUMENT"
+
+CAT_NO_ACCESS_PERMISSION    = "CAT_NO_ACCESS_PERMISSION"
+
 CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME = "CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME"
+
+
+
+######################## IRODS PERMISSIONS #####################
+
+iRODS_READ_PERMISSION   = "read"
+iRODS_MODIFY_PERMISSION = "write"
+iRODS_OWN_PERMISSION    = "own"
+iRODS_NULL_PERMISSION   = "null"
+
+
+####################### IRODS ZONES #############################
+
+IRODS_SANGER_ZONE = 'Sanger1'
+IRODS_HUMGEN_ZONE = 'humgen'
+IRODS_SEQ_ZONE    = 'seq'
+
+# IRODS configurations
+IRODS_STAGING_AREA = "/humgen/projects/serapis_staging"
+
+
 
 

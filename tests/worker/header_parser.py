@@ -27,6 +27,7 @@ import os
 from hamcrest import *
 import unittest
 
+from Celery_Django_Prj import configs
 from serapis.com import constants
 from serapis.worker import tasks, entities, warehouse_data_access
 from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
@@ -35,28 +36,28 @@ from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderPa
 class TestVCFHeaderParser(unittest.TestCase):
     
     def test_extract_sample_list_from_header(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/7-helic.vqsr.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/7-helic.vqsr.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/7-helic.vqsr.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         samples = VCFHeaderParser.extract_sample_list_from_header(header)
         self.assertEqual(len(samples), 941)
         
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/kaz-21.vqsr.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/kaz-21.vqsr.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/kaz-21.vqsr.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         samples = VCFHeaderParser.extract_sample_list_from_header(header)
         self.assertEqual(len(samples), 100)
         
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/X.vqsr.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/X.vqsr.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/X.vqsr.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         samples = VCFHeaderParser.extract_sample_list_from_header(header)
         self.assertEqual(len(samples), 970)
         
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         resulted_samples = VCFHeaderParser.extract_sample_list_from_header(header)
@@ -90,27 +91,27 @@ class TestVCFHeaderParser(unittest.TestCase):
             
     
     def test_extract_reference_from_file_header(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         
-        expected_reference = constants.REFERENCE_FILE_SCRATCH111
+        expected_reference = configs.REFERENCE_FILE_SCRATCH111
         #'/lustre/scratch111/resources/ref/Homo_sapiens/1000Genomes_hs37d5/hs37d5.fa'
         result_reference = VCFHeaderParser.extract_reference_from_file_header(header)
         assert_that(expected_reference, equal_to(result_reference))
         
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/kaz-11.vqsr.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/kaz-11.vqsr.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/kaz-11.vqsr.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         
-        expected_reference = constants.REFERENCE_FILE_SCRATCH113
+        expected_reference = configs.REFERENCE_FILE_SCRATCH113
         result_reference = VCFHeaderParser.extract_reference_from_file_header(header)
         assert_that(expected_reference, equal_to(result_reference))
         
         
     def test_extract_samtools_version(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         
@@ -120,7 +121,7 @@ class TestVCFHeaderParser(unittest.TestCase):
         
 
     def test_extract_vcf_format(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
         # '/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
         header = VCFHeaderParser.extract_file_header(fpath)
         
@@ -130,7 +131,7 @@ class TestVCFHeaderParser(unittest.TestCase):
         
         
     def test_parse_header(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'vcfs/unit-tests/10.vcf.gz') 
         #'/home/ic4/media-tmp2/users/ic4/vcfs/unit-tests/10.vcf.gz'
         expected = VCFHeader(vcf_format='VCFv4.1',
                            samtools_version='0.1.19-96b5f2294a',
@@ -207,7 +208,7 @@ class TestBAMHeaderParser(unittest.TestCase):
         
     
     def test_get_header_readgrps_list(self):
-        path = os.path.join(constants.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306022.bam') 
+        path = os.path.join(configs.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306022.bam') 
         #"/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306022.bam"
         header = BAMHeaderParser.get_header_readgrps_list(path)
         assert_that(header, has_item(has_key("CN")))
@@ -259,13 +260,13 @@ class TestBAMHeaderParser(unittest.TestCase):
         
         
     def test_parse_header(self):
-        fpath = os.path.join(constants.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306022.bam') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306022.bam') 
         # "/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306022.bam"
         header = BAMHeaderParser.parse_header(fpath)
         self.assertSetEqual(set(header.seq_centers), set(['SC']))
     
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam') 
         #"/home/ic4/media-tmp2/users/ic4/bams/crohns/WTCCC113699.bam"
         header = BAMHeaderParser.parse_header(fpath)
         assert_that(header, hasattr(header, 'sample_list'))
@@ -276,7 +277,7 @@ class TestBAMHeaderParser(unittest.TestCase):
         assert_that(header, hasattr(header, 'run_ids_list'))
         assert_that(header.platform_list, instance_of(list))
         
-        fpath = os.path.join(constants.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306042.bam') 
+        fpath = os.path.join(configs.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306042.bam') 
         #"/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306042.bam"
         header = BAMHeaderParser.parse_header(fpath)
         assert_that(header, hasattr(header, 'sample_list'))

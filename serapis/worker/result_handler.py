@@ -26,9 +26,7 @@ import sys
 import requests
 import logging
 import simplejson
-import zlib
-import gzip
-import StringIO
+
 
 from collections import namedtuple
 from serapis.worker import entities
@@ -44,8 +42,10 @@ SubmissionTaskResultTuple = namedtuple('FileTaskResult', ['submission_id', 'stat
 def FileTaskResult(submission_id, file_id, status, result=None, errors=None, task_id=None):
     return FileTaskResultTuple(submission_id=submission_id, file_id=file_id, status=status, errors=errors, result=result, task_id=task_id)
 
+
 def SubmissionTaskResult(submission_id, status, result=None, errors=None, task_id=None):
     return SubmissionTaskResultTuple(submission_id=submission_id, status=status, errors=errors, result=result, task_id=task_id)
+
 
 class SerapisJSONEncoder():
     @classmethod
@@ -72,23 +72,6 @@ class HTTPRequestHandler(object):
     @classmethod
     def __get_size(cls, data):
         return sys.getsizeof(data)
-    
-#     @classmethod
-#     def __compress1(cls, data):
-#         print "data received:", data
-#         out = StringIO.StringIO()
-#         with gzip.GzipFile(fileobj=out, mode="w") as f:
-#             f.write(data)
-#         ret = out.getvalue()
-#         return ret
-#     
-#     @classmethod
-#     def __uncompress1(cls, data):
-#         buff = StringIO(data.read())
-#         deflatedContent = gzip.GzipFile(fileobj=buff)
-#         req_data = deflatedContent.read()
-#         return req_data
-
     
     @classmethod
     def __compress(cls, data):
@@ -170,3 +153,20 @@ class HTTPResultHandler(object):
             print "SENT PUT REQUEST. 200 RESPONSE RECEIVED: ", response
         return response
 
+
+    
+#     @classmethod
+#     def __compress1(cls, data):
+#         print "data received:", data
+#         out = StringIO.StringIO()
+#         with gzip.GzipFile(fileobj=out, mode="w") as f:
+#             f.write(data)
+#         ret = out.getvalue()
+#         return ret
+#     
+#     @classmethod
+#     def __uncompress1(cls, data):
+#         buff = StringIO(data.read())
+#         deflatedContent = gzip.GzipFile(fileobj=buff)
+#         req_data = deflatedContent.read()
+#         return req_data
