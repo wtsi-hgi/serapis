@@ -77,6 +77,13 @@ class Entity(DynamicEmbeddedDocument, SerapisModel):
     has_minimal = BooleanField(default=False)
     last_updates_source = DictField()        # keeps name of the field - source that last modified this field
     
+    # List of mandatory fields that this entity is missing
+    missing_mand_fields = ListField(default=[])
+    
+    # List of optional fields that this entity is missing
+    missing_opt_fields = ListField(default=[])
+    
+    
     meta = {
         'allow_inheritance': True,
     }
@@ -85,7 +92,7 @@ class Entity(DynamicEmbeddedDocument, SerapisModel):
     def __eq__(self, other):
         if other == None:
             return False
-        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
         return False
@@ -227,6 +234,12 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     # The type of data stored in the file -- variation, sequencing data
     data_type = StringField(choices=constants.DATA_TYPES)
     
+    # Sanger-specific security-level:
+    security_level = StringField(choices=constants.SECURITY_LEVELS)
+    
+    # PubMed ids of the publications for which the submitted data was used
+    pmid_list = ListField()
+    
     # For BAMs: - data_subtype_tags:
 #    - align:
 #    - sample-multiplicity:
@@ -304,8 +317,8 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     meta = {                                            # Mongoengine specific field for metadata.
             'allow_inheritance': True,
             'indexes' : [{ 'fields' : ['-submission_id'], 'cls' : False}, 
-#                         {'fields' : ['index_file.md5'], 'unique' : True, 'sparse' : True},
-#                         {'fields' : ['md5'], 'sparse' : True, 'unique' : True} 
+                         {'fields' : ['md5'], 'unique' : True, 'sparse' : True},
+                         {'fields' : ['index_file.md5'], 'unique' : True, 'sparse' : True},
                          ] 
             #   
             }
