@@ -51,6 +51,21 @@
 WORKER_EVENT_URL = "http://localhost:8000/api-rest/workers/events/"
 
 
+########################## GENERAL CONSTANTS ##################################
+
+SECURITY_LEVEL_4 = "4"    # Highest level of security
+SECURITY_LEVEL_3 = "3"    # Consent-restricted data access
+SECURITY_LEVEL_2 = "2"    # Group restricted data access
+SECURITY_LEVEL_1 = "1"    # World readable data
+
+SECURITY_LEVELS = [
+                   SECURITY_LEVEL_1, 
+                   SECURITY_LEVEL_2, 
+                   SECURITY_LEVEL_3, 
+                   SECURITY_LEVEL_4
+                   ]
+
+
 ########################## QUEUES ##############################################
 
 # This queue was only for testing purposes
@@ -195,9 +210,9 @@ FILE_FIELDS_UPDATE  = 'FILE_FIELDS_UPDATE'
 STUDY_MANDATORY_FIELDS      = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS    = {'library_source', 'coverage'} #'library_selection', 
 SAMPLE_MANDATORY_FIELDS     = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
-FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5'}
+FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5', 'security_level', 'pmid_list'}
 INDEX_MANDATORY_FIELDS      = {'irods_coll', 'file_path_client', 'md5'}
-BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list'}
+BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list', 'abstract_library'}
 VCF_FILE_MANDATORY_FIELDS   = {'file_format'}
 
     
@@ -283,6 +298,7 @@ MDATA_CONFLICT_STATUS       = "CONFLICT"
 PENDING_ON_USER_STATUS      = "PENDING_ON_USER"
 PENDING_ON_WORKER_STATUS    = "PENDING_ON_WORKER"
 NOT_ENOUGH_METADATA_STATUS  = "NOT_ENOUGH_METADATA"
+
 #READY_FOR_IRODS_SUBMISSION_STATUS = "READY_FOR_SUBMISSION"
 #SUBMITTED_TO_IRODS_STATUS = "SUBMITTED_TO_IRODS"
 
@@ -295,6 +311,8 @@ SUBMISSION_IN_PREPARATION_STATUS        = "SUBMISSION_IN_PREPARATION"
 READY_FOR_IRODS_SUBMISSION_STATUS       = "READY_FOR_IRODS_SUBMISSION"
 METADATA_ADDED_TO_STAGED_FILE           = "METADATA_ADDED_TO_STAGED_FILE"
 IN_PROGRESS                             = "IN_PROGRESS"
+IMPOSSIBLE_TO_ARCHIVE_STATUS= "IMPOSSIBLE_TO_ARCHIVE_STATUS"
+
 
 # File metadata statuses:
 IN_PROGRESS_STATUS          = "IN_PROGRESS"
@@ -340,7 +358,8 @@ FILE_SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS,
                           PENDING_ON_WORKER_STATUS,
                           SUBMISSION_IN_PREPARATION_STATUS,     #IN_PROGRESS_STATUS, 
                           SUBMISSION_IN_PROGRESS_STATUS,
-                          READY_FOR_IRODS_SUBMISSION_STATUS)
+                          READY_FOR_IRODS_SUBMISSION_STATUS,
+                          IMPOSSIBLE_TO_ARCHIVE_STATUS)
 
 SUBMISSION_STATUS = (SUCCESS_SUBMISSION_TO_IRODS_STATUS, 
                      FAILURE_SUBMISSION_TO_IRODS_STATUS,
@@ -595,7 +614,7 @@ FILE_META_FIELDS    = ['last_updates_source', 'tasks_dict', 'missing_optional_fi
 
 #ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 
-ENTITY_IDENTITYING_FIELDS = ['internal_id', 
+ENTITY_IDENTIFYING_FIELDS = ['internal_id', 
                              'name', 
                              'accession_number']
 

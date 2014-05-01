@@ -32,7 +32,9 @@ from serapis.com import constants, utils
 from serapis.controller import exceptions
 from serapis.controller.db import models
 from mongoengine.queryset import DoesNotExist
-    
+from mongoengine.errors import OperationError
+
+
 
 #################################################################################
     
@@ -212,7 +214,7 @@ class FileDataAccess(DataAccess):
         ''' Checks if an entity and a json_entity are equal.
             Returns boolean.
         '''
-        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
             if id_field in json_entity and json_entity[id_field] != None and hasattr(entity, id_field) and getattr(entity, id_field) != None:
                 are_same = json_entity[id_field] == getattr(entity, id_field)
                 return are_same
@@ -227,7 +229,7 @@ class FileDataAccess(DataAccess):
             that only have one insignificant field lying around and this could 
             lead to entities added multiple times in the DB.
         '''
-        for identifying_field in constants.ENTITY_IDENTITYING_FIELDS:
+        for identifying_field in constants.ENTITY_IDENTIFYING_FIELDS:
             if json_entity.has_key(identifying_field):
                 return True
         return False
@@ -330,8 +332,8 @@ class FileDataAccess(DataAccess):
     
     @classmethod
     def retrieve_submitted_file_by_submission(cls, submission_id, submission_file_id):
-        indexes = models.SubmittedFile.objects._collection.index_information()
-        print "INDEXES::::", [str(i) for i in indexes]
+#         indexes = models.SubmittedFile.objects._collection.index_information()
+#         print "INDEXES::::", [str(i) for i in indexes]
         return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).get()
         # Works, turned off for testing:
         #return models.SubmittedFile.objects(submission_id=submission_id, file_id=submission_file_id).hint([('submission_id', 1)]).get()
@@ -907,7 +909,7 @@ class FileDataAccess(DataAccess):
     
     
     @classmethod
-    def build_update_dict(cls, file_updates, update_source, file_id):
+    def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
         update_db_dict = dict()
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
@@ -918,33 +920,38 @@ class FileDataAccess(DataAccess):
                              '_id',
                              'version',
                              'file_type', 
-                             'irods_coll',      # TODO: make it updateble by user, if file not yet submitted to permanent irods coll 
+                             'irods_coll',      # TODO: make it updatable by user, if file not yet submitted to permanent irods coll 
                              'file_path_client', 
                              'last_updates_source', 
                              'file_mdata_status',
                              'file_submission_status',
                              'missing_mandatory_fields_dict']:
                     pass
-                elif field_name == 'library_list': 
+                elif field_name == 'library_list':
+                    # Crappy way of doing this - to be rewritten -- if I don't "patch" the library, it won't have the attributes from abstract
                     if len(field_val) > 0:
                         #was_updated = cls.update_library_list(field_val, update_source, submitted_file)
-                        update_db_dict['set__library_list'] = file_updates['library_list']
+                        update_db_dict['set__library_list'] = submitted_file.library_list
                         update_db_dict['inc__version__2'] = 1
                         #update_db_dict['inc__version__0'] = 1
-                        #logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
+#                         #was_updated = cls.update_library_list(field_val, update_source, submitted_file)
+#                         update_db_dict['set__library_list'] = file_updates['library_list']
+#                         update_db_dict['inc__version__2'] = 1
+                        update_db_dict['inc__version__0'] = 1
+#                         #logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
                 elif field_name == 'sample_list':
                     if len(field_val) > 0:
                         #was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
                         update_db_dict['set__sample_list'] = file_updates['sample_list']
                         update_db_dict['inc__version__1'] = 1
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         #logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
                 elif field_name == 'study_list':
                     if len(field_val) > 0:
                         #was_updated = cls.update_study_list(field_val, update_source, submitted_file)
                         update_db_dict['set__study_list'] = file_updates['study_list']
                         update_db_dict['inc__version__3'] = 1
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         #logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
     
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
@@ -952,27 +959,27 @@ class FileDataAccess(DataAccess):
                     if field_val:
                         for entity_categ, entities in field_val.iteritems():
                             update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'not_unique_entity_error_dict':
                     if field_val:
                         for entity_categ, entities in field_val.iteritems():
                             #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                             update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'header_has_mdata':
                     if update_source == constants.PARSE_HEADER_TASK:
                         update_db_dict['set__header_has_mdata'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'md5':
                     if update_source == constants.CALC_MD5_TASK:
                         update_db_dict['set__md5'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         logging.debug("UPDATING md5")
                 elif field_name == 'index_file':
                     if update_source == constants.CALC_MD5_TASK: 
                         if 'md5' in field_val:
                             update_db_dict['set__index_file__md5'] = field_val['md5']
-                            #update_db_dict['inc__version__0'] = 1
+                            update_db_dict['inc__version__0'] = 1
                         else:
                             raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
                 #elif field_name == 'hgi_project_list':
@@ -987,10 +994,11 @@ class FileDataAccess(DataAccess):
 #                        else:
 #                            hgi_projects = field_val                    
                         update_db_dict['set__hgi_project'] = field_val
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'data_type':
                     if update_source == constants.EXTERNAL_SOURCE:
                         update_db_dict['set__data_type'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'data_subtype_tags':
                     if update_source in [constants.EXTERNAL_SOURCE, constants.PARSE_HEADER_TASK]:
 #                         if getattr(submitted_file, 'data_subtype_tags') != None:
@@ -999,17 +1007,22 @@ class FileDataAccess(DataAccess):
 #                         else:
                         subtypes_dict = field_val
                         update_db_dict['set__data_subtype_tags'] = subtypes_dict
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'abstract_library':
                     if update_source == constants.EXTERNAL_SOURCE:
                         update_db_dict['set__abstract_library'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'file_reference_genome_id':
                     if update_source == constants.EXTERNAL_SOURCE:
                         models.ReferenceGenome.objects(md5=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
                         update_db_dict['set__file_reference_genome_id'] = str(field_val)
-                        #update_db_dict['inc__version__0'] = 1
-                
+                        update_db_dict['inc__version__0'] = 1
+                elif field_name == 'security_level':
+                    update_db_dict['set__security_level'] = field_val
+                    update_db_dict['inc__version__0'] = 1
+                elif field_name == 'pmid_list':
+                    update_db_dict['set__pmid_list'] = field_val
+                    update_db_dict['inc__version__0'] = 1
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
             elif field_name == 'reference_genome':
@@ -1055,21 +1068,21 @@ class FileDataAccess(DataAccess):
                         was_updated = cls.update_library_list(field_val, update_source, submitted_file)
                         update_db_dict['set__library_list'] = submitted_file.library_list
                         update_db_dict['inc__version__2'] = 1
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
                 elif field_name == 'sample_list':
                     if len(field_val) > 0:
                         was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
                         update_db_dict['set__sample_list'] = submitted_file.sample_list
                         update_db_dict['inc__version__1'] = 1
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
                 elif field_name == 'study_list':
                     if len(field_val) > 0:
                         was_updated = cls.update_study_list(field_val, update_source, submitted_file)
                         update_db_dict['set__study_list'] = submitted_file.study_list
                         update_db_dict['inc__version__3'] = 1
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATING STUDY LIST - was it updated? %s", was_updated)
     
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
@@ -1077,27 +1090,27 @@ class FileDataAccess(DataAccess):
                     if field_val:
                         for entity_categ, entities in field_val.iteritems():
                             update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'not_unique_entity_error_dict':
                     if field_val:
                         for entity_categ, entities in field_val.iteritems():
                             #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                             update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'header_has_mdata':
                     if update_source == constants.PARSE_HEADER_TASK:
                         update_db_dict['set__header_has_mdata'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'md5':
                     if update_source == constants.CALC_MD5_TASK:
                         update_db_dict['set__md5'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                         logging.debug("UPDATING md5")
                 elif field_name == 'index_file':
                     if update_source == constants.CALC_MD5_TASK: 
                         if 'md5' in field_val:
                             update_db_dict['set__index_file__md5'] = field_val['md5']
-                            #update_db_dict['inc__version__0'] = 1
+                            update_db_dict['inc__version__0'] = 1
                         else:
                             raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
                 #elif field_name == 'hgi_project_list':
@@ -1112,10 +1125,11 @@ class FileDataAccess(DataAccess):
 #                        else:
 #                            hgi_projects = field_val                    
                         update_db_dict['set__hgi_project'] = field_val
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'data_type':
                     if update_source == constants.EXTERNAL_SOURCE:
                         update_db_dict['set__data_type'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'data_subtype_tags':
                     if update_source in [constants.EXTERNAL_SOURCE, constants.PARSE_HEADER_TASK]:
                         if getattr(submitted_file, 'data_subtype_tags') != None:
@@ -1124,17 +1138,22 @@ class FileDataAccess(DataAccess):
                         else:
                             subtypes_dict = field_val
                         update_db_dict['set__data_subtype_tags'] = subtypes_dict
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'abstract_library':
                     if update_source == constants.EXTERNAL_SOURCE:
                         update_db_dict['set__abstract_library'] = field_val
-                        #update_db_dict['inc__version__0'] = 1
+                        update_db_dict['inc__version__0'] = 1
                 elif field_name == 'file_reference_genome_id':
                     if update_source == constants.EXTERNAL_SOURCE:
                         models.ReferenceGenome.objects(md5=field_val).get()    # Check that the id exists in the RefGenome coll, throw exc
                         update_db_dict['set__file_reference_genome_id'] = str(field_val)
-                        #update_db_dict['inc__version__0'] = 1
-                
+                        update_db_dict['inc__version__0'] = 1
+                elif field_name == 'security_level':
+                    update_db_dict['set__security_level'] = field_val
+                    update_db_dict['inc__version__0'] = 1
+                elif field_name == 'pmid_list':
+                    update_db_dict['set__pmid_list'] = field_val
+                    update_db_dict['inc__version__0'] = 1
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
             elif field_name == 'reference_genome':
@@ -1175,7 +1194,11 @@ class FileDataAccess(DataAccess):
                 db_update_dict['inc__version__0'] = 1
             if len(db_update_dict) > 0:
                 logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s and UPD DICT: %s", str(file_id),str(db_update_dict))
-                upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
+                try:
+                    upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
+                except e:
+                    print "This exception has been thrown:", str(e)
+                
                 logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             if upd == 1:
                 break
@@ -1183,12 +1206,10 @@ class FileDataAccess(DataAccess):
         return upd
     
     
-    
     @classmethod
     def save_task_updates(cls, file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
         upd, i = 0, 0
         db_update_dict = {}
-        
         if task_id:
             db_update_dict = {"set__tasks_dict__"+task_id+"__status" : task_status}
             if errors:
@@ -1196,42 +1217,28 @@ class FileDataAccess(DataAccess):
                     db_update_dict['add_to_set__file_error_log'] = e
         while i < nr_retries:
             submitted_file = cls.retrieve_submitted_file(file_id)
-            field_updates = cls.build_update_dict(file_updates, update_source, file_id)
+            field_updates = cls.build_update_dict(file_updates, update_source, file_id, submitted_file)
             if field_updates:
                 db_update_dict.update(field_updates)
                 db_update_dict['inc__version__0'] = 1
             if len(db_update_dict) > 0:
                 logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s and UPD DICT: %s", str(file_id),str(db_update_dict))
-                upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
+                try:
+                    upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
+                except OperationError as e:
+                    print "Operation error caught---: ", str(e)
+                    logging.error("File duplicate in database %s", str(file_id))
+                    print "MESSAGE of the exception:::::", e.message
+                    print "ARGS of the exception: ::::::::::", e.args
+                    error_message = "File duplicate in database file_id = %s" % str(file_id)
+                    raise exceptions.FileDuplicateException(file_id=str(file_id), message=error_message)
+                
                 logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             if upd == 1:
                 break
             i+=1
         return upd
     
-    
-    
-    
-    
-#     def build_patch_dict(self, updates):
-#         update_db_dict = dict()
-#         for (field_name, field_val) in updates.iteritems():
-#             if field_val == 'null' or not field_val:
-#                 continue
-#         pass
-                
-    
-#     def patch_file_mdata(self, file_id, file_updates, update_source, task_id=None, task_status=None, errors=None, nr_retries=constants.MAX_DBUPDATE_RETRIES):
-#         upd, i = 0, 0
-#         db_update_dict = {}
-#         
-#         if task_id:
-#             db_update_dict = {"set__tasks_dict__"+task_id+"__status" : task_status}
-#             if errors:
-#                 for e in errors:
-#                     db_update_dict['add_to_set__file_error_log'] = e
-#         while i < nr_retries:
-#             submitted_file = cls.retrieve_submitted_file(file_id)
             
 
     
@@ -1257,22 +1264,27 @@ class FileDataAccess(DataAccess):
         return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
         
     @classmethod
-    def update_file_statuses(cls, file_id, statuses_dict):
+    def build_file_statuses_updates_dict(cls, file_id, statuses_dict):
         if not statuses_dict:
             return 0
         upd_dict = dict()
         for k,v in statuses_dict.items():
             upd_dict['set__'+k] = v
         upd_dict['inc__version__0'] = 1
+        return upd_dict
+        
+    @classmethod
+    def update_file_statuses(cls, file_id, statuses_dict):
+        upd_dict = cls.build_file_statuses_updates_dict(file_id, statuses_dict)
         return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
     
     @classmethod
     def update_file_mdata_status(cls, file_id, status):
         upd_dict = {'set__file_mdata_status' : status, 'inc__version__0' : 1}
         return models.SubmittedFile.objects(id=file_id).update_one(**upd_dict)
-    
+
     @classmethod
-    def update_file_error_log(cls, error_log, file_id=None, submitted_file=None):
+    def build_file_error_log_update_dict(cls, error_log, file_id=None, submitted_file=None):
         if file_id == None and submitted_file == None:
             return None
         if submitted_file == None:
@@ -1284,6 +1296,22 @@ class FileDataAccess(DataAccess):
             old_error_log.append(error_log)
         logging.error("IN UPDATE ERROR LOG LIST ------------------- PRINT ERROR LOG LIST:::::::::::: %s", ' '.join(str(it) for it in error_log))
         upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
+        return upd_dict
+    
+    @classmethod
+    def save_update_dict(cls, file_id, file_version, updates_dict, nr_retries=constants.MAX_DBUPDATE_RETRIES):
+        i = 0
+        upd = 0
+        while i < nr_retries and upd == 0:
+            i+=1
+            upd = models.SubmittedFile.objects(id=file_id, version__0=file_version).update_one(**updates_dict)
+            print "UPD ------------ from save_update_dict: ", str(upd)
+        return upd
+        
+    
+    @classmethod
+    def update_file_error_log(cls, error_log, file_id=None, submitted_file=None):
+        upd_dict = cls.build_file_error_log_update_dict(error_log, file_id, submitted_file)
         return models.SubmittedFile.objects(id=submitted_file.id, version__0=cls.get_file_version(None, submitted_file)).update_one(**upd_dict)
         
     
@@ -1314,6 +1342,8 @@ class FileDataAccess(DataAccess):
     #        - 3rd elem of the list = version of the list of libraries mdata
     #        - 4th elem of the list = version of the list of studies mdata
     
+    # Possible PROBLEM: here I update without taking into account the version of the file. If there was an update in the meantime, 
+    # this can lead to loss of information
     @classmethod
     def update_file_from_dict(cls, file_id, update_dict, update_type_list=[constants.FILE_FIELDS_UPDATE], nr_retries=constants.MAX_DBUPDATE_RETRIES):
         db_upd_dict = {}
@@ -1418,9 +1448,10 @@ class FileDataAccess(DataAccess):
 
 class BAMFileDataAccess(FileDataAccess):
     
+    
     @classmethod
-    def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
-        update_db_dict = super(BAMFileDataAccess, cls).build_patch_dict(file_updates, update_source, file_id, submitted_file)
+    def build_dict_of_updates(cls, file_updates, update_source, file_id, submitted_file):
+        update_db_dict = {}
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
                 pass
@@ -1465,14 +1496,26 @@ class BAMFileDataAccess(FileDataAccess):
                         update_db_dict['set__multiplex_lib_list'] = updated_list
         return update_db_dict
     
+    @classmethod
+    def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
+        general_file_patches = super(BAMFileDataAccess, cls).build_patch_dict(file_updates, update_source, file_id, submitted_file)
+        file_specific_patches = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
+        general_file_patches.update(file_specific_patches)
+        return general_file_patches
+    
+    @classmethod
+    def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
+        general_file_updates = super(BAMFileDataAccess, cls).build_update_dict(file_updates, update_source, file_id, submitted_file)
+        file_specific_updates = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
+        general_file_updates.update(file_specific_updates)
+        return general_file_updates
 
 
 class VCFFileDataAccess(FileDataAccess):
     
-    
     @classmethod
-    def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
-        update_db_dict = super(VCFFileDataAccess, cls).build_patch_dict(file_updates, update_source, file_id, submitted_file)
+    def build_dict_of_updates(cls, file_updates, update_source, file_id, submitted_file):
+        update_db_dict = {}
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
                 pass
@@ -1481,7 +1524,21 @@ class VCFFileDataAccess(FileDataAccess):
             elif field_name == 'file_format':
                 update_db_dict['set__file_format'] = field_val
         return update_db_dict
+
     
+    @classmethod
+    def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
+        general_updates_dict = super(VCFFileDataAccess, cls).build_patch_dict(file_updates, update_source, file_id, submitted_file)
+        file_specific_upd_dict = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
+        general_updates_dict.update(file_specific_upd_dict)
+        return general_updates_dict
+        
+    @classmethod
+    def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
+        general_updates_dict = super(VCFFileDataAccess, cls).build_update_dict(file_updates, update_source, file_id, submitted_file)
+        file_specif_upd_dict = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
+        general_updates_dict.update(file_specif_upd_dict)
+        return general_updates_dict
 
 
 class ReferenceGenomeDataAccess(DataAccess):

@@ -154,6 +154,8 @@ submitted_file_schema = Schema({
     'calc_index_file_md5_job_status' : str,
     
     'tasks_dict' : dict, 
+    'pmid_list': list,
+    'security_level': str,
     
     # TODO: Move these fields in a per request check:
     'task_id' : str,
@@ -229,7 +231,9 @@ submission_post_validator = Schema({
     Required('data_subtype_tags') : dict,
     #Required('irods_collection') : All(Match(constants.REGEX_IRODS_PROJECT_PATH), Length(min=1)),
     Required('irods_collection') : str,     # For testing in dev zone
-    Required('upload_as_serapis') : bool                                    
+    Required('upload_as_serapis') : bool,
+    'pmid_list' : list,
+    'security_level' : str                                   
 })
 
 

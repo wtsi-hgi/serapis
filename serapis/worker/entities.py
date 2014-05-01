@@ -44,13 +44,19 @@ class Entity(object):
 #        self.name = None
 #        self.is_complete = False        # Fields used for implementing the application's logic
 #        self.has_minimal = False        #
+#         List of mandatory fields that this entity is missing
+#         missing_mand_fields = ListField(default=[])
+#         
+#         # List of optional fields that this entity is missing
+#         missing_opt_fields = ListField(default=[])
+#         
 
     def __eq__(self, other):
         if other == None:
             return False
         if not isinstance(other, self.__class__):
             return False
-        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
             if hasattr(other, id_field) and hasattr(self, id_field) and getattr(other, id_field) != None and getattr(self, id_field) != None:
                 are_same = (getattr(self, id_field) == getattr(other, id_field))
                 return are_same
@@ -64,7 +70,8 @@ class Entity(object):
         
     def update(self, new_entity):
         ''' Compare the properties of this instance with the new_entity object properties.
-            Update the fields in this object(self) and return True if anything was changed.'''
+            Update the fields in this object(self) and return True if anything was changed.
+        '''
         #has_changed = False
         for field in vars(new_entity):
             #crt_val = getattr(self, field)
@@ -74,17 +81,61 @@ class Entity(object):
         #    has_changed = True
         #return has_changed
     
-    def check_if_complete_mdata(self):
-        ''' Checks if the mdata corresponding to this entity is complete. '''
-        if not self.is_complete:
-            for key in vars(self):
-                if getattr(self, key) == None:
-                    self.is_complete = False
-            return self.is_complete
+    def identify_missing_fields(self, fields_list):
+        ''' This method compares the fields in the current object with the fields
+            in the list provided as parameter and checks if the current object is missing
+            any field. Returns a list of missing fields.
+        '''
+        missing_fields = []
+        for field in self.mandatory_fields_list:
+            if not hasattr(self, field) or not getattr(self, field):
+                missing_fields.append(field)
+            elif type(getattr(self, field)) == list and len(getattr(self, field)) == 0:
+                missing_fields.append(field)
+        return missing_fields    
+            
+    
+    def report_missing_fields(self):
+        ''' 
+            This method checks that the current entity has all the mandatory
+            and optional fields. In case it doesn't, it reports the missing
+            fields by appending them to the corresponding fields list.
+            Returns True if it has missing fields, false if not.
+        '''
+        self.missing_mand_fields = self.identify_missing_fields(self.mandatory_fields_list)
+        if hasattr(self, 'optional_fields_list'):
+            self.missing_opt_fields = self.identify_missing_fields(self.optional_fields_list)
+        
+        
+    def check_minimal_and_report_missing_fields(self):
+        ''' 
+            This method checks if the current entity has the minimal metadata required
+            and if not, it searches for the missing fields and saves them in a list.
+            Returns True if the current instance has minimal metadata, False if not. 
+        '''
+        if self.has_minimal:
+            return True
+        self.report_missing_fields()
+        if self.missing_mand_fields:
+            return False
+        else:
+            self.has_minimal = True
+            return True
+                
+#     def check_if_complete_mdata(self):
+#         ''' Checks if the mdata corresponding to this entity is complete. '''
+#         if not self.is_complete:
+#             for key in vars(self):
+#                 if getattr(self, key) == None:
+#                     self.is_complete = False
+#             return self.is_complete
     
 
 class Study(Entity):
     
+    entity_type = constants.STUDY_TYPE
+    mandatory_fields_list = constants.STUDY_MANDATORY_FIELDS
+
     # TODO: implement this one
     def check_if_has_minimal_mdata(self):
         if self.accession_number != None and self.name != None:
@@ -132,6 +183,9 @@ class Study(Entity):
     
 class Library(Entity):
 
+    entity_type = constants.LIBRARY_TYPE
+    mandatory_fields_list =  constants.LIBRARY_MANDATORY_FIELDS
+
     def check_if_has_minimal_mdata(self):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
         if not self.has_minimal:
@@ -158,12 +212,15 @@ class Library(Entity):
 
 class Sample(Entity):
 
-    def check_if_has_minimal_mdata(self):
-        ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
-        if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
-            if self.accession_number != (None or "") and self.name != (None or ""):
-                self.has_minimal = True
-        return self.has_minimal
+    mandatory_fields_list = constants.SAMPLE_MANDATORY_FIELDS
+    optional_fields_list = constants.SAMPLE_OPTIONAL_FIELDS
+
+#     def check_if_has_minimal_mdata(self):
+#         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
+#         if self.has_minimal == False:       # Check if it wasn't filled in in the meantime => update field
+#             if self.accession_number != (None or "") and self.name != (None or ""):
+#                 self.has_minimal = True
+#         return self.has_minimal
       
     @staticmethod
     def build_from_json(json_obj):
@@ -445,7 +502,7 @@ class SubmittedFile():
             parameters, hence it tries to match this parameters with all the identifying fields of the entity.'''
         entity_list = self.__get_entity_list__(entity_type)
         for entity in entity_list:
-            for identifier in constants.ENTITY_IDENTITYING_FIELDS:
+            for identifier in constants.ENTITY_IDENTIFYING_FIELDS:
                 if hasattr(entity, identifier) and getattr(entity, identifier) == identifier:
                     return True
         return False

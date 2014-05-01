@@ -60,7 +60,7 @@ class EntityModel(SerapisModel):
     def __eq__(self, other):
         if other == None:
             return False
-        for id_field in constants.ENTITY_IDENTITYING_FIELDS:
+        for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
             if id_field in other and hasattr(self, id_field) and other[id_field] != None and getattr(self, id_field) != None:
                 return other[id_field] == getattr(self, id_field)
         return False
@@ -227,6 +227,8 @@ class SubmittedFileModel(SerapisModel):
         dest_file.data_type = src_file.data_type
         dest_file.data_subtype_tags = src_file.data_subtype_tags
         dest_file.hgi_project = src_file.hgi_project
+        dest_file.security_level = src_file.security_level
+        dest_file.pmid_list = src_file.pmid_list
         
         # Nested:
         dest_file.study_list = [ StudyModel.build_from_db_model(a) for a in src_file.study_list]

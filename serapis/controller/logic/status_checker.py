@@ -36,59 +36,32 @@ class MetadataStatusChecker:
     __metaclass__ = abc.ABCMeta
     mandatory_fields_list = None
     optional_fields_list = None
-
     
+#     @classmethod
+#     def _identify_missing_fields_from_object(cls, obj, fields_list):
+#         missing_fields = []
+#         for field in fields_list:
+#             if not hasattr(obj, field) or not getattr(obj, field):
+#                 missing_fields.append(field)
+#             elif type(getattr(obj, field)) == list and len(getattr(obj, field)) == 0:
+#                 missing_fields.append(field)
+#         return missing_fields
+#     
     @classmethod
-    def _register_missing_field(cls, field, entity_id, categ, missing_fields_dict):    # register missing field
-        ''' Adding a field of an entity to the missing_field_dict, which looks like:
-            "missing_mandatory_fields_dict" : {
-            "sample" : {"SAMP123" : ["geographical_region", "organism"]}
-            }
-            where:
-                - field     = the missing class field
-                - entity_id = an identifier for the entity which is currently missing a field(id, name)
-                - categ     = category of that entity (to easier search for it afterwards) - e.g.(sample, study)
+    def identify_missing_fields_from_object(cls, obj, fields_list):
+        ''' This method compares the fields in the current object with the fields
+            in the list provided as parameter and checks if the current object is missing
+            any field. Returns a list of missing fields.
         '''
-        logging.info("Add missing field called! %s %s", field, categ)
-        if not field or not entity_id or not categ:
-            return
-        entity_id = str(entity_id)
-        logging.info("Field missing: %s, from entity: %s, category: %s", field, entity_id, categ)
-        try:
-            missing_fields_categ = missing_fields_dict[categ]
-        except KeyError:
-            missing_fields_categ = {}
-            missing_fields_dict[categ] = missing_fields_categ
-        
-        try:
-            missing_fields_ent_list = missing_fields_categ[entity_id]
-        except KeyError:
-            missing_fields_ent_list = []
-            missing_fields_categ[entity_id] = missing_fields_ent_list
-        missing_fields_ent_list.append(field)
-        missing_fields_categ[entity_id] = list(set(missing_fields_ent_list))
+        missing_fields = []
+        for field in fields_list:
+            if not hasattr(obj, field) or not getattr(obj, field):
+                missing_fields.append(field)
+            elif type(getattr(obj, field)) == list and len(getattr(obj, field)) == 0:
+                missing_fields.append(field)
+        return missing_fields    
+            
 
-
-    @classmethod
-    def _unregister_missing_field(cls, field, entity_id, categ, missing_fields_dict):    # unregister missing field
-        ''' Removing a field of an entity from the missing_field_dict, which looks like:
-            "missing_mandatory_fields_dict" : {
-                    "sample" : { "SAMP123" : ["geographical_region", "organism"]}}
-        '''
-        logging.info("Delete missing field called! %s %s", field, categ)
-        entity_id = str(entity_id)
-        if categ in missing_fields_dict:
-            if entity_id in missing_fields_dict[categ]:
-                if field in missing_fields_dict[categ][entity_id]:
-                    missing_fields_dict[categ][entity_id].remove(field)
-                    if len(missing_fields_dict[categ][entity_id]) == 0:
-                        missing_fields_dict[categ].pop(entity_id)
-                    if len(missing_fields_dict[categ]) == 0:
-                        missing_fields_dict.pop(categ)
-                    return True
-        return False
-
-    
 
 class EntityMetaStatusChecker(MetadataStatusChecker):
     ''' This class contains the functionality needed for checking
@@ -99,42 +72,34 @@ class EntityMetaStatusChecker(MetadataStatusChecker):
     mandatory_fields_list = None
     optional_fields_list = None
     
+    @classmethod
+    def report_missing_fields(cls, entity):
+        ''' 
+            This method checks that the current entity has all the mandatory
+            and optional fields. In case it doesn't, it reports the missing
+            fields by appending them to the corresponding fields list.
+            Returns True if it has missing fields, false if not.
+        '''
+        entity.missing_mand_fields = cls.identify_missing_fields_from_object(entity, cls.mandatory_fields_list)
+        if cls.optional_fields_list:
+            entity.missing_opt_fields = cls.identify_missing_fields_from_object(entity, cls.optional_fields_list)
+        
     
     @classmethod
-    def check_and_report_status(cls, entity, error_report_dict, warning_report_dict=None):
+    def check_minimal_and_report_missing_fields(cls, entity):
+        ''' 
+            This method checks if the current entity has the minimal metadata required
+            and if not, it searches for the missing fields and saves them in a list.
+            Returns True if the current instance has minimal metadata, False if not. 
+        '''
         if entity.has_minimal:
             return True
-        entity_id_field = entity.get_entity_identifying_field()
-        has_min_mdata = True
-        for field in cls.mandatory_fields_list:
-            if not hasattr(entity, field) or not getattr(entity, field):
-                cls._register_missing_field(field, entity_id_field, cls.entity_type, error_report_dict)
-                has_min_mdata = False
-            elif type(getattr(entity, field)) == list and len(getattr(entity, field)) == 0:
-                cls._register_missing_field(field, entity_id_field, cls.entity_type, error_report_dict)
-                has_min_mdata = False
-            else:
-                if hasattr(entity, 'internal_id'):
-                    removed = cls._unregister_missing_field(field, entity.internal_id, cls.entity_type, error_report_dict)
-                    if not removed and hasattr(entity, 'name'):
-                        cls._unregister_missing_field(field, entity.name, cls.entity_type, error_report_dict)
-                        
-                        
-        # It's mandatory that if there are optional fields, an entity contains at least one optional field:           
-        if cls.optional_fields_list:
-            has_optional_fields = False
-            for field in cls.optional_fields_list:
-                if hasattr(entity, field) and getattr(entity, field):
-                    removed = cls._unregister_missing_field(field, entity.internal_id, cls.entity_type, warning_report_dict)
-                    if not removed:
-                        cls._unregister_missing_field(field, entity.name, cls.entity_type, warning_report_dict)
-                    has_optional_fields = True
-                else:
-                    cls._register_missing_field(field, entity_id_field, cls.entity_type, warning_report_dict)
-            if not has_optional_fields:
-                has_min_mdata = False
-            entity.has_minimal = has_min_mdata
-        return has_min_mdata
+        cls.report_missing_fields(entity)
+        if hasattr(entity, 'missing_mand_fields') and getattr(entity, 'missing_mand_fields'):
+            return False
+        else:
+            entity.has_minimal = True
+            return True
 
 
 
@@ -145,8 +110,8 @@ class StudyMetaStatusChecker(EntityMetaStatusChecker):
     mandatory_fields_list = constants.STUDY_MANDATORY_FIELDS
     
     @classmethod    
-    def check_and_report_status(cls, study, error_report_dict, warning_report_dict=None):
-        return super(StudyMetaStatusChecker, cls).check_and_report_status(study, error_report_dict, warning_report_dict)
+    def check_minimal_and_report_missing_fields(cls, study):
+        return super(StudyMetaStatusChecker, cls).check_minimal_and_report_missing_fields(study)
 
 
 class SampleMetaStatusChecker(EntityMetaStatusChecker):
@@ -157,9 +122,9 @@ class SampleMetaStatusChecker(EntityMetaStatusChecker):
     optional_fields_list = constants.SAMPLE_OPTIONAL_FIELDS
     
     @classmethod
-    def check_and_report_status(cls, sample, error_report_dict, warning_report_dict=None):
+    def check_minimal_and_report_missing_fields(cls, sample):
         ''' Defines the criteria according to which a sample is considered to have minimal mdata or not. '''
-        return super(SampleMetaStatusChecker, cls).check_and_report_status(sample, error_report_dict, warning_report_dict)
+        return super(SampleMetaStatusChecker, cls).check_minimal_and_report_missing_fields(sample)
 
 
 class LibraryMetaStatusChecker(EntityMetaStatusChecker):
@@ -169,9 +134,9 @@ class LibraryMetaStatusChecker(EntityMetaStatusChecker):
     mandatory_fields_list =  constants.LIBRARY_MANDATORY_FIELDS
 
     @classmethod
-    def check_and_report_status(cls, library, error_report_dict, warning_report_dict=None):
+    def check_minimal_and_report_missing_fields(cls, library):
         ''' Checks if the library has the minimal mdata. Returns boolean.'''
-        return super(LibraryMetaStatusChecker, cls).check_and_report_status(library, error_report_dict, warning_report_dict)
+        return super(LibraryMetaStatusChecker, cls).check_minimal_and_report_missing_fields(library)
     
 
 class FileMetaStatusChecker(MetadataStatusChecker):
@@ -183,7 +148,70 @@ class FileMetaStatusChecker(MetadataStatusChecker):
     mandatory_fields_list = constants.FILE_MANDATORY_FIELDS
     mandatory_specific_fields_list = None
     
+        
+    @classmethod
+    def identify_missing_file_mdata_fields(cls, file_to_submit):
+        missing_general_fields = cls.identify_missing_fields_from_object(file_to_submit, cls.mandatory_fields_list)
+        missing_specif_fields = cls.identify_missing_fields_from_object(file_to_submit, cls.mandatory_specific_fields_list)
+        return missing_general_fields + missing_specif_fields
+
     
+    @classmethod
+    def identify_missing_sample_mdata(cls, sample_list):
+        missing_fields = []
+        if len(sample_list) == 0:
+            missing_fields.append('no sample')
+        elif not cls.check_minimal_and_modify_samples_status(sample_list):
+            missing_fields.append('one or more samples incomplete')
+        return missing_fields
+    
+    @classmethod
+    def identify_missing_study_mdata(cls, study_list):
+        missing_fields = []
+        if len(study_list) == 0:
+            missing_fields.append('no study')
+        elif not cls.check_minimal_and_modify_studies_status(study_list):
+            missing_fields.append('one or more studies incomplete')
+        return missing_fields
+    
+    @classmethod
+    def identify_missing_library_mdata(cls, library_list, wells_list, multiplex_library_list):
+        missing_fields = []
+        if len(library_list) == 0 and len(wells_list) == 0 and len(multiplex_library_list) == 0:
+            missing_fields.append('no library')
+        elif not cls.check_minimal_and_modify_libraries_status(library_list):
+            missing_fields.append('one or more libraries incomplete')
+
+        return missing_fields
+    
+    @classmethod
+    def check_minimal_and_modify_samples_status(cls, sample_list):
+        has_min_mdata = True
+        for sample in sample_list:
+            if not SampleMetaStatusChecker.check_minimal_and_report_missing_fields(sample):
+                has_min_mdata = False
+                print "MISSING SOME SAMPLE INFORMATION FOR SOME SAMPLES..."
+        return has_min_mdata
+    
+    @classmethod
+    def check_minimal_and_modify_libraries_status(cls, library_list):
+        has_min_mdata = True
+        for lib in library_list:
+            if not LibraryMetaStatusChecker.check_minimal_and_report_missing_fields(lib):
+                has_min_mdata = False
+                print "MISSING SOME LIBRARY INFORMATION FOR SPECIFIC LIBS......"
+        return has_min_mdata
+    
+    @classmethod
+    def check_minimal_and_modify_studies_status(cls, study_list):
+        has_min_mdata = True
+        for study in study_list:                   #(cls, entity, error_report_dict, warning_report_dict=None):
+            if not StudyMetaStatusChecker.check_minimal_and_report_missing_fields(study):
+                has_min_mdata = False
+                print "MISSING SOME STUDY INFORMATION...."
+        return has_min_mdata
+   
+   
     @classmethod
     def _check_all_tasks_finished(cls, tasks_dict, task_categ):
         ''' Checks that all the tasks in the task dictionary that belong to a certain 
@@ -201,55 +229,11 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         return False
     
     @classmethod
-    def check_entities_status(cls, file_obj):
-        has_min_mdata = True
-        ################### hmmm, should this be here or somewhere else? (i.e. bam file/ vcf file status checker...)
-        # Check the entity lists:
-        # Check if any of them is empty:
-        if len(file_obj.sample_list) == 0:
-            cls._register_missing_field('no sample', file_obj.id, constants.SAMPLE_TYPE, file_obj.missing_mandatory_fields_dict)
-            has_min_mdata = False
-        else:
-            cls._unregister_missing_field('no sample', file_obj.id, constants.SAMPLE_TYPE, file_obj.missing_mandatory_fields_dict)
-        if len(file_obj.study_list) == 0:
-            cls._register_missing_field('no study', file_obj.id, constants.STUDY_TYPE, file_obj.missing_mandatory_fields_dict)
-            has_min_mdata = False
-        else:
-            cls._unregister_missing_field('no study', file_obj.id, constants.STUDY_TYPE, file_obj.missing_mandatory_fields_dict)
-    
-        # Check if all the entities from the list have min mdata: 
-        for study in file_obj.study_list:                   #(cls, entity, error_report_dict, warning_report_dict=None):
-            if not StudyMetaStatusChecker.check_and_report_status(study, file_obj.missing_mandatory_fields_dict):
-                has_min_mdata = False
-        for sample in file_obj.sample_list:
-            if not SampleMetaStatusChecker.check_and_report_status(sample, file_obj.missing_mandatory_fields_dict, file_obj.missing_optional_fields_dict):
-                has_min_mdata = False
-        return has_min_mdata
-        
-    
-    @classmethod
     @abc.abstractmethod
-    def check_and_report_status(cls, file_obj):
-        if file_obj.has_minimal:
-            return True
-        has_min_mdata = True
-        if file_obj.index_file:
-            if not IndexFileMetaStatusChecker.check_and_report_status(file_obj.index_file, file_obj.id, file_obj.missing_mandatory_fields_dict):
-                has_min_mdata = False
-    
-        # Check file has min mdata:    
-        #file_mandatory_fields = constants.FILE_MANDATORY_FIELDS
-        for field in cls.mandatory_fields_list:
-            if not hasattr(file_obj, field) or not getattr(file_obj, field):
-                cls._register_missing_field(field, file_obj.id, 'file_mdata', file_obj.missing_mandatory_fields_dict)
-                has_min_mdata = False
-            else:
-                cls._unregister_missing_field(field, file_obj.id, 'file_mdata', file_obj.missing_mandatory_fields_dict)
-        
-        entities_min_mdata = cls.check_entities_status(file_obj)
-        return has_min_mdata and entities_min_mdata
-    
-    
+    def check_and_report_file_status(cls, file_to_submit):
+        ''' To be implemented by each type of file.'''
+        raise NotImplementedError("This method is abstract, needs to be implemented!")
+ 
     @classmethod
     def check_and_update_all_statuses(cls, file_id, file_to_submit=None):
         if file_to_submit == None:
@@ -258,12 +242,13 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         upd_dict = {}
         presubmission_tasks_finished = cls._check_all_tasks_finished(file_to_submit.tasks_dict, constants.PRESUBMISSION_TASKS)
         if presubmission_tasks_finished:
-            if cls.check_and_report_status(file_to_submit):
+            if cls.check_and_report_file_status(file_to_submit):
                 logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
                 upd_dict['has_minimal'] = True
                 upd_dict['library_list'] = file_to_submit.library_list
                 upd_dict['sample_list'] = file_to_submit.sample_list
                 upd_dict['study_list'] = file_to_submit.study_list
+                upd_dict['missing_optional_fields_dict'] = file_to_submit.missing_optional_fields_dict
                 upd_dict['missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
                 upd_dict['file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS
                 upd_type_list = [constants.FILE_FIELDS_UPDATE, constants.STUDY_UPDATE, constants.SAMPLE_UPDATE, constants.LIBRARY_UPDATE]
@@ -274,6 +259,10 @@ class FileMetaStatusChecker(MetadataStatusChecker):
                     upd_dict['file_submission_status'] = constants.FAILURE_SUBMISSION_TO_IRODS_STATUS
             else:
                 logging.info("FILE DOES NOT NOTTTTT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!")
+                upd_dict['library_list'] = file_to_submit.library_list
+                upd_dict['sample_list'] = file_to_submit.sample_list
+                upd_dict['study_list'] = file_to_submit.study_list
+                upd_dict['missing_optional_fields_dict'] = file_to_submit.missing_optional_fields_dict
                 upd_dict['missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
                 upd_dict['file_submission_status'] = constants.PENDING_ON_USER_STATUS
                 upd_dict['file_mdata_status'] = constants.NOT_ENOUGH_METADATA_STATUS
@@ -301,22 +290,21 @@ class IndexFileMetaStatusChecker(MetadataStatusChecker):
 
     mandatory_specific_fields_list = constants.INDEX_MANDATORY_FIELDS
     
+
     @classmethod
-    def check_and_report_status(cls, index_file, file_id, error_report_dict):
-        has_min_mdata = True
-        for field_name in cls.mandatory_specific_fields_list:
-            if not hasattr(index_file, field_name) or not getattr(index_file, field_name):
-                cls._register_missing_field(field_name, file_id, 'index_file', error_report_dict)
-                has_min_mdata = False
-            else:
-                cls._unregister_missing_field(field_name, file_id, 'index_file', error_report_dict)
-        return has_min_mdata
-    
-    
+    def identify_missing_fields(cls, index_file):
+        return cls.identify_missing_fields_from_object(index_file, cls.mandatory_specific_fields_list)
+#         missing_fields = []
+#         for field_name in cls.mandatory_specific_fields_list:
+#             if not hasattr(index_file, field_name) or not getattr(index_file, field_name):
+#                 missing_fields.append(field_name)
+#         return missing_fields
+     
         
 class BAMFileMetaStatusChecker(FileMetaStatusChecker):
     ''' This file holds the functionality needed in order to check the status of a BAM file
-        i.e. to evaluate whether this file has enough metadata to be submitted to iRODS or not.'''
+        i.e. to evaluate whether this file has enough metadata to be submitted to iRODS or not.
+    '''
     
     mandatory_specific_fields_list = constants.BAM_FILE_MANDATORY_FIELDS
 
@@ -324,61 +312,39 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
     def check_and_update_all_statuses(cls, file_id, file_to_submit=None):
         return super(BAMFileMetaStatusChecker, cls).check_and_update_all_statuses(file_id, file_to_submit)
     
-    @classmethod
-    def check_entities_status(cls, file_to_submit):
-        entities_min_mdata = super(BAMFileMetaStatusChecker, cls).check_entities_status(file_to_submit)
-        has_min_mdata = True    
-        if len(file_to_submit.library_list) == 0:
-            if len(file_to_submit.library_well_list) == 0:
-                if len(file_to_submit.multiplex_lib_list) == 0:
-                    cls._register_missing_field('no specific library', file_to_submit.id, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-                    has_min_mdata = False
-                else:
-                    cls._unregister_missing_field('no specific library', file_to_submit.id, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-            else:
-                cls._unregister_missing_field('no specific library', file_to_submit.id, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-        else:
-            for lib in file_to_submit.library_list:
-                if LibraryMetaStatusChecker.check_and_report_status(lib, file_to_submit.missing_mandatory_fields_dict) == False:
-                    has_min_mdata = False
-                    #print "NOT ENOUGH LIB MDATA................................."
-            cls._unregister_missing_field('no specific library', file_to_submit.id, constants.LIBRARY_TYPE, file_to_submit.missing_mandatory_fields_dict)
-        return entities_min_mdata and has_min_mdata
-    
+  
     @classmethod
     def check_and_report_file_status(cls, file_to_submit):
+        missing_fields = []
+        optional_missing_fields = []
+        index_missing_fields = []
+        
+        # Sample check:
+        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.sample_list))
+        
+        # Study check:
+        missing_fields.extend(cls.identify_missing_study_mdata(file_to_submit.study_list))  
+        
+        # Library check:
+        optional_missing_fields.extend(cls.identify_missing_library_mdata(file_to_submit.library_list, file_to_submit.library_well_list,file_to_submit.multiplex_lib_list))
+        
+        # Checking on file fields:
+        missing_fields.extend(cls.identify_missing_file_mdata_fields(file_to_submit))
+        
+        # Checking the index-specific fields:
+        index_missing_fields.extend(IndexFileMetaStatusChecker.identify_missing_fields(file_to_submit.index_file))
+#                 
+        # Save the missing fields found:
         has_min_mdata = True
-        for field in cls.mandatory_specific_fields_list:
-            if not hasattr(file_to_submit, field):
-                cls._register_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-                has_min_mdata = False
-            else:
-                attr_val = getattr(file_to_submit, field)
-                if attr_val == None:
-                    cls._register_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-                    has_min_mdata = False
-                elif type(attr_val) == list and len(attr_val) == 0:
-                    cls._register_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-                    has_min_mdata = False
-                else:
-                    cls._unregister_missing_field(field, file_to_submit.id, 'file_mdata', file_to_submit.missing_mandatory_fields_dict)
-            return has_min_mdata
+        file_to_submit.missing_optional_fields_dict['file_mdata'] = optional_missing_fields
+        file_to_submit.missing_mandatory_fields_dict['file_mdata'] = missing_fields
+        file_to_submit.missing_mandatory_fields_dict['index_mdata'] = index_missing_fields
+
+        if missing_fields or index_missing_fields:
+            has_min_mdata = False
+        return has_min_mdata
     
-    @classmethod
-    def check_and_report_status(cls, file_to_submit):
-        file_meta_status = super(BAMFileMetaStatusChecker, cls).check_and_report_status(file_to_submit)
-        if file_meta_status == False:
-            return False
-        # Getting the status of the entities:
-        entities_min_mdata = cls.check_entities_status(file_to_submit)
-        
-        # Getting the status of the file regarding its fields:
-        file_min_mdata = cls.check_and_report_file_status(file_to_submit)
-        return file_min_mdata and entities_min_mdata
-        
-
-
-
+   
       
 class VCFFileMetaStatusChecker(FileMetaStatusChecker):
     ''' This file holds the functionality needed in order to check the status of a VCF file
@@ -389,22 +355,37 @@ class VCFFileMetaStatusChecker(FileMetaStatusChecker):
     @classmethod
     def check_and_update_all_statuses(cls, file_id, file_to_submit=None):
         return super(VCFFileMetaStatusChecker, cls).check_and_update_all_statuses(file_id, file_to_submit)
-    
+
+        
     @classmethod
-    def check_entities_status(cls, file_to_submit):
-        return super(VCFFileMetaStatusChecker, cls).check_entities_status(file_to_submit)
+    def check_and_report_file_status(cls, file_to_submit):
+        missing_fields = []
+        optional_missing_fields = []
+        index_missing_fields = []
         
+        # Sample check:
+        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.sample_list))
+         
+        # Study check:
+        missing_fields.extend(cls.identify_missing_study_mdata(file_to_submit.study_list))  
+       
+        # Checking on file fields:
+        missing_fields.extend(cls.identify_missing_file_mdata_fields(file_to_submit))
+       
+        # Checking the index-specific fields:
+        index_missing_fields.extend(IndexFileMetaStatusChecker.identify_missing_fields(file_to_submit.index_file))
+                
+        # Save the missing fields found:
+        has_min_mdata = True
+        file_to_submit.missing_optional_fields_dict['file_mdata'] = optional_missing_fields
+        file_to_submit.missing_mandatory_fields_dict['file_mdata'] = missing_fields
+        file_to_submit.missing_mandatory_fields_dict['index_mdata'] = index_missing_fields
+
+        if missing_fields or index_missing_fields:
+            has_min_mdata = False
+        return has_min_mdata
     
-    @classmethod
-    def check_and_report_status(cls, file_to_submit):
-        file_meta_status = super(VCFFileMetaStatusChecker, cls).check_and_report_status(file_to_submit)
-        if file_meta_status == False:
-            return False
-        # Getting the status of the entities:
-        entities_min_mdata = cls.check_entities_status(file_to_submit)
-        return entities_min_mdata
-        
-        
+
 
 class FileStatusCheckerForSubmissionTasks(object):
     ''' This class contains the functionality for checking the file status 

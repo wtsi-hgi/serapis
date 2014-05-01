@@ -88,8 +88,8 @@ def catch_multiple_invalid_error(e):
 
 class SerapisUserAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
-    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
-    parser_classes = (JSONParser, GZIPParser)
+#    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
+    parser_classes = (JSONParser, ) #, GZIPParser
 
 class SerapisWorkerAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
@@ -218,11 +218,13 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
         '''
         user_id = USER_ID
         try:
-
+            print "REQUEST.DATA =============", request.DATA
             if not hasattr(request, 'DATA'):
-                return Response(status=status.HTTP_304_NOT_MODIFIED)
+                err = dict()
+                err['error'] = 'No DATA attached'
+                return Response(err, status=status.HTTP_304_NOT_MODIFIED)
+
             req_result = dict()
-            
             t1 = time.time()
             context = controller_strategy.GeneralContext(user_id, request_data=request.DATA)
             subm_result = controller_strategy.SubmissionCreationStrategy.process_request(context)
@@ -598,6 +600,7 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
             POST req body should look like: 
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         try:
+            print "RECEIVED POST REQUEST!!!!!!!!! ", request.DATA
             #data = request.DATA
             #data = utils.unicode2string(data)
             result = dict()
@@ -605,7 +608,7 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
             #resubmission_result = controller.resubmit_jobs_for_file(submission_id, file_id)
             req_data = None
             if hasattr(request, 'DATA'):
-                req_data = request.Data
+                req_data = request.DATA
             
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
             strategy = controller_strategy.ResubmissionOperationsStrategy() #ResubmissionOperationsAdminStrategy
@@ -629,6 +632,9 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
         except exceptions.ResourceNotFoundError as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.FileDuplicateException as e:
+            result['errors'] = e.msg
+            return Response(result, status=status.HTTP_403_FORBIDDEN)
         else:
             if resubmission_result.error_dict:
                 result['errors'] = resubmission_result.error_dict 
@@ -648,9 +654,13 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
+        print "RECEIVED PUT REQUEST........"
         if hasattr(request, 'DATA'):
             req_data = request.DATA
+            print "PUT REQUEST received --with data: ", req_data
         else:
+            print "It seems that there is no data attached to this request: ", vars(request)
+            print "REQUEST>DATA ===============", request.DATA
             return Response("Nothing to update.", status=status.HTTP_304_NOT_MODIFIED)
         #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
@@ -661,20 +671,6 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
             strategy = controller_strategy.FileModificationStrategy()
             strategy.process_request(context)
             
-            # Working originally:
-#            data = utils.unicode2string(data)
-#            validator.submitted_file_schema(data)
-#            controller.update_file_submitted(submission_id, file_id, data)
-            
-            
-#             user_id = 'ic4'
-#            result = dict()
-#            logging.debug("Received GET request - submission id:"+submission_id)
-#            #submission = controller.get_submission(submission_id)
-#            context = controller_strategy.SpecificSubmissionContext(user_id, submission_id)
-#            strategy = controller_strategy.SubmissionRetrievalStrategy()
-#            submission = strategy.process_request(context)
-#            submission_serial = serializers.serialize(submission)
         except MultipleInvalid as e:
             path = ''
             for p in e.path:
@@ -744,19 +740,6 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
                 return Response(result, status=424)
         
 
-#        try:
-#            result = dict()
-#            subm_statuses = controller.get_submission_status(submission_id)
-#        except InvalidId:
-#            result['errors'] = "InvalidId"
-#            return Response(result, status=404)
-#        except DoesNotExist:
-#            result['errors'] = "Submission not found"
-#            return Response(result, status=404)
-#        else:
-#            result['result'] = subm_statuses
-#            return Response(result, status=200)
-#        
 
 
 ###---------------- WORKERS -------------------------------
@@ -774,20 +757,26 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
     
     def post(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
-        if hasattr(request, 'FILES'):
-            req_data = request.FILES['file']
-            req_data = req_data.read()
-            req_data = req_data.decode("zlib")
-            req_data = serializers.deserialize(req_data)
-            print "DATA OBTAINED AFTERWARDs====================================", req_data
-        else:
+        if not hasattr(request, 'FILES'):
             return Response("This request doesn't have a file attached.", status=status.HTTP_400_BAD_REQUEST)
-                       
+        req_data = request.FILES['file']
+        
+        print "In views, start reading the FILE into memory..."
+        req_data = req_data.read()
+        
+        print "In views, start decoding..."
+        req_data = req_data.decode("zlib")
+        
+        print "In views, start deserializing..."
+        req_data = serializers.deserialize(req_data)
+
         try:
             logging.debug("Received POST request from workers -- submission id: %s",str(submission_id))
             result = {}
             context = controller_strategy.WorkerSpecificFileContext(submission_id, file_id, request_data=req_data)
             strategy = controller_strategy.FileModificationStrategy()
+            
+            print "Start processing the request data, still in views, calling strategy..."
             strategy.process_request(context)
         except MultipleInvalid as e:
             path = ''

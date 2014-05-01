@@ -30,7 +30,7 @@ class SerapisException(Exception):
         """ Get the error message of this exception."""
         return self.__str__()
     
-    def __str__(self, text=None):
+    def __str__(self, text=None, faulty_expression=None, message=None):
         if not text:
             text = ''
         if self.faulty_expression != None:
@@ -392,6 +392,20 @@ class NoIndexFileException(SerapisException):
     def __str__(self):
         return "File %s hasn't got an index attached to it" % self.file_id
         
+
+class FileDuplicateException(SerapisException):
+    ''' 
+        This exception is thrown when a file hasn't got an index file attached to it.
+    '''
+    #text=None, faulty_expression=None, message=None):
+    def __init__(self, file_id, faulty_expression=None, message=None):
+        self.file_id = file_id
+        self.faulty_expression = faulty_expression
+        self.message = message
+        
+    def __str__(self):
+        return "File %s has been submitted before, cannot store file duplicates." % self.file_id
+
 
 ######## Exceptions related to worker management and broker issues (Rabbitmq): #####
 #

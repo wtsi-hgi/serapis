@@ -172,18 +172,23 @@ def convert_specific_file_mdata(file_type, file_mdata):
     return irods_specific_mdata
 
 
-import time
 def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_id='external'):
-    FILE_FIELDS_LIST = ['submission_id', 'file_type', 'study_list', 'library_list', 'sample_list', 'data_type', 'data_subtype_tags','hgi_project']
+    FILE_FIELDS_LIST = ['submission_id', 
+                        'file_type', 
+                        'study_list', 
+                        'library_list', 
+                        'sample_list', 
+                        'data_type', 
+                        'data_subtype_tags',
+                        'hgi_project',
+                        'pmid_list',
+                        'security_level'
+                        ]
     FILE_PREFIXED_FIELDS_LIST = ['md5', 'id']
     irods_file_mdata = []
     
     for field_name in FILE_PREFIXED_FIELDS_LIST:
-        t1 = time.time()
         if hasattr(subm_file, field_name) and getattr(subm_file, field_name) not in [None, ' ']:
-            t2 = time.time()
-            total = t2 - t1
-            print "Time taken to check if the file has attribute: (in convert_metadata)", str(total)
             field_val = getattr(subm_file, field_name)
             field_val = utils.unicode2string(str(field_val))
             if field_name == 'id':
@@ -218,6 +223,13 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 field_val = utils.unicode2string(field_val)
                 for tag_val in field_val.values():
                     irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
+            elif field_name == 'pmid_list':
+                field_val = utils.unicode2string(field_val)
+                for pmid in field_val:
+                    irods_file_mdata.append(('pmid', utils.unicode2string(pmid)))
+            elif field_name == 'security_level':
+                field_val = utils.unicode2string(field_val)
+                irods_file_mdata.append(('security_level', field_val))
             elif field_name == 'hgi_project':
                 field_val = utils.unicode2string(field_val)
                 irods_file_mdata.append(('hgi_project', utils.unicode2string(field_val)))                
@@ -226,7 +238,6 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 irods_file_mdata.append((field_name, field_val))
     if ref_genome != None:
         irods_file_mdata.extend(convert_reference_genome_mdata(ref_genome))
-    #if len(subm_file.library_list) == 0 and len(subm_file.library_well_list) != 0 and subm_file.abstract_library != None:
     if subm_file.abstract_library != None:
         irods_lib_mdata = convert_library_mdata(subm_file.abstract_library)
         irods_file_mdata.extend(irods_lib_mdata)

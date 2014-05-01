@@ -44,8 +44,8 @@ def gather_file_mdata(file_to_submit, submission=None):
     else:
         irods_mdata_dict = convert_mdata.convert_file_mdata(file_to_submit, submission.submission_date, sanger_user_id=submission.sanger_user_id)
     print "IRODS MDATA DICT --- AFTER UPDATE:"
-#     for mdata in irods_mdata_dict:
-#         print mdata
+    for mdata in irods_mdata_dict:
+        print mdata
     return irods_mdata_dict
 
 def gather_index_file_mdata(indexed_file, submission=None):

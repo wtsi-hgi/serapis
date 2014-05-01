@@ -29,29 +29,10 @@ from Celery_Django_Prj import configs
 from serapis.com import constants
 from serapis.worker import entities, exceptions
 
-#import unittest
-
-#
-## TO DELETE AFTER TESTING:
-#SEQSC_HOST = "127.0.0.1"
-#SEQSC_PORT = 3307
-##SEQSC_PORT = 20002
-#SEQSC_USER = "warehouse_ro"
-#SEQSC_DB_NAME = "sequencescape_warehouse"
-#
-#CURRENT_WELLS_SEQSC_TABLE = "current_wells"
-#CURRENT_MULTIPLEXED_LIBRARY_TABLE = "current_multiplexed_library_tubes"
-#CURRENT_LIBRARY_TUBES = "current_library_tubes"
-#CURRENT_SAMPLES = "current_samples"
-#
-## ENTITY_TYPES 
-#LIBRARY_TYPE    = 'library'
-#SAMPLE_TYPE     = 'sample'
-#STUDY_TYPE      = 'study'
-
 
 
 ######################### CLASS THAT ONLY DEALS WITH SEQSCAPE DB OPERATIONS ####################
+
 class QuerySeqScape():
     
     @staticmethod

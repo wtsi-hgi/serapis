@@ -348,16 +348,25 @@ class TaskLauncherBAMFile(TaskLauncher):
             logging.error("LAUNCH PARSE BAM HEADER -- called with null params => task was NOT submitted to the queue.")
             return None
         logging.info("PUTTING THE PARSE HEADER TASK IN THE QUEUE")
-        file_serialized = serializers.serialize_excluding_meta(file_obj)
+        
         #chain(parse_BAM_header_task.s(kwargs={'submission_id' : submission_id, 'file' : file_serialized }), query_seqscape.s()).apply_async()
         
 #        serapis_file = serapis_models.BAMFileModel.build_from_db_model(file_obj)
 #        file_serialized = serializers.serialize(serapis_file)
-        task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
+        
+        
+#        file_serialized = serializers.serialize_excluding_meta(file_obj)
+#         task = parse_BAM_header_task.apply_async(kwargs={'file_mdata' : file_serialized, 
+#                                                          'file_id' : file_obj.file_id,
+#                                                          'submission_id' : file_obj.submission_id,
+#                                                          },
+#                                                  queue=queue)
+        task = parse_BAM_header_task.apply_async(kwargs={'file_path' : file_obj.file_path_client, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,
                                                          },
                                                  queue=queue)
+
         return task.id
     
     
@@ -369,6 +378,7 @@ class TaskLauncherVCFFile(TaskLauncher):
             logging.error("LAUNCH PARSE VCF HEADER -- called with null params => task was NOT submitted to the queue.")
             return None
         logging.info("PUTTING THE PARSE HEADER TASK IN THE QUEUE")
+        
         task = parse_VCF_header_task.apply_async(kwargs={'file_path' : file_obj.file_path_client, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,

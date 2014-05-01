@@ -367,6 +367,8 @@ class CalculateMD5Task(GatherMetadataTask):
             index_md5 = self.calculate_md5(index_file_path)
         file_md5 = "123456789"
         
+        time.sleep(5)
+        
         result = {'md5' : file_md5}
         if index_file_path:
             result['index_file'] = {'md5' : index_md5}
@@ -504,7 +506,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
             if entity != None:# and entity.check_if_complete_mdata() == False:     #if not entity.check_if_has_minimal_mdata():
                 print "IS IT COMPLETE??? IT ENTERED IF NOT COMPLETE => INCOMPLETE"
                 has_id_field = False
-                for id_field in constants.ENTITY_IDENTITYING_FIELDS:
+                for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
                     if hasattr(entity, id_field) and getattr(entity, id_field) != None:
                         incomplete_entities.append((id_field, getattr(entity, id_field)))
                         has_id_field = True
