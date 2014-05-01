@@ -23,13 +23,14 @@
 #################################################################################
 
 
-
-from serapis.controller.logic.models_utils import SubmissionModelUtilityFunctions
+from Celery_Django_Prj import configs
 from serapis.com import constants, utils
 from serapis.worker import tasks
 from serapis.controller import serapis2irods
 from serapis.controller.db import data_access, models
 from serapis.controller.logic import serapis_models
+from serapis.controller.logic.models_utils import SubmissionModelUtilityFunctions
+
 #from serapis.controller.serapis2irods import serapis2irods_logic
 from serapis.controller import exceptions
 from serapis import serializers
@@ -91,7 +92,7 @@ class TaskLauncher(object):
             return None
         logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
         
-        dest_irods_coll = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id)
+        dest_irods_coll = os.path.join(configs.IRODS_STAGING_AREA, file_obj.submission_id)
         task = upload_task.apply_async(kwargs={ 'file_id' : file_obj.file_id,
                                                 'file_path' : file_obj.file_path_client,
                                                 'index_file_path' : file_obj.index_file.file_path_client, 
@@ -227,7 +228,7 @@ class TaskLauncher(object):
 #        return task.id
 
     @staticmethod
-    def launch_add_mdata2irods_task(file_obj):
+    def launch_add_mdata2irods_task_chain(file_obj):
         add_meta_task_args = TaskLauncher.create_signature_add_mdata_task(file_obj)
         test_task_args = TaskLauncher.create_signature_test_file_task(file_obj)
         
@@ -243,7 +244,22 @@ class TaskLauncher(object):
         #print "CHAIN PARENT RESULT:..........",chain_res.parent.id
         #return chain_res.parent.id
         return chain_res.id
+    
+    
+    @staticmethod
+    def launch_add_mdata2irods_task(file_obj):
+        add_meta_task_args = TaskLauncher.create_signature_add_mdata_task(file_obj)
+        add_task_sign = add_mdata_to_IRODS_file_task.s(**add_meta_task_args).set(queue=constants.IRODS_Q, immutable=True)
+        task = add_task_sign.apply_async()
+        return task.id
         
+    
+    @staticmethod
+    def launch_test_irods_file_task(file_obj):
+        test_task_args = TaskLauncher.create_signature_test_file_task(file_obj)
+        test_task_sign = test_file_task.s(**test_task_args).set(queue=constants.IRODS_Q, immutable=True)
+        task = test_task_sign.apply_async()
+        return task.id
         
     
     @staticmethod
@@ -292,14 +308,14 @@ class TaskLauncher(object):
         
         # Inferring the file's location in iRODS staging area: 
         (_, file_name) = os.path.split(file_obj.file_path_client)
-        file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
+        file_path_irods = os.path.join(configs.IRODS_STAGING_AREA, file_obj.submission_id, file_name)
         
         # If there is an index => putting together the metadata for it
         index_file_path_irods, index_mdata = None, None
         if hasattr(file_obj.index_file,  'file_path_client'):
             index_mdata = serapis2irods.convert_mdata.convert_index_file_mdata(file_obj.index_file.md5, file_obj.md5)
             (_, index_file_name) = os.path.split(file_obj.index_file.file_path_client)
-            index_file_path_irods = os.path.join(constants.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
+            index_file_path_irods = os.path.join(configs.IRODS_STAGING_AREA, file_obj.submission_id, index_file_name) 
         else:
             logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
     
@@ -432,7 +448,6 @@ class BatchTasksLauncher(object):
             elif task_name == constants.CALC_MD5_TASK:
                 task_id = self.task_launcher.launch_calculate_md5_task(file_obj, queue=constants.CALCULATE_MD5_Q+queue_suffix)
                 tasks_dict[task_id] = {'type' : constants.CALC_MD5_TASK, 'status' : status }
-                
             elif task_name == constants.PARSE_HEADER_TASK:
                 task_id = self.task_launcher.launch_parse_file_header_task(file_obj, queue=constants.PROCESS_MDATA_Q+queue_suffix)
                 tasks_dict[task_id] = {'type' : constants.PARSE_HEADER_TASK, 'status' : status }
@@ -445,6 +460,9 @@ class BatchTasksLauncher(object):
             elif task_name == constants.MOVE_FILE_TO_PERMANENT_COLL_TASK:
                 task_id = self.task_launcher.launch_move_to_permanent_coll_task(file_obj)
                 tasks_dict[task_id] = {'type' : constants.MOVE_FILE_TO_PERMANENT_COLL_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
+            elif task_name == constants.TEST_FILE_TASK:
+                task_id = self.task_launcher.launch_test_irods_file_task(file_obj)
+                tasks_dict[task_id] = {'type' : constants.TEST_FILE_TASK, 'status' : constants.PENDING_ON_WORKER_STATUS}
         return tasks_dict
 
 

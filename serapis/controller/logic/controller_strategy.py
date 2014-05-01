@@ -966,6 +966,13 @@ class AddMetadataToBackendFileStrategy(BackendMetadataHandlingStrategy):
     def backend_file_operation(self, context, file_obj=None):
         return super(AddMetadataToBackendFileStrategy, self).backend_file_operation(context)
     
+class TestFileSubmittedToBackendStrategy(BackendOperationsStrategy):
+    ''' This class launches the tasks for testing a submitted file into iRODS.'''
+    task_name = constants.TEST_FILE_TASK
+    
+    def backend_file_operation(self, context, file_obj=None):
+        return super(TestFileSubmittedToBackendStrategy, self).backend_file_operation(context)
+    
 
 class RetrieveMetadataForBackendFileStrategy(BackendMetadataHandlingStrategy):
     ''' 

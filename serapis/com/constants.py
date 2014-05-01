@@ -210,7 +210,7 @@ FILE_FIELDS_UPDATE  = 'FILE_FIELDS_UPDATE'
 STUDY_MANDATORY_FIELDS      = {'name', 'study_type', 'study_title', 'faculty_sponsor', 'study_visibility', 'pi_list'}
 LIBRARY_MANDATORY_FIELDS    = {'library_source', 'coverage'} #'library_selection', 
 SAMPLE_MANDATORY_FIELDS     = {'taxon_id'} # 'country_of_origin', 'cohort', 'ethnicity', 'gender', 
-FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5', 'security_level', 'pmid_list'}
+FILE_MANDATORY_FIELDS       = {'data_type', 'file_reference_genome_id', 'hgi_project', 'data_subtype_tags', 'md5', 'security_level'} #, 'pmid_list'
 INDEX_MANDATORY_FIELDS      = {'irods_coll', 'file_path_client', 'md5'}
 BAM_FILE_MANDATORY_FIELDS   = {'seq_centers', 'run_list', 'platform_list', 'abstract_library'}
 VCF_FILE_MANDATORY_FIELDS   = {'file_format'}
@@ -653,8 +653,6 @@ IRODS_SANGER_ZONE = 'Sanger1'
 IRODS_HUMGEN_ZONE = 'humgen'
 IRODS_SEQ_ZONE    = 'seq'
 
-# IRODS configurations
-IRODS_STAGING_AREA = "/humgen/projects/serapis_staging"
 
 
 

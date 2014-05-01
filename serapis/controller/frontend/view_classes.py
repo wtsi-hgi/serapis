@@ -1524,7 +1524,6 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
 #    renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly,)
     
-    
     def get(self, request, submission_id):
         ''' 
             This retrieves the metadata for all the files in the specified submission,
@@ -1551,16 +1550,11 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
             result['result'] = file_metadata
             return Response(result, status=status.HTTP_200_OK)
             
-    
-    
+            
     def post(self, request, submission_id, format=None):
         ''' Attaches the metadata to all the files in the submission, 
             while they are still in the staging area'''
         try:
-#            data = None
-#            if hasattr(request, 'DATA'):
-#                data = request.DATA
-#                data = utils.unicode2string(data)
             result = dict()
             req_data = request.DATA if hasattr(request, 'DATA') else None
             context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id, req_data)
@@ -1635,10 +1629,48 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         ''' Attaches the metadata to the file, while it's still in the staging area'''
         try:
             result = {}
-            #added_meta = controller.add_meta_to_staged_file(file_id)
             req_data = request.DATA if hasattr(request, 'DATA') else None
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
             strategy = controller_strategy.AddMetadataToBackendFileStrategy()
+            submission_result = strategy.process_request(context)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = submission_result.result
+            # BUG: if here returns always TRUE!!!!!!!!!!!!!!
+            if submission_result.result:
+                return Response(result, status=202)
+            if submission_result.error_dict:
+                result['errors'] = submission_result.error_dict
+            return Response(result, status=424) 
+
+
+class SubmittedFileIRODSTempTestsRequestHandler(SerapisUserAPIView):
+    ''' 
+        This class exposes the functionality regarding the tests run on 
+        a file submitted to irods - checking it out before submitting it to permanent coll.
+    '''
+    
+    
+    def post(self, request, submission_id, file_id, format=None):
+        ''' 
+            Runs the tests on a file.
+        '''
+        try:
+            result = {}
+            req_data = request.DATA if hasattr(request, 'DATA') else None
+            context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
+            strategy = controller_strategy.TestFileSubmittedToBackendStrategy()
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"

@@ -47,6 +47,7 @@ urlpatterns = patterns('',
     
     url(r'^submissions/(?P<submission_id>\w+)/irods-temp/meta/$', view_classes.SubmissionIRODSMetaRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods-temp/meta/$', view_classes.SubmittedFileIRODSMetaRequestHandler.as_view()),
+    url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods-temp/tests/$', view_classes.SubmittedFileIRODSTempTestsRequestHandler.as_view()),
     
     url(r'^submissions/(?P<submission_id>\w+)/irods-perm/$', view_classes.SubmissionToiRODSPermanentRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods-perm/$', view_classes.SubmittedFileToiRODSPermanentRequestHandler.as_view()),
