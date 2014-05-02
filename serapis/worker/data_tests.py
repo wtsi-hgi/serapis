@@ -60,7 +60,8 @@ class GeneralFileTests(object):
             errors = str(e)
         if result is None:
             executed = False
-        return TestResult(result=result, errors=errors,test_executed=executed)
+        #return TestResult(result=result, errors=errors,test_executed=executed)
+        return {'result': result, 'errors': errors, 'executed': executed}
     
     ##### TESTING THAT ALL FILES ARE IN : #####
     
@@ -422,21 +423,21 @@ class FileTestSuiteRunner(object):
     def run_test_suite_on_file(cls, fpath_irods):
         error_report = {}
         
-        test = "1. Checksum across replicas"    
+        test = "Checksum across replicas"    
         result = GeneralFileTests.test_and_report(GeneralFileTests.checksum_all_replicas, [fpath_irods])
         error_report[test] = result 
         
-        test = "2. Compare md5 calculated in metadata with irods meta"
+        test = "Compare md5 calculated in metadata with irods meta"
         result = GeneralFileTests.test_and_report(GeneralFileTests.compare_file_md5, [fpath_irods])
         error_report[test] = result
     
-        test = "3. Check replicas"
+        test = "Check replicas"
         result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
         error_report.update(result)
         
 #        meta_test_class = cls.get_metadata_test_class(fpath_irods)
 #        result = meta_test_class.test_and_report(meta_test_class.run_file_meta_test, [fpath_irods])
-        test = "4. Test all metadata is there"
+        test = "Test all metadata is there"
         #result = cls.run_metadata_tests_on_file(fpath_irods)
         result = GeneralFileTests.test_and_report(cls.run_metadata_tests_on_file, [fpath_irods])
         error_report[test] = result

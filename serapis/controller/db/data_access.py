@@ -673,6 +673,10 @@ class FileDataAccess(DataAccess):
             return models.SubmittedFile.objects(id=file_id, version__3=study_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)
         return 0
     
+#     @classmethod
+#     def insert_irods_tests_results(cls, file_id, tests_results_dict):
+#         return models.SubmittedFile.objects(id=file_id).update_one(inc__version__0=1, set__irods_tests_results=tests_results_dict)
+    
     
     #---------------------------------------------------------------
     @classmethod
@@ -1154,8 +1158,12 @@ class FileDataAccess(DataAccess):
                 elif field_name == 'pmid_list':
                     update_db_dict['set__pmid_list'] = field_val
                     update_db_dict['inc__version__0'] = 1
+                elif field_name == 'irods_tests_results':
+                    update_db_dict['set__irods_tests_results'] = field_val
+                    update_db_dict['inc__version__0'] = 1
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
+                
             elif field_name == 'reference_genome':
                     #ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
                     ref_gen = ReferenceGenomeDataAccess.retrieve_reference_by_path(field_val)

@@ -313,6 +313,9 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     # Dict that keeps the association between a field and the origin of the last update:
     last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
         
+    # Dict of the result from the tests run on the staged files
+    irods_tests_results = DictField()
+        
     # Mongo - specific metadata fields:
     meta = {                                            # Mongoengine specific field for metadata.
             'allow_inheritance': True,

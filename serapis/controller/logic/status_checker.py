@@ -455,7 +455,7 @@ class FileStatusCheckerForSubmissionTasks(object):
     
     @classmethod
     def _is_ready_for_submit_task(cls, file_obj):
-        return cls.is_ready_for_add_meta_task(file_obj)
+        return cls._is_ready_for_add_meta_task(file_obj)
 
     @classmethod
     def _is_ready_for_move_to_permanent_coll_task(cls, file_obj):
@@ -473,6 +473,8 @@ class FileStatusCheckerForSubmissionTasks(object):
             return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
         elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
             return cls._is_ready_for_submit_task(file_obj)
+        elif task_name == constants.TEST_FILE_TASK:
+            return models.Result(True)
         return None
                 
                 

@@ -58,6 +58,9 @@ from serapis.com import utils
 # Celery imports:
 from celery import Task, current_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from celery.utils.log import get_task_logger
+
+logger = get_task_logger(__name__)
 
 #################################################################################
 '''
@@ -839,7 +842,7 @@ class RunFileTestsTask(iRODSTestingTask):
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     
     def check_all_tests_passed(self, file_error_report):
-        tests_results = [val.result for val in file_error_report.itervalues()]
+        tests_results = [val['result'] for val in file_error_report.itervalues()]
         tests_results = filter(None, tests_results)
         if any(v is False for v in tests_results):
             return False
