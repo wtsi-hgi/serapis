@@ -59,13 +59,13 @@ def gather_index_file_mdata(indexed_file, submission=None):
     return index_mdata
 
 
-def get_all_file_meta_from_DB(file_obj=None, submission=None):
+def get_all_file_meta_from_DB(file_id, file_obj=None, submission=None):
     if not file_obj:
         file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj.id)
     return gather_file_mdata(file_obj, submission=submission)
 
 
-def get_all_index_file_meta_from_DB(file_obj=None, submission=None):
+def get_all_index_file_meta_from_DB(file_id, file_obj=None, submission=None):
     if not file_obj:
         file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_obj.id)
     return gather_index_file_mdata(file_obj, submission)
