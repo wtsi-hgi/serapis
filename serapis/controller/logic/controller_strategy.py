@@ -583,7 +583,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(file_to_update.id)
         
         print "Gathering metadata for the file submission..."
-        serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
+        serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_to_update.id, file_to_update)
         
         print "Cheking the file status..."
         file_logic.check_and_update_all_file_statuses(file_to_update.id, file_to_update)
@@ -672,7 +672,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         subm_file.reload()
         
         print "Gathering metadata for the file submission..."
-        serapis2irods.serapis2irods_logic.gather_file_mdata(subm_file)
+        serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(subm_file.id, subm_file)
         
         print "Cheking the file status..."
         file_logic.check_and_update_all_file_statuses(subm_file.id, subm_file)
