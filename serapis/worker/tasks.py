@@ -843,7 +843,8 @@ class RunFileTestsTask(iRODSTestingTask):
     
     def check_all_tests_passed(self, file_error_report):
         tests_results = [val['result'] for val in file_error_report.itervalues()]
-        tests_results = filter(None, tests_results)
+        tests_results = filter(lambda x: x is not None, tests_results)
+        print "Test results from CHECK_ALL_TESTS_PASSED FCT: ", tests_results
         if any(v is False for v in tests_results):
             return False
         return True
@@ -866,18 +867,26 @@ class RunFileTestsTask(iRODSTestingTask):
         
         result = {}
         status = constants.SUCCESS_STATUS
+        #result.update(file_error_report)
+        result['file'] = file_error_report
         if not self.check_all_tests_passed(file_error_report):
             status = constants.FAILURE_STATUS
-            result.update(file_error_report)
+            print "FILE FAILED ONE OR MORE TESTS.....", str(result)
         
+        
+        print "RESULT dict after updating it with file report: ", str(result)
+        #result.update(index_error_report)
+        result['index_file'] = index_error_report
         if not self.check_all_tests_passed(index_error_report):
             status = constants.FAILURE_STATUS
-            result.update(index_error_report)
-            
-        # Report the results:
-        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=status, result=result)
-        self.report_result_via_http(task_result)
+            print "INDEX FILE FAILED ONE OR MORE TESTS......", str(result)
         
+            
+        print "RESULT dict, before returning it: ", str(result)
+        # Report the results:
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=status, result={'irods_tests_results': result})
+        self.report_result_via_http(task_result)
+                
 
 #class TestAndRecoverFromFailureTask(iRODSTask):
 

@@ -58,8 +58,10 @@ class GeneralFileTests(object):
             result = test_fct(*arg_list)
         except exceptions.iRODSException as e:
             errors = str(e)
-        if result is None:
-            executed = False
+            result = False
+        else:
+            if result == None:
+                executed = False
         #return TestResult(result=result, errors=errors,test_executed=executed)
         return {'result': result, 'errors': errors, 'executed': executed}
     
