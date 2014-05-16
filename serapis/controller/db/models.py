@@ -52,13 +52,37 @@ from collections import namedtuple
 TaskInfo = namedtuple('TaskInfo', ['id', 'type', 'status'])
 
 class Result:
+    ''' 
+        This type of objects are to be returned by functions, when a complex report 
+        containing errors, warnings and messages that resulted during the function's 
+        execution needs to be returned from a function.
+    '''
     def __init__(self, result, error_dict=None, warning_dict=None, message=None):
+        # result can be a boolean, or a list of booleans or a dict, with the key
+        # representing an identified and the value a boolean
         self.result = result
+        
+        # A dictionary containing errors
         self.error_dict = error_dict
+        
+        # A dictionary containing warnings
         self.warning_dict = warning_dict
+        
+        # An optional message
         self.message = message
+    
+    
+    def is_true(self):
+        if type(self.result) == bool:
+            return self.result
+        if type(self.result) == list:
+            return all(item == True for item in self.result)
+        if type(self.result) == dict:
+            return all(item == True for item in self.result.values())
 
-
+    def is_false(self):
+        return not self.is_true()
+    
 
 class SerapisModel(object):
     ''' Parent class for all the model classes.'''

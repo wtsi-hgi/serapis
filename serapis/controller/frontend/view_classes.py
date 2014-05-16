@@ -1511,8 +1511,9 @@ class SubmittedFileIRODSRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            if hasattr(submission_result, 'error_dict'):
-                result['errors'] = submission_result.error_dict
+            if submission_result.is_false():
+                if hasattr(submission_result, 'error_dict'):
+                    result['errors'] = submission_result.error_dict
                 return Response(result, status=424)
             return Response(result, status=status.HTTP_200_OK)
             
@@ -1578,7 +1579,7 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            if submission_result.result == False:
+            if submission_result.is_false():
                 if submission_result.error_dict:
                     result['errors'] = submission_result.error_dict
                 return Response(result, status=424)
@@ -1650,12 +1651,26 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         else:
             result['result'] = submission_result.result
             # BUG: if here returns always TRUE!!!!!!!!!!!!!!
-            if submission_result.result:
+            if submission_result.is_true():
                 return Response(result, status=202)
             if submission_result.error_dict:
                 result['errors'] = submission_result.error_dict
             return Response(result, status=424) 
 
+
+class AllSubmittedFilesIRODSTempTestsRequestHandler(SerapisUserAPIView):
+    ''' 
+        This class exposes the functionality regarding running a suit of tests
+        on all files submitted to iRODS temporary zone - checking the files before
+        submitting them to the permanent zone.
+    '''
+    
+    def post(self, request, submission_id, file_id, format=None):
+        ''' 
+            Runs the tests on all the files in this submission.
+        '''
+        
+        
 
 class SubmittedFileIRODSTempTestsRequestHandler(SerapisUserAPIView):
     ''' 
@@ -1689,7 +1704,7 @@ class SubmittedFileIRODSTempTestsRequestHandler(SerapisUserAPIView):
         else:
             result['result'] = submission_result.result
             # BUG: if here returns always TRUE!!!!!!!!!!!!!!
-            if submission_result.result:
+            if submission_result.is_true():
                 return Response(result, status=202)
             if submission_result.error_dict:
                 result['errors'] = submission_result.error_dict
@@ -1734,7 +1749,7 @@ class SubmissionToiRODSPermanentRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            if submission_result.result:
+            if submission_result.is_true():
                 return Response(result, status=202)
             if submission_result.error_dict:
                 result['errors'] = submission_result.error_dict
@@ -1772,7 +1787,7 @@ class SubmittedFileToiRODSPermanentRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            if submission_result.result == True:
+            if submission_result.is_true():
                 return Response(result, status=202)
             else:
                 if submission_result.message:

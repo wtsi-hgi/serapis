@@ -464,6 +464,11 @@ class FileStatusCheckerForSubmissionTasks(object):
             utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
             return models.Result(False, error_dict)
         return models.Result(True)
+    
+    @classmethod
+    def _is_ready_for_testing_task(cls, file_obj):
+        return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
+    
         
     @classmethod
     def is_file_ready_for_task(cls, task_name, file_obj):
@@ -474,7 +479,7 @@ class FileStatusCheckerForSubmissionTasks(object):
         elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
             return cls._is_ready_for_submit_task(file_obj)
         elif task_name == constants.TEST_FILE_TASK:
-            return models.Result(True)
+            return cls._is_ready_for_testing_task(file_obj)
         return None
                 
                 
