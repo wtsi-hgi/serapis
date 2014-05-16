@@ -666,19 +666,19 @@ class FileModificationStrategy(ResourceModificationStrategy):
 #         if task_type == constants.UPLOAD_FILE_TASK:
 #             file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
 #             serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
+        else:
+            print "Update finished, now retrieving the file again..."
+            #file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
+            subm_file.reload()
+            
+            print "Gathering metadata for the file submission..."
+            serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(subm_file.id, subm_file)
+            
+            print "Cheking the file status..."
+            file_logic.check_and_update_all_file_statuses(subm_file.id, subm_file)
         
-        print "Update finished, now retrieving the file again..."
-        #file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
-        subm_file.reload()
+            print "FINISHED ALL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         
-        print "Gathering metadata for the file submission..."
-        serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(subm_file.id, subm_file)
-        
-        print "Cheking the file status..."
-        file_logic.check_and_update_all_file_statuses(subm_file.id, subm_file)
-    
-        print "FINISHED ALL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    
     
     @multimethod(WorkerSpecificFileContext)
     def process_request(self, context):

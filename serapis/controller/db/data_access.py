@@ -31,6 +31,8 @@ from bson.objectid import ObjectId
 from serapis.com import constants, utils
 from serapis.controller import exceptions
 from serapis.controller.db import models
+from serapis.controller.logic import models_utils
+
 from mongoengine.queryset import DoesNotExist
 from mongoengine.errors import OperationError
 
@@ -209,77 +211,10 @@ class SubmissionDataAccess(DataAccess):
     
 class FileDataAccess(DataAccess):
     
-    @classmethod
-    def check_if_entities_are_equal(cls, entity, json_entity):
-        ''' Checks if an entity and a json_entity are equal.
-            Returns boolean.
-        '''
-        for id_field in constants.ENTITY_IDENTIFYING_FIELDS:
-            if id_field in json_entity and json_entity[id_field] != None and hasattr(entity, id_field) and getattr(entity, id_field) != None:
-                are_same = json_entity[id_field] == getattr(entity, id_field)
-                return are_same
-        return False
     
-    @classmethod
-    def check_if_JSONEntity_has_identifying_fields(cls, json_entity):
-        ''' Entities to be inserted in the DB MUST have at least one of the uniquely
-            identifying fields that are defined in ENTITY_IDENTIFYING_FIELDS list.
-            If an entity doesn't contain any of these fields, then it won't be 
-            inserted in the database, as it would be confusing to have entities
-            that only have one insignificant field lying around and this could 
-            lead to entities added multiple times in the DB.
-        '''
-        for identifying_field in constants.ENTITY_IDENTIFYING_FIELDS:
-            if json_entity.has_key(identifying_field):
-                return True
-        return False
     
-    @classmethod
-    def json2entity(cls, json_obj, source, entity_class):
-        ''' Makes an entity of one of the types (entity_type param): 
-            models.Entity : Library, Study, Sample 
-            from the json object received as a parameter. 
-            Initializes the entity fields depending on the source's priority.'''
-        if not entity_class in [models.Library, models.Sample, models.Study]:
-            return None
-        has_identifying_fields = cls.check_if_JSONEntity_has_identifying_fields(json_obj)
-        if not has_identifying_fields:
-            raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
-        ent = entity_class()
-        has_new_field = False
-        for key in json_obj:
-            if key in entity_class._fields  and key not in constants.ENTITY_META_FIELDS and key != None:
-                setattr(ent, key, json_obj[key])
-                ent.last_updates_source[key] = source
-                has_new_field = True
-        if has_new_field:
-            return ent
-        else:
-            return None
-        
-    @classmethod    
-    def json2library(cls, json_obj, source):
-        return cls.json2entity(json_obj, source, models.Library)   
-        
-    @classmethod
-    def json2study(cls, json_obj, source):
-        return cls.json2entity(json_obj, source, models.Study)
     
-    @classmethod
-    def json2sample(cls, json_obj, source):
-        return cls.json2entity(json_obj, source, models.Sample)
     
-    @classmethod
-    def get_entity_by_field(cls, field_name, field_value, entity_list):
-        ''' Retrieves the entity that has the field given as param equal
-            with the field value given as param. Returns None if no entity
-            with this property is found.
-        '''
-        for ent in entity_list:
-            if hasattr(ent, field_name):
-                if getattr(ent, field_name) == field_value:
-                    return ent
-        return None
     
     @classmethod
     def update_entity(cls, entity_json, crt_ent, sender):
@@ -318,7 +253,7 @@ class FileDataAccess(DataAccess):
         for new_json_entity in new_entity_list:
             found = False
             for old_entity in old_entity_list:
-                if cls.check_if_entities_are_equal(old_entity, new_json_entity):
+                if models_utils.EntityModelUtilityFunctions.check_if_entities_are_equal(old_entity, new_json_entity):
                     found = True
                     break
             if not found:
@@ -376,7 +311,7 @@ class FileDataAccess(DataAccess):
             sample_list = cls.retrieve_sample_list(file_id)
         else:
             sample_list = submitted_file.sample_list
-        return cls.get_entity_by_field('name', sample_name, sample_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('name', sample_name, sample_list)
     
     @classmethod
     def retrieve_library_by_name(cls, lib_name, file_id, submitted_file=None):
@@ -384,7 +319,7 @@ class FileDataAccess(DataAccess):
             library_list = cls.retrieve_library_list(file_id)
         else:
             library_list = submitted_file.library_list
-        return cls.get_entity_by_field('name', lib_name, library_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('name', lib_name, library_list)
     
     @classmethod
     def retrieve_study_by_name(cls, study_name, file_id, submitted_file=None):
@@ -392,7 +327,7 @@ class FileDataAccess(DataAccess):
             study_list = cls.retrieve_study_list(file_id)
         else:
             study_list = submitted_file.study_list
-        return cls.get_entity_by_field('name', study_name, study_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('name', study_name, study_list)
     
     
     
@@ -402,7 +337,7 @@ class FileDataAccess(DataAccess):
             sample_list = cls.retrieve_sample_list(file_id)
         else:
             sample_list = submitted_file.sample_list
-        return cls.get_entity_by_field('internal_id', int(sample_id), sample_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(sample_id), sample_list)
     
     @classmethod
     def retrieve_library_by_id(cls, lib_id, file_id, submitted_file=None):
@@ -410,7 +345,7 @@ class FileDataAccess(DataAccess):
             library_list = cls.retrieve_library_list(file_id)
         else:
             library_list = submitted_file.library_list
-        return cls.get_entity_by_field('internal_id', int(lib_id), library_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(lib_id), library_list)
     
     @classmethod
     def retrieve_study_by_id(cls, study_id, file_id, submitted_file=None):
@@ -419,7 +354,7 @@ class FileDataAccess(DataAccess):
             print "STUDY LIST: ", study_list
         else:
             study_list = submitted_file.study_list
-        return cls.get_entity_by_field('internal_id', int(study_id), study_list)
+        return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(study_id), study_list)
     
     @classmethod
     def retrieve_submission_id(cls, file_id):
@@ -505,11 +440,11 @@ class FileDataAccess(DataAccess):
         '''
         if entity_list == None or len(entity_list) == 0:
             return None
-        has_ids = cls.check_if_JSONEntity_has_identifying_fields(entity_json)     # This throws an exception if the json entity doesn't have any ids
+        has_ids = models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(entity_json)     # This throws an exception if the json entity doesn't have any ids
         if not has_ids:
             raise exceptions.NoEntityIdentifyingFieldsProvided(faulty_expression=entity_json)
         for ent in entity_list:
-            if cls.check_if_entities_are_equal(ent, entity_json) == True:
+            if models_utils.EntityModelUtilityFunctions.check_if_entities_are_equal(ent, entity_json) == True:
                 return ent
         return None
     
@@ -577,7 +512,7 @@ class FileDataAccess(DataAccess):
             return False
         if cls.search_JSON_entity(entity_json, entity_type, submitted_file.id, submitted_file) == None:
             #library = cls.json2library(library_json, sender)
-            entity = cls.json2entity(entity_json, sender, entity_type)
+            entity = models_utils.EntityModelUtilityFunctions.json2entity(entity_json, sender, entity_type)
             #library = cls.__update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
             #submitted_file.library_list.append(library)
             if entity_type == constants.LIBRARY_TYPE:
@@ -594,7 +529,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None or not library_json:
             return False
         if cls.search_JSONLibrary(library_json, submitted_file.id, submitted_file) == None:
-            library = cls.json2library(library_json, sender)
+            library = models_utils.EntityModelUtilityFunctions.json2library(library_json, sender)
             library = cls.__update_lib_from_abstract_lib__(library, submitted_file.abstract_library)
             submitted_file.library_list.append(library)
             return True
@@ -605,7 +540,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             return False
         if cls.search_JSONSample(sample_json, submitted_file.id, submitted_file) == None:
-            sample = cls.json2sample(sample_json, sender)
+            sample = models_utils.EntityModelUtilityFunctions.json2sample(sample_json, sender)
             submitted_file.sample_list.append(sample)
             return True
         return False
@@ -615,7 +550,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             return False
         if cls.search_JSONStudy(study_json, submitted_file.id, submitted_file) == None:
-            study = cls.json2study(study_json, sender)
+            study = models_utils.EntityModelUtilityFunctions.json2study(study_json, sender)
             submitted_file.study_list.append(study)
             return True
         return False
@@ -680,34 +615,34 @@ class FileDataAccess(DataAccess):
     
     #---------------------------------------------------------------
     @classmethod
-    def update_library_in_SFObj(cls, library_json, sender, submitted_file):
-        if submitted_file == None:
-            return False
-        crt_library = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
-        if crt_library == None:
-            raise exceptions.ResourceNotFoundError(library_json)
-            #return False
-        return cls.update_entity(library_json, crt_library, sender)
+#     def update_library_in_SFObj(cls, library_json, sender, submitted_file):
+#         if submitted_file == None:
+#             return False
+#         crt_library = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
+#         if crt_library == None:
+#             raise exceptions.ResourceNotFoundError(library_json)
+#             #return False
+#         return cls.update_entity(library_json, crt_library, sender)
+#     
+#     @classmethod
+#     def update_sample_in_SFObj(cls, sample_json, sender, submitted_file):
+#         if submitted_file == None:
+#             return False
+#         crt_sample = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+#         if crt_sample == None:
+#             raise exceptions.ResourceNotFoundError(sample_json)
+#             #return False
+#         return cls.update_entity(sample_json, crt_sample, sender)
     
-    @classmethod
-    def update_sample_in_SFObj(cls, sample_json, sender, submitted_file):
-        if submitted_file == None:
-            return False
-        crt_sample = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
-        if crt_sample == None:
-            raise exceptions.ResourceNotFoundError(sample_json)
-            #return False
-        return cls.update_entity(sample_json, crt_sample, sender)
-    
-    @classmethod
-    def update_study_in_SFObj(cls, study_json, sender, submitted_file):
-        if submitted_file == None:
-            return False
-        crt_study = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
-        if crt_study == None:
-            raise exceptions.ResourceNotFoundError(study_json)
-            #return False
-        return cls.update_entity(study_json, crt_study, sender)
+#     @classmethod
+#     def update_study_in_SFObj(cls, study_json, sender, submitted_file):
+#         if submitted_file == None:
+#             return False
+#         crt_study = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
+#         if crt_study == None:
+#             raise exceptions.ResourceNotFoundError(study_json)
+#             #return False
+#         return cls.update_entity(study_json, crt_study, sender)
     
     
     #---------------------------------------------------------------
@@ -719,7 +654,7 @@ class FileDataAccess(DataAccess):
                 - exceptions.NoEntityIdentifyingFieldsProvided -- if the library_id isn't provided
                                                               neither as a parameter, nor in the library_json
         '''
-        if library_id == None and cls.check_if_JSONEntity_has_identifying_fields(library_json) == False:
+        if library_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(library_json) == False:
             raise exceptions.NoEntityIdentifyingFieldsProvided()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if library_id != None:
@@ -738,7 +673,7 @@ class FileDataAccess(DataAccess):
             - exceptions.NoEntityIdentifyingFieldsProvided -- if the sample_id isn't provided
                                                               neither as a parameter, nor in the sample_json
         '''
-        if sample_id == None and cls.check_if_JSONEntity_has_identifying_fields(sample_json) == False:
+        if sample_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(sample_json) == False:
             raise exceptions.NoEntityIdentifyingFieldsProvided()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if sample_id != None:
@@ -756,7 +691,7 @@ class FileDataAccess(DataAccess):
                 - exceptions.NoEntityIdentifyingFieldsProvided -- if the study_id isn't provided
                                                                   neither as a parameter, nor in the study_json            
         '''
-        if study_id == None and cls.check_if_JSONEntity_has_identifying_fields(study_json) == False:
+        if study_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(study_json) == False:
             raise exceptions.NoEntityIdentifyingFieldsProvided()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if study_id != None:
@@ -774,31 +709,34 @@ class FileDataAccess(DataAccess):
     def insert_or_update_library_in_SFObj(cls, library_json, sender, submitted_file):
         if submitted_file == None or library_json == None:
             return False
-        lib_exists = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
-        if not lib_exists:
+        lib_found = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
+        if not lib_found:
             return cls.insert_library_in_SFObj(library_json, sender, submitted_file)
         else:
-            return cls.update_library_in_SFObj(library_json, sender, submitted_file)
+            return cls.update_entity(library_json, lib_found, sender)
+#            return cls.update_library_in_SFObj(library_json, sender, submitted_file)
     
     @classmethod   
     def insert_or_update_sample_in_SFObj(cls, sample_json, sender, submitted_file):
         if submitted_file == None or sample_json == None:
             return False
-        sample_exists = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
-        if sample_exists == None:
+        sample_found = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+        if sample_found == None:
             return cls.insert_sample_in_SFObj(sample_json, sender, submitted_file)
         else:
-            return cls.update_sample_in_SFObj(sample_json, sender, submitted_file)
+            return cls.update_entity(sample_json, sample_found, sender)
+#            return cls.update_sample_in_SFObj(sample_json, sender, submitted_file)
     
     @classmethod
     def insert_or_update_study_in_SFObj(cls, study_json, sender, submitted_file):
         if submitted_file == None or study_json == None:
             return False
-        study_exists = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
-        if study_exists == None:
+        study_found = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
+        if study_found == None:
             return cls.insert_study_in_SFObj(study_json, sender, submitted_file)
         else:
-            return cls.update_study_in_SFObj(study_json, sender, submitted_file)
+            return cls.update_entity(study_json, study_found, sender)
+#            return cls.update_study_in_SFObj(study_json, sender, submitted_file)
         
     
     
@@ -807,12 +745,13 @@ class FileDataAccess(DataAccess):
     @classmethod
     def insert_or_update_library_in_db(cls, library_json, sender, file_id):
         submitted_file = cls.retrieve_submitted_file(file_id)
-        done = False
-        lib_exists = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
-        if lib_exists == None:
-            done = cls.insert_library_in_SFObj(library_json, sender, submitted_file)
-        else:
-            done = cls.update_library_in_SFObj(library_json, sender, submitted_file)
+#         done = False
+#         lib_exists = cls.search_JSONEntity_in_list(library_json, submitted_file.library_list)
+#         if lib_exists == None:
+#             done = cls.insert_library_in_SFObj(library_json, sender, submitted_file)
+#         else:
+#             done = cls.update_library_in_SFObj(library_json, sender, submitted_file)
+        done = cls.insert_or_update_library_in_SFObj(library_json, sender, submitted_file)
         if done == True:
             lib_list_version = cls.get_library_version(submitted_file.id, submitted_file)
             return models.SubmittedFile.objects(id=file_id, version__2=lib_list_version).update_one(inc__version__2=1, inc__version__0=1, set__library_list=submitted_file.library_list)
@@ -820,12 +759,13 @@ class FileDataAccess(DataAccess):
     @classmethod
     def insert_or_update_sample_in_db(cls, sample_json, sender, file_id):
         submitted_file = cls.retrieve_submitted_file(file_id)
-        done = False
-        sample_exists = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
-        if sample_exists == None:
-            done = cls.insert_sample_in_db(sample_json, sender, file_id)
-        else:
-            done = cls.update_sample_in_db(sample_json, sender, file_id)
+#         done = False
+#         sample_exists = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+#         if sample_exists == None:
+#             done = cls.insert_sample_in_db(sample_json, sender, file_id)
+#         else:
+#             done = cls.update_sample_in_db(sample_json, sender, file_id)
+        done = cls.insert_or_update_sample_in_SFObj(sample_json, sender, submitted_file)
         if done == True:
             sample_list_version = cls.get_sample_version(submitted_file.id, submitted_file)
             return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list) 
@@ -833,15 +773,13 @@ class FileDataAccess(DataAccess):
     @classmethod
     def insert_or_update_study_in_db(cls, study_json, sender, file_id):
         submitted_file = cls.retrieve_submitted_file(file_id)
-    #    for old_study in submitted_file.study_list:
-    #        if check_if_entities_are_equal(old_study, study_json) == True:                      #if new_entity.is_equal(old_entity):
-    #            print "INSERT OR UPDATE -------------------- WAS FOUND = TRUE: study json", study_json, "  and Old study: ", old_study
-        done = False
-        study_exists = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
-        if study_exists == None:
-            done = cls.insert_study_in_db(study_json, sender, file_id)
-        else:
-            done = cls.update_study_in_db(study_json, sender, file_id)
+#         done = False
+#         study_exists = cls.search_JSONEntity_in_list(study_json, submitted_file.study_list)
+#         if study_exists == None:
+#             done = cls.insert_study_in_db(study_json, sender, file_id)
+#         else:
+#             done = cls.update_study_in_db(study_json, sender, file_id)
+        done = cls.insert_or_update_study_in_SFObj(study_json, sender, submitted_file)
         if done == True:
             study_list_version = cls.get_study_version(submitted_file.id, submitted_file)
             return models.SubmittedFile.objects(id=file_id, version__3=study_list_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list) 
@@ -854,6 +792,10 @@ class FileDataAccess(DataAccess):
     def update_library_list(cls, library_list, sender, submitted_file):
         if submitted_file == None:
             return False
+        if not hasattr(submitted_file, 'library_list') or not getattr(submitted_file, 'library_list'):
+            submitted_file.library_list = library_list
+            print "IT enters this fct --- update_library_list in data_access.FileDataAccess......................................"
+            return True
         for library in library_list:
             cls.insert_or_update_library_in_SFObj(library, sender, submitted_file)
         return True
@@ -862,6 +804,10 @@ class FileDataAccess(DataAccess):
     def update_sample_list(cls, sample_list, sender, submitted_file):
         if submitted_file == None:
             return False
+        if not hasattr(submitted_file, 'sample_list') or not getattr(submitted_file, 'sample_list'):
+            submitted_file.sample_list = sample_list
+            print "UPDATING SAMPLES LIST WITH update_sample_list..................................."
+            return True
         for sample in sample_list:
             cls.insert_or_update_sample_in_SFObj(sample, sender, submitted_file)
         return True
@@ -870,35 +816,39 @@ class FileDataAccess(DataAccess):
     def update_study_list(cls, study_list, sender, submitted_file):
         if submitted_file == None:
             return False
+        if not hasattr(submitted_file, 'study_list') or not getattr(submitted_file, 'study_list'):
+            submitted_file.study_list = study_list
+            print "Using this fct for updating study........................"
+            return True
         for study in study_list:
             cls.insert_or_update_study_in_SFObj(study, sender, submitted_file)
         return True
     
     #-------------------------------------------------------------
     
-    @classmethod
-    def update_and_save_library_list(cls, library_list, sender, file_id):
-        if library_list == None or len(library_list) == 0:
-            return False
-        for library in library_list:
-            upsert = cls.insert_or_update_library_in_db(library, sender, file_id)
-        return True
-    
-    @classmethod
-    def update_and_save_sample_list(cls, sample_list, sender, file_id):
-        if sample_list == None or len(sample_list) == 0:
-            return False
-        for sample in sample_list:
-            upsert = cls.insert_or_update_sample_in_db(sample, sender, file_id)
-        return True
-    
-    @classmethod
-    def update_and_save_study_list(cls, study_list, sender, file_id):
-        if study_list == None or len(study_list) == 0:
-            return False
-        for study in study_list:
-            upsert = cls.insert_or_update_study_in_db(study, sender, file_id)
-        return True
+#     @classmethod
+#     def update_and_save_library_list(cls, library_list, sender, file_id):
+#         if library_list == None or len(library_list) == 0:
+#             return False
+#         for library in library_list:
+#             upsert = cls.insert_or_update_library_in_db(library, sender, file_id)
+#         return True
+#     
+#     @classmethod
+#     def update_and_save_sample_list(cls, sample_list, sender, file_id):
+#         if sample_list == None or len(sample_list) == 0:
+#             return False
+#         for sample in sample_list:
+#             upsert = cls.insert_or_update_sample_in_db(sample, sender, file_id)
+#         return True
+#     
+#     @classmethod
+#     def update_and_save_study_list(cls, study_list, sender, file_id):
+#         if study_list == None or len(study_list) == 0:
+#             return False
+#         for study in study_list:
+#             upsert = cls.insert_or_update_study_in_db(study, sender, file_id)
+#         return True
     
     @classmethod
     def __upd_list_of_primary_types__(cls, crt_list, update_list_json):

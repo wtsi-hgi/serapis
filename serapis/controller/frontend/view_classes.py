@@ -37,7 +37,7 @@ from serapis.controller.logic import controller_strategy
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
-from renderer import SerapisJSONRenderer
+from renderer import SerapisJSONRenderer, SerapisHTMLRenderer
 from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, BrowsableAPIRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser
 from rest_framework.response import Response
@@ -88,6 +88,8 @@ def catch_multiple_invalid_error(e):
 
 class SerapisUserAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+#    renderer_classes = (SerapisHTMLRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+    
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
     parser_classes = (JSONParser, ) #, GZIPParser
 

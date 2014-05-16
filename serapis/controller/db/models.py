@@ -235,7 +235,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     data_type = StringField(choices=constants.DATA_TYPES)
     
     # Sanger-specific security-level:
-    security_level = StringField(choices=constants.SECURITY_LEVELS)
+    security_level = StringField(default=constants.SECURITY_LEVEL_2, choices=constants.SECURITY_LEVELS)
     
     # PubMed ids of the publications for which the submitted data was used
     pmid_list = ListField()
@@ -320,8 +320,8 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     meta = {                                            # Mongoengine specific field for metadata.
             'allow_inheritance': True,
             'indexes' : [{ 'fields' : ['-submission_id'], 'cls' : False}, 
-                         {'fields' : ['md5'], 'unique' : True, 'sparse' : True},
-                         {'fields' : ['index_file.md5'], 'unique' : True, 'sparse' : True},
+#                          {'fields' : ['md5'], 'unique' : True, 'sparse' : True},
+#                          {'fields' : ['index_file.md5'], 'unique' : True, 'sparse' : True},
                          ] 
             #   
             }
