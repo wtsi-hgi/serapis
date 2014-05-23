@@ -1677,7 +1677,7 @@ class AllSubmittedFilesIRODSTempTestsRequestHandler(SerapisUserAPIView):
             result = {}
             req_data = request.DATA if hasattr(request, 'DATA') else None
             context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id, req_data)
-            strategy = controller_strategy.AddMetadataToBackendFileStrategy()
+            strategy = controller_strategy.TestFileSubmittedToBackendStrategy()
             submission_result = strategy.process_request(context)
         except InvalidId:
             result['errors'] = "InvalidId"

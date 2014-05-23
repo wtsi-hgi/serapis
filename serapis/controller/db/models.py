@@ -338,7 +338,10 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     last_updates_source = DictField()                # keeps name of the field - source that last modified this field 
         
     # Dict of the result from the tests run on the staged files
-    irods_tests_results = DictField()
+    irods_test_run_report = DictField()
+    
+    # The result of the tests - whether the file passed or failed them:
+    irods_tests_status = StringField(choices=constants.TESTS_STATUS_LIST)
         
     # Mongo - specific metadata fields:
     meta = {                                            # Mongoengine specific field for metadata.

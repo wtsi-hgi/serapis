@@ -866,11 +866,11 @@ class RunFileTestsTask(iRODSTestingTask):
         print "INDEX FILE ERROR REPORT IS:::::::::", index_error_report
         
         result = {}
-        status = constants.SUCCESS_STATUS
+        tests_status = constants.SUCCESS_STATUS
         #result.update(file_error_report)
         result['file'] = file_error_report
         if not self.check_all_tests_passed(file_error_report):
-            status = constants.FAILURE_STATUS
+            tests_status = constants.FAILURE_STATUS
             print "FILE FAILED ONE OR MORE TESTS.....", str(result)
         
         
@@ -878,13 +878,14 @@ class RunFileTestsTask(iRODSTestingTask):
         #result.update(index_error_report)
         result['index_file'] = index_error_report
         if not self.check_all_tests_passed(index_error_report):
-            status = constants.FAILURE_STATUS
+            tests_status = constants.FAILURE_STATUS
             print "INDEX FILE FAILED ONE OR MORE TESTS......", str(result)
         
             
         print "RESULT dict, before returning it: ", str(result)
         # Report the results:
-        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=status, result={'irods_tests_results': result})
+        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, 
+                                     result={'irods_tests_status': tests_status, 'irods_test_run_report': result})
         self.report_result_via_http(task_result)
                 
 

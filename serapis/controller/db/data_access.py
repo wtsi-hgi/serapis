@@ -607,11 +607,7 @@ class FileDataAccess(DataAccess):
             study_version = cls.get_study_version(submitted_file.id, submitted_file)
             return models.SubmittedFile.objects(id=file_id, version__3=study_version).update_one(inc__version__3=1, inc__version__0=1, set__study_list=submitted_file.study_list)
         return 0
-    
-#     @classmethod
-#     def insert_irods_tests_results(cls, file_id, tests_results_dict):
-#         return models.SubmittedFile.objects(id=file_id).update_one(inc__version__0=1, set__irods_tests_results=tests_results_dict)
-    
+   
     
     #---------------------------------------------------------------
     @classmethod
@@ -1108,8 +1104,11 @@ class FileDataAccess(DataAccess):
                 elif field_name == 'pmid_list':
                     update_db_dict['set__pmid_list'] = field_val
                     update_db_dict['inc__version__0'] = 1
-                elif field_name == 'irods_tests_results':
-                    update_db_dict['set__irods_tests_results'] = field_val
+                elif field_name == 'irods_test_run_report':
+                    update_db_dict['set__irods_test_run_report'] = field_val
+                    update_db_dict['inc__version__0'] = 1
+                elif field_name == 'irods_tests_status':
+                    update_db_dict['set__irods_tests_status'] = field_val
                     update_db_dict['inc__version__0'] = 1
                 elif field_name != None and field_name != "null":
                     logging.info("Key in VARS+++++++++++++++++++++++++====== but not in the special list: %s", field_name)
@@ -1154,7 +1153,7 @@ class FileDataAccess(DataAccess):
                 logging.info("UPDATE FILE TO SUBMIT - FILE ID: %s and UPD DICT: %s", str(file_id),str(db_update_dict))
                 try:
                     upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
-                except e:
+                except Exception as e:
                     print "This exception has been thrown:", str(e)
                 
                 logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)

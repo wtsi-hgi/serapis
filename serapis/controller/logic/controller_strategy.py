@@ -632,23 +632,23 @@ class FileModificationStrategy(ResourceModificationStrategy):
             if task_type in constants.IRODS_TASKS:
                 file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
-                if context.request_data['status'] == constants.FAILURE_STATUS:
-                    file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
-                else:
-                    if task_type in [constants.PARSE_HEADER_TASK, constants.CALC_MD5_TASK]:
-                        file_logic.file_data_access.save_task_updates(subm_file.id, context.request_data['result'],
-                                                                  task_type, 
-                                                                  task_id=context.request_data['task_id'], 
-                                                                  task_status=context.request_data['status'], 
-                                                                  errors=errors
-                                                                  )
-                    else:
-                        #file_logic.file_data_access.save_task_patches(subm_file.id, context.request_data['result'],
-                        file_logic.file_data_access.save_task_patches(subm_file.id, context.request_data['result'],
+#                 if context.request_data['status'] == constants.FAILURE_STATUS:
+#                     file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
+#                 else:
+                if task_type in [constants.PARSE_HEADER_TASK, constants.CALC_MD5_TASK]:
+                    file_logic.file_data_access.save_task_updates(subm_file.id, context.request_data['result'],
                                                               task_type, 
                                                               task_id=context.request_data['task_id'], 
                                                               task_status=context.request_data['status'], 
-                                                              errors=errors)
+                                                              errors=errors
+                                                              )
+                else:
+                    #file_logic.file_data_access.save_task_patches(subm_file.id, context.request_data['result'],
+                    file_logic.file_data_access.save_task_patches(subm_file.id, context.request_data['result'],
+                                                          task_type, 
+                                                          task_id=context.request_data['task_id'], 
+                                                          task_status=context.request_data['status'], 
+                                                          errors=errors)
         except exceptions.FileDuplicateException as e:
 #             data_access.FileDataAccess.update_file_submission_status(subm_file.id, constants.IMPOSSIBLE_TO_ARCHIVE_STATUS)
             print "ERROR FILE DUPLICATION -- let's see what's in error obj: ", vars(e)

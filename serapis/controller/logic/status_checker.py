@@ -446,15 +446,25 @@ class FileStatusCheckerForSubmissionTasks(object):
 
     @classmethod
     def check_file_ready_for_add_meta_task(cls, file_obj):
-        error_list = []
+        error_dict = {}
         if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-            error_list.append(constants.FILE_NOT_READY_FOR_THIS_OPERATION)
+            utils.append_to_errors_dict(file_obj.id, constants.FILE_NOT_READY_FOR_THIS_OPERATION, error_dict)
         md5_check = cls._check_file_md5(file_obj)
         if not md5_check.result:
-            error_list.append(constants.UNEQUAL_MD5)
-        if error_list:
-            return models.Result(False, error_list)
+            utils.append_to_errors_dict(file_obj.id, constants.UNEQUAL_MD5, error_dict)
+        if error_dict:
+            return models.Result(False, error_dict)
         return models.Result(True)
+
+#         error_list = []
+#         if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+#             error_list.append(constants.FILE_NOT_READY_FOR_THIS_OPERATION)
+#         md5_check = cls._check_file_md5(file_obj)
+#         if not md5_check.result:
+#             error_list.append(constants.UNEQUAL_MD5)
+#         if error_list:
+#             return models.Result(False, error_list)
+#         return models.Result(True)
 
 #         error_dict = {}
 #         if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
