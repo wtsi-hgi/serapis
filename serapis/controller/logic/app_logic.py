@@ -226,6 +226,8 @@ class FileBusinessLogic:
             return constants.SUBMISSION_IN_PREPARATION_STATUS
         elif task_name in [constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.MOVE_FILE_TO_PERMANENT_COLL_TASK]:
             return constants.SUBMISSION_IN_PROGRESS_STATUS
+        elif task_name ==constants.TEST_FILE_TASK:
+            return constants.METADATA_ADDED_TO_STAGED_FILE
     
     @classmethod
     def submit_submission_task(cls, task_name, file_id, file_obj=None):

@@ -231,7 +231,7 @@ SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 
 #########################################################
 # ----------------- DATA TYPES --------------------------
 
-DATA_TYPES = ('single-sample-merged-improved')
+DATA_TYPES = ('single-sample-merged-improved', 'variation-sets')
 
 #########################################################
 # ----------------- FILE TYPES --------------------------
@@ -318,7 +318,7 @@ SUBMISSION_IN_PREPARATION_STATUS        = "SUBMISSION_IN_PREPARATION"
 READY_FOR_IRODS_SUBMISSION_STATUS       = "READY_FOR_IRODS_SUBMISSION"
 METADATA_ADDED_TO_STAGED_FILE           = "METADATA_ADDED_TO_STAGED_FILE"
 IN_PROGRESS                             = "IN_PROGRESS"
-IMPOSSIBLE_TO_ARCHIVE_STATUS= "IMPOSSIBLE_TO_ARCHIVE_STATUS"
+IMPOSSIBLE_TO_ARCHIVE_STATUS            = "IMPOSSIBLE_TO_ARCHIVE_STATUS"
 
 
 # File metadata statuses:
