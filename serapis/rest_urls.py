@@ -34,6 +34,7 @@ urlpatterns = patterns('',
 
     # (?P<user_id>\w+) is a Python named group containing only words ([a-zA-Z0-9]
     
+    url(r'^$', view_classes.HomePageRequestHandler.as_view()),
     
     url(r'^references/$', view_classes.ReferencesMainPageRequestHandler.as_view()),
     url(r'^references/(?P<reference_id>\w+)/$', view_classes.ReferenceRequestHandler.as_view()),
@@ -47,6 +48,8 @@ urlpatterns = patterns('',
     
     url(r'^submissions/(?P<submission_id>\w+)/irods-temp/meta/$', view_classes.SubmissionIRODSMetaRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods-temp/meta/$', view_classes.SubmittedFileIRODSMetaRequestHandler.as_view()),
+    
+    url(r'^submissions/(?P<submission_id>\w+)/irods-temp/tests/$', view_classes.AllSubmittedFilesIRODSTempTestsRequestHandler.as_view()),
     url(r'^submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/irods-temp/tests/$', view_classes.SubmittedFileIRODSTempTestsRequestHandler.as_view()),
     
     url(r'^submissions/(?P<submission_id>\w+)/irods-perm/$', view_classes.SubmissionToiRODSPermanentRequestHandler.as_view()),

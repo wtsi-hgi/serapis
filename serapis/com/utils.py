@@ -32,6 +32,7 @@ import simplejson
 from os import listdir
 from os.path import isfile, join, exists
 from serapis.com import constants
+from Celery_Django_Prj import configs
 
 
 
@@ -397,14 +398,14 @@ def build_irods_staging_path(submission_id):
     ''' This function returns the path to the corresponding staging area
         collection, given the submission id. 
     '''
-    return os.path.join(constants.IRODS_STAGING_AREA, submission_id)
+    return os.path.join(configs.IRODS_STAGING_AREA, submission_id)
 
 def build_irods_file_staging_path(submission_id, file_path_client):
     ''' 
         This function puts together the path where a file is stored in irods staging area.
     '''
     (_, fname) = os.path.split(file_path_client)
-    return os.path.join(constants.IRODS_STAGING_AREA, submission_id, fname)
+    return os.path.join(configs.IRODS_STAGING_AREA, submission_id, fname)
         
 
 #def build_file_path_irods(client_file_path, irods_coll_path):

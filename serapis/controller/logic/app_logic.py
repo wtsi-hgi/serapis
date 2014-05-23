@@ -236,7 +236,7 @@ class FileBusinessLogic:
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
             
-        is_ready = status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(task_name, file_obj)
+        is_ready = status_checker.FileStatusCheckerForSubmissionTasks.check_file_ready_for_task(task_name, file_obj)
         if not is_ready.result:
             return is_ready
         

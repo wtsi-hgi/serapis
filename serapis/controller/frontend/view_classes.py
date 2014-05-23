@@ -88,7 +88,7 @@ def catch_multiple_invalid_error(e):
 
 class SerapisUserAPIView(APIView):
     renderer_classes = (SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
-#    renderer_classes = (SerapisHTMLRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
+#    renderer_classes = (SerapisHTMLRenderer, SerapisJSONRenderer, BrowsableAPIRenderer, XMLRenderer, YAMLRenderer)
     
 #    permission_classes = (rest_permissions.IsAuthenticatedOrReadOnly, )  #rest_permissions.IsAuthenticatedOrReadOnly, ) #,rest_permissions.IsAdminUser, 
     parser_classes = (JSONParser, ) #, GZIPParser
@@ -98,6 +98,12 @@ class SerapisWorkerAPIView(APIView):
     
 #class SerapisReadOnlyAPIView(SerapisUserAPIView):
     
+
+# Home link:
+class HomePageRequestHandler(SerapisUserAPIView):
+    
+    def get(self, request):
+        return Response("Hello, here is SERAPIS!", status=status.HTTP_200_OK)
 
 #/references
 class ReferencesMainPageRequestHandler(SerapisUserAPIView):
@@ -1578,11 +1584,9 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
             result['errors'] = e.strerror
             return Response(result, status=424)
         else:
-            result['result'] = submission_result.result
+            #result['result'] = submission_result.result
             if submission_result.is_false():
-                if submission_result.error_dict:
-                    result['errors'] = submission_result.error_dict
-                return Response(result, status=424)
+                return Response(submission_result.result, status=424)
             return Response(result, status=202) 
 
     
@@ -1665,10 +1669,37 @@ class AllSubmittedFilesIRODSTempTestsRequestHandler(SerapisUserAPIView):
         submitting them to the permanent zone.
     '''
     
-    def post(self, request, submission_id, file_id, format=None):
+    def post(self, request, submission_id, format=None):
         ''' 
             Runs the tests on all the files in this submission.
         '''
+        try:
+            result = {}
+            req_data = request.DATA if hasattr(request, 'DATA') else None
+            context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id, req_data)
+            strategy = controller_strategy.AddMetadataToBackendFileStrategy()
+            submission_result = strategy.process_request(context)
+        except InvalidId:
+            result['errors'] = "InvalidId"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except DoesNotExist:
+            result['errors'] = "Submitted file not found"
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        except exceptions.OperationNotAllowed as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        except exceptions.IncorrectMetadataError as e:
+            result['errors'] = e.message
+            return Response(result, status=424)
+        else:
+            result['result'] = submission_result.result
+            # BUG: if here returns always TRUE!!!!!!!!!!!!!!
+            if submission_result.is_true():
+                return Response(result, status=202)
+            if submission_result.error_dict:
+                result['errors'] = submission_result.error_dict
+            return Response(result, status=424) 
+
         
         
 
@@ -1703,7 +1734,6 @@ class SubmittedFileIRODSTempTestsRequestHandler(SerapisUserAPIView):
             return Response(result, status=424)
         else:
             result['result'] = submission_result.result
-            # BUG: if here returns always TRUE!!!!!!!!!!!!!!
             if submission_result.is_true():
                 return Response(result, status=202)
             if submission_result.error_dict:

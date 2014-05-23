@@ -27,8 +27,11 @@
 import abc, os
 import logging
 
+
 from serapis.com import constants, utils
+from serapis.controller import exceptions
 from serapis.controller.db import data_access, models
+
 
  
     
@@ -442,45 +445,56 @@ class FileStatusCheckerForSubmissionTasks(object):
     
 
     @classmethod
-    def _is_ready_for_add_meta_task(cls, file_obj):
-        error_dict = {}
+    def check_file_ready_for_add_meta_task(cls, file_obj):
+        error_list = []
         if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
-            utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
+            error_list.append(constants.FILE_NOT_READY_FOR_THIS_OPERATION)
         md5_check = cls._check_file_md5(file_obj)
         if not md5_check.result:
-            utils.append_to_errors_dict(file_obj.id, constants.UNEQUAL_MD5, error_dict)
-        if error_dict:
-            return models.Result(False, error_dict)
+            error_list.append(constants.UNEQUAL_MD5)
+        if error_list:
+            return models.Result(False, error_list)
         return models.Result(True)
+
+#         error_dict = {}
+#         if not file_obj.file_submission_status == constants.READY_FOR_IRODS_SUBMISSION_STATUS:
+#             utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
+#         md5_check = cls._check_file_md5(file_obj)
+#         if not md5_check.result:
+#             utils.append_to_errors_dict(file_obj.id, constants.UNEQUAL_MD5, error_dict)
+#         if error_dict:
+#             return models.Result(False, error_dict)
+#         return models.Result(True)
     
     @classmethod
-    def _is_ready_for_submit_task(cls, file_obj):
-        return cls._is_ready_for_add_meta_task(file_obj)
+    def check_file_ready_for_submit_task(cls, file_obj):
+        return cls.check_file_ready_for_add_meta_task(file_obj)
 
     @classmethod
-    def _is_ready_for_move_to_permanent_coll_task(cls, file_obj):
+    def check_file_ready_for_move_to_permanent_coll_task(cls, file_obj):
         error_dict = {}
         if not file_obj.file_submission_status == constants.METADATA_ADDED_TO_STAGED_FILE:
-            utils.append_to_errors_dict(file_obj.id, constants.FILE_STATUS_NOT_READY_FOR_SUBMISSION, error_dict)
+            utils.append_to_errors_dict(file_obj.id, constants.FILE_NOT_READY_FOR_THIS_OPERATION, error_dict)
             return models.Result(False, error_dict)
         return models.Result(True)
     
     @classmethod
-    def _is_ready_for_testing_task(cls, file_obj):
-        return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
+    def check_file_ready_for_testing_task(cls, file_obj):
+        return cls.check_file_ready_for_move_to_permanent_coll_task(file_obj)
     
         
     @classmethod
-    def is_file_ready_for_task(cls, task_name, file_obj):
+    def check_file_ready_for_task(cls, task_name, file_obj):
         if task_name == constants.ADD_META_TO_IRODS_FILE_TASK:
-            return cls._is_ready_for_add_meta_task(file_obj)
+            return cls.check_file_ready_for_add_meta_task(file_obj)
         elif task_name == constants.MOVE_FILE_TO_PERMANENT_COLL_TASK:
-            return cls._is_ready_for_move_to_permanent_coll_task(file_obj)
+            return cls.check_file_ready_for_move_to_permanent_coll_task(file_obj)
         elif task_name == constants.SUBMIT_TO_PERMANENT_COLL_TASK:
-            return cls._is_ready_for_submit_task(file_obj)
+            return cls.check_file_ready_for_submit_task(file_obj)
         elif task_name == constants.TEST_FILE_TASK:
-            return cls._is_ready_for_testing_task(file_obj)
-        return None
+            return cls.check_file_ready_for_testing_task(file_obj)
+        else:
+            raise exceptions.TaskTypeUnknownError(task_name, msg="Task called "+task_name+" called for file: "+file_obj.id+" is of unknown type.")
                 
                 
                 

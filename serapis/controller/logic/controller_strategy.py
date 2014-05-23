@@ -848,30 +848,35 @@ class BackendOperationsStrategy(object):
     __metaclass__ = abc.ABCMeta
     task_name = None
 
-    def is_file_ready(self, context, file_obj=None):
-        ''' Checks if the submission or file to be submitted are ready.'''
+    def check_file_ready(self, context, file_obj=None):
+        ''' 
+            Checks if the submission or file to be submitted are ready.
+            Returns an instance of a Result type. 
+        '''
         if not file_obj:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
-        return status_checker.FileStatusCheckerForSubmissionTasks.is_file_ready_for_task(self.task_name, file_obj)
+        return status_checker.FileStatusCheckerForSubmissionTasks.check_file_ready_for_task(self.task_name, file_obj)
         #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
-        #return file_logic.is_file_ready_for_task(self.task_name, file_obj.id, file_obj)
+        #return file_logic.check_file_ready_for_task(self.task_name, file_obj.id, file_obj)
 
-    def are_all_ready(self, context, files=None):
+    def check_all_files_ready(self, context, files=None):
+        ''' 
+            Checks if all the files in this submission/list of files
+            are ready to for the task in discussion. 
+            Returns a dict in which the key is the file id, and the value
+            is a True/False.
+        '''
         if not files:
             files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         results = {}
-        error_dict = {}
         ready = True
-        #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(files[0].file_type)
         for file_to_submit in files:
-            #file_check_result = file_logic.is_file_ready_for_task(self.task_name, file_to_submit.id, file_to_submit)
-            file_check_result = self.is_file_ready(context, file_to_submit)
-            if not file_check_result.result:
+            file_check_result = self.check_file_ready(context, file_to_submit)
+            if file_check_result.is_false():
                 ready = False
-                error_dict.update(file_check_result.error_dict)
-            results[str(file_to_submit.id)] = file_check_result.result
+            results[str(file_to_submit.id)] = file_check_result
         if not ready:
-            return models.Result(results, error_dict)
+            return models.Result(results)
         return models.Result(True)
 
     def convert(self, request_data):
@@ -898,10 +903,8 @@ class BackendOperationsStrategy(object):
         ''' This is the operation executed on all files from a submission in an atomic way.'''
         files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         results = {}
-        #submission_logic = app_logic.SubmissionBusinessLogic(files[0].file_type)
-        #files_ready = submission_logic.check_all_files_ready_for_task(cls.task_name, files)
-        files_ready_check = self.are_all_ready(context, files)
-        if not files_ready_check.result:
+        files_ready_check = self.check_all_files_ready(context, files)
+        if files_ready_check.is_false():
             return files_ready_check
         for f in files:
             file_context = SpecificFileContext(None, context.submission_id, f.id)
@@ -914,8 +917,12 @@ class BackendOperationsStrategy(object):
         results = {}
         for file_to_submit in files:
             file_context = SpecificFileContext(None, context.submission_id, file_to_submit.id)
-            submission_result = self.backend_file_operation(file_context)
-            results[str(file_to_submit.id)] = submission_result.result
+            file_check_result = self.check_file_ready(context, file_to_submit)
+            if file_check_result.is_true():
+                submission_result = self.backend_file_operation(file_context)
+                results[str(file_to_submit.id)] = submission_result
+            else:
+                results[str(file_to_submit.id)] = file_check_result
         return models.Result(results)
     
     @multimethod(SpecificSubmissionContext)
@@ -929,7 +936,10 @@ class BackendOperationsStrategy(object):
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
-        return self.backend_file_operation(context)
+        checking_result = self.check_file_ready(context)
+        if checking_result.is_true():
+            return self.backend_file_operation(context)
+        return checking_result
     
 
     

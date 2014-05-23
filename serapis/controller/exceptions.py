@@ -345,6 +345,21 @@ class NoFileFoundForIndex(SerapisException):
     
 ######### Exceptions specific to Serapis implementation -- logic######
 
+class TaskTypeUnknownError(SerapisException):
+    ''' 
+        This exception is thrown when a task type is unknown.
+        It is used to prevent the controller from analyzing results
+        from tasks types that it doesn't know about.
+    '''
+    def __init__(self, faulty_expression, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Task type unknown '+self.faulty_expression
+    
+
+
 class TaskNotRegisteredError(SerapisException):
     ''' Thrown when a HTTP request comes to the controller 
         on behalf of a worker, but the task has not been
