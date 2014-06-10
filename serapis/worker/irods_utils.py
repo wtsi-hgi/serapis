@@ -249,20 +249,20 @@ class iRODSMetadataOperations(iRODSOperations):
 
     @staticmethod
     def get_value_for_key_from_imeta(fpath_irods, key):
-        md5_val = None
+        val = None
         ret = subprocess.Popen(["imeta", "ls", "-d", fpath_irods, key], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = ret.communicate()
         if err:
             print "ERROR imeta ls -d ", fpath_irods
         elif out.find('does not exist') != -1:
-            raise exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have file_md5 in its metadata.", cmd="imeta ls -d "+fpath_irods)
+            raise exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have "+key+" in its metadata.", cmd="imeta ls -d "+fpath_irods)
         else:
             #print "OUT: ", out, "ERR: ", err, "Problematic file: ", fpath_irods
             lines = out.split('\n')
-            md5_line = lines[2]
-            md5_line_items = md5_line.split(" ")
-            md5_val = md5_line_items[1]
-        return md5_val
+            data_line = lines[2]
+            data_line_items = data_line.split(" ")
+            val = data_line_items[1]
+        return val
 
     
     @staticmethod
