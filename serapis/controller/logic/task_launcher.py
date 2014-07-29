@@ -25,11 +25,12 @@
 
 from Celery_Django_Prj import configs
 from serapis.com import constants, utils
-from serapis.worker import tasks
+from serapis.worker.tasks_pkg import tasks
 from serapis.controller import serapis2irods
 from serapis.controller.db import data_access, models
 from serapis.controller.logic import serapis_models
 from serapis.controller.logic.models_utils import SubmissionModelUtilityFunctions
+from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
 #from serapis.controller.serapis2irods import serapis2irods_logic
 from serapis.controller import exceptions
@@ -98,6 +99,7 @@ class TaskLauncher(object):
                                                 'index_file_path' : file_obj.index_file.file_path_client, 
                                                 'submission_id' : file_obj.submission_id,
                                                 'irods_coll' : dest_irods_coll, 
+                                                'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id)
                                                 }, 
                                             queue=queue)
                                             
@@ -115,6 +117,7 @@ class TaskLauncher(object):
         task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
                                                     'file_id' : file_obj.file_id,
                                                     'submission_id' : file_obj.submission_id,
+                                                    'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                                                     },
                                                queue=queue)
         return task.id
@@ -130,7 +133,8 @@ class TaskLauncher(object):
         task = calculate_md5_task.apply_async(kwargs={ 'file_id' : file_obj.file_id,
                                                        'submission_id' : file_obj.submission_id,
                                                        'file_path' :file_obj.file_path_client,
-                                                       'index_file_path' : file_obj.index_file.file_path_client
+                                                       'index_file_path' : file_obj.index_file.file_path_client,
+                                                       'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                                                        },
                                                queue=queue)
         return task.id
@@ -288,7 +292,7 @@ class TaskLauncher(object):
                                                                'index_file_path_irods' : index_fpath_irods,
                                                                'permanent_coll_irods' : permanent_coll_irods,
                                                                'access_group': file_obj.hgi_project,
-                                                               'owner_username': SubmissionModelUtilityFunctions.get_uploader_username(file_obj.submission_id)
+                                                               #'owner_username': SubmissionModelUtilityFunctions.get_uploader_username(file_obj.submission_id)
                                                                },
                                                        queue=constants.IRODS_Q
                                                        )
@@ -380,6 +384,7 @@ class TaskLauncherBAMFile(TaskLauncher):
         task = parse_BAM_header_task.apply_async(kwargs={'file_path' : file_obj.file_path_client, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,
+                                                         'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                                                          },
                                                  queue=queue)
 
@@ -398,6 +403,7 @@ class TaskLauncherVCFFile(TaskLauncher):
         task = parse_VCF_header_task.apply_async(kwargs={'file_path' : file_obj.file_path_client, 
                                                          'file_id' : file_obj.file_id,
                                                          'submission_id' : file_obj.submission_id,
+                                                         'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                                                          },
                                                  queue=queue)
         return task.id
