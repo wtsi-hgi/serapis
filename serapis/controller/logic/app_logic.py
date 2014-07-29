@@ -118,11 +118,6 @@ class FileBusinessLogic:
         return self.meta_status_checker.check_and_update_all_statuses(file_id, file_to_submit)
     
     
-#     def difference_lists(self, list1, list2):
-#         ''' 
-#             This method makes the difference of 
-#         '''
-    
     @classmethod
     def _decide_file_presubmission_status(cls, upload_as_serapis):
         if upload_as_serapis:

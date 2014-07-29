@@ -1,16 +1,18 @@
 
 import time
 import simplejson
+import requests
                             
 from pymongo import Connection
 
-from serapis import controller
-from serapis import models, tasks
+#from serapis import controller
+from serapis.controller import models
+from serapis.worker import tasks
 
-from mongoengine.base import ValidationError
+#from mongoengine.base import ValidationError
 import serializers
 
-from rest_framework.renderers import JSONRenderer
+#from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
 
@@ -27,21 +29,44 @@ def build_url(submission_id, file_id):
     url_str = ''.join(url_str)
     return url_str
 
+def serialize(data):
+    return simplejson.dumps(data)
+
+
+def deserialize(data):
+    return simplejson.loads(data)
 
 
 def my_monitor():
     connection = BrokerConnection('amqp://guest:guest@localhost:5672//')
     
+    import json
+    
     def on_task_succeeded(event):
-        print "TASK SUCCEEDED! ", event
+        #print "TASK SUCCEEDED! ", event
         result = event['result']
+        #print "RESULT: ", result
+        #result = json.loads(result)
+#        print "RESULT --------------------------", result, " and TYPE OF RESULTTTTTTTTTTTTTTTTTTTTTTTTTTT", type(result)
+#        print "SUBMISSION ID:------------------------------", result['submission_id']
+#        url_str = build_url(result['submission_id'], result['file_id'])
+#        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
+#        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response    
+##    
         
     
     def on_task_failed(event):
-        print "TASK FAILED!", event
+        #print "TASK FAILED!", event
         exception = event['exception']
     
     
+    def on_update(event):
+        #print "TASK UPDATE!!!!!", event
+        result = event['result']
+        #print "TYPE OF RESULT IN UPDATE CASEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", type(result)
+#        url_str = build_url(result['submission_id'], result['file_id'])
+#        response = requests.put(url_str, data=serialize(result), headers={'Content-Type' : 'application/json'})
+#        print "SENT PUT REQUEST. RESPONSE RECEIVED: ", response    
     
     def on_event(event):
         #print "EVENT HAPPENED: ", event
@@ -51,6 +76,9 @@ def my_monitor():
         #print "EVENT TYPE: ", event['type']
         #if event['type'] != "worker-heartbeat":
         print "CUSTOM - TASK!", event
+
+    def on_worker_online(event):
+        print "worker came onlineeeeee!!! Event: ", str(event)
 
     #try_interval = 3
     while True:
@@ -65,7 +93,9 @@ def my_monitor():
                                                'task-revoked' : on_event,
                                                'task-retried' : on_event,
                                                'task-started' : on_event,
-                                               'task-update' : on_custom,
+                                               'task-update' : on_update,
+                                               'worker-online' : on_worker_online
+                                               #'task-update' : on_custom,
                                                #'*' : on_custom
                                                })
                                                 #handlers={'*': on_event})
@@ -158,9 +188,9 @@ def mongo_thread_job():
                         print "TASK is UPLOAD!"
                         if task_status == "SUCCESS":
                             submitted_file.md5 = task_result['md5']         # THIS IS THE SUCCESS branch, hence MD5 must be there
-                            submitted_file.file_upload_status = "SUCCESS"
+                            submitted_file.file_upload_job_status = "SUCCESS"
                         else:
-                            submitted_file.file_upload_status = "FAILURE"
+                            submitted_file.file_upload_job_status = "FAILURE"
                             print "FAILUREEEEEEEEEEE!!! TASK FAILURE REPORTED IN MAIN THREAD!!!"
                         
                     elif task_name == "serapis.tasks.QuerySeqScapeTask":

@@ -374,7 +374,7 @@ class SubmissionRequestHandler(SerapisUserAPIView):
         try:
             result = dict()
             context = controller_strategy.SpecificSubmissionContext(USER_ID, submission_id)
-            strategy = controller_strategy.ResourceDeletionStrategy()
+            strategy = controller_strategy.SubmissionDeletionStrategy()
             was_deleted = strategy.process_request(context)
             #was_deleted = controller.delete_submission(submission_id)
         except InvalidId:
@@ -408,7 +408,8 @@ class SubmissionStatusRequestHandler(SerapisUserAPIView):
         ''' Retrieves the status of the submission. '''
         try:
             result = dict()
-            subm_statuses = controller.get_submission_status(submission_id)
+            #subm_statuses = controller.get_submission_status(submission_id)
+            subm_status = controller.get_submission_status_report(submission_id)
         except InvalidId:
             result['errors'] = "InvalidId"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
@@ -416,7 +417,7 @@ class SubmissionStatusRequestHandler(SerapisUserAPIView):
             result['errors'] = "Submission not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
-            result['result'] = subm_statuses
+            result['result'] = subm_status
             return Response(result, status=status.HTTP_200_OK)
 
 
@@ -619,7 +620,7 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
                 req_data = request.DATA
             
             context = controller_strategy.SpecificFileContext(USER_ID, submission_id, file_id, req_data)
-            strategy = controller_strategy.ResubmissionOperationsStrategy() #ResubmissionOperationsAdminStrategy
+            strategy = controller_strategy.ResubmissionOperationsAdminStrategy() #ResubmissionOperationsAdminStrategy
             resubmission_result = strategy.process_request(context)
 
         except MultipleInvalid as e:
@@ -1800,7 +1801,7 @@ class SubmittedFileToiRODSPermanentRequestHandler(SerapisUserAPIView):
             result = dict()
             #moved_file = controller.move_file_to_iRODS_permanent_coll(file_id)
             #req_data = request.DATA if hasattr(request, 'DATA') else None
-            context = controller_strategy.SpecificFileContext(USER_ID, submission_id)
+            context = controller_strategy.SpecificFileContext(USER_ID, submission_id, None)
             strategy = controller_strategy.MoveFilesToPermanentBackendCollection()
             submission_result = strategy.process_request(context)
         except InvalidId:

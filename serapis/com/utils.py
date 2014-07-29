@@ -165,6 +165,10 @@ def extract_basename(fpath):
     basename, _ = os.path.splitext(fname)
     return basename
 
+def extract_dir_path(fpath):
+    ''' Extracts the root directory from a filepath.'''
+    return os.path.dirname(fpath)
+
 #def get_file_extension(fpath):
 #    _, tail = os.path.split(fpath)
 #    _, ext = os.path.splitext(tail)
@@ -282,6 +286,8 @@ def infer_filename_from_idxfilename(idx_file_path, file_type):
     
 
 
+def file_exists(fpath):
+    return os.path.isfile(fpath)
 
 def check_file_permissions(file_path):
     ''' Checks if the file exists and file permissions. 
@@ -311,7 +317,7 @@ def check_file_permissions(file_path):
 def check_for_invalid_paths(file_paths_list):
     invalid_paths = []
     for file_path in file_paths_list:
-        if not file_path or file_path == ' ' or not os.access(file_path, os.F_OK):
+        if not file_path or file_path == ' ': #or not os.access(file_path, os.F_OK): -- the intention was good, but the server running as serapis will NEVER has access to files owned by mercury (e.g.)
             invalid_paths.append(file_path)
     return invalid_paths
 
@@ -563,3 +569,23 @@ def compare_sender_priority(source1, source2):
         return -1
     elif diff >= 0:
         return 1
+    
+    
+    
+    
+############################# ADJACENT THINGS -- PROBABLY SHOULD BE HERE!!! Until I think things through and try diff options ###########
+
+#  
+# def compose_file_url(file_id, submission_id):
+#     return configs.WORKER_RESULT_REPORTING_URL + str(submission_id) + "/files/" + str(file_id)+"/"
+#     
+# def compose_submission_url(submission_id):
+#     return configs.WORKER_RESULT_REPORTING_URL + str(submission_id) +"/"
+    
+    
+    
+    
+    
+    
+    
+    

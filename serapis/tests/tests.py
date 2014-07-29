@@ -128,7 +128,7 @@ class TestLibraryFctControllerNEW(unittest.TestCase):
 #        
         
 
-from serapis.worker import entities
+from serapis.worker.logic import entities
 
 # TESTS FOR WORKER CODE
 #class TestSamplesFunctionsWoker(unittest.TestCase):

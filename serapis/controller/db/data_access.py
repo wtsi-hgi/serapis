@@ -151,7 +151,7 @@ class SubmissionDataAccess(DataAccess):
         # 2. Delete the files and the submission 
         models.Submission.objects(id=submission_id).delete()
         for file_id in submission.files_list:
-            cls.delete_submitted_file(file_id)
+            FileDataAccess.delete_submitted_file(file_id)
         return True
     
     @classmethod
@@ -184,7 +184,6 @@ class SubmissionDataAccess(DataAccess):
         return models.SubmittedFile.objects(submission_id=str(subm_id))
         #return [f for f in files]
 
-    
     @classmethod    
     def retrieve_submission_date(cls, file_id, submission_id=None):
         if submission_id == None:
@@ -210,10 +209,6 @@ class SubmissionDataAccess(DataAccess):
 
     
 class FileDataAccess(DataAccess):
-    
-    
-    
-    
     
     
     @classmethod
@@ -860,6 +855,8 @@ class FileDataAccess(DataAccess):
     
     @classmethod
     def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return None
         update_db_dict = dict()
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
@@ -996,6 +993,8 @@ class FileDataAccess(DataAccess):
     
     @classmethod    
     def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return None
         update_db_dict = dict()
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
@@ -1408,6 +1407,8 @@ class BAMFileDataAccess(FileDataAccess):
     
     @classmethod
     def build_dict_of_updates(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return None
         update_db_dict = {}
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
@@ -1472,6 +1473,8 @@ class VCFFileDataAccess(FileDataAccess):
     
     @classmethod
     def build_dict_of_updates(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return {}
         update_db_dict = {}
         for (field_name, field_val) in file_updates.iteritems():
             if field_val == 'null' or not field_val:
@@ -1485,6 +1488,8 @@ class VCFFileDataAccess(FileDataAccess):
     
     @classmethod
     def build_patch_dict(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return {}
         general_updates_dict = super(VCFFileDataAccess, cls).build_patch_dict(file_updates, update_source, file_id, submitted_file)
         file_specific_upd_dict = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
         general_updates_dict.update(file_specific_upd_dict)
@@ -1492,6 +1497,8 @@ class VCFFileDataAccess(FileDataAccess):
         
     @classmethod
     def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
+        if not file_updates:
+            return {}
         general_updates_dict = super(VCFFileDataAccess, cls).build_update_dict(file_updates, update_source, file_id, submitted_file)
         file_specif_upd_dict = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
         general_updates_dict.update(file_specif_upd_dict)

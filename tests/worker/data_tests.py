@@ -28,8 +28,8 @@ import hamcrest
 
 from serapis.worker import data_tests
 #from serapis.worker.data_tests import * 
-from serapis.worker import  exceptions
-from serapis.worker.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
+from serapis.irods import exceptions
+from serapis.irods.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
 from serapis.com import utils
 
 from serapis.worker.data_tests import TestResult

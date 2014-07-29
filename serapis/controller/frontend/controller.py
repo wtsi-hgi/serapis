@@ -37,7 +37,7 @@ from serapis.controller.logic import app_logic
 from serapis.controller.db import data_access,  models, model_builder
 from serapis.com import constants, utils
 from serapis import serializers
-from serapis.worker import tasks
+from serapis.worker.tasks_pkg import tasks
 from serapis.controller.serapis2irods import serapis2irods_logic
 
 
@@ -336,7 +336,16 @@ def get_all_submitted_files_status(submission_id):
     result = {str(file_obj.id) : get_submitted_file_status(file_obj.id, file_obj) for file_obj in files_list}
     return result
 
+from collections import defaultdict
 
+def get_submission_status_report(submission_id):
+    files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(submission_id)
+    result = defaultdict(int)
+    for f in files:
+        result[f.file_submission_status] += 1
+    return result 
+    
+    
 
 def get_all_submitted_files(submission_id):
     ''' Queries the DB for the list of files contained by the submission given by

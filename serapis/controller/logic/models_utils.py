@@ -23,7 +23,7 @@
 from serapis.com import constants
 from serapis.controller.db import models
 from serapis.controller import exceptions
-#from serapis.controller.db.data_access import SubmissionDataAccess #FileDataAccess, 
+#from serapis.controller.db.data_access import SubmissionDataAccess, FileDataAccess 
 
 class SubmissionModelUtilityFunctions:
     ''' 
@@ -41,7 +41,7 @@ class SubmissionModelUtilityFunctions:
 #             return 'serapis'
 #         else:
 #             return submission.sanger_user_id
-        
+#         
         
         
 class EntityModelUtilityFunctions:

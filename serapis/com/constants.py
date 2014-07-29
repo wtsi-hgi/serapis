@@ -49,7 +49,8 @@
 ########################## URLS ###############################################
 
 WORKER_EVENT_URL = "http://localhost:8000/api-rest/workers/events/"
-
+SUBMISSIONS_BASE_URL = "http://localhost:8000/api-rest/workers/submissions/"
+    
 
 ########################## GENERAL CONSTANTS ##################################
 

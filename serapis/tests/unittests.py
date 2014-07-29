@@ -28,7 +28,7 @@ from serapis.controller import exceptions
 from serapis.controller.logic import controller_strategy
 from serapis.controller.logic import status_checker, app_logic
 from serapis.com import utils, constants
-from serapis.worker import entities
+from serapis.worker.logic import entities
 import unittest
 import requests
 import json, gzip

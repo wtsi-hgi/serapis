@@ -284,6 +284,9 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         # Iterate over the files and init the file-idx map.
         # When finding an index, add it to the index list.
         for file_path in file_paths:
+            if utils.file_exists(file_path) == False:
+                utils.append_to_errors_dict(file_path, constants.NON_EXISTING_FILE, error_dict)
+                continue
             file_type = utils.detect_file_type(file_path)
             file_type_map[file_path] = file_type
             if file_type in constants.FILE2IDX_MAP:
@@ -311,6 +314,8 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
                 #raise exceptions.NoFileFoundForIndex(faulty_expression=idx)
                 utils.append_to_errors_dict(idx, constants.UNMATCHED_INDEX_FILES, error_dict)
                 logging.error("UNMATCHED INDEX FILE: %s", idx)
+            except OSError as e:
+                utils.append_to_errors_dict(e.filename, e.strerror, error_dict)
                 
         # OPTIONAL - to be considered -- add extra check if all values != '' 
         return models.Result(file_index_map, error_dict=error_dict)
@@ -370,7 +375,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         
         files_permissions = cls._get_file_list_permissions(request_data)
         
-        if request_data['upload_as_serapis'] and constants.NOACCESS in files_permissions.values():
+        if request_data['upload_as_serapis'] == True and constants.NOACCESS in files_permissions.values():
             errors_dict = {}
             no_access_file = [f for f in files_permissions if files_permissions[f] == constants.NOACCESS ]
             utils.extend_errors_dict(no_access_file, constants.NOACCESS, errors_dict)
@@ -617,6 +622,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         
         #print "RECEIVED THE FOLLOWING IN UPDATE_FILE_FROM_TASK::::::::::::: ", vars(context)
         print "Checking the task id is valid..."
+        print "This is the message that arrived from task:"+str(context.request_data)
         try: 
             task_type = subm_file.tasks_dict[context.request_data['task_id']]['type']
         except KeyError:
@@ -635,6 +641,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
 #                 if context.request_data['status'] == constants.FAILURE_STATUS:
 #                     file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
 #                 else:
+                print "FROM CONTROLLER --- BEFORE CALLING DATA_access module, this is what I've received: "+str(context.request_data)
                 if task_type in [constants.PARSE_HEADER_TASK, constants.CALC_MD5_TASK]:
                     file_logic.file_data_access.save_task_updates(subm_file.id, context.request_data['result'],
                                                               task_type, 
@@ -785,6 +792,7 @@ class ResubmissionOperationsAdminStrategy(ResubmissionOperationsStrategy):
             return file_logic.resubmit_tasks_by_type(context.request_data['task_type_list'], file_obj, submission)
         if 'task_ids' in context.request_data:
             return file_logic.resubmit_tasks_by_id(context.request_data['task_ids'], file_obj, submission)
+        
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
@@ -799,6 +807,9 @@ class ResubmissionOperationsAdminStrategy(ResubmissionOperationsStrategy):
     @multimethod(SpecificSubmissionContext)
     def process_request(self, context):
         ''' Resubmit tasks for all the files in a submission.'''
+        if context.request_data:
+            req_data = self.convert(context.request_data)
+            self.validate(req_data)
         files = data_access.SubmissionDataAccess.retrieve_all_files_for_submission(context.submission_id)
         submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id)
         results = {}

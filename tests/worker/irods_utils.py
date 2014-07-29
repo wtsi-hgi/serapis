@@ -25,8 +25,8 @@ import unittest
 from hamcrest import *
 
 
-from serapis.worker import exceptions
-from serapis.worker.irods_utils import FileListingUtilityFunctions, DataObjectUtilityFunctions
+from serapis.irods import exceptions
+from serapis.irods.irods_utils import FileListingUtilityFunctions, DataObjectUtilityFunctions
 
 class TestFileListingUtilityFunctions(unittest.TestCase):
     

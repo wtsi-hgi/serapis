@@ -29,8 +29,10 @@ import unittest
 
 from Celery_Django_Prj import configs
 from serapis.com import constants
-from serapis.worker import tasks, entities, warehouse_data_access
-from serapis.worker.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
+from serapis.worker import tasks
+from serapis.worker.logic import entities
+from serapis.seqscape import data_access
+from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
 
 
 class TestVCFHeaderParser(unittest.TestCase):
@@ -73,7 +75,7 @@ class TestVCFHeaderParser(unittest.TestCase):
         assert_that(result_sample_list, contains_inanyorder(*expected_result))
 
         vcf_file = entities.VCFFile()
-        access_seqsc = warehouse_data_access.ProcessSeqScapeData()
+        access_seqsc = data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_samples(result_sample_list, vcf_file)
         
         

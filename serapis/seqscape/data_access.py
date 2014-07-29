@@ -27,8 +27,8 @@
 from MySQLdb import Error as mysqlError, connect, cursors
 from Celery_Django_Prj import configs
 from serapis.com import constants
-from serapis.worker import entities
-from serapis.worker import exceptions
+from serapis.worker.logic import entities
+from serapis.worker.logic import exceptions
 
 
 
