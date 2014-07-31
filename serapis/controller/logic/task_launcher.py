@@ -94,17 +94,23 @@ class TaskLauncher(object):
         logging.info("I AM UPLOADING...putting the UPLOAD task in the queue!")
         
         dest_irods_coll = os.path.join(configs.IRODS_STAGING_AREA, file_obj.submission_id)
-        task = upload_task.apply_async(kwargs={ 'file_id' : file_obj.file_id,
-                                                'file_path' : file_obj.file_path_client,
-                                                'index_file_path' : file_obj.index_file.file_path_client, 
-                                                'submission_id' : file_obj.submission_id,
-                                                'irods_coll' : dest_irods_coll, 
+        
+        fname       = utils.extract_fname(file_obj.file_path_client)
+        idx_fname   = utils.extract_fname(file_obj.index_file.file_path_client)
+        
+        dest_fpath_irods    = os.path.join(dest_irods_coll, fname)
+        dest_idx_path_irods = os.path.join(dest_fpath_irods, idx_fname)
+        
+        task = upload_task.apply_async(kwargs={
+                                                'src_fpath' : file_obj.file_path_client,
+                                                'src_idx_fpath' : file_obj.index_file.file_path_client, 
+                                                'dest_fpath_irods': dest_fpath_irods,
+                                                'dest_idx_path_irods': dest_idx_path_irods,
                                                 'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id)
-                                                }, 
+                                                },
                                             queue=queue)
-                                            
         return task.id
-    
+
     
     @staticmethod
     @abc.abstractmethod
@@ -115,8 +121,6 @@ class TaskLauncher(object):
         logging.info("PUTTING THE UPDATE TASK IN THE QUEUE")
         file_serialized = serializers.serialize_excluding_meta(file_obj)
         task = update_file_task.apply_async(kwargs={'file_mdata' : file_serialized, 
-                                                    'file_id' : file_obj.file_id,
-                                                    'submission_id' : file_obj.submission_id,
                                                     'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                                                     },
                                                queue=queue)

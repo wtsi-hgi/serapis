@@ -158,7 +158,7 @@ class iRODSModifyOperations(iRODSOperations):
 
     
     @staticmethod    
-    def upload_irods_file(fpath_client, irods_coll, force=False):
+    def upload_irods_file(fpath_src, fpath_dest, force=False):
         ''' 
             This function uploads a file in irods.
             Params:
@@ -169,14 +169,13 @@ class iRODSModifyOperations(iRODSOperations):
             Throws:
                 - iPutException if something goes wrong during the upload.
         '''
-        iput_proc = subprocess.Popen(["iput", "-R","red", "-K", fpath_client, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        #iput_proc = subprocess.Popen(["iput", "-K", file_path, irods_coll], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        #child_pid = iput_proc.pid
+        cmd = ["iput", "-R","red", "-K", fpath_src, fpath_dest]
+        iput_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = iput_proc.communicate()
         print "IPUT the file resulted in: out = ", out, " err = ", err
         if err:
             print "IPUT error occured: ", err, " out: ", out
-            raise exceptions.iPutException(err, out, cmd="iput -K "+fpath_client)
+            raise exceptions.iPutException(err, out, cmd=str(cmd))
         return True
 
 

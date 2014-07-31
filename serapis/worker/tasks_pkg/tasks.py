@@ -133,9 +133,9 @@ class iRODSTestingTask(SerapisTask):
     
 
 class GatherMetadataTask(SerapisTask):
-    abstract = True
-    ignore_result = True
-    acks_late = True
+    abstract        = True
+    ignore_result   = True
+    acks_late       = True
     
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         print "TASK: %s returned with STATUS: %s" %(task_id, status)
@@ -162,18 +162,6 @@ class UploadFileTask(iRODSTask):
     # WORKING TEST_VERSION, does not upload to irods, just skips
     def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
-        result = {}
-        #response_status = kwargs['response_status'] 
-        #result[response_status] = SUCCESS_STATUS
-#         file_id          = str(kwargs['file_id'])
-#         submission_id    = str(kwargs['submission_id'])
-        result['result'] = {'md5' :"123"}
-        result['task_id']= current_task.request.id
-        result['status'] = constants.SUCCESS_STATUS
-        
-        time.sleep(5)
-        irods_coll  = str(kwargs['irods_coll'])
-        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
@@ -193,41 +181,43 @@ class UploadFileTask(iRODSTask):
     # Run using Popen and communicate() - 18.10.2013
     def run_using_popen(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
-        file_path       = kwargs['file_path']
-        index_file_path = kwargs['index_file_path']
-        irods_coll  = str(kwargs['irods_coll'])
-        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
+        src_fpath               = kwargs['src_fpath']
+        src_idx_fpath           = kwargs['src_idx_fpath']
+        dest_fpath_irods        = kwargs['dest_fpath_irods']
+        dest_idx_path_irods     = kwargs['dest_idx_path_irods']
+        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_fpath_irods
+        
         
         # This does not belong here! Should be another task to do this!        
         # Create collection if it doesn't exist:
-        if not DataObjectUtilityFunctions.exists_in_irods(irods_coll):
-            DataObjectUtilityFunctions.create_collection(irods_coll)
-            DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_own_access(irods_coll, "serapis", recursive=True)
+#         if not DataObjectUtilityFunctions.exists_in_irods(irods_coll):
+#             DataObjectUtilityFunctions.create_collection(irods_coll)
+#             DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_own_access(irods_coll, "serapis", recursive=True)
         
-        fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
-        index_fpath_irods = assemble_new_irods_fpath(index_file_path, irods_coll)
+#         fpath_irods         = assemble_new_irods_fpath(file_path, irods_coll)
+#         index_fpath_irods   = assemble_new_irods_fpath(index_file_path, irods_coll)
 
         #Test file already exists:
-        self.test_file_aready_exists(fpath_irods)
-        self.test_file_aready_exists(index_fpath_irods)
+        self.test_file_aready_exists(dest_fpath_irods)
+        self.test_file_aready_exists(dest_idx_path_irods)
         
-        # Upload file    
-        iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
+        # Upload file - throws: iPut exception if anything happens    
+        iRODSModifyOperations.upload_irods_file(src_fpath, dest_fpath_irods)
         
         # Upload index:
-        if index_file_path:
-            iRODSModifyOperations.upload_irods_file(index_file_path, irods_coll)
+        if src_idx_fpath:
+            iRODSModifyOperations.upload_irods_file(src_idx_fpath, dest_idx_path_irods)
             
             
         # Run som tests on the uploaded files:
-        file_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(fpath_irods)
-        index_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(index_file_path)
+        file_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(dest_fpath_irods)
+        index_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(dest_idx_path_irods)
         
         failed = False
         if not data_tests.FileTestsUtils.check_all_passed(file_tests_report):
             file_failed_tests = data_tests.FileTestsUtils.select_failed_tests(file_tests_report)
             err = "FAILED TESTS FILE: " + ",".join(file_failed_tests)
-            failed = True 
+            failed = True
         if not data_tests.FileTestsUtils.check_all_passed(index_tests_report):
             idx_failed_tests = data_tests.FileTestsUtils.select_failed_tests(index_tests_report)
             err = err + "FAILED TESTS idx: "+ ",".join(idx_failed_tests)
