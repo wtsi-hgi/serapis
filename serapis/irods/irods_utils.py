@@ -187,7 +187,7 @@ class iRODSModifyOperations(iRODSOperations):
 class iRODSChecksumOperations(iRODSOperations):
     
     @staticmethod
-    def run_ichksum_and_get_output(fpath_irods, opts=[]):
+    def __run_ichksum_and_get_output(fpath_irods, opts=[]):
         ''' 
             This function gets the checksum of a file.
             If the checksum doesn't exist in iCAT, it returns None.
@@ -202,11 +202,20 @@ class iRODSChecksumOperations(iRODSOperations):
         if err:
             print "ERROR ichksum!", err, "for file", fpath_irods
             if err.find('chksum error'):
-                raise exceptions.iRODSFileDifferentMD5sException(err, out, "ichksum -a -K returned error!!!")
+                cmd = " ".join(process_opts_list)
+                raise exceptions.iRODSFileDifferentMD5sException(err, out, cmd)
             elif err.find('does not exist'):
                 raise exceptions.iLSException(err, out, "File doesn't exist!")
         else:
             return out
+    
+    @staticmethod
+    def retrieve_checksum(fpath_irods):
+        ''' 
+            This function just retrieves the md5 from iCAT and returns it.
+        '''
+        return iRODSChecksumOperations.__run_ichksum_and_get_output(fpath_irods)
+    
     
     @staticmethod    
     def checksum_file_and_get_output(fpath_irods):
@@ -217,7 +226,7 @@ class iRODSChecksumOperations(iRODSOperations):
             over the file he/she wants to ichksum and there is no checksum stored in iCAT,
             because it attempts to write the checksum to iCAT after checksumming the file.
         '''
-        return iRODSChecksumOperations.run_ichksum_and_get_output(fpath_irods, ['-K'])
+        return iRODSChecksumOperations.__run_ichksum_and_get_output(fpath_irods, ['-K'])
     
     @staticmethod
     def checksum_all_file_replicas_and_get_output(fpath_irods):
@@ -231,7 +240,7 @@ class iRODSChecksumOperations(iRODSOperations):
                 the md5 of the file, if all is ok
             Throws an exception if not.
         '''
-        return iRODSChecksumOperations.run_ichksum_and_get_output(fpath_irods, ['-K', '-a'])
+        return iRODSChecksumOperations.__run_ichksum_and_get_output(fpath_irods, ['-K', '-a'])
 
 
 #################### FILE METADATA FROM IRODS ##############################
@@ -498,6 +507,13 @@ class iRODSiChecksumOutputProcessing():
 
 class FileChecksumUtilityFunctions:
     
+    @staticmethod
+    def get_md5_from_ichksum(fpath_irods):
+        ''' 
+            Retrieves the md5 from iCAT and returns it.
+        '''
+        return iRODSChecksumOperations.retrieve_checksum(fpath_irods)
+        
     @staticmethod
     def get_md5_and_checksum_file(fpath_irods):
         ''' 

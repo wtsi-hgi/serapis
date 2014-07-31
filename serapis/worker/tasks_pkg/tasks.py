@@ -45,7 +45,7 @@ from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHe
 from serapis.worker.utils.http_request_handler import HTTPRequestHandler
 from serapis.worker.utils import json_utils
 from serapis.worker.tasks_pkg.task_result import FailedTaskResult, SuccessTaskResult
-from serapis.com import constants
+from serapis.com import constants, utils as com_utils
 from serapis.irods import exceptions as irods_excep
 from serapis.worker.logic import exceptions as serapis_excep
 
@@ -59,30 +59,13 @@ logger = get_task_logger(__name__)
 
 #################################################################################
 '''
- This class contains all the tasks to be executed on the workers.
- Each tasks has its own class.
+    This class contains all the tasks to be executed on the workers.
+    Each tasks has its own class.
 '''
 #################################################################################
 
-
-#from celery.utils.log import get_task_logger
-#from mysql.connector.errors import OperationalError
-#from celery.utils.log import get_task_logger
-#import MySQLdb
-#from MySQLdb import OperationalError
-#import serializers
-#logger = get_task_logger(__name__)
-
-
-
-#BASE_URL = "http://hgi-serapis-dev.internal.sanger.ac.uk:8000/api-rest/submissions/"
-#BASE_URL = "http://localhost:8000/api-rest/submissions/"
-#workers/tasks/(?P<task_id>)/submissions/(?P<submission_id>\w+)/files/(?P<file_id>\w+)/$
-
-
 #################################################################################
 
-#from celery.utils.log import get_task_logger
 # Function executed at exit - when a task/worker is killed.
 # It kills the child process with the child_pid - any task
 # can have only maximum 1 child process at a time.
@@ -96,45 +79,30 @@ def kill_child():
 atexit.register(kill_child)
 
 
-#################################################################################
-###################### Auxiliary functions - used by all tasks ##################
-
-
-
-
-################ TO BE MOVED ########################
-
-#curl -v --noproxy 127.0.0.1 -H "Accept: application/json" -H "Content-type: application/json" -d '{"files_list" : ["/nfs/users/nfs_i/ic4/9940_2#5.bam"]}' http://127.0.0.1:8000/api-rest/submissions/
-
-
-
 #########################################################################
 # --------------------- ABSTRACT TASKS --------------
 #########################################################################
 
-
   
 class SerapisTask(Task):
 
-
     def on_success(self, retval, task_id, args, kwargs):
-        #print "RETVAL from success: "+str(vars(retval))
         url_result = kwargs['url_result']
         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
-        print "RESULT on_success, before sending it off: "+str(task_result)
         self.report_result(url_result, task_result)
         
     
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         url_result = str(kwargs['url_result'])
-        task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[str(exc)])
+        now = com_utils.get_date_and_time_now()
+        error = now+': '+str(exc)
+        task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[error])
         self.report_result(url_result, task_result)
         
         
     def report_result(self, url, task_result):
-        task_result.remove_empty_fields()
+        task_result.clear_nones()
         result_serial = task_result.to_json()
-        print "BEFORE SENDING THE RESULT OF THE TASK OFFF, this is how it looks like: "+result_serial
         HTTPRequestHandler.send_request(url, result_serial)
         
         
@@ -172,32 +140,6 @@ class GatherMetadataTask(SerapisTask):
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         print "TASK: %s returned with STATUS: %s" %(task_id, status)
         
-#     def on_failure1(self, exc, task_id, args, kwargs, einfo):
-#         ''' This method will be called when uncaught exceptions are raised.'''
-#         print "I've failed to execute the task: ", task_id
-# #         file_id         = str(kwargs['file_id'])
-# #         submission_id   = str(kwargs['submission_id'])
-#         url_result      = str(kwargs['url_result'])
-#         
-#         print "EXCEPTION HAS the following fields: ", vars(exc)
-#         print "Exception looks like:", exc, " and type: ", type(str(exc))
-#         
-#         if type(exc) == str:
-#             str_exc = exc
-#         elif hasattr(exc, 'message') and exc.message:
-#             str_exc = exc.message
-#         elif hasattr(exc, 'msg') and exc.msg:
-#             str_exc = exc.msg
-#         else:
-#             str_exc = str(exc)
-#         str_exc = str(str_exc).replace("\"","" )
-#         str_exc = str_exc.replace("\'", "")
-#         
-#         #print "STRING EXCEPTION: "+str_exc + " and TYPE of str_Exc: "+type(str_exc)
-#         task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[str_exc])
-#         self.report_result(url_result, task_result)
-#         
-
         
 
 class ParseFileHeaderTask(GatherMetadataTask):
@@ -211,37 +153,12 @@ class ParseFileHeaderTask(GatherMetadataTask):
 
 
 class UploadFileTask(iRODSTask):
-    #name='serapis.worker.UploadFileTask'
 #    time_limit = 10000          # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 7200      # an exception is raised => can be used for cleanup
     rate_limit = "200/h"        # limits the nr of tasks that can be run per h, 
                                 # so that irods doesn't get overwhelmed
     
-    def md5_and_copy(self, source_file, dest_file):
-        src_fd = open(source_file, 'rb')
-        dest_fd = open(dest_file, 'wb')
-        m = hashlib.md5()
-        while True:
-            data = src_fd.read(128)
-            if not data:
-                break
-            dest_fd.write(data)
-            m.update(data)
-        src_fd.close()
-        dest_fd.close()
-        return m.hexdigest()
-
-#    def calculate_md5(self, file_path, block_size=2**10):
-#        file_obj = open(file_path, 'rb')
-#        md5 = hashlib.md5()
-#        while True:
-#            data = file_obj.read(block_size)
-#            if not data:
-#                break
-#            md5.update(data)
-#        return md5.hexdigest()
     
-
     # WORKING TEST_VERSION, does not upload to irods, just skips
     def run(self, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
@@ -257,18 +174,6 @@ class UploadFileTask(iRODSTask):
         time.sleep(5)
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
-        #return {'md5' :"123"}
-
-        #send_http_PUT_req(result, submission_id, file_id)
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result={'md5' :"123"})
-#         self.report_result_via_http(task_result)
-        
-
-#     def on_success(self, retval, args, kwargs):
-#         url_result = kwargs['url_result'] 
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result={'md5' :"123"})
-#         self.report_result(url_result, task_result)
-        #current_task.update_state(state=constants.SUCCESS_STATUS)
 
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
@@ -279,20 +184,21 @@ class UploadFileTask(iRODSTask):
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
 
+    def test_file_aready_exists(self, fpath):
+        if DataObjectUtilityFunctions.exists_in_irods(fpath):
+            err = "File "+fpath+" already exists in iRODS!"
+            raise IOError(err)
 
     # Currently in PROD:
     # Run using Popen and communicate() - 18.10.2013
     def run_using_popen(self, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
-        #file_id         = str(kwargs['file_id'])
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
-        #submission_id   = str(kwargs['submission_id'])
         irods_coll  = str(kwargs['irods_coll'])
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", irods_coll
-        #url_result = kwargs['url_result'] 
         
-        
+        # This does not belong here! Should be another task to do this!        
         # Create collection if it doesn't exist:
         if not DataObjectUtilityFunctions.exists_in_irods(irods_coll):
             DataObjectUtilityFunctions.create_collection(irods_coll)
@@ -301,65 +207,74 @@ class UploadFileTask(iRODSTask):
         fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
         index_fpath_irods = assemble_new_irods_fpath(index_file_path, irods_coll)
 
-        # Upload file:
-        #if FileListingUtilityFunctions.file_exists_in_collection(file_path, irods_coll):
-        if DataObjectUtilityFunctions.exists_in_irods(fpath_irods):
-            iRODSModifyOperations.remove_file_irods(fpath_irods)
-        iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
+        #Test file already exists:
+        self.test_file_aready_exists(fpath_irods)
+        self.test_file_aready_exists(index_fpath_irods)
         
+        # Upload file    
+        iRODSModifyOperations.upload_irods_file(file_path, irods_coll)
         
         # Upload index:
         if index_file_path:
-            if DataObjectUtilityFunctions.exists_in_irods(index_fpath_irods):
-                iRODSModifyOperations.remove_file_irods(index_fpath_irods)
             iRODSModifyOperations.upload_irods_file(index_file_path, irods_coll)
-
-        # Report results:
-#         task_result = TaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
-#         self.report_result_via_http(task_result)
-        #current_task.update_state(state=result['status'])
+            
+            
+        # Run som tests on the uploaded files:
+        file_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(fpath_irods)
+        index_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(index_file_path)
         
-        # This is done in parent on_success
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id())
-#         self.report_result(url_result, task_result)
-        
+        failed = False
+        if not data_tests.FileTestsUtils.check_all_passed(file_tests_report):
+            file_failed_tests = data_tests.FileTestsUtils.select_failed_tests(file_tests_report)
+            err = "FAILED TESTS FILE: " + ",".join(file_failed_tests)
+            failed = True 
+        if not data_tests.FileTestsUtils.check_all_passed(index_tests_report):
+            idx_failed_tests = data_tests.FileTestsUtils.select_failed_tests(index_tests_report)
+            err = err + "FAILED TESTS idx: "+ ",".join(idx_failed_tests)
+            failed = True
+            
+        if failed:
+            raise Exception(err)
 
-        
-
-#     def on_failure(self, exc, task_id, args, kwargs, einfo):
-#         #file_id         = kwargs['file_id']
-#         file_path       = kwargs['file_path']
-#         index_file_path = kwargs['index_file_path']
-#         #submission_id   = str(kwargs['submission_id'])
-#         irods_coll      = str(kwargs['irods_coll'])
-#         url_result = kwargs['url_result']
-#         
-#         print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
-#         errors_list = []
-#         if type(exc) == subprocess.CalledProcessError:
-#             exc = exc.output 
-#         exc = str(exc).replace("\"","")
-#         exc = exc.replace("\'", "")            
-#         errors_list.append(exc)
-#         
-#         #ROLLBACK
-#         if type(exc) == irods_excep.iPutException or type(exc) == SoftTimeLimitExceeded:
-#             if index_file_path:
-#                 index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
-#             fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
-#             try:
-#                 self.rollback(fpath_irods, index_fpath_irods)
-#             except Exception as e:
-#                 errors_list.append(str(e))
-# 
-#         # SEND RESULT BACK:
-#         task_result = FailedTaskResult(task_id=task_id, errors=errors_list)
-#         self.report_result(url_result, task_result)
-
+    
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        file_path       = kwargs['file_path']
+        index_file_path = kwargs['index_file_path']
+        irods_coll      = str(kwargs['irods_coll'])
+        url_result = kwargs['url_result']
          
-           
+        print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
+        errors_list = []
+        if type(exc) == subprocess.CalledProcessError:
+            exc = exc.output 
+        exc = str(exc).replace("\"","")
+        exc = exc.replace("\'", "")            
+        errors_list.append(exc)
+         
+        #ROLLBACK
+        #if type(exc) == irods_excep.iPutException or type(exc) == SoftTimeLimitExceeded:
+        if index_file_path:
+            index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
+        fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
+        try:
+            self.rollback(fpath_irods, index_fpath_irods)
+        except Exception as e:
+            errors_list.append(str(e))
+ 
+        # SEND RESULT BACK:
+        task_result = FailedTaskResult(task_id=task_id, errors=errors_list)
+        self.report_result(url_result, task_result)
+
+
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(UploadFileTask, self).on_success(retval, task_id, args, kwargs)
+#         url_result = kwargs['url_result']
+#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
+#         self.report_result(url_result, task_result)
+    
+
+
 class CalculateMD5Task(GatherMetadataTask):
-    #name = 'serapis.worker.CalculateMD5Task'
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     default_retry_delay = 60    # The task should be retried after 1min.
     track_started = True        # the task will NOT report its status as STARTED when it starts
@@ -377,36 +292,31 @@ class CalculateMD5Task(GatherMetadataTask):
             md5.update(data)
         return md5.hexdigest()
     
+    
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-#         file_id         = kwargs['file_id']
-#         submission_id   = kwargs['submission_id']
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
-        url_result = kwargs['url_result'] 
         
         print "Calculate MD5 sum job started!"
+
+        result = {}
+        # Calculate file md5:
+        # result['file_md5'] = self.calculate_md5(file_path)
+        result['file_md5'] = "123456789"
         
-#        # Calculate file md5:
+        # Calculate index file md5:
         if index_file_path:
-            index_md5 = self.calculate_md5(index_file_path)
-        file_md5 = "123456789"
-        time.sleep(5)
-        
-        result = {'md5' : file_md5}
-        if index_file_path:
-            result['index_file'] = {'md5' : index_md5}
-        print "CHECKSUM result: ", result
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=result)
-#         self.report_result_via_http(task_result)
+            result['index_md5'] = self.calculate_md5(index_file_path)
         return result
 
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(CalculateMD5Task, self).on_success(retval, task_id, args, kwargs)
 
-#     def on_success(self, retval, task_id, args, kwargs):
-#         url_result = kwargs['url_restul']
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
-#         self.report_result(url_result, task_result)
-        
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(CalculateMD5Task, self).on_failure(exc, task_id, args, kwargs, einfo)
+    
+    
         
 class ParseVCFHeaderTask(ParseFileHeaderTask):
 
@@ -414,8 +324,6 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
     def run(self, *args, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
         file_path       = kwargs['file_path']
-#         file_id         = kwargs['file_id']
-#         submission_id   = kwargs['submission_id']
 
         vcf_header_info = VCFHeaderParser.parse_header(file_path)
         vcf_file = entities.VCFFile()
@@ -427,17 +335,12 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         access_seqsc = data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_samples(sample_list, vcf_file)
         return vcf_file
-    
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=vcf_file)
-#         self.report_result_via_http(task_result)
 
-#     def on_success(self, retval, task_id, args, kwargs):
-#         url_result = kwargs['url_result']
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
-#         self.report_result(url_result, task_result)
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(ParseVCFHeaderTask, self).on_success(retval, task_id, args, kwargs)
 
-
-
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(ParseVCFHeaderTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
         
 class ParseBAMHeaderTask(ParseFileHeaderTask):
@@ -473,15 +376,8 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-#         file_mdata           = kwargs['file_mdata']
-#         file_mdata          = deserialize(file_mdata)
         file_path_client    = kwargs['file_path']
-#         file_id             = kwargs['file_id']
-#         submission_id       = kwargs['submission_id']
-#        url_result = kwargs['url_result'] 
 
-#         header_metadata = BAMHeaderParser.parse_header(file_mdata['file_path_client'])
-#         file_mdata = entities.BAMFile.build_from_json(file_mdata)
         header_metadata = BAMHeaderParser.parse_header(file_path_client)
         file_mdata = entities.BAMFile()
         file_mdata.seq_centers = header_metadata.seq_centers
@@ -502,21 +398,17 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
         print "LIBRARIES -- from worker: ", libs_list, " And in the file: ", file_mdata.library_list
         self.infer_and_set_data_properties(file_mdata)
 
-        #errors = []
         if len(file_mdata.library_list) > 0 or len(file_mdata.sample_list) > 0:
             file_mdata.header_has_mdata = True
-#         else:
-#             errors.append(constants.FILE_HEADER_EMPTY)
         return file_mdata
-    
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=file_mdata)
-#         self.report_result(url_result, task_result)
         
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_mdata, errors=errors)
-#         self.report_result_via_http(task_result)
-        #current_task.update_state(state=constants.SUCCESS_STATUS, meta={'description' : "BLABLABLA"})
-        
-        
+
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(ParseBAMHeaderTask, self).on_success(retval, task_id, args, kwargs)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(ParseBAMHeaderTask, self).on_failure(exc, task_id, args, kwargs, einfo)
+
 
 class UpdateFileMdataTask(GatherMetadataTask):
     max_retries = 5             # 5 RETRIES if the task fails in the first place
@@ -559,12 +451,8 @@ class UpdateFileMdataTask(GatherMetadataTask):
     # TODO: check if each sample in discussion is complete, if complete skip
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-#        url_result          = kwargs['url_result'] 
-#         file_id             = kwargs['file_id']
-#         submission_id       = kwargs['submission_id']
         file_serialized     = kwargs['file_mdata']
         file_mdata          = json_utils.deserialize(file_serialized)
-        #file_mdata          = file_serialized
         
         print "UPDATE TASK ---- RECEIVED FROM CONTROLLER: ----------------", file_mdata
         file_submitted = entities.SubmittedFile.build_from_json(file_mdata)
@@ -578,14 +466,13 @@ class UpdateFileMdataTask(GatherMetadataTask):
         processSeqsc.fetch_and_process_samples(incomplete_samples_list, file_submitted)
         processSeqsc.fetch_and_process_studies(incomplete_studies_list, file_submitted)
         return file_submitted
-        
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=file_submitted)
-#         self.report_result(url_result, task_result)
-        
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, result=file_submitted)
-#         self.report_result_via_http(task_result)
-        #current_task.update_state(state=constants.SUCCESS_STATUS)
 
+
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(UpdateFileMdataTask, self).on_success(retval, task_id, args, kwargs)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(UpdateFileMdataTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
 
 #################### iRODS TASKS: ##############################
@@ -742,17 +629,10 @@ class AddMdataToIRODSFileTask(iRODSTask):
         
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
-        print "ARGS RECEIVED:::::::::::", kwargs
-        file_id                 = str(kwargs['file_id'])
-        submission_id           = str(kwargs['submission_id'])
         file_mdata_irods        = kwargs['file_mdata_irods']
         index_file_mdata_irods  = kwargs['index_file_mdata_irods']
         file_path_irods    = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
-        url_result              = kwargs['url_result']
-        
-        print "ADD METADATA ------- MY TASK ID IS: :::::", current_task.request.id #, " ADN MY PARENT's TASK ID IS: ", current_task.request.parent.id
-        print "ADD MDATA TO IRODS JOB...works! File metadata received: ", file_mdata_irods
         
 #        # Adding metadata to the file:
         iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
@@ -760,22 +640,13 @@ class AddMdataToIRODSFileTask(iRODSTask):
         #data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
 
         # Adding mdata to the index file:            
-        print "Adding metadata to the index file...index_file_path_irods=", index_file_path_irods, " and index_file_mdata_irods=", index_file_mdata_irods
         if index_file_path_irods and index_file_mdata_irods:
             iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
         #    data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
-        # Reporting results:
-        task_result = SuccessTaskResult(task_id=self.get_current_task_id())
-        self.report_result(url_result, task_result)
-        
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS)
-#         self.report_result_via_http(task_result)
-        #current_task.update_state(state=constants.SUCCESS_STATUS)
     
     
     def rollback(self, kwargs):
-        url_result              = kwargs['url_result']
         file_mdata_irods        = kwargs['file_mdata_irods']
         index_file_mdata_irods  = kwargs['index_file_mdata_irods']
         file_path_irods         = str(kwargs['file_path_irods'])
@@ -787,27 +658,26 @@ class AddMdataToIRODSFileTask(iRODSTask):
         return True
             
         
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
-#         file_id = str(kwargs['file_id'])
-#         submission_id = str(kwargs['submission_id'])
-        url_result         = kwargs['url_result']
-        
-        errors = [str(exc)]
-        str_exc = str(exc).replace("\"","" )
-        str_exc = str_exc.replace("\'", "")
-        try:
-            errors = self.rollback(kwargs)
-        except irods_excep.iMetaException as e:
-            errors.append(str(e))
-        
-        task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=errors)
-        self.report_result(url_result, task_result)
-        
-#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS, errors=errors)
-#         self.report_result_via_http(task_result)
-        #current_task.update_state(state=constants.FAILURE_STATUS)
+#     def on_failure(self, exc, task_id, args, kwargs, einfo):
+#         print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
+#         url_result         = kwargs['url_result']
+#         
+#         errors = [str(exc)]
+#         str_exc = str(exc).replace("\"","" )
+#         str_exc = str_exc.replace("\'", "")
+#         try:
+#             errors = self.rollback(kwargs)
+#         except irods_excep.iMetaException as e:
+#             errors.append(str(e))
+#         
+#         task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=errors)
+#         self.report_result(url_result, task_result)
 
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(AddMdataToIRODSFileTask, self).on_success(retval, task_id, args, kwargs)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(AddMdataToIRODSFileTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
 
 class MoveFileToPermanentIRODSCollTask(iRODSTask):
@@ -818,8 +688,6 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
         url_result = kwargs['url_result']
-#         file_id                 = str(kwargs['file_id'])
-#         submission_id           = str(kwargs['submission_id'])
         file_path_irods         = kwargs['file_path_irods']
         permanent_coll_irods    = kwargs['permanent_coll_irods']
         index_file_path_irods   = kwargs['index_file_path_irods']
@@ -858,22 +726,30 @@ class MoveFileToPermanentIRODSCollTask(iRODSTask):
         #current_task.update_state(state=constants.SUCCESS_STATUS)
         
         
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print "I've failed to execute the IRODS MOVE FILES TO PERMANENT COLL -  TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", vars(exc)
-        url_result = kwargs['url_result']
-#         file_id = str(kwargs['file_id'])
-#         submission_id = str(kwargs['submission_id'])
-        
-        str_exc = str(exc).replace("\"","" )
-        str_exc = str_exc.replace("\'", "")
-        
-        task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[str_exc])
-        self.report_result(url_result, task_result)
-        
+#     def on_failure(self, exc, task_id, args, kwargs, einfo):
+#         print "I've failed to execute the IRODS MOVE FILES TO PERMANENT COLL -  TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", vars(exc)
+#         url_result = kwargs['url_result']
+# #         file_id = str(kwargs['file_id'])
+# #         submission_id = str(kwargs['submission_id'])
+#         
+#         str_exc = str(exc).replace("\"","" )
+#         str_exc = str_exc.replace("\'", "")
+#         
+#         task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[str_exc])
+#         self.report_result(url_result, task_result)
+#         
 #         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.FAILURE_STATUS)
 #         self.report_result_via_http(task_result)
         #current_task.update_state(state=constants.FAILURE_STATUS)
         
+        
+    def on_success(self, retval, task_id, args, kwargs):
+        return super(MoveFileToPermanentIRODSCollTask, self).on_success(retval, task_id, args, kwargs)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        return super(MoveFileToPermanentIRODSCollTask, self).on_failure(exc, task_id, args, kwargs, einfo)
+
+
 
 class MoveCollectionToPermanentiRODSCollTask(iRODSTask):
     
@@ -948,16 +824,9 @@ class ChangeIRODSPermissions(iRODSTask):
 class RunFileTestsTask(iRODSTestingTask):
     max_retries = 3             # 3 RETRIES if the task fails in the first place
     
-    def check_all_tests_passed(self, file_error_report):
-        tests_results = [val['result'] for val in file_error_report.itervalues()]
-        tests_results = filter(lambda x: x is not None, tests_results)
-        print "Test results from CHECK_ALL_TESTS_PASSED FCT: ", tests_results
-        if any(v is False for v in tests_results):
-            return False
-        return True
+    
     
     def run(self, *args, **kwargs):
-        url_result = kwargs['url_result']
 #         file_id                 = str(kwargs['file_id'])
 #         submission_id           = str(kwargs['submission_id'])
         file_path_irods         = str(kwargs['file_path_irods'])
@@ -967,7 +836,7 @@ class RunFileTestsTask(iRODSTestingTask):
         
         # Test the actual file:
         file_error_report = data_tests.FileTestSuiteRunner.run_test_suite_on_file(file_path_irods)
-        print "FILE ERROR REPORT IS:::::::::", file_error_report
+        print "FILE ERROR REPORT IS:::::::::", str(file_error_report)
         
         # Test the index file:
         index_error_report = data_tests.FileTestSuiteRunner.run_test_suite_on_file(index_file_path_irods)
@@ -977,7 +846,8 @@ class RunFileTestsTask(iRODSTestingTask):
         tests_status = constants.SUCCESS_STATUS
         #result.update(file_error_report)
         result['file'] = file_error_report
-        if not self.check_all_tests_passed(file_error_report):
+        #if not data_tests.FileTestsUtils.check_all_tests_passed(file_error_report):
+        if not data_tests.FileTestsUtils.check_all_tests_passed(file_error_report):
             tests_status = constants.FAILURE_STATUS
             print "FILE FAILED ONE OR MORE TESTS.....", str(result)
         
@@ -985,17 +855,20 @@ class RunFileTestsTask(iRODSTestingTask):
         print "RESULT dict after updating it with file report: ", str(result)
         #result.update(index_error_report)
         result['index_file'] = index_error_report
-        if not self.check_all_tests_passed(index_error_report):
+        if not data_tests.FileTestsUtils.check_all_tests_passed(index_error_report):
             tests_status = constants.FAILURE_STATUS
             print "INDEX FILE FAILED ONE OR MORE TESTS......", str(result)
         
             
         print "RESULT dict, before returning it: ", str(result)
-        # Report the results:
-        task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, 
-                                     result={'irods_tests_status': tests_status, 'irods_test_run_report': result})
-        self.report_result_via_http(task_result)
-                
+        
+        return {'irods_tests_status': tests_status, 'irods_test_run_report': result}
+    
+#         # Report the results:
+#         task_result = FileTaskResult(submission_id=submission_id, file_id=file_id, status=constants.SUCCESS_STATUS, 
+#                                      result={'irods_tests_status': tests_status, 'irods_test_run_report': result})
+#         self.report_result_via_http(task_result)
+#                 
 
 #class TestAndRecoverFromFailureTask(iRODSTask):
 

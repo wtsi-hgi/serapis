@@ -234,6 +234,7 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
 
             req_result = dict()
             t1 = time.time()
+            # context = message
             context = controller_strategy.GeneralContext(user_id, request_data=request.DATA)
             subm_result = controller_strategy.SubmissionCreationStrategy.process_request(context)
             

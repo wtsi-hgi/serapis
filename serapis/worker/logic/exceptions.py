@@ -42,3 +42,16 @@ class NoEntityIdentifyingFieldsProvided(Exception):
 #            text += ' - '
 #            text +=self.message
 #        return text 
+
+class NotReadyForOperation(Exception):
+    ''' 
+        Exception thrown when the file/entity is not ready for the operation intended.
+        Either there is some data missing, or some steps haven't been completed yet.
+    '''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        text = 'Not ready for this operation!'
+        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)

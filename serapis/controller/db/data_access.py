@@ -1463,7 +1463,7 @@ class BAMFileDataAccess(FileDataAccess):
     
     @classmethod
     def build_update_dict(cls, file_updates, update_source, file_id, submitted_file):
-        general_file_updates = super(BAMFileDataAccess, cls).build_update_dict(file_updates, update_source, file_id, submitted_file)
+        general_file_updates = super(BAMFileDataAccess, cls).build_update_dict(file_updates, update_source, file_id, submitted_file) or {}
         file_specific_updates = cls.build_dict_of_updates(file_updates, update_source, file_id, submitted_file)
         general_file_updates.update(file_specific_updates)
         return general_file_updates

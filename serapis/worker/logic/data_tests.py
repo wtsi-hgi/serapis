@@ -38,10 +38,8 @@ from serapis.com import utils, constants
 ############################################################
 #################### ACTUAL TESTS ##########################
 
-TestResult = namedtuple('TestResult', ['result', 'errors', 'test_executed'])
+#TestResult = namedtuple('TestResult', ['result', 'errors', 'test_executed'])
 
-#def TaskResult(submission_id, file_id, status, result=None, errors=None, task_id=None):
-#    return TaskResultTuple(submission_id=submission_id, file_id=file_id, status=status, errors=errors, result=result, task_id=task_id)
 
 
 class GeneralFileTests(object):
@@ -53,19 +51,20 @@ class GeneralFileTests(object):
             Calls the function received as parameter and returns the reported error.
             The purpose of this function is to run test functions.
         '''
-        result, errors, executed = None, None, True
+        test_result = TestResult()
         try:
             result = test_fct(*arg_list)
         except exceptions.iRODSException as e:
-            errors = str(e)
-            result = False
+            test_result.error = str(e)
+            test_result.result = False
         else:
             if result == None:
-                executed = False
-        #return TestResult(result=result, errors=errors,test_executed=executed)
-        return {'result': result, 'errors': errors, 'executed': executed}
+                test_result.executed = False
+        #return {'result': result, 'errors': errors, 'executed': executed}
+        return test_result
+
     
-    ##### TESTING THAT ALL FILES ARE IN : #####
+########### TESTING THAT ALL FILES ARE IN : ###############
     
     
     @classmethod
@@ -109,29 +108,35 @@ class GeneralFileTests(object):
         FileChecksumUtilityFunctions.get_md5_and_checksum_all_replicas(fpath_irods)
         return True
     
+    
     @classmethod
-    def compare_file_md5(cls, fpath_irods):
+    def checksum_file_and_compare_md5s(cls, fpath_irods):
         md5_ick = FileChecksumUtilityFunctions.get_md5_and_checksum_file(fpath_irods)
         md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
-        if md5_calc and md5_ick:
-            if md5_calc != md5_ick.md5:
-                raise exceptions.iRODSFileDifferentMD5sException("Calculated md5 = "+md5_calc+" while ichksum md5="+md5_ick.md5)
-            else:
-                return True
-        return None
+        return cls.compare_md5s(md5_ick, md5_calc)
         
     
     @classmethod
-    def compare_file_md5_for_all_coll(cls, irods_coll):
+    def checksum_file_and_compare_md5_for_all_files_coll(cls, irods_coll):
         irods_fpaths = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_coll)
-        return map(cls.compare_file_md5, irods_fpaths)
-        #return True
+        return map(cls.checksum_file_and_compare_md5s, irods_fpaths)
+        
+    @classmethod
+    def get_and_compare_file_md5s(cls, fpath_irods):
+        md5_ick = FileChecksumUtilityFunctions.get_md5_from_ichksum(fpath_irods)
+        md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
+        return cls.compare_md5s(md5_ick, md5_calc)
+
     
+    @classmethod
+    def compare_md5s(cls, first_md5, other_md5):
+        are_eq = utils.compare_strings(first_md5, other_md5)
+        if not are_eq:
+            raise exceptions.iRODSFileDifferentMD5sException("Different md5s: one md5 = "+first_md5+" the other md5="+other_md5)
+        return are_eq
     
     ######################## TEST REPLICAS ##################################################
     
-    
-   
     
     
     @classmethod        
@@ -241,11 +246,6 @@ class FileMetadataTests(object):
             except exceptions.iRODSFileMetadataNotStardardException:
                 problematic_keys.append(attr)
         return problematic_keys
-        
-#    @classmethod
-#    @abc.abstractmethod
-#    def test_file_meta_pairs(cls, tuple_list, file_path_irods):
-#        keys_count_dict = iRODSMetadataProcessing.get_all_key_counts(tuple_list)
         
     
     @classmethod
@@ -434,31 +434,74 @@ class FileTestSuiteRunner(object):
     def run_metadata_tests_on_file(cls, fpath_irods):
         meta_test_class = cls.get_metadata_test_class(fpath_irods)
         return meta_test_class.run_file_meta_test(fpath_irods)
-        
     
+        
     @classmethod
-    def run_test_suite_on_file(cls, fpath_irods):
-        error_report = {}
+    def run_after_upload_tests_on_file(cls, fpath_irods):
+        #error_report = {}
+        results_list = []
         
         test = "Checksum across replicas"    
         result = GeneralFileTests.test_and_report(GeneralFileTests.checksum_all_replicas, [fpath_irods])
-        error_report[test] = result 
-        
-        test = "Compare md5 calculated in metadata with irods meta"
-        result = GeneralFileTests.test_and_report(GeneralFileTests.compare_file_md5, [fpath_irods])
-        error_report[test] = result
+        result.test_name = test
+        results_list.append(result)
+        #error_report[test] = result
     
         test = "Check replicas"
         result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
-        error_report.update(result)
+        result.test_name = test
+        results_list.append(result)
+        return results_list
+
+        #error_report.update(result)
+        #return error_report
         
-#        meta_test_class = cls.get_metadata_test_class(fpath_irods)
-#        result = meta_test_class.test_and_report(meta_test_class.run_file_meta_test, [fpath_irods])
+    @classmethod
+    def run_after_adding_meta_to_file(cls, fpath_irods):
+        #error_report = {}
         test = "Test all metadata is there"
-        #result = cls.run_metadata_tests_on_file(fpath_irods)
         result = GeneralFileTests.test_and_report(cls.run_metadata_tests_on_file, [fpath_irods])
-        error_report[test] = result
-        return error_report
+        result.test_name = test
+        return result
+        #error_report[test] = result
+        #return error_report
+    
+    
+    @classmethod
+    def run_test_suite_on_file(cls, fpath_irods):
+        
+        #error_report = {}
+        tests_results_list = []
+        
+        #'result': result, 'errors': errors, 'executed': executed}
+        
+        test = "Checksum across replicas"    
+        result = GeneralFileTests.test_and_report(GeneralFileTests.checksum_all_replicas, [fpath_irods])
+        result.test_name = test
+        tests_results_list.append(result)
+        #error_report[test] = result 
+        
+        test = "Compare md5 calculated in metadata with irods meta"
+        #result = GeneralFileTests.test_and_report(GeneralFileTests.checksum_file_and_compare_md5s, [fpath_irods])
+        result = GeneralFileTests.test_and_report(GeneralFileTests.get_and_compare_file_md5s, [fpath_irods])
+        result.test_name = test
+        tests_results_list.append(test)
+        #error_report[test] = result
+    
+        test = "Check replicas"
+        result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
+        result.test_name = test
+        tests_results_list.append(result)
+        #error_report.update(result)
+        
+        test = "Test all metadata is there"
+        result = GeneralFileTests.test_and_report(cls.run_metadata_tests_on_file, [fpath_irods])
+        result.test_name = test
+        tests_results_list.append(result)
+        
+        return tests_results_list
+        #error_report[test] = result
+        #return error_report
     
 #    try:
 #        test = "1. Checksum across replicas"
@@ -469,7 +512,7 @@ class FileTestSuiteRunner(object):
 #    
 #    try:
 #        test = "2. Compare md5 calculated in metadata with irods meta"
-#        compare_file_md5(fpath_irods)
+#        checksum_file_and_compare_md5s(fpath_irods)
 #        error_report[test] = "OK"
 #    except iRODSException as e:
 #        error_report[test] = str(e)
@@ -540,12 +583,63 @@ def test_complete(lustre_fofn, irods_coll):
     error_report = run_submission_test_suite(lustre_fofn, irods_coll)
     print_error_report(error_report)
     
+ 
+
+class TestResult(object):
+
+    def __init__(self, test_name=None, executed=None, result=None, error=None):
+        self.test_name = test_name
+        self.executed = executed
+        self.result = result
+        self.error = error
+        
+    def has_passed(self):
+        if self.executed:
+            return self.result
+        return False
     
+    def has_failed(self):
+        return self.result == False
+    
+    def has_run(self):
+        return self.executed
+    
+    def __str__(self):
+        return ','.join(filter(None, vars(self)))
+        
+
+class FileTestsUtils(object):
+    
+    @classmethod
+    def check_all_passed(cls, tests_results_list):
+        results = [test.has_passed for test in tests_results_list if test.has_run]
+        if any(res is False for res in results):
+            return False
+        return True
+ 
+    @classmethod
+    def select_failed_tests(cls, tests_results_list):
+        failed = []
+        for test_res in tests_results_list:
+            if test_res.has_run() and not test_res.has_passed():
+                failed.append(test_res)
+        return failed
+
+
+#     @classmethod
+#     def check_all_tests_passed(cls, file_error_report):
+#         tests_results = [val['result'] for val in file_error_report.itervalues()]
+#         tests_results = filter(lambda x: x is not None, tests_results)
+#         print "Test results from CHECK_ALL_TESTS_PASSED FCT: ", tests_results
+#         if any(v is False for v in tests_results):
+#             return False
+#         return True
+
 #test_coll('/humgen/projects/serapis_staging/test-coll/complete-tests')
 #test_coll('/humgen/projects/serapis_staging/5316f86c9bbf8f028b0f0fba')
 
 #        checksum_all_replicas(fpath_irods) 
-#        compare_file_md5(fpath_irods)
+#        checksum_file_and_compare_md5s(fpath_irods)
 #        run_file_replicas_test_suit(fpath_irods)
 #        run_file_meta_test(fpath_irods)
     

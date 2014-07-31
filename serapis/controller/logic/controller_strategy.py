@@ -396,17 +396,17 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             return verif_result
         
         error_dict = {}
-        file_et_index_map = cls._associate_files_with_indexes(request_data['files_list'])
-        if hasattr(file_et_index_map, 'error_dict') and getattr(file_et_index_map, 'error_dict'):
-            return models.Result(False, error_dict=file_et_index_map.error_dict, warning_dict=file_et_index_map.warning_dict)
+        file_and_index_map = cls._associate_files_with_indexes(request_data['files_list'])
+        if hasattr(file_and_index_map, 'error_dict') and getattr(file_and_index_map, 'error_dict'):
+            return models.Result(False, error_dict=file_and_index_map.error_dict, warning_dict=file_and_index_map.warning_dict)
         
-        file_et_index_map = file_et_index_map.result
-        no_index_files = [f for f, v in file_et_index_map.items() if v=='']
+        file_and_index_map = file_and_index_map.result
+        no_index_files = [f for f, v in file_and_index_map.items() if v=='']
         if no_index_files:
             utils.extend_errors_dict(no_index_files, constants.FILE_WITHOUT_INDEX, error_dict)
             return models.Result(False, error_dict=error_dict)
         
-        files_type = utils.check_all_files_same_type(file_et_index_map)
+        files_type = utils.check_all_files_same_type(file_and_index_map)
         if not files_type:
             return models.Result(False, message="All the files in a submission must be of the same type.") 
         request_data['file_type'] = files_type
@@ -420,7 +420,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         submission = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
         submission_logic_layer = app_logic.SubmissionBusinessLogic(submission.file_type)
 #        try:
-        files_init = submission_logic_layer.init_and_submit_files(file_et_index_map, submission)
+        files_init = submission_logic_layer.init_and_submit_files(file_and_index_map, submission)
 #        except NotUniqueError as e:
 #        data_access.SubmissionDataAccess.delete_submission(submission_id, submission)
 #            raise NotUniqueError
@@ -635,7 +635,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
     
         try:
             print "Starting updating from the task..."
-            if task_type in constants.IRODS_TASKS:
+            if 'result' not in context.request_data:
                 file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
 #                 if context.request_data['status'] == constants.FAILURE_STATUS:

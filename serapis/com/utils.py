@@ -473,6 +473,11 @@ def get_today_date():
     today = datetime.date.today()
     return today.isoformat()
 
+def get_date_and_time_now():
+    return time.strftime("%H:%M on %d/%m/%Y")
+    
+    
+
     # Working - gets both date and time:
     #    now = datetime.datetime.now()
     #    return now.isoformat()
@@ -575,13 +580,10 @@ def compare_sender_priority(source1, source2):
     
 ############################# ADJACENT THINGS -- PROBABLY SHOULD BE HERE!!! Until I think things through and try diff options ###########
 
-#  
-# def compose_file_url(file_id, submission_id):
-#     return configs.WORKER_RESULT_REPORTING_URL + str(submission_id) + "/files/" + str(file_id)+"/"
-#     
-# def compose_submission_url(submission_id):
-#     return configs.WORKER_RESULT_REPORTING_URL + str(submission_id) +"/"
-    
+def compare_strings(str1, str2):    
+    if str1 is None or str2 is None:
+        raise ValueError("String comparison failed: at least one argument is None.")
+    return str1 == str2
     
     
     
