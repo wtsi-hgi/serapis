@@ -170,12 +170,16 @@ class iRODSModifyOperations(iRODSOperations):
                 - iPutException if something goes wrong during the upload.
         '''
         cmd = ["iput", "-R","red", "-K", fpath_src, fpath_dest]
+        print "RECEIVED THE FOLLOWING COMMAND TO RUN: "+str(cmd)
         iput_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = iput_proc.communicate()
         print "IPUT the file resulted in: out = ", out, " err = ", err
         if err:
             print "IPUT error occured: ", err, " out: ", out
-            raise exceptions.iPutException(err, out, cmd=str(cmd))
+            if err.find(constants.OVERWRITE_WITHOUT_FORCE_FLAG) != -1:
+                raise exceptions.iRODSOverwriteWithoutForceFlagException(error=err, out=out, cmd=cmd)
+            else:
+                raise exceptions.iPutException(err, out, cmd=str(cmd))
         return True
 
 

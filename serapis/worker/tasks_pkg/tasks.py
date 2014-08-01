@@ -172,10 +172,10 @@ class UploadFileTask(iRODSTask):
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
 
-    def test_file_aready_exists(self, fpath):
-        if DataObjectUtilityFunctions.exists_in_irods(fpath):
-            err = "File "+fpath+" already exists in iRODS!"
-            raise IOError(err)
+#     def test_file_aready_exists(self, fpath):
+#         if DataObjectUtilityFunctions.exists_in_irods(fpath):
+#             err = "File "+fpath+" already exists in iRODS!"
+#             raise IOError(err)
 
     # Currently in PROD:
     # Run using Popen and communicate() - 18.10.2013
@@ -198,8 +198,8 @@ class UploadFileTask(iRODSTask):
 #         index_fpath_irods   = assemble_new_irods_fpath(index_file_path, irods_coll)
 
         #Test file already exists:
-        self.test_file_aready_exists(dest_fpath_irods)
-        self.test_file_aready_exists(dest_idx_path_irods)
+#         self.test_file_aready_exists(dest_fpath_irods)
+#         self.test_file_aready_exists(dest_idx_path_irods)
         
         # Upload file - throws: iPut exception if anything happens    
         iRODSModifyOperations.upload_irods_file(src_fpath, dest_fpath_irods)
@@ -210,8 +210,8 @@ class UploadFileTask(iRODSTask):
             
             
         # Run som tests on the uploaded files:
-        file_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(dest_fpath_irods)
-        index_tests_report = data_tests.FileTestSuiteRunner.run_after_upload_tests_on_file(dest_idx_path_irods)
+        file_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(dest_fpath_irods)
+        index_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(dest_idx_path_irods)
         
         failed = False
         if not data_tests.FileTestsUtils.check_all_passed(file_tests_report):
@@ -235,20 +235,27 @@ class UploadFileTask(iRODSTask):
         print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
         errors_list = []
         if type(exc) == subprocess.CalledProcessError:
-            exc = exc.output 
-        exc = str(exc).replace("\"","")
-        exc = exc.replace("\'", "")            
-        errors_list.append(exc)
+            exc_msg = exc.output
+        else:
+            exc_msg = str(exc)
+        exc_msg = str(exc_msg).replace("\"","")
+        exc_msg = exc_msg.replace("\'", "")
+        now = com_utils.get_date_and_time_now()
+        exc_msg = now+': '+str(exc_msg)       
+        errors_list.append(exc_msg)
          
         #ROLLBACK
         #if type(exc) == irods_excep.iPutException or type(exc) == SoftTimeLimitExceeded:
 #         if src_idx_fpath:
 #             index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
 #         fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
-        try:
-            self.rollback(dest_fpath_irods, dest_idx_path_irods)
-        except Exception as e:
-            errors_list.append(str(e))
+        if not isinstance(exc, irods_excep.iRODSOverwriteWithoutForceFlagException):
+            try:
+                self.rollback(dest_fpath_irods, dest_idx_path_irods)
+            except Exception as e:
+                now = com_utils.get_date_and_time_now()
+                exc = now+': '+str(e)
+                errors_list.append(str(exc))
  
         # SEND RESULT BACK:
         task_result = FailedTaskResult(task_id=task_id, errors=errors_list)

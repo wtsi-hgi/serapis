@@ -126,7 +126,7 @@ class iRODSNoAccessException(iRODSException):
         return super(iRODSNoAccessException, self).__str__()
     
     
-################## TEST specific exceptions #############################
+################## Serapis specific exceptions concerning iRODS#############################
 
 class iRODSReplicaNotPairedException(iRODSException):
     ''' Exception thrown when a file has one or more replicas not paired.'''
@@ -200,6 +200,19 @@ class iRODSFileMetadataMissingException(iRODSException):
         
     def __str__(self):
         return super(iRODSFileMetadataMissingException, self).__str__()
+
+
+class iRODSOverwriteWithoutForceFlagException(iRODSException):
+    ''' 
+        Exception thrown when a file is uploaded, but there is already one in the destination collection with the same name.
+        It corresponds to OVERWRITE_WITHOUT_FORCE_FLAG irods error output. 
+    '''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSOverwriteWithoutForceFlagException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSOverwriteWithoutForceFlagException, self).__str__()
+
 
     
  

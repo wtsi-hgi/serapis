@@ -99,7 +99,7 @@ class TaskLauncher(object):
         idx_fname   = utils.extract_fname(file_obj.index_file.file_path_client)
         
         dest_fpath_irods    = os.path.join(dest_irods_coll, fname)
-        dest_idx_path_irods = os.path.join(dest_fpath_irods, idx_fname)
+        dest_idx_path_irods = os.path.join(dest_irods_coll, idx_fname)
         
         task = upload_task.apply_async(kwargs={
                                                 'src_fpath' : file_obj.file_path_client,

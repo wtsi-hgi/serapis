@@ -437,7 +437,7 @@ class FileTestSuiteRunner(object):
     
         
     @classmethod
-    def run_after_upload_tests_on_file(cls, fpath_irods):
+    def run_tests_after_upload_on_file(cls, fpath_irods):
         #error_report = {}
         results_list = []
         
@@ -457,7 +457,7 @@ class FileTestSuiteRunner(object):
         #return error_report
         
     @classmethod
-    def run_after_adding_meta_to_file(cls, fpath_irods):
+    def run_tests_after_adding_meta_to_file(cls, fpath_irods):
         #error_report = {}
         test = "Test all metadata is there"
         result = GeneralFileTests.test_and_report(cls.run_metadata_tests_on_file, [fpath_irods])
