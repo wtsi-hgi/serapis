@@ -654,26 +654,23 @@ class AddMdataToIRODSFileTask(iRODSTask):
         return True
             
         
-#     def on_failure(self, exc, task_id, args, kwargs, einfo):
-#         print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
-#         url_result         = kwargs['url_result']
-#         
-#         errors = [str(exc)]
-#         str_exc = str(exc).replace("\"","" )
-#         str_exc = str_exc.replace("\'", "")
-#         try:
-#             errors = self.rollback(kwargs)
-#         except irods_excep.iMetaException as e:
-#             errors.append(str(e))
-#         
-#         task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=errors)
-#         self.report_result(url_result, task_result)
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        print "I've failed to execute the IRODS ADD MDATA TAAAAAAAAAAAAAAAAAAAAAAAAAAASK!!!!!!!", str(exc)
+        url_result         = kwargs['url_result']
+         
+        errors = [str(exc)]
+        str_exc = str(exc).replace("\"","" )
+        str_exc = str_exc.replace("\'", "")
+        try:
+            errors = self.rollback(kwargs)
+        except irods_excep.iMetaException as e:
+            errors.append(str(e))
+         
+        task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=errors)
+        self.report_result(url_result, task_result)
 
     def on_success(self, retval, task_id, args, kwargs):
         return super(AddMdataToIRODSFileTask, self).on_success(retval, task_id, args, kwargs)
-
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        return super(AddMdataToIRODSFileTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
 
 class MoveFileToPermanentIRODSCollTask(iRODSTask):
