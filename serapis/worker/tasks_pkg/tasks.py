@@ -228,9 +228,8 @@ class UploadFileTask(iRODSTask):
 
     
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        file_path       = kwargs['file_path']
-        index_file_path = kwargs['index_file_path']
-        irods_coll      = str(kwargs['irods_coll'])
+        dest_fpath_irods        = kwargs['dest_fpath_irods']
+        dest_idx_path_irods     = kwargs['dest_idx_path_irods']
         url_result = kwargs['url_result']
          
         print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
@@ -243,11 +242,11 @@ class UploadFileTask(iRODSTask):
          
         #ROLLBACK
         #if type(exc) == irods_excep.iPutException or type(exc) == SoftTimeLimitExceeded:
-        if index_file_path:
-            index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
-        fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
+#         if src_idx_fpath:
+#             index_fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
+#         fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
         try:
-            self.rollback(fpath_irods, index_fpath_irods)
+            self.rollback(dest_fpath_irods, dest_idx_path_irods)
         except Exception as e:
             errors_list.append(str(e))
  
@@ -258,9 +257,7 @@ class UploadFileTask(iRODSTask):
 
     def on_success(self, retval, task_id, args, kwargs):
         return super(UploadFileTask, self).on_success(retval, task_id, args, kwargs)
-#         url_result = kwargs['url_result']
-#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
-#         self.report_result(url_result, task_result)
+
     
 
 
