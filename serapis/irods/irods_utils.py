@@ -177,7 +177,7 @@ class iRODSModifyOperations(iRODSOperations):
         if err:
             print "IPUT error occured: ", err, " out: ", out
             if err.find(constants.OVERWRITE_WITHOUT_FORCE_FLAG) != -1:
-                raise exceptions.iRODSOverwriteWithoutForceFlagException(error=err, out=out, cmd=cmd)
+                raise exceptions.iRODSOverwriteWithoutForceFlagException(error=err, output=out, cmd=cmd)
             else:
                 raise exceptions.iPutException(err, out, cmd=str(cmd))
         return True

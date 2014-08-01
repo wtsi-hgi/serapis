@@ -39,8 +39,9 @@ class iRODSException(Exception):
         self.extra_info = extra_info
         
     def __str__(self):
-        fields = [self.error, self.output, self.cmd, self.msg, self.extra_info]
-        all_fields = ' '.join(filter(None, fields))
+        fields = filter(None, [self.error, self.output, self.cmd, self.msg, self.extra_info])
+        fields =[str(field) for field in fields]
+        all_fields = ' '.join(fields)
         return all_fields
     #    return 'Error message: '+self.error+' - OUTPUT:'+self.output+" CMD: "+ str(self.cmd)+" MSG: " + str(self.msg) + " Extra: "+str(self.extra_info)
     
@@ -126,6 +127,18 @@ class iRODSNoAccessException(iRODSException):
         return super(iRODSNoAccessException, self).__str__()
     
     
+
+class iRODSOverwriteWithoutForceFlagException(iRODSException):
+    ''' 
+        Exception thrown when a file is uploaded, but there is already one in the destination collection with the same name.
+        It corresponds to OVERWRITE_WITHOUT_FORCE_FLAG irods error output. 
+    '''
+    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
+        super(iRODSOverwriteWithoutForceFlagException, self).__init__(error, output, cmd, msg, extra_info)
+        
+    def __str__(self):
+        return super(iRODSOverwriteWithoutForceFlagException, self).__str__()
+
 ################## Serapis specific exceptions concerning iRODS#############################
 
 class iRODSReplicaNotPairedException(iRODSException):
@@ -202,16 +215,16 @@ class iRODSFileMetadataMissingException(iRODSException):
         return super(iRODSFileMetadataMissingException, self).__str__()
 
 
-class iRODSOverwriteWithoutForceFlagException(iRODSException):
+class iRODSDataObjectAlreadyExisting(iRODSException):
     ''' 
         Exception thrown when a file is uploaded, but there is already one in the destination collection with the same name.
         It corresponds to OVERWRITE_WITHOUT_FORCE_FLAG irods error output. 
     '''
     def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSOverwriteWithoutForceFlagException, self).__init__(error, output, cmd, msg, extra_info)
+        super(iRODSDataObjectAlreadyExisting, self).__init__(error, output, cmd, msg, extra_info)
         
     def __str__(self):
-        return super(iRODSOverwriteWithoutForceFlagException, self).__str__()
+        return super(iRODSDataObjectAlreadyExisting, self).__str__()
 
 
     

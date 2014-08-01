@@ -201,12 +201,15 @@ class UploadFileTask(iRODSTask):
 #         self.test_file_aready_exists(dest_fpath_irods)
 #         self.test_file_aready_exists(dest_idx_path_irods)
         
-        # Upload file - throws: iPut exception if anything happens    
-        iRODSModifyOperations.upload_irods_file(src_fpath, dest_fpath_irods)
-        
-        # Upload index:
-        if src_idx_fpath:
-            iRODSModifyOperations.upload_irods_file(src_idx_fpath, dest_idx_path_irods)
+        # Upload file - throws: iPut exception if anything happens
+        try:
+            iRODSModifyOperations.upload_irods_file(src_fpath, dest_fpath_irods)
+            
+            # Upload index:
+            if src_idx_fpath:
+                iRODSModifyOperations.upload_irods_file(src_idx_fpath, dest_idx_path_irods)
+        except irods_excep.iRODSOverwriteWithoutForceFlagException as e:
+            raise irods_excep.iRODSDataObjectAlreadyExisting(error=e.error, output=e.output, cmd=e.cmd)
             
             
         # Run som tests on the uploaded files:

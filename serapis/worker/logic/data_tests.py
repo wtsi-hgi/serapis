@@ -183,24 +183,39 @@ class GeneralFileTests(object):
     
     # Running the test suite example:
     
+#     test_result = TestResult()
+#         try:
+#             result = test_fct(*arg_list)
+#         except exceptions.iRODSException as e:
+#             test_result.error = str(e)
+#             test_result.result = False
+#         else:
+#             if result == None:
+#                 test_result.executed = False
+#         #return {'result': result, 'errors': errors, 'executed': executed}
+#         return test_result
+
+    
     
     @classmethod
     def run_file_replicas_test_suit(cls, fpath_irods):
-        #replica_list = cls.get_file_replicas(fpath_irods)
         replica_list = FileListingUtilityFunctions.list_all_file_replicas(fpath_irods)
         
-        error_report = {}
-        test = "Check replicas by number"    
-        result = cls.test_and_report(cls.check_replicas_by_number, [replica_list])
-        error_report[test] = result
+        error_report = []
+        test = "Check replicas by number"
+        test_result = cls.test_and_report(cls.check_replicas_by_number, [replica_list])
+        test_result.test_name = test
+        error_report.append(test_result)
         
-        test = "Check replicas are paired"    
-        result = cls.test_and_report(cls.check_replicas_are_paired, [replica_list])
-        error_report[test] = result
+        test = "Check replicas are paired"
+        test_result = cls.test_and_report(cls.check_replicas_are_paired, [replica_list])
+        test_result.test_name = test
+        error_report.append(test_result)
          
-        test = "Check replicas by resource"    
-        result = cls.test_and_report(cls.check_replicas_by_resource, [replica_list])
-        error_report[test] = result
+        test = "Check replicas by resource"
+        test_result = cls.test_and_report(cls.check_replicas_by_resource, [replica_list])
+        test_result.test_name = test
+        error_report.append(test_result)
         return error_report
     
     
