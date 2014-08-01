@@ -462,10 +462,9 @@ class FileTestSuiteRunner(object):
         results_list.append(result)
         #error_report[test] = result
     
-        test = "Check replicas"
-        result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
-        result.test_name = test
-        results_list.append(result)
+        #test = "Check replicas"
+        replica_tests_results = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
+        results_list.extend(replica_tests_results)
         return results_list
 
         #error_report.update(result)

@@ -202,6 +202,7 @@ class TaskLauncher(object):
                               'index_file_mdata_irods': index_mdata,
                               'file_path_irods' : fpath_irods,
                               'index_file_path_irods' : index_fpath_irods,
+                              'url_result': TaskResultReportingAddress.build_address_for_file(file_obj.file_id, file_obj.submission_id),
                               'queue': constants.IRODS_Q, 
                               'immutable': True
                      

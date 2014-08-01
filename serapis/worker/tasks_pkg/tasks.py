@@ -291,20 +291,19 @@ class CalculateMD5Task(GatherMetadataTask):
     
     
     def run(self, **kwargs):
-        #current_task.update_state(state=constants.RUNNING_STATUS)
         file_path       = kwargs['file_path']
         index_file_path = kwargs['index_file_path']
-        
         print "Calculate MD5 sum job started!"
 
         result = {}
+
         # Calculate file md5:
-        # result['file_md5'] = self.calculate_md5(file_path)
-        result['file_md5'] = "123456789"
-        
+        result['md5'] = self.calculate_md5(file_path)
+  
         # Calculate index file md5:
         if index_file_path:
-            result['index_md5'] = self.calculate_md5(index_file_path)
+            result['index_file'] = {}
+            result['index_file']['md5'] = self.calculate_md5(index_file_path)
         return result
 
     def on_success(self, retval, task_id, args, kwargs):
