@@ -67,8 +67,8 @@ class TestFunctions(unittest.TestCase):
         sampl_name = 'VBSEQ5231029'
         subm_file = entities.BAMFile()
         self.seqsc.fetch_and_process_samples([("name", sampl_name)], subm_file)
-        self.assertEqual(len(subm_file.sample_list), 1)
-        sampl = subm_file.sample_list[0]
+        self.assertEqual(len(subm_file.entity_set), 1)
+        sampl = subm_file.entity_set[0]
         self.assertEqual(sampl.internal_id, 1283390)
         self.assertEqual(sampl.accession_number, "EGAN00001029324")
         
@@ -77,8 +77,8 @@ class TestFunctions(unittest.TestCase):
         subm_file = entities.BAMFile()
         self.seqsc.fetch_and_process_samples([("accession_number", sampl_acc_nr)], subm_file)
         
-        self.assertEqual(len(subm_file.sample_list), 1)
-        sample = subm_file.sample_list[0]
+        self.assertEqual(len(subm_file.entity_set), 1)
+        sample = subm_file.entity_set[0]
         self.assertEqual(sample.name, 'SC_SISuCVD5295404')
         self.assertEqual(sample.internal_id, 1359036)
         

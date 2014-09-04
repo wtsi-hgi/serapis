@@ -71,17 +71,52 @@ submit_to_permanent_iRODS_coll_task = tasks.SubmitToIRODSPermanentCollTask()
 ##################### MAIN LOGIC ###################################
 
 
+class QueueManager:
+    
+    @staticmethod
+    def get_queue_name_for_user(task_queue, user_id):
+        return task_queue+'.'+user_id
+    
+    
+    
+
+class TaskLauncherArguments(object):
+    
+    def __init__(self, task_instance, task_parameters, task_queue):
+        self.task_instance = task_instance
+        self.task_parameters = task_parameters
+        self.task_queue = task_queue
+        
 
 class TaskLauncher(object):
     """ This class contains the functionality needed for submitting tasks to the queues.""" 
     __metaclass__ = abc.ABCMeta
+    
+    
+    @staticmethod
+    def launch_task(task_args):
+        ''' This method submits a task to the queue given as parameter. It receives as parameter a TaskLauncherArguments
+            object and returns the submitted task id.
+        '''
+        task_handl = task_args.task_instance.apply_async(args=task_args.task_parameters, queue=task_args.task_queue)
+        return task_handl.id
+    
+    @staticmethod
+    def launch_tasks_chain(task_args_list):
+        pass
+    
+    @staticmethod
+    def launch_tasks_group(task_args_list):
+        pass
+    
+    
     
     @staticmethod
     @abc.abstractmethod
     def launch_parse_file_header_task(file_obj, queue=constants.SERAPIS_PROCESS_MDATA_Q):
         """ Launches the parse header task, corresponding to the type of the input file."""
         return
-    
+        
         
     @staticmethod    
 #    def launch_upload_task(file_id, submission_id, file_path, index_file_path, dest_irods_path, queue=constants.SERAPIS_UPLOAD_Q):

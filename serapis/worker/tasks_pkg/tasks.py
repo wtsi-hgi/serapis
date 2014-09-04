@@ -35,19 +35,23 @@ import simplejson
 
 
 # Serapis imports:
+from Celery_Django_Prj import configs
 from serapis.worker.logic import data_tests
 from serapis.worker.logic import entities
 from serapis.seqscape import data_access
 from serapis.irods.irods_utils import assemble_new_irods_fpath, assemble_irods_humgen_username, assemble_irods_sanger_username 
 from serapis.irods.irods_utils import iRODSMetadataOperations, iRODSModifyOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
 from serapis.irods.irods_utils import DataObjectPermissionChangeUtilityFunctions, DataObjectMovingUtilityFunctions, DataObjectUtilityFunctions
-from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
+#from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader
+from serapis.domain import header_processing
+from serapis.domain.sanger_identifiers import IdentifierHandling
 from serapis.worker.utils.http_request_handler import HTTPRequestHandler
 from serapis.worker.utils import json_utils
-from serapis.worker.tasks_pkg.task_result import FailedTaskResult, SuccessTaskResult
+from serapis.worker.tasks_pkg.task_result import CalculateMD5TaskResult, ErrorTaskResult, HeaderParserTaskResult, SeqscapeQueryTaskResult, UploadFileTaskResult #FailedTaskResult, SuccessTaskResult, 
 from serapis.com import constants, utils as com_utils
 from serapis.irods import exceptions as irods_excep
 from serapis.worker.logic import exceptions as serapis_excep
+from serapis.controller.logic import remote_messages
 
 
 # Celery imports:
@@ -160,7 +164,7 @@ class UploadFileTask(iRODSTask):
     
     
     # WORKING TEST_VERSION, does not upload to irods, just skips
-    def run(self, **kwargs):
+    def run(self, *args, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
 
 
@@ -172,19 +176,16 @@ class UploadFileTask(iRODSTask):
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
 
-#     def test_file_aready_exists(self, fpath):
-#         if DataObjectUtilityFunctions.exists_in_irods(fpath):
-#             err = "File "+fpath+" already exists in iRODS!"
-#             raise IOError(err)
-
     # Currently in PROD:
     # Run using Popen and communicate() - 18.10.2013
-    def run_using_popen(self, **kwargs):
+    def run_using_popen(self, *args, **kwargs):
         current_task.update_state(state=constants.RUNNING_STATUS)
-        src_fpath               = kwargs['src_fpath']
-        src_idx_fpath           = kwargs['src_idx_fpath']
-        dest_fpath_irods        = kwargs['dest_fpath_irods']
-        dest_idx_path_irods     = kwargs['dest_idx_path_irods']
+#         src_fpath               = kwargs['src_fpath']
+#         dest_fpath_irods        = kwargs['dest_fpath_irods']
+#         
+#         src_idx_fpath           = kwargs['src_idx_fpath'] if 'src_idx_fpath' in kwargs else None
+#         dest_idx_path_irods     = kwargs['dest_idx_path_irods'] if 'dest_idx_path_irods' in kwargs else None
+        task_args = 
         print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_fpath_irods
         
         
@@ -268,7 +269,26 @@ class UploadFileTask(iRODSTask):
     def on_success(self, retval, task_id, args, kwargs):
         return super(UploadFileTask, self).on_success(retval, task_id, args, kwargs)
 
-    
+
+#     def on_success(self, retval, task_id, args, kwargs):
+#         url_result = kwargs['url_result']
+#         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
+#         self.report_result(url_result, task_result)
+#         
+#     
+#     def on_failure(self, exc, task_id, args, kwargs, einfo):
+#         url_result = str(kwargs['url_result'])
+#         now = com_utils.get_date_and_time_now()
+#         error = now+': '+str(exc)
+#         task_result = FailedTaskResult(task_id=self.get_current_task_id(), errors=[error])
+#         self.report_result(url_result, task_result)
+#         
+#         
+#     def report_result(self, url, task_result):
+#         task_result.clear_nones()
+#         result_serial = task_result.to_json()
+#         HTTPRequestHandler.send_request(url, result_serial)
+#         
 
 
 class CalculateMD5Task(GatherMetadataTask):
@@ -327,7 +347,7 @@ class ParseVCFHeaderTask(ParseFileHeaderTask):
         vcf_file.reference = vcf_header_info.reference
         vcf_file.file_format = vcf_header_info.vcf_format
         
-        sample_list = MetadataHandling.guess_all_identifiers_type(vcf_header_info.sample_list, constants.SAMPLE_TYPE)
+        sample_list = IdentifierHandling.guess_all_identifiers_type(vcf_header_info.entity_set, constants.SAMPLE_TYPE)
         access_seqsc = data_access.ProcessSeqScapeData()
         access_seqsc.fetch_and_process_samples(sample_list, vcf_file)
         return vcf_file
@@ -346,24 +366,11 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
 #    time_limit = 3600           # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 1800      # an exception is raised if the task didn't finish in this time frame => can be used for cleanup
     
-    # Testing events, not used!
-    def trigger_event(self, event_type, state, result):
-        connection = self.app.broker_connection()
-        evd = self.app.events.Dispatcher(connection=connection)
-        try:
-            #self.update_state(state="CUSTOM")
-            #evd.send("task-custom", state="CUSTOM", result="THIS IS MY RESULT...", mytag="MY TAG")
-            self.update_state(state=state)
-            evd.send(event_type, state=state, result=result)
-        finally:
-            evd.close()
-            connection.close()
-
    
     def infer_and_set_data_properties(self, submitted_file):
         if not hasattr(submitted_file, 'data_subtype_tags'):
             submitted_file.data_subtype_tags = {}
-        if len(submitted_file.sample_list) == 1:
+        if len(submitted_file.entity_set) == 1:
             submitted_file.data_subtype_tags['sample-multiplicity'] = 'single-sample'
             submitted_file.data_subtype_tags['individual-multiplicity'] = 'single-individual'
         if len(submitted_file.run_list) > 1:
@@ -373,30 +380,36 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
     def run(self, **kwargs):
         #current_task.update_state(state=constants.RUNNING_STATUS)
         file_path_client    = kwargs['file_path']
-
-        header_metadata = BAMHeaderParser.parse_header(file_path_client)
-        file_mdata = entities.BAMFile()
-        file_mdata.seq_centers = header_metadata.seq_centers
-        file_mdata.run_list = header_metadata.run_ids_list
-        file_mdata.seq_date_list = header_metadata.seq_date_list
-        file_mdata.platform_list = header_metadata.platform_list
         
-        lib_ids_list = header_metadata.library_list
-        sample_ids_list = header_metadata.sample_list
-       
-        libs_list = MetadataHandling.guess_all_identifiers_type(lib_ids_list, constants.LIBRARY_TYPE)
-        samples_list = MetadataHandling.guess_all_identifiers_type(sample_ids_list, constants.SAMPLE_TYPE)
+        # check on file permissions here ?!
+        header_dict = header_processing.BAMHeaderExtractor.extract(file_path_client) 
+        bam_header = header_processing.BAMHeaderProcessor.process(header_dict)  # type = BAMHeader
+        return bam_header
 
-        access_seqsc = data_access.ProcessSeqScapeData()
-        access_seqsc.fetch_and_process_libs(libs_list, file_mdata)
-        access_seqsc.fetch_and_process_samples(samples_list, file_mdata)
-        
-        print "LIBRARIES -- from worker: ", libs_list, " And in the file: ", file_mdata.library_list
-        self.infer_and_set_data_properties(file_mdata)
 
-        if len(file_mdata.library_list) > 0 or len(file_mdata.sample_list) > 0:
-            file_mdata.header_has_mdata = True
-        return file_mdata
+#         header_metadata = BAMHeaderParser.parse_header(file_path_client)
+#         file_mdata = entities.BAMFile()
+#         file_mdata.seq_centers = header_metadata.seq_centers
+#         file_mdata.run_list = header_metadata.run_ids_list
+#         file_mdata.seq_date_list = header_metadata.seq_date_list
+#         file_mdata.platform_list = header_metadata.platform_list
+#         
+#         lib_ids_list = header_metadata.library_list
+#         sample_ids_list = header_metadata.entity_set
+#        
+#         libs_list = IdentifierHandling.guess_all_identifiers_type(lib_ids_list, constants.LIBRARY_TYPE)
+#         samples_list = IdentifierHandling.guess_all_identifiers_type(sample_ids_list, constants.SAMPLE_TYPE)
+# 
+#         access_seqsc = data_access.ProcessSeqScapeData()
+#         access_seqsc.fetch_and_process_libs(libs_list, file_mdata)
+#         access_seqsc.fetch_and_process_samples(samples_list, file_mdata)
+#         
+#         print "LIBRARIES -- from worker: ", libs_list, " And in the file: ", file_mdata.library_list
+#         self.infer_and_set_data_properties(file_mdata)
+# 
+#         if len(file_mdata.library_list) > 0 or len(file_mdata.entity_set) > 0:
+#             file_mdata.header_has_mdata = True
+#         return file_mdata
         
 
     def on_success(self, retval, task_id, args, kwargs):
@@ -405,6 +418,43 @@ class ParseBAMHeaderTask(ParseFileHeaderTask):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         return super(ParseBAMHeaderTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
+
+from serapis.domain.models import data
+
+class SeqscapeQueryTask(GatherMetadataTask):
+    max_retries = 3
+    track_started = False
+    
+    def run(self, *args, **kwargs):
+        print "IN seqscape query task....!"
+        #entity_type = kwargs['entity_type']
+        query_obj = kwargs['query_obj']
+        connection = data_access.SeqscapeDatabaseOperations.connect(configs.SEQSC_HOST, configs.SEQSC_PORT, configs.SEQSC_USER, configs.SEQSC_DB_NAME)
+        query_dict = {query_obj.field_name: query_obj.field_value}
+        result = None
+        if query_obj.obj_type == constants.SAMPLE_TYPE:
+        #if entity_type == constants.SAMPLE_TYPE:
+            result = data_access.SeqscapeDatabaseOperations.get_sample_data(connection, query_dict)
+        #elif entity_type == constants.LIBRARY_TYPE:
+        elif query_obj.obj_type == constants.LIBRARY_TYPE:
+            result = data_access.SeqscapeDatabaseOperations.get_library_data(connection, query_dict)
+        #elif entity_type == constants.STUDY_TYPE:
+        elif query_obj.obj_type == constants.STUDY_TYPE:
+            result = data_access.SeqscapeDatabaseOperations.get_study_data(connection, query_dict)
+        connection.close()
+        return result
+            
+        
+
+# class SeqscapeSampleQuery(SeqscapeQuery):
+#     
+#     def run(self, *args, **kwargs):
+#         identif_dict = kwargs['identifier_dict']
+#         connection = data_access.SeqscapeDatabaseOperations.connect(configs.SEQSC_HOST, configs.SEQSC_PORT, configs.SEQSC_USER, configs.SEQSC_DB_NAME)
+#         sample = data_access.SeqscapeDatabaseOperations.get_sample_data(connection, identif_dict)
+        
+        
+    
 
 class UpdateFileMdataTask(GatherMetadataTask):
     max_retries = 5             # 5 RETRIES if the task fails in the first place
@@ -454,7 +504,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
         file_submitted = entities.SubmittedFile.build_from_json(file_mdata)
         
         incomplete_libs_list    = self.select_incomplete_entities(file_submitted.library_list)
-        incomplete_samples_list = self.select_incomplete_entities(file_submitted.sample_list)
+        incomplete_samples_list = self.select_incomplete_entities(file_submitted.entity_set)
         incomplete_studies_list = self.select_incomplete_entities(file_submitted.study_list)
         
         processSeqsc = data_access.ProcessSeqScapeData()

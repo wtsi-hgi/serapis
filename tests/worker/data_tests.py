@@ -133,7 +133,7 @@ class TestFunctions(unittest.TestCase):
     
     def test_compare_file_md5(self):
         irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/compare_meta_md5_with_calc.txt'
-        self.assertRaises(exceptions.iRODSFileDifferentMD5sException, data_tests.GeneralFileTests.compare_file_md5, irods_file_path)
+        self.assertRaises(exceptions.iRODSFileDifferentMD5sException, data_tests.GeneralFileTests.checksum_file_and_compare_md5s, irods_file_path)
         
         
     def test_checksum_all_replicas(self):

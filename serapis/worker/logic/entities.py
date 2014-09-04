@@ -329,7 +329,7 @@ class SubmittedFile(object):
         # Initializing entity lists:
         self.study_list = []                            #ListField(EmbeddedDocumentField(Study))
         self.library_list = []                          #ListField(EmbeddedDocumentField(Library))
-        self.sample_list = []                           #ListField(EmbeddedDocumentField(Sample))
+        self.entity_set = []                           #ListField(EmbeddedDocumentField(Sample))
         
         ######## STATUSES #########
         # UPLOAD JOB STATUS:
@@ -381,7 +381,7 @@ class SubmittedFile(object):
         self.__add_or_update_entity__(new_lib, self.library_list)
         
     def add_or_update_sample(self, new_sample):
-        self.__add_or_update_entity__(new_sample, self.sample_list)
+        self.__add_or_update_entity__(new_sample, self.entity_set)
 
     def add_or_update_study(self, new_study):
         self.__add_or_update_entity__(new_study, self.study_list)
@@ -454,7 +454,7 @@ class SubmittedFile(object):
 #        return False
 #    
 #    def contains_sample(self, sample_name):
-#        for sample in self.sample_list:
+#        for sample in self.entity_set:
 #            if sample.name == sample_name or sample.accession_number == sample_name:
 #                return True
 #        return False
@@ -479,10 +479,10 @@ class SubmittedFile(object):
                 subm_file.library_list = []
                 for lib_json in json_file['library_list']:
                     subm_file.library_list.append(Library.build_from_json(lib_json))
-            elif key == 'sample_list':
-                subm_file.sample_list = []
-                for sampl_json in json_file['sample_list']:
-                    subm_file.sample_list.append(Sample.build_from_json(sampl_json))
+            elif key == 'entity_set':
+                subm_file.entity_set = []
+                for sampl_json in json_file['entity_set']:
+                    subm_file.entity_set.append(Sample.build_from_json(sampl_json))
             elif key not in constants.FILE_META_FIELDS and key != 'file_error_log':        
                 #print "KEY NOT IN META LIST => enters in if and sets the field-----------------------------------", key
                 setattr(subm_file, key, json_file[key])
@@ -496,7 +496,7 @@ class SubmittedFile(object):
         '''
         entity_list = None
         if entity_type == constants.SAMPLE_TYPE:
-            entity_list = self.sample_list
+            entity_list = self.entity_set
         elif entity_type == constants.LIBRARY_TYPE:
             entity_list = self.library_list
         elif entity_type == constants.STUDY_TYPE:
@@ -560,13 +560,13 @@ class SubmittedFile(object):
         for lib in self.library_list:
             if not lib.check_if_has_minimal_mdata():
                 has_minimal = False
-        for sampl in self.sample_list:
+        for sampl in self.entity_set:
             if not sampl.check_if_has_minimal_mdata():
                 has_minimal = False
         for study in self.study_list:
             if not study.check_if_has_minimal_mdata():
                 has_minimal = False
-        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+        if len(self.library_list) == 0 or len(self.entity_set) == 0 or len(self.study_list) == 0:
             has_minimal = False
         return has_minimal
     
@@ -577,13 +577,13 @@ class SubmittedFile(object):
         for lib in self.library_list:
             if not lib.check_if_complete_mdata():
                 is_complete = False
-        for sampl in self.sample_list:
+        for sampl in self.entity_set:
             if not sampl.check_if_complete_mdata():
                 is_complete = False
         for study in self.study_list:
             if not study.check_if_complete_mdata():
                 is_complete = False
-        if len(self.library_list) == 0 or len(self.sample_list) == 0 or len(self.study_list) == 0:
+        if len(self.library_list) == 0 or len(self.entity_set) == 0 or len(self.study_list) == 0:
             is_complete = False
         return is_complete
     

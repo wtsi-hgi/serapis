@@ -136,13 +136,13 @@ def create_submission(user_id, data):
 
     # Verify the upload permissions:
     upld_as_serapis = True  # the default
-    if 'upload_as_serapis' in submission_data:
-        upld_as_serapis =  submission_data['upload_as_serapis']
+    if 'is_uploaded_as_serapis' in submission_data:
+        upld_as_serapis =  submission_data['is_uploaded_as_serapis']
          
     if upld_as_serapis and constants.NOACCESS in verif_result.warning_dict:
         result = models.Result(False, verif_result.warning_dict, None)
         result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
-        result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
+        result.message = result.message + "Please give access to serapis user or resubmit your request with 'is_uploaded_as_serapis' : False."
         result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
         return result
 
@@ -384,13 +384,13 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
         file_to_resubmit = data_access.FileDataAccess.retrieve_submitted_file(file_id) 
     
     permissions = utils.check_file_permissions(file_to_resubmit.file_path_client)
-    submission = data_access.SubmissionDataAccess.retrieve_only_submission_fields(submission_id,['upload_as_serapis', 'sanger_user_id'])
-    upld_as_srp_flag = submission.upload_as_serapis
+    submission = data_access.SubmissionDataAccess.retrieve_only_submission_fields(submission_id,['is_uploaded_as_serapis', 'sanger_user_id'])
+    upld_as_srp_flag = submission.is_uploaded_as_serapis
     if permissions == constants.NOACCESS:
         if upld_as_srp_flag == True:
             result = models.Result(False, error_dict={constants.PERMISSION_DENIED : [file_id]})
             result.message = "ERROR: serapis attempting to upload files to iRODS but hasn't got read access. "
-            result.message = result.message + "Please give access to serapis user or resubmit your request with 'upload_as_serapis' : False."
+            result.message = result.message + "Please give access to serapis user or resubmit your request with 'is_uploaded_as_serapis' : False."
             result.message = result.message + "In the latter case you will also be required to run the following script ... on the cluster."
             return result
 

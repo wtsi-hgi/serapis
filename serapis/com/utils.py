@@ -400,19 +400,21 @@ def get_all_file_types(fpaths_list):
 #    else:
 #        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
 
-def build_irods_staging_path(submission_id):
-    ''' This function returns the path to the corresponding staging area
-        collection, given the submission id. 
-    '''
-    return os.path.join(configs.IRODS_STAGING_AREA, submission_id)
 
-def build_irods_file_staging_path(submission_id, file_path_client):
-    ''' 
-        This function puts together the path where a file is stored in irods staging area.
-    '''
-    (_, fname) = os.path.split(file_path_client)
-    return os.path.join(configs.IRODS_STAGING_AREA, submission_id, fname)
-        
+# MOVED TO files.py
+# def build_irods_staging_path(submission_id):
+#     ''' This function returns the path to the corresponding staging area
+#         collection, given the submission id. 
+#     '''
+#     return os.path.join(configs.IRODS_STAGING_AREA, submission_id)
+# 
+# def build_irods_file_staging_path(submission_id, file_path_client):
+#     ''' 
+#         This function puts together the path where a file is stored in irods staging area.
+#     '''
+#     (_, fname) = os.path.split(file_path_client)
+#     return os.path.join(configs.IRODS_STAGING_AREA, submission_id, fname)
+#         
 
 #def build_file_path_irods(client_file_path, irods_coll_path):
 #    (_, src_file_name) = os.path.split(client_file_path)  
@@ -523,30 +525,6 @@ def levenshtein(a,b):
             current[j] = min(add, delete, change)
             
     return current[n]
-
-
-def is_accession_nr(field):
-    ''' 
-        The ENA accession numbers all start with: ERS, SRS, DRS or EGA. 
-    '''
-    if type(field) == int:
-        return False
-    if field.startswith('ER') or field.startswith('SR') or field.startswith('DR') or field.startswith('EGA'):
-        return True
-    return False
-
-def is_internal_id(field):
-    if type(field) == int:
-        return True
-    if field.isdigit():
-        return True
-    return False
-
-def is_name(field):
-    is_match = re.search('[0-9a-zA-Z]', field)
-    if is_match != None:
-        return True
-    return False
 
 
 #################### CONTROLLER SPECIFIC UTILS: ####################################

@@ -34,15 +34,15 @@ from serapis.worker.logic import exceptions
 
 ######################### CLASS THAT ONLY DEALS WITH SEQSCAPE DB OPERATIONS ####################
 
-class QuerySeqScape:
+class SeqscapeDatabaseOperations:
     
     @staticmethod
-    def connect(host, port, user, db):
+    def connect(host, port, user, vrtrack_db):
         try:
             conn = connect(host=host,
                                  port=port,
                                  user=user,
-                                 db=db,
+                                 vrtrack_db=vrtrack_db,
                                  cursorclass=cursors.DictCursor
                                  )
         except mysqlError as e:
@@ -78,6 +78,7 @@ class QuerySeqScape:
             print "DATABASE SAMPLES FOUND: ", data
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
+        cursor.close()
         return data
     
     
@@ -101,6 +102,7 @@ class QuerySeqScape:
             print "DATABASE Libraries FOUND: ", data
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
+        cursor.close()
         return data
 
     @staticmethod
@@ -113,6 +115,7 @@ class QuerySeqScape:
             data = cursor.fetchall()
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
+        cursor.close()
         return data
 
     @staticmethod
@@ -125,6 +128,7 @@ class QuerySeqScape:
             data = cursor.fetchall()
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])  #args[0] = error code, args[1] = error text
+        cursor.close()
         return data
     # TODO: deal differently with diff exceptions thrown here, + try reconnect if connection fails
 
@@ -147,6 +151,7 @@ class QuerySeqScape:
         except mysqlError as e:
             print "DB ERROR: %d: %s " % (e.args[0], e.args[1])
         else:
+            cursor.close()
             return data
 
     
@@ -158,7 +163,7 @@ class ProcessSeqScapeData():
     def __init__(self):
         # TODO: retry to connect 
         # TODO: try: catch: OperationalError (2003) - can't connect to MySQL, to deal with this error!!!
-        self.connection = QuerySeqScape.connect(configs.SEQSC_HOST, configs.SEQSC_PORT, configs.SEQSC_USER, configs.SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
+        self.connection = SeqscapeDatabaseOperations.connect(configs.SEQSC_HOST, configs.SEQSC_PORT, configs.SEQSC_USER, configs.SEQSC_DB_NAME)  # CONNECT TO SEQSCAPE
 
 
     def query_for_library(self, library_identif_name, library_identifier):
@@ -167,7 +172,7 @@ class ProcessSeqScapeData():
         '''
         if not library_identif_name or not library_identifier:
             raise LookupError("The identifier or identifier's name are empty.")
-        lib_mdata = QuerySeqScape.get_library_data(self.connection, { library_identif_name : library_identifier})
+        lib_mdata = SeqscapeDatabaseOperations.get_library_data(self.connection, { library_identif_name : library_identifier})
         print lib_mdata
         return lib_mdata
     
@@ -178,7 +183,7 @@ class ProcessSeqScapeData():
         '''
         if not sample_identif_name or not sample_identifier:
             raise LookupError("The identifier or identifier's name are empty.")
-        sampl_mdata = QuerySeqScape.get_sample_data(self.connection, {sample_identif_name : sample_identifier })
+        sampl_mdata = SeqscapeDatabaseOperations.get_sample_data(self.connection, {sample_identif_name : sample_identifier })
         return sampl_mdata
     
     def query_for_study(self, study_identif_name, study_identifier):
@@ -187,7 +192,7 @@ class ProcessSeqScapeData():
         '''
         if not study_identif_name or not study_identifier:
             raise LookupError("The identifier or identifier's name are empty.")
-        study_mdata = QuerySeqScape.get_study_data(self.connection, {study_identif_name : study_identifier})
+        study_mdata = SeqscapeDatabaseOperations.get_study_data(self.connection, {study_identif_name : study_identifier})
         return study_mdata
 
 
@@ -255,7 +260,7 @@ class ProcessSeqScapeData():
                 setattr(new_sampl, sample[0], sample[1])
                 submitted_file.append_to_missing_entities_list(new_sampl, constants.SAMPLE_TYPE)
                 lookup_samples.append(new_sampl)
-        submitted_file.sample_list = lookup_samples
+        submitted_file.entity_set = lookup_samples
          
          
     
@@ -289,7 +294,7 @@ class ProcessSeqScapeData():
 #            #new_lib.check_if_complete_mdata()
 #            file_submitted.add_or_update_lib(new_lib)
 #        else:               # Faulty cases:
-#            #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
+#            #file_submitted.entity_set.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
 #            new_lib = entities.Library()
 #            for field_name in lib_dict:
 #                setattr(new_lib, field_name, lib_dict[field_name])
@@ -315,9 +320,9 @@ class ProcessSeqScapeData():
 #        for lib_dict in incomplete_libs_list:
 #            lib_mdata = None
 #            if 'internal_id' in lib_dict and lib_dict['internal_id'] != None:       # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
-#                lib_mdata = QuerySeqScape.get_library_data(self.connection, {'internal_id' : lib_dict['internal_id']})
+#                lib_mdata = SeqscapeDatabaseOperations.get_library_data(self.connection, {'internal_id' : lib_dict['internal_id']})
 #            if lib_mdata == None and 'name' in lib_dict and lib_dict['name'] != None:
-#                lib_mdata = QuerySeqScape.get_library_data(self.connection, {'name' : lib_dict['name']})
+#                lib_mdata = SeqscapeDatabaseOperations.get_library_data(self.connection, {'name' : lib_dict['name']})
 #            if lib_mdata != None and len(lib_mdata) == 1:                 # Ideal case
 #                lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
 #                new_lib = entities.Library.build_from_seqscape(lib_mdata)
@@ -325,7 +330,7 @@ class ProcessSeqScapeData():
 #                #new_lib.check_if_complete_mdata()
 #                file_submitted.add_or_update_lib(new_lib)
 #            else:               # Faulty cases:
-#                #file_submitted.sample_list.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
+#                #file_submitted.entity_set.remove(sampl_name)       # If faulty, delete the entity from the valid ent list
 #                new_lib = entities.Library()
 #                for field_name in lib_dict:
 #                    setattr(new_lib, field_name, lib_dict[field_name])
@@ -344,13 +349,13 @@ class ProcessSeqScapeData():
 #            otherwise there is no useful information that we can extract from wells table =>
 #            => the method returns only boolean.
 #        '''
-#        lib_mdata = QuerySeqScape.get_library_from_lib_wells_table(self.connection, internal_id)
+#        lib_mdata = SeqscapeDatabaseOperations.get_library_from_lib_wells_table(self.connection, internal_id)
 #        return lib_mdata != None
 #    
 #    # Not used at the moment - 19.03.2014
 #    def search_lib_in_multiplex_libs_table(self, internal_id):
 #        ''' This method is used to search for an internal_id in the table of multiplex libs.'''
-#        lib_mdata = QuerySeqScape.get_library_from_multiplex_libs_table(self.connection, internal_id)
+#        lib_mdata = SeqscapeDatabaseOperations.get_library_from_multiplex_libs_table(self.connection, internal_id)
 #        return lib_mdata != None
     
     # OUT of use for now...no more checking id the lib is a well or a multiplexed lib -- 19.03.2014
@@ -368,7 +373,7 @@ class ProcessSeqScapeData():
 #        '''
 #        for lib_dict in incomplete_libs_list:
 #            # TRY to search for lib in default table:
-#            lib_mdata = QuerySeqScape.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
+#            lib_mdata = SeqscapeDatabaseOperations.get_library_data(self.connection, lib_dict)    # {'library_type': None, 'public_name': None, 'barcode': '26', 'uuid': '\xa62\xe', 'internal_id': 50087L}
 #            print "Libraries found? -- print answer--------------------------:", lib_mdata, "and type of it is: ", type(lib_mdata)
 #            if lib_mdata != None and len(lib_mdata) == 1:
 #                lib_mdata = lib_mdata[0]            # get_lib_data returns a tuple in which each element is a row in seqscDB
@@ -390,7 +395,7 @@ class ProcessSeqScapeData():
 #    def query_for_library(self, library_identif_name, library_identifier):
 #        if not library_identif_name or not library_identifier:
 #            raise LookupError("The identifier or identifier's name are empty.")
-#        lib_mdata = QuerySeqScape.get_library_data(self.connection, { library_identif_name : library_identifier})
+#        lib_mdata = SeqscapeDatabaseOperations.get_library_data(self.connection, { library_identif_name : library_identifier})
 #        return lib_mdata
 #
 #    def process_query_result(self, query_result):
@@ -430,13 +435,13 @@ class ProcessSeqScapeData():
 #    def fetch_and_process_sample_known_mdata_fields(self, sample_dict, file_submitted):
 #        sampl_mdata = None
 #        if 'internal_id' in sample_dict and sample_dict['internal_id'] != None:
-#            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, {'internal_id' : sample_dict['internal_id']})
+#            sampl_mdata = SeqscapeDatabaseOperations.get_sample_data(self.connection, {'internal_id' : sample_dict['internal_id']})
 #        if sampl_mdata == None and 'name' in sample_dict and sample_dict['name'] != None:
-#            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, {'name' : sample_dict['name']})
+#            sampl_mdata = SeqscapeDatabaseOperations.get_sample_data(self.connection, {'name' : sample_dict['name']})
 #        if sampl_mdata == None and 'accession_number' in sample_dict and sample_dict['accession_number'] != None:
-#            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, {'accession_number' : sample_dict['accession_number']})
+#            sampl_mdata = SeqscapeDatabaseOperations.get_sample_data(self.connection, {'accession_number' : sample_dict['accession_number']})
 #        if sampl_mdata == None:
-#            sampl_mdata = QuerySeqScape.get_sample_data(self.connection, sample_dict)   
+#            sampl_mdata = SeqscapeDatabaseOperations.get_sample_data(self.connection, sample_dict)   
 #        print "SAMPLE DATA FROM SEQSCAPE:------- ",sampl_mdata
 #        if sampl_mdata != None and len(sampl_mdata) == 1:           # Ideal case
 #            sampl_mdata = sampl_mdata[0]    # get_sampl_data - returns a tuple having each row as an element of the tuple ({'cohort': 'FR07', 'name': 'SC_SISuCVD5295404', 'internal_id': 1359036L,...})
@@ -464,7 +469,7 @@ class ProcessSeqScapeData():
 #     
 #    def fetch_and_process_study_mdata(self, incomplete_study_list, file_submitted):
 #        for study_dict in incomplete_study_list:
-#            study_mdata = QuerySeqScape.get_study_data(self.connection, study_dict)
+#            study_mdata = SeqscapeDatabaseOperations.get_study_data(self.connection, study_dict)
 #            if study_mdata != None and len(study_mdata) == 1:                 # Ideal case
 #                study_mdata = study_mdata[0]            # get_study_data returns a tuple in which each element is a row in seqscDB
 #                new_study = entities.Study.build_from_seqscape(study_mdata)

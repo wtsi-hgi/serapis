@@ -249,7 +249,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
                 logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
                 upd_dict['has_minimal'] = True
                 upd_dict['library_list'] = file_to_submit.library_list
-                upd_dict['sample_list'] = file_to_submit.sample_list
+                upd_dict['entity_set'] = file_to_submit.entity_set
                 upd_dict['study_list'] = file_to_submit.study_list
                 upd_dict['missing_optional_fields_dict'] = file_to_submit.missing_optional_fields_dict
                 upd_dict['missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
@@ -263,7 +263,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
             else:
                 logging.info("FILE DOES NOT NOTTTTT NOT HAVE ENOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOUGH MDATA!!!!!!!!!!!!!!!!!!")
                 upd_dict['library_list'] = file_to_submit.library_list
-                upd_dict['sample_list'] = file_to_submit.sample_list
+                upd_dict['entity_set'] = file_to_submit.entity_set
                 upd_dict['study_list'] = file_to_submit.study_list
                 upd_dict['missing_optional_fields_dict'] = file_to_submit.missing_optional_fields_dict
                 upd_dict['missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
@@ -323,7 +323,7 @@ class BAMFileMetaStatusChecker(FileMetaStatusChecker):
         index_missing_fields = []
         
         # Sample check:
-        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.sample_list))
+        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.entity_set))
         
         # Study check:
         missing_fields.extend(cls.identify_missing_study_mdata(file_to_submit.study_list))  
@@ -367,7 +367,7 @@ class VCFFileMetaStatusChecker(FileMetaStatusChecker):
         index_missing_fields = []
         
         # Sample check:
-        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.sample_list))
+        missing_fields.extend(cls.identify_missing_sample_mdata(file_to_submit.entity_set))
          
         # Study check:
         missing_fields.extend(cls.identify_missing_study_mdata(file_to_submit.study_list))  

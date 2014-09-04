@@ -68,7 +68,7 @@ class SubmissionDataAccess(DataAccess):
                 if not utils.is_hgi_project(field_val):
                     raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
                 update_db_dict['set__hgi_project'] = field_val
-            elif field_name == 'upload_as_serapis' and field_val != None:
+            elif field_name == 'is_uploaded_as_serapis' and field_val != None:
                 update_db_dict['set__upload_as_serapis'] = field_val
             # File-related metadata:
             elif field_name == 'data_subtype_tags':
@@ -196,7 +196,7 @@ class SubmissionDataAccess(DataAccess):
     def retrieve_submission_upload_as_serapis_flag(cls, submission_id):
         if not submission_id:
             return None
-        return models.Submission.objects(id=ObjectId(submission_id)).only('upload_as_serapis').get().upload_as_serapis
+        return models.Submission.objects(id=ObjectId(submission_id)).only('is_uploaded_as_serapis').get().is_uploaded_as_serapis
 
     @classmethod
     def retrieve_only_submission_fields(cls, submission_id, fields_list):
@@ -278,7 +278,7 @@ class FileDataAccess(DataAccess):
 
     @classmethod
     def retrieve_sample_list(cls, file_id):
-        return models.SubmittedFile.objects(id=ObjectId(file_id)).only('sample_list').get().sample_list
+        return models.SubmittedFile.objects(id=ObjectId(file_id)).only('entity_set').get().entity_set
     
     @classmethod
     def retrieve_library_list(cls, file_id):
@@ -305,7 +305,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
         else:
-            sample_list = submitted_file.sample_list
+            sample_list = submitted_file.entity_set
         return models_utils.EntityModelUtilityFunctions.get_entity_by_field('name', sample_name, sample_list)
     
     @classmethod
@@ -331,7 +331,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
         else:
-            sample_list = submitted_file.sample_list
+            sample_list = submitted_file.entity_set
         return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(sample_id), sample_list)
     
     @classmethod
@@ -465,7 +465,7 @@ class FileDataAccess(DataAccess):
     def search_JSONSample(cls, sample_json, file_id, submitted_file=None):
         if submitted_file == None:
             submitted_file = cls.retrieve_submitted_file(file_id)
-        return cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+        return cls.search_JSONEntity_in_list(sample_json, submitted_file.entity_set)
     
     @classmethod
     def search_JSONStudy(cls, study_json, file_id, submitted_file=None):
@@ -482,7 +482,7 @@ class FileDataAccess(DataAccess):
         elif entity_type == constants.LIBRARY_TYPE:
             return cls.search_JSONEntity_in_list(entity_json, submitted_file.library_list)
         elif entity_type == constants.SAMPLE_TYPE:
-            return cls.search_JSONEntity_in_list(entity_json, submitted_file.sample_list)
+            return cls.search_JSONEntity_in_list(entity_json, submitted_file.entity_set)
         return None
     
     
@@ -513,7 +513,7 @@ class FileDataAccess(DataAccess):
             if entity_type == constants.LIBRARY_TYPE:
                 submitted_file.library_list.append(entity)
             elif entity_type == constants.SAMPLE_TYPE:
-                submitted_file.sample_list.append(entity)
+                submitted_file.entity_set.append(entity)
             elif entity_type == constants.STUDY_TYPE:
                 submitted_file.study_list.append(entity)
             return True
@@ -536,7 +536,7 @@ class FileDataAccess(DataAccess):
             return False
         if cls.search_JSONSample(sample_json, submitted_file.id, submitted_file) == None:
             sample = models_utils.EntityModelUtilityFunctions.json2sample(sample_json, sender)
-            submitted_file.sample_list.append(sample)
+            submitted_file.entity_set.append(sample)
             return True
         return False
     
@@ -589,7 +589,7 @@ class FileDataAccess(DataAccess):
         inserted = cls.insert_sample_in_SFObj(sample_json, sender, submitted_file)
         if inserted == True:
             sample_version = cls.get_sample_version(submitted_file.id, submitted_file)
-            return models.SubmittedFile.objects(id=file_id, version__1=sample_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
+            return models.SubmittedFile.objects(id=file_id, version__1=sample_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.entity_set)
         return 0
     
     @classmethod
@@ -672,7 +672,7 @@ class FileDataAccess(DataAccess):
         has_changed = cls.update_sample_in_SFObj(sample_json, sender, submitted_file)
         if has_changed == True:
             sample_list_version = cls.get_sample_version(submitted_file.id, submitted_file)
-            return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list)
+            return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.entity_set)
         return 0
     
     @classmethod
@@ -711,7 +711,7 @@ class FileDataAccess(DataAccess):
     def insert_or_update_sample_in_SFObj(cls, sample_json, sender, submitted_file):
         if submitted_file == None or sample_json == None:
             return False
-        sample_found = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+        sample_found = cls.search_JSONEntity_in_list(sample_json, submitted_file.entity_set)
         if sample_found == None:
             return cls.insert_sample_in_SFObj(sample_json, sender, submitted_file)
         else:
@@ -751,7 +751,7 @@ class FileDataAccess(DataAccess):
     def insert_or_update_sample_in_db(cls, sample_json, sender, file_id):
         submitted_file = cls.retrieve_submitted_file(file_id)
 #         done = False
-#         sample_exists = cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
+#         sample_exists = cls.search_JSONEntity_in_list(sample_json, submitted_file.entity_set)
 #         if sample_exists == None:
 #             done = cls.insert_sample_in_db(sample_json, sender, file_id)
 #         else:
@@ -759,7 +759,7 @@ class FileDataAccess(DataAccess):
         done = cls.insert_or_update_sample_in_SFObj(sample_json, sender, submitted_file)
         if done == True:
             sample_list_version = cls.get_sample_version(submitted_file.id, submitted_file)
-            return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.sample_list) 
+            return models.SubmittedFile.objects(id=file_id, version__1=sample_list_version).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=submitted_file.entity_set) 
     
     @classmethod
     def insert_or_update_study_in_db(cls, study_json, sender, file_id):
@@ -795,8 +795,8 @@ class FileDataAccess(DataAccess):
     def update_sample_list(cls, sample_list, sender, submitted_file):
         if submitted_file == None:
             return False
-        if not hasattr(submitted_file, 'sample_list') or not getattr(submitted_file, 'sample_list'):
-            submitted_file.sample_list = sample_list
+        if not hasattr(submitted_file, 'entity_set') or not getattr(submitted_file, 'entity_set'):
+            submitted_file.entity_set = sample_list
             print "UPDATING SAMPLES LIST WITH update_sample_list..................................."
             return True
         for sample in sample_list:
@@ -826,10 +826,10 @@ class FileDataAccess(DataAccess):
 #         return True
 #     
 #     @classmethod
-#     def update_and_save_sample_list(cls, sample_list, sender, file_id):
-#         if sample_list == None or len(sample_list) == 0:
+#     def update_and_save_sample_list(cls, entity_set, sender, file_id):
+#         if entity_set == None or len(entity_set) == 0:
 #             return False
-#         for sample in sample_list:
+#         for sample in entity_set:
 #             upsert = cls.insert_or_update_sample_in_db(sample, sender, file_id)
 #         return True
 #     
@@ -886,10 +886,10 @@ class FileDataAccess(DataAccess):
 #                         update_db_dict['inc__version__2'] = 1
                         update_db_dict['inc__version__0'] = 1
 #                         #logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-                elif field_name == 'sample_list':
+                elif field_name == 'entity_set':
                     if len(field_val) > 0:
                         #was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
-                        update_db_dict['set__sample_list'] = file_updates['sample_list']
+                        update_db_dict['set__sample_list'] = file_updates['entity_set']
                         update_db_dict['inc__version__1'] = 1
                         update_db_dict['inc__version__0'] = 1
                         #logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
@@ -1019,10 +1019,10 @@ class FileDataAccess(DataAccess):
                         update_db_dict['inc__version__2'] = 1
                         update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-                elif field_name == 'sample_list':
+                elif field_name == 'entity_set':
                     if len(field_val) > 0:
                         was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
-                        update_db_dict['set__sample_list'] = submitted_file.sample_list
+                        update_db_dict['set__sample_list'] = submitted_file.entity_set
                         update_db_dict['inc__version__1'] = 1
                         update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
@@ -1355,10 +1355,10 @@ class FileDataAccess(DataAccess):
     @classmethod
     def delete_sample(cls, sample_id, file_id, file_obj=None):
         if not file_obj:
-            file_obj = cls.retrieve_SFile_fields_only(file_id, ['sample_list', 'version'])
+            file_obj = cls.retrieve_SFile_fields_only(file_id, ['entity_set', 'version'])
         new_list = []
         found = False
-        for sample in file_obj.sample_list:
+        for sample in file_obj.entity_set:
             if sample.internal_id != int(sample_id):
                 new_list.append(sample)
             else:

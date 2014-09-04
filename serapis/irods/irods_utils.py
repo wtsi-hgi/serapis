@@ -248,6 +248,18 @@ class iRODSChecksumOperations(iRODSOperations):
 
 #################### FILE METADATA FROM IRODS ##############################
 
+class iRODSMetadataQueryOperations(iRODSOperations):
+    
+    @staticmethod
+    def query_by_metadata_attribute(zone, attribute, value, operator="="):
+        cmd = ["imeta", "qu", "-z", zone,"-d", attribute, operator, value]
+        child_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            raise exceptions.iMetaException(err, out, cmd)
+        return out
+        
+
 class iRODSMetadataOperations(iRODSOperations):
     
     @staticmethod
@@ -423,8 +435,30 @@ class iRODSiMetaOutputProcessing(iRODSiCommandsOutputProcessing):
         return tuple_list
 
     
+class iRODSiMetaQueryOutputProcessing(iRODSiCommandsOutputProcessing):
     
-    # FileListing = namedtuple('FileListing', ['owner', 'replica_id', 'resc_name','size', 'timestamp', 'is_paired', 'fname'])
+    @staticmethod
+    def convert_imeta_qu_to_list(imeta_qu_output):
+        ''' This method converts an output like: collection: /seq/123\n, dataObj: 123.bam to
+            a list of irods files paths and returns this list.
+        '''
+        file_paths = []
+        lines = imeta_qu_output.split('\n')
+        lines_iter = iter(lines)
+        for line in lines_iter:
+            if line.startswith('collection'):
+                coll = line.split(" ")[1]                   # splitting this: collection: /seq/13240
+                fname = next(lines_iter).split(" ")[1]      # splitting this: dataObj: 13173_1#0.bam
+                _ = next(lines_iter)    # skipping the --- line
+                file_paths.append(os.path.join(coll, fname))
+        return file_paths
+
+    
+    @staticmethod
+    def filter_files_list(file_paths):
+        ''' This method is filtering the list of file paths by eliminating the phix data and #0 files.'''
+        return [fpath for fpath in file_paths if fpath.find("#0.bam") == -1 and fpath.find("phix.bam")==-1]
+        
 
 
 class iRODSIlsOutputProcessing():

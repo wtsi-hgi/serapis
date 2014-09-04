@@ -159,7 +159,7 @@ def check_update_file_obj_if_has_min_mdata(file_to_submit):
         has_min_mdata = False
     
     # Check if it has samples:
-    if len(file_to_submit.sample_list) == 0:
+    if len(file_to_submit.entity_set) == 0:
         __add_missing_field_to_dict__('no sample', file_to_submit.id, constants.SAMPLE_TYPE, file_to_submit.missing_mandatory_fields_dict)
         has_min_mdata = False
     else:
@@ -177,7 +177,7 @@ def check_update_file_obj_if_has_min_mdata(file_to_submit):
         if check_if_study_has_minimal_mdata(study, file_to_submit) == False:
             #print "NOT ENOUGH STUDY MDATA............................."
             has_min_mdata = False
-    for sample in file_to_submit.sample_list:
+    for sample in file_to_submit.entity_set:
         if check_if_sample_has_minimal_mdata(sample, file_to_submit) == False:
             #print "NOT ENOUGH SAMPLE MDATA............................."
             has_min_mdata = False
@@ -240,7 +240,7 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
             logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
             upd_dict['set__has_minimal'] = True
             upd_dict['set__library_list'] = file_to_submit.library_list
-            upd_dict['set__sample_list'] = file_to_submit.sample_list
+            upd_dict['set__sample_list'] = file_to_submit.entity_set
             upd_dict['set__study_list'] = file_to_submit.study_list
             upd_dict['set__missing_mandatory_fields_dict'] = file_to_submit.missing_mandatory_fields_dict
             upd_dict['set__file_mdata_status'] = constants.HAS_MINIMAL_MDATA_STATUS

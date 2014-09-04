@@ -203,8 +203,8 @@ class TestSubmittedFileWorker(unittest.TestCase):
     
     
     def test_add_or_update_eq_fct_samples(self):
-        self.subfile.sample_list = []
-        self.subfile.sample_list.append(self.sample)
+        self.subfile.entity_set = []
+        self.subfile.entity_set.append(self.sample)
         
         sample2 = entities.Sample()
         sample2.internal_id = 123
@@ -225,7 +225,7 @@ class TestSubmittedFileWorker(unittest.TestCase):
         
         #  self.assertTrue(self.subfile.contains_sample(sample2))
         self.subfile.add_or_update_sample(sample2)
-        self.assertEqual(len(self.subfile.sample_list), 1)
+        self.assertEqual(len(self.subfile.entity_set), 1)
         #  self.assertTrue(self.subfile.contains_sample(sample2))
         
         sam3 = entities.Sample()
@@ -283,7 +283,7 @@ class TestSubmittedFileWorker(unittest.TestCase):
             self.assertEqual(l.public_name, lib.public_name)
             
         self.subfile.add_or_update_sample(sample)
-        for s in self.subfile.sample_list:
+        for s in self.subfile.entity_set:
             self.assertEqual(s.geographical_region, sample.geographical_region)
         
         
@@ -295,8 +295,8 @@ class TestSubmittedFileWorker(unittest.TestCase):
 #        self.subfile.library_list.append(self.lib)
 #        self.assertEqual(len(self.subfile.library_list), 1)
 #        
-#        self.subfile.sample_list.append(self.sample)
-#        self.assertEqual(len(self.subfile.sample_list), 1)
+#        self.subfile.entity_set.append(self.sample)
+#        self.assertEqual(len(self.subfile.entity_set), 1)
 #        
 #        has_min = self.subfile.check_if_has_minimal_mdata()
 #        is_complete = self.subfile.check_if_complete_mdata()
@@ -325,7 +325,7 @@ class TestSubmittedFileWorker(unittest.TestCase):
 #        otherSample.accession_number = "ACCNr456"
 #        
 #        self.subfile.library_list.append(self.lib)
-#        self.subfile.sample_list.append(self.sample)
+#        self.subfile.entity_set.append(self.sample)
 #        
 #        contains_lib = self.subfile.contains_lib(lib.name)
 #        self.assertTrue(contains_lib)
@@ -505,17 +505,17 @@ class TestRequests(unittest.TestCase):
         
         
         db_file = controller.get_submitted_file(self.file_id)
-        print "1. DB FILE: ", [s.name for s in db_file.sample_list]
-        #print "SAMPLES LIST: ", db_file.sample_list
+        print "1. DB FILE: ", [s.name for s in db_file.entity_set]
+        #print "SAMPLES LIST: ", db_file.entity_set
         
         import time
         time.sleep(10)
         db_file = controller.get_submitted_file(self.file_id)
-        print "2. DB FILE: ", [s.name for s in db_file.sample_list]
+        print "2. DB FILE: ", [s.name for s in db_file.entity_set]
         
         #if db_file.file_upload_job_status == SUCCESS_STATUS:
-        self.assertEqual(len(db_file.sample_list), 1)
-        self.assertIsNotNone(db_file.sample_list[0].internal_id)
+        self.assertEqual(len(db_file.entity_set), 1)
+        self.assertIsNotNone(db_file.entity_set[0].internal_id)
 #        else:
 #            print "UPLOAD NOT FINISHED YET!!!!", vars(db_file)
         
@@ -529,7 +529,7 @@ class TestRequests(unittest.TestCase):
 #        
 #        # Test what is actually in DB:
         db_file = controller.get_submitted_file(self.file_id)
-        self.assertEqual(len(db_file.sample_list), 2)
+        self.assertEqual(len(db_file.entity_set), 2)
 #        
     
     #def test_RE_POST_sample(self):

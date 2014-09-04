@@ -233,7 +233,7 @@ class SubmittedFileModel(SerapisModel):
         # Nested:
         dest_file.study_list = [ StudyModel.build_from_db_model(a) for a in src_file.study_list]
         dest_file.library_list = [ LibraryModel.build_from_db_model(a) for a in src_file.library_list]
-        dest_file.sample_list = [SampleModel.build_from_db_model(a) for a in src_file.sample_list]
+        dest_file.entity_set = [SampleModel.build_from_db_model(a) for a in src_file.entity_set]
         dest_file.abstract_library = AbstractLibraryModel.build_from_db_model(src_file.abstract_library)
         dest_file.index_file = IndexFileModel.build_from_db_model(src_file.index_file)
         return dest_file

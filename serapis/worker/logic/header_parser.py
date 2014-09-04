@@ -33,7 +33,7 @@ from collections import defaultdict, namedtuple
 from serapis.com import constants, utils
 
 
-class MetadataHandling(object):
+class IdentifierHandling(object):
 
     @classmethod
     def guess_library_identifier_type(cls, identifier):
@@ -129,12 +129,12 @@ class BAMHeaderParser(HeaderParser):
     
     
     @classmethod
-    def group_header_entries_by_type(cls, header_json):
+    def group_header_entries_by_type(cls, header_as_dict):
         ''' Gets the header and extracts from it a list of libraries, a list of samples, etc. 
             Example of output: {'LB': ['5507617'], 'CN': ['SC'], 'PU': ['120910_HS11_08408_B_C0PNFACXX_6#71', '120731_HS25_08213_B_C0N8CACXX_2#71'...}.
         '''
         dictionary = defaultdict(set)
-        for map_json in header_json:
+        for map_json in header_as_dict:
             for k,v in map_json.items():
                 dictionary[k].add(v)
         back_to_list = {}

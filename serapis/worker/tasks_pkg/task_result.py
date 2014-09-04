@@ -1,17 +1,57 @@
 
 import simplejson
 from serapis.com import constants
-from serapis.worker.utils.json_utils import SimpleEncoder, SerapisJSONEncoder
-
+from serapis.worker.utils.json_utils import SerapisJSONEncoder, deserialize 
 
 
 class TaskResult(object):
+    ''' This class contains ONLY the information regarding what a task resulted in.
+        Success or failure do not count as result, but they are task statuses, and not results.
+    '''
+    pass
+    
+class ErrorTaskResult(TaskResult):
+    
+    def __init__(self, error):
+        self.error = error
+        
+
+class UploadFileTaskResult(TaskResult):
+    
+    def __init__(self, done):
+        self.done = done
+    
+
+class CalculateMD5TaskResult(TaskResult):
+    
+    def __init__(self, md5):
+        self.md5 = md5
+        
+        
+class HeaderParserTaskResult(TaskResult):
+    ''' 
+        This type of message keeps a header in it and nothing else.
+        The header field is something like BAMHeader or VCFHeader.
+    '''
+    def __init__(self, header):
+        self.header = header
+        
+
+class SeqscapeQueryTaskResult(TaskResult):
+    
+    def __init__(self, query_result):
+        self.query_result = query_result
+        
+        
+
+
+class TaskResult1(object):
     
     def __init__(self, task_id, result, status, errors=None):
-        self.task_id = task_id
-        self.status = status
+#         self.task_id = task_id
+#         self.status = status
         self.result = result
-        self.errors = errors
+#        self.errors = errors
     
     def __remove_none_values_from_dict(self, unfiltered_dict):
         filtered_dict = dict()
@@ -43,6 +83,15 @@ class TaskResult(object):
         return result
         #return SimpleEncoder().encode(self)
     
+    @staticmethod
+    def from_json(json_repr):
+        result = deserialize(json_repr)
+        task_result = TaskResult()
+        for k,v, in result:
+            setattr(task_result, k, v)
+        return task_result
+        
+        
     def __str__(self):
         str_repr = "TASK ID="+self.task_id+" TASK STATUS="+self.status+" "
         if self.result:
@@ -62,20 +111,30 @@ class TaskResult(object):
         
 
 class SuccessTaskResult(TaskResult):
-    
+     
     def __init__(self, task_id, result=None):
         super(SuccessTaskResult, self).__init__(task_id=task_id, result=result, status=constants.SUCCESS_STATUS)
-
+ 
     def clear_nones(self):
         super(SuccessTaskResult, self).clear_nones()
-        
-        
-        
+         
+         
+         
 class FailedTaskResult(TaskResult):
-    
+     
     def __init__(self, task_id, errors):
         super(FailedTaskResult, self).__init__(task_id=task_id, result=None, status=constants.FAILURE_STATUS, errors=errors)
-        
+         
     def clear_nones(self):
         super(FailedTaskResult, self).clear_nones()
+
+
+
+
+
+
+
+
+
+
 

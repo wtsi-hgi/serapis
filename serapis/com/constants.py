@@ -80,6 +80,7 @@ UPLOAD_Q = "UploadQ"
 # Note: maybe in the future will separate the AddMdata from this general mdata queue
 PROCESS_MDATA_Q = "ProcessMdataQ"
 
+
 # Index files queue:
 INDEX_UPLOAD_Q = "IndexUploadQ"
 
@@ -143,6 +144,7 @@ UPDATE_MDATA_TASK = "UPDATE_MDATA_TASK"
 CALC_MD5_TASK     = "CALC_MD5_TASK"
 UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
 TEST_FILE_TASK    = "TEST_FILE_TASK"
+SEQSC_QUERY_TASK  = "SEQSCAPE_QUERY_TASK"
 #
 ## iRODS tasks:
 
@@ -617,6 +619,8 @@ BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
 
 
 # ------------------- WORKER - specific constants (for tasks) ----------------
+HOMO_SAPIENS = 'Homo Sapiens'
+
 MAX_STRING_DISIMILARITY_RATIO = 0.25
 
 ENTITY_META_FIELDS  = ['is_complete', 'has_minimal', 'last_updates_source']
@@ -632,8 +636,8 @@ STUDY_NORMALIZATION_MAP = {'study_type' : STUDY_TYPES,
                            'study_visibility' : STUDY_VISIBILITY,
                            }
 
-SAMPLE_NORMALIZATION_MAP = {'common_name' : 'Homo Sapiens',
-                            'organism' : 'Homo Sapiens'
+SAMPLE_NORMALIZATION_MAP = {'common_name' : HOMO_SAPIENS,
+                            'organism' : HOMO_SAPIENS
                             }
 
 SEQSC_FIELDS = {'organism' : ['Homo sapiens', 'human']

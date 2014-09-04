@@ -284,7 +284,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
-    sample_list = ListField(EmbeddedDocumentField(Sample))
+    entity_set = ListField(EmbeddedDocumentField(Sample))
     library_list = ListField(EmbeddedDocumentField(Library))
     
     
@@ -425,7 +425,7 @@ class Submission(DynamicDocument, SerapisModel):
     irods_collection = StringField()
     
     # Flag - true if the data is/has been uploaded as serapis user, false if the user uploaded as himself
-    upload_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
+    is_uploaded_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
     
     # Internal field -- keeping the version of the submission -- changes only if the submission-related fields change, not with every file!!!
     version = IntField(default=0)
@@ -447,7 +447,7 @@ class Submission(DynamicDocument, SerapisModel):
         return [
                 #'id', -- to decomment for production
                 #'files_list',
-                'upload_as_serapis',
+                'is_uploaded_as_serapis',
                 'version',
                 
                 ]

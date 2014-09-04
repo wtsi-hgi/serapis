@@ -32,7 +32,7 @@ from serapis.com import constants
 from serapis.worker import tasks
 from serapis.worker.logic import entities
 from serapis.seqscape import data_access
-from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, MetadataHandling
+from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader, IdentifierHandling
 
 
 class TestVCFHeaderParser(unittest.TestCase):
@@ -70,7 +70,7 @@ class TestVCFHeaderParser(unittest.TestCase):
         sample_list = ['EGAN00001089419', 'EGAN00001094533', 'EGAN00001094534', 'EGAN00001097231', 'EGAN00001097232']
         expected_result = [ ('accession_number', 'EGAN00001089419'), ('accession_number', 'EGAN00001094533'), ('accession_number', 'EGAN00001094534'),
                             ('accession_number', 'EGAN00001097231'), ('accession_number', 'EGAN00001097232')]
-        result_sample_list = MetadataHandling.guess_all_identifiers_type(sample_list, constants.SAMPLE_TYPE)
+        result_sample_list = IdentifierHandling.guess_all_identifiers_type(sample_list, constants.SAMPLE_TYPE)
         print "RESULT SAMPLE LIST: ", result_sample_list
         assert_that(result_sample_list, contains_inanyorder(*expected_result))
 
@@ -79,7 +79,7 @@ class TestVCFHeaderParser(unittest.TestCase):
         access_seqsc.fetch_and_process_samples(result_sample_list, vcf_file)
         
         
-        for sample in vcf_file.sample_list:
+        for sample in vcf_file.entity_set:
             if sample.accession_number == 'EGAN00001089419':
                 self.assertEqual(sample.internal_id, 1504427)
                 self.assertEqual(sample.name,'SC_PSC5414004')
@@ -178,33 +178,33 @@ class TestBAMHeaderParser(unittest.TestCase):
 #        
     def test_guess_sample_identifier_type(self):
         identif = 'EGAN00001033157'
-        identif_name = MetadataHandling.guess_sample_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_sample_identifier_type(identif)
         self.assertEqual(identif_name, 'accession_number')
     
         identif = 808346
-        identif_name = MetadataHandling.guess_sample_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_sample_identifier_type(identif)
         self.assertEqual(identif_name, 'internal_id')
         
         identif = '808346'
-        identif_name = MetadataHandling.guess_sample_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_sample_identifier_type(identif)
         self.assertEqual(identif_name, 'internal_id')
         
         identif = '2294STDY5395187'
-        identif_name = MetadataHandling.guess_sample_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_sample_identifier_type(identif)
         self.assertEqual(identif_name, 'name')
         
         identif = 'VBSEQ5231029'
-        identif_name = MetadataHandling.guess_sample_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_sample_identifier_type(identif)
         self.assertEqual(identif_name, 'name')
         
     
     def test_guess_library_identifier_type(self):
         identif = '3656641'
-        identif_name = MetadataHandling.guess_library_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_library_identifier_type(identif)
         self.assertEqual(identif_name, 'internal_id')
         
         identif = 'bcX98J21 1'
-        identif_name = MetadataHandling.guess_library_identifier_type(identif)
+        identif_name = IdentifierHandling.guess_library_identifier_type(identif)
         assert_that(identif_name, equal_to('name'))
         #self.assertEqual(identif_name, 'name')
         
@@ -271,7 +271,7 @@ class TestBAMHeaderParser(unittest.TestCase):
         fpath = os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam') 
         #"/home/ic4/media-tmp2/users/ic4/bams/crohns/WTCCC113699.bam"
         header = BAMHeaderParser.parse_header(fpath)
-        assert_that(header, hasattr(header, 'sample_list'))
+        assert_that(header, hasattr(header, 'entity_set'))
         assert_that(header, hasattr(header, 'library_list'))
         assert_that(header, hasattr(header, 'seq_centers'))
         assert_that(header, hasattr(header, 'seq_date_list'))
@@ -282,7 +282,7 @@ class TestBAMHeaderParser(unittest.TestCase):
         fpath = os.path.join(configs.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306042.bam') 
         #"/home/ic4/media-tmp2/users/ic4/bams/agv-ethiopia/egpg5306042.bam"
         header = BAMHeaderParser.parse_header(fpath)
-        assert_that(header, hasattr(header, 'sample_list'))
+        assert_that(header, hasattr(header, 'entity_set'))
         assert_that(header, hasattr(header, 'library_list'))
         assert_that(header, hasattr(header, 'seq_centers'))
         assert_that(header, hasattr(header, 'seq_date_list'))
@@ -290,13 +290,13 @@ class TestBAMHeaderParser(unittest.TestCase):
         assert_that(header, hasattr(header, 'run_ids_list'))
         
         assert_that(header.platform_list, instance_of(list))
-        assert_that(header.sample_list, instance_of(list))
+        assert_that(header.entity_set, instance_of(list))
         assert_that(header.library_list, instance_of(list))
         assert_that(header.seq_centers, instance_of(list))
         assert_that(header.seq_date_list, instance_of(list))
         
         assert_that(header.platform_list, has_length(1))
-        assert_that(header.sample_list, has_length(1))
+        assert_that(header.entity_set, has_length(1))
         assert_that(header.library_list, has_length(1))
         assert_that(header.seq_centers, has_length(1))
         assert_that(header.seq_date_list, has_length(3))
@@ -306,7 +306,7 @@ class TestBAMHeaderParser(unittest.TestCase):
 #                'run_ids_list' : run_ids_list,
 #                'platform_list' : platform_list,
 #                'library_list' : libs_list,
-#                'sample_list' : samples_list
+#                'entity_set' : samples_list
 #                } 
 
 
