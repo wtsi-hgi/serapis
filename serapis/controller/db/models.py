@@ -425,7 +425,7 @@ class Submission(DynamicDocument, SerapisModel):
     irods_collection = StringField()
     
     # Flag - true if the data is/has been uploaded as serapis user, false if the user uploaded as himself
-    is_uploaded_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
+    _is_uploaded_as_serapis = BooleanField(default=True)  # Flag saying if the user wants to upload the files as himself(his queues) or as serapis
     
     # Internal field -- keeping the version of the submission -- changes only if the submission-related fields change, not with every file!!!
     version = IntField(default=0)
@@ -447,7 +447,7 @@ class Submission(DynamicDocument, SerapisModel):
         return [
                 #'id', -- to decomment for production
                 #'files_list',
-                'is_uploaded_as_serapis',
+                '_is_uploaded_as_serapis',
                 'version',
                 
                 ]

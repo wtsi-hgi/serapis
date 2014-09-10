@@ -68,7 +68,7 @@ class SubmissionDataAccess(DataAccess):
                 if not utils.is_hgi_project(field_val):
                     raise ValueError("This project name is not according to HGI_project rules -- "+str(constants.REGEX_HGI_PROJECT))
                 update_db_dict['set__hgi_project'] = field_val
-            elif field_name == 'is_uploaded_as_serapis' and field_val != None:
+            elif field_name == '_is_uploaded_as_serapis' and field_val != None:
                 update_db_dict['set__upload_as_serapis'] = field_val
             # File-related metadata:
             elif field_name == 'data_subtype_tags':
@@ -196,7 +196,7 @@ class SubmissionDataAccess(DataAccess):
     def retrieve_submission_upload_as_serapis_flag(cls, submission_id):
         if not submission_id:
             return None
-        return models.Submission.objects(id=ObjectId(submission_id)).only('is_uploaded_as_serapis').get().is_uploaded_as_serapis
+        return models.Submission.objects(id=ObjectId(submission_id)).only('_is_uploaded_as_serapis').get()._is_uploaded_as_serapis
 
     @classmethod
     def retrieve_only_submission_fields(cls, submission_id, fields_list):

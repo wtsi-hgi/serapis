@@ -22,7 +22,7 @@ class GeneralContext(object):
     ''' This type is used as a data container to pass over 
         the information taken from the request: parameters and request body.'''
     def __init__(self, user_id, request_data=None):
-        self.user_id = user_id
+        self.submitter_user_id = user_id
         self.request_data = request_data
 
         
@@ -567,7 +567,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         if 'library_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.library_list, context.request_data['library_list']) == True: 
             logging.debug("Has new libraries!")
             has_new_entities = True
-        elif 'sample_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.sample_list, context.request_data['sample_list']) == True:
+        elif 'entity_set' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.entity_set, context.request_data['entity_set']) == True:
             logging.debug("Has new samples!")
             has_new_entities = True
         elif 'study_list' in context.request_data and file_logic.file_data_access.check_if_list_has_new_entities(file_to_update.study_list, context.request_data['study_list']) == True:

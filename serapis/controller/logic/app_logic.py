@@ -92,8 +92,8 @@ class SubmissionBusinessLogic(BusinessLogic):
         # TODO: split this fct in 2 diff ones:
         # Submit jobs for the file:
         for file_obj in files_to_subm_list:
-            tasks_dict = self.file_logic.batch_tasks_launcher.submit_initial_tasks(file_obj, submission.sanger_user_id, submission.is_uploaded_as_serapis)
-            status = constants.PENDING_ON_WORKER_STATUS if submission.is_uploaded_as_serapis else constants.PENDING_ON_USER_STATUS
+            tasks_dict = self.file_logic.batch_tasks_launcher.submit_initial_tasks(file_obj, submission.sanger_user_id, submission._is_uploaded_as_serapis)
+            status = constants.PENDING_ON_WORKER_STATUS if submission._is_uploaded_as_serapis else constants.PENDING_ON_USER_STATUS
             self.file_logic.after_tasks_submission(file_obj.id, constants.PRESUBMISSION_TASKS, tasks_dict, status)
         return True
     
@@ -119,8 +119,8 @@ class FileBusinessLogic:
     
     
     @classmethod
-    def _decide_file_presubmission_status(cls, is_uploaded_as_serapis):
-        if is_uploaded_as_serapis:
+    def _decide_file_presubmission_status(cls, _is_uploaded_as_serapis):
+        if _is_uploaded_as_serapis:
             return constants.PENDING_ON_WORKER_STATUS
         return constants.PENDING_ON_USER_STATUS
     
@@ -160,9 +160,9 @@ class FileBusinessLogic:
         resubm_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks(tasks_to_resubmit, 
                                                                           file_obj, 
                                                                           user_id=submission.sanger_user_id, 
-                                                                          as_serapis=submission.is_uploaded_as_serapis)
+                                                                          as_serapis=submission._is_uploaded_as_serapis)
         file_obj.tasks_dict.update(resubm_tasks_dict)
-        file_status = cls._decide_file_presubmission_status(submission.is_uploaded_as_serapis)
+        file_status = cls._decide_file_presubmission_status(submission._is_uploaded_as_serapis)
         cls.after_tasks_submission(file_obj.id, tasks_to_resubmit, file_obj.tasks_dict, file_status)
         return models.Result(True)
         
@@ -208,9 +208,9 @@ class FileBusinessLogic:
             submitted_tasks_dict = cls.batch_tasks_launcher.submit_list_of_tasks(list_of_tasks, 
                                                                               file_obj,
                                                                               user_id=submission.sanger_user_id, 
-                                                                              as_serapis=submission.is_uploaded_as_serapis)
+                                                                              as_serapis=submission._is_uploaded_as_serapis)
             file_obj.tasks_dict.update(submitted_tasks_dict)
-            file_status = cls._decide_file_presubmission_status(submission.is_uploaded_as_serapis)
+            file_status = cls._decide_file_presubmission_status(submission._is_uploaded_as_serapis)
             cls.after_tasks_submission(file_obj.id, list_of_tasks, file_obj.tasks_dict, file_status)
             return True
         return False

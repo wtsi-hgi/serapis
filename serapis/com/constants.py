@@ -190,6 +190,8 @@ MAX_DBUPDATE_RETRIES = 5
 # HEADER constants:
 # PU header:
 REGEX_PU_1                  = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
+REGEX_COVERAGE              = '[0-9]{1,3}x'
+REGEX_USER_ID               = '[a-z]{2,3}[0-9]{0,2}'
 REGEX_HGI_PROJECT           = "[a-zA-Z0-9_-]{3,17}" 
 REGEX_HGI_PROJECT_PATH      = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*"
 REGEX_IRODS_PROJECT_PATH    = "/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/"
@@ -234,7 +236,11 @@ SAMPLE_OPTIONAL_FIELDS = {'country_of_origin', 'ethnicity', 'gender', 'cohort', 
 #########################################################
 # ----------------- DATA TYPES --------------------------
 
-DATA_TYPES = ('single-sample-merged-improved', 'variation-sets')
+SINGLE_SAMPLE_MERGED_IMPROVED = 'single-sample-merged-improved'
+VARIATION_SETS =  'variation-sets'
+SIMULATION_DATA = 'simulation-data'
+DATA_TYPES = {SINGLE_SAMPLE_MERGED_IMPROVED, VARIATION_SETS, SIMULATION_DATA}
+DNA_DATA = {SINGLE_SAMPLE_MERGED_IMPROVED, VARIATION_SETS}
 
 #########################################################
 # ----------------- FILE TYPES --------------------------
@@ -313,6 +319,7 @@ NOT_ENOUGH_METADATA_STATUS  = "NOT_ENOUGH_METADATA"
 #SUBMITTED_TO_IRODS_STATUS = "SUBMITTED_TO_IRODS"
 
 # SUBMISSION STATUSES:
+SUBMISSION_INITIALIZED                  = "SUBMISSION_INITIALIZED"
 SUCCESS_SUBMISSION_TO_IRODS_STATUS      = "SUCCESS_SUBMISSION_TO_IRODS"
 FAILURE_SUBMISSION_TO_IRODS_STATUS      = "FAILURE_SUBMISSION_TO_IRODS"
 INCOMPLETE_SUBMISSION_TO_IRODS_STATUS   = "INCOMPLETE_SUBMISSION_TO_IRODS"
@@ -553,8 +560,9 @@ STUDY_VISIBILITY = {"Hold",
 
 
 ################### LIBRARY - specific fields ####################
+GENOMIC = 'GENOMIC'
 
-LIBRARY_SOURCES = { "GENOMIC" : "(Genomic DNA (includes PCR products from genomic DNA))",
+LIBRARY_SOURCES = { GENOMIC : "(Genomic DNA (includes PCR products from genomic DNA))",
                     "TRANSCRIPTOMIC" : "(Transcription products or non genomic DNA (EST, cDNA, RT-PCR, screened libraries))",
                     "METAGENOMIC" : "(Mixed material from metagenome)",
                     "METATRANSCRIPTOMIC" : "(Transcription products from community targets)",
@@ -616,7 +624,34 @@ BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
                                 "MS" : "Illumina MiSeq",
                                 "IL" : "Illumina",
                                }
-
+ALL_REGIONS = "all_regions"
+CHROM1 = "CHROM1"
+CHROM2 = "CHROM2"
+CHROM3 = "CHROM3"
+CHROM4 = "CHROM4"
+CHROM5 = "CHROM5"
+CHROM6 = "CHROM6"
+CHROM7 = "CHROM7"
+CHROM8 = "CHROM8"
+CHROM9 = "CHROM9"
+CHROM10 = "CHROM10"
+CHROM11 = "CHROM11"
+CHROM12 = "CHROM12"
+CHROM13 = "CHROM13"
+CHROM14 = "CHROM14"
+CHROM15 = "CHROM15"
+CHROM16 = "CHROM16"
+CHROM17 = "CHROM17"
+CHROM18 = "CHROM18"
+CHROM19 = "CHROM19"
+CHROM20 = "CHROM20"
+CHROM21 = "CHROM21"
+CHROM22 = "CHROM22"
+CHROMX = "CHROMX"
+CHROMY = "CHROMY"
+GENOMIC_REGIONS = { ALL_REGIONS, CHROM1, CHROM2, CHROM3, CHROM4, CHROM5, CHROM6, CHROM7, CHROM8, CHROM9, CHROM10, CHROM11, CHROM12, 
+                   CHROM13, CHROM14, CHROM15, CHROM16, CHROM17, CHROM18, CHROM19, CHROM20, CHROM21, CHROM22, CHROMX, CHROMY                  
+                   }
 
 # ------------------- WORKER - specific constants (for tasks) ----------------
 HOMO_SAPIENS = 'Homo Sapiens'

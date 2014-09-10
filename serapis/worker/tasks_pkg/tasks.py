@@ -105,7 +105,7 @@ class SerapisTask(Task):
         
         
     def report_result(self, url, task_result):
-        task_result.clear_nones()
+        #task_result.clear_nones()
         result_serial = task_result.to_json()
         HTTPRequestHandler.send_request(url, result_serial)
         
@@ -166,7 +166,8 @@ class UploadFileTask(iRODSTask):
     # WORKING TEST_VERSION, does not upload to irods, just skips
     def run(self, *args, **kwargs):
         print "I GOT INTO THE TASSSSSSSSSK!!!"
-
+        print "ARGS of the task: "+str(args)
+        
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
         if index_fpath_irods and DataObjectUtilityFunctions.exists_in_irods(index_fpath_irods):
@@ -179,14 +180,16 @@ class UploadFileTask(iRODSTask):
     # Currently in PROD:
     # Run using Popen and communicate() - 18.10.2013
     def run_using_popen(self, *args, **kwargs):
+        ''' Uploads a file. Receives as parameter a UploaderServiceArgsMsg.'''
+        
         current_task.update_state(state=constants.RUNNING_STATUS)
 #         src_fpath               = kwargs['src_fpath']
 #         dest_fpath_irods        = kwargs['dest_fpath_irods']
 #         
 #         src_idx_fpath           = kwargs['src_idx_fpath'] if 'src_idx_fpath' in kwargs else None
 #         dest_idx_path_irods     = kwargs['dest_idx_path_irods'] if 'dest_idx_path_irods' in kwargs else None
-        task_args = 
-        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", dest_fpath_irods
+        
+        print "Hello world, this is my UPLOAD task starting!!!!!!!!!!!!!!!!!!!!!! DEST PATH: ", args.dest_fpath_irods
         
         
         # This does not belong here! Should be another task to do this!        
@@ -204,18 +207,18 @@ class UploadFileTask(iRODSTask):
         
         # Upload file - throws: iPut exception if anything happens
         try:
-            iRODSModifyOperations.upload_irods_file(src_fpath, dest_fpath_irods)
+            iRODSModifyOperations.upload_irods_file(args.src_fpath, args.dest_fpath_irods)
             
             # Upload index:
-            if src_idx_fpath:
-                iRODSModifyOperations.upload_irods_file(src_idx_fpath, dest_idx_path_irods)
+            if args.src_idx_fpath:
+                iRODSModifyOperations.upload_irods_file(args.src_idx_fpath, args.dest_idx_path_irods)
         except irods_excep.iRODSOverwriteWithoutForceFlagException as e:
             raise irods_excep.iRODSDataObjectAlreadyExisting(error=e.error, output=e.output, cmd=e.cmd)
             
             
         # Run som tests on the uploaded files:
-        file_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(dest_fpath_irods)
-        index_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(dest_idx_path_irods)
+        file_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(args.dest_fpath_irods)
+        index_tests_report = data_tests.FileTestSuiteRunner.run_tests_after_upload_on_file(args.dest_idx_path_irods)
         
         failed = False
         if not data_tests.FileTestsUtils.check_all_passed(file_tests_report):
@@ -231,10 +234,10 @@ class UploadFileTask(iRODSTask):
             raise Exception(err)
 
     
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        dest_fpath_irods        = kwargs['dest_fpath_irods']
-        dest_idx_path_irods     = kwargs['dest_idx_path_irods']
-        url_result = kwargs['url_result']
+    def on_failure1(self, exc, task_id, args, kwargs, einfo):
+#         dest_fpath_irods        = kwargs['dest_fpath_irods']
+#         dest_idx_path_irods     = kwargs['dest_idx_path_irods']
+#         url_result = kwargs['url_result']
          
         print "ON FAILURE EXECUTED----------------------------irm file...", str(exc)
         errors_list = []
@@ -255,22 +258,35 @@ class UploadFileTask(iRODSTask):
 #         fpath_irods = assemble_new_irods_fpath(file_path, irods_coll)
         if not isinstance(exc, irods_excep.iRODSOverwriteWithoutForceFlagException):
             try:
-                self.rollback(dest_fpath_irods, dest_idx_path_irods)
+                self.rollback(args.dest_fpath_irods, args.dest_idx_path_irods)
             except Exception as e:
                 now = com_utils.get_date_and_time_now()
                 exc = now+': '+str(e)
                 errors_list.append(str(exc))
  
         # SEND RESULT BACK:
-        task_result = FailedTaskResult(task_id=task_id, errors=errors_list)
-        self.report_result(url_result, task_result)
+        #task_result = FailedTaskResult(task_id=task_id, errors=errors_list)
+        task_result = UploadFileTaskResult(done=False)
+        message = remote_messages.UploaderServiceResultMsg(self.get_current_task_id(), constants.FAILURE_STATUS, task_result)
+        self.report_result(args.url_result, message)
+
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        task_result = UploadFileTaskResult(done=False)
+        message = remote_messages.UploaderServiceResultMsg(self.get_current_task_id(), constants.FAILURE_STATUS, task_result)
+        self.report_result(args.url_result, message)
+        
+        
+# This was working before the refactoring:
+#     def on_success(self, retval, task_id, args, kwargs):
+#         return super(UploadFileTask, self).on_success(retval, task_id, args, kwargs)
 
 
     def on_success(self, retval, task_id, args, kwargs):
-        return super(UploadFileTask, self).on_success(retval, task_id, args, kwargs)
-
-
-#     def on_success(self, retval, task_id, args, kwargs):
+        task_result = UploadFileTaskResult(done=True)
+        message = remote_messages.UploaderServiceResultMsg(self.get_current_task_id(), constants.SUCCESS_STATUS, task_result)
+        self.report_result(args.url_result, message)
+            
 #         url_result = kwargs['url_result']
 #         task_result = SuccessTaskResult(task_id=self.get_current_task_id(), result=retval)
 #         self.report_result(url_result, task_result)
