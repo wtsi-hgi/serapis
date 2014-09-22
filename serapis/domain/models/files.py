@@ -5,63 +5,27 @@ import sets
 
 from Celery_Django_Prj import configs
 
-from serapis.worker.tasks_pkg import tasks
 
+import serapis_metadata
+
+from serapis.worker.tasks_pkg import tasks
 from serapis.com import constants, utils
 from serapis.domain import header_processing
-from serapis.domain.models import data
+from serapis.domain.models import data_entities, data
 from serapis.api import api_messages
-from serapis.controller.logic import remote_messages
-from serapis.controller.logic.external_services import UploaderService, BAMHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
+from serapis.external_services import remote_messages
+from serapis.external_services.services import UploaderService, BAMHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
         
 
-class SerapisMetadataForFile(object):
-    
-    def __init__(self, submission_id, db_id=None, file_id=None, uploaded_as_serapis=True):
-        self.db_id = db_id
-        self.file_id = file_id
-        self.submission_id = submission_id
-        self.version = [0,0]
-        self.tasks_dict = {}
-        self.file_tests_run_report = None
-        self.file_tests_status = None
-        self.file_metadata_status = constants.NOT_ENOUGH_METADATA_STATUS
-        self.file_submission_status = constants.SUBMISSION_IN_PREPARATION_STATUS
-        self.file_error_log = []
-        self.uploaded_as_serapis = uploaded_as_serapis
-        
-    def register_task(self, task_id, task_type):
-        self.tasks_dict[task_id] = {'status': constants.PENDING_ON_WORKER_STATUS, 'type': task_type}
-        #save()
-    
-    def update_task_status(self, task_id, status):
-        pass
-    
-    def update_metadata_status(self):
-        pass
-    
-    def update_file_submission_status(self):
-        pass
-    
-    def update_error_log(self):
-        pass
-    
-    def register_tests_report(self):
-        pass
-    
-    def _get_result_url(self):
-        return TaskResultReportingAddress.build_address_for_file(self.file_id, self.submission_id)
-    
-    
 class IndexFile(object):
     
     def __init__(self, fpath):
         self.fpath_client = fpath
         self.md5 = None
 
-# OR SerapisFile
+
 
 class SerapisFileBuilder(object):
     
@@ -85,22 +49,21 @@ class SerapisFileBuilder(object):
         new_file.irods_coll = irods_coll
         
         # Init metadata:
-        new_file.serapis_metadata = SerapisMetadataForFile(submission_id=submission_id)
+        new_file.serapis_metadata = serapis_metadata.SerapisMetadataForFile(submission_id=submission_id)
         
         # Init data:
         if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
-            new_file.data = data.ImprovedSequenceData(params.studies, params.pmid_list, params.security_level, processing=params.processing, 
+            new_file.data = data.ImprovedSequenceData(params.pmid_list, params.security_level, processing=params.processing, 
                                                       coverage_list=params.coverage_list, sorting_order=params.sorting_order, genomic_reg=params.genomic_regions,
                                                       library_strategy=params.library_strategy, library_source=params.library_source, 
                                                       )
         elif params.data_type == constants.VARIATION_SETS:
-            new_file.data = data.VariationData(params.studies, params.pmid_list, params.security_level, processing=params.processing, 
+            new_file.data = data.VariationData(params.pmid_list, params.security_level, processing=params.processing, 
                                                coverage_list=params.coverage_list, params.sorting_order, genomic_regions=params.genomic_regions, 
                                                library_strategy=params.library_strategy, library_source=params.library_source)
         else:
             raise NotImplementedError
         new_file.data_type = params.data_type
-        # TODO: launch new jobs for the studies added to the data
         
         # Init fpath:
         new_file.fpath_client = params.fpath_client
@@ -195,18 +158,27 @@ class SerapisFile(object):
         (_, fname) = os.path.split(self.fpath_client)
         return os.path.join(configs.IRODS_STAGING_AREA, self._get_submission_id(), fname)
             
+    def determine_user_with_file_permissions(self):
+        if self._has_permission_merc():
+            return 'mercury'
+        return self.submitter_user_id
     
-    def _is_uploaded_as_serapis(self):
-        return self.serapis_metadata._is_uploaded_as_serapis
+    def _has_permission_merc(self):
+        return self.serapis_metadata.has_permission_mercury()
     
     # Operations executed remotely (tasks):
-    def upload_to_staging_area(self):
-        dest_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id())
-        src_idx_fpath = self.index_file.fpath_client if hasattr(self, 'index_file') else None
-        dest_idx_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id()) if hasattr(self, 'index_file') else None
+    def upload_to_irods(self, src_fpath, src_idx_fpath, dest_irods_coll):
+        # dest_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id())
+        # src_idx_fpath = self.index_file.fpath_client if hasattr(self, 'index_file') else None
+        #dest_idx_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id()) if hasattr(self, 'index_file') else None
+        fname = utils.get_filename_from_path(src_fpath)
+        idx_fname = utils.get_filename_from_path(src_idx_fpath)
+        dest_fpath = os.path.join(dest_irods_coll, fname)
+        dest_idx_fpath = os.path.join(dest_irods_coll, idx_fname)
         url_result = self._get_result_url()
+        user_with_permissions = self.determine_user_with_file_permissions()
         
-        task_args = UploaderService.prepare_args(url_result, self.fpath_client, dest_fpath, src_idx_fpath, dest_idx_fpath, self.submitter_user_id)
+        task_args = UploaderService.prepare_args(url_result, src_fpath, dest_fpath, src_idx_fpath, dest_idx_fpath, user_with_permissions)
         task_id = UploaderService.call_service(task_args)
         
         self.serapis_metadata.register_task(task_id, constants.UPLOAD_FILE_TASK)
@@ -215,7 +187,9 @@ class SerapisFile(object):
     def calculate_md5(self): # should this be rerun each time I rerun the upload task?
         idx_fpath = self.index_file.fpath_client if self.index_file != None else None
         url_result = self._get_result_url()
-        tasks_args = MD5CalculatorService.prepare_args(self.fpath_client, idx_fpath, url_result, self.submitter_user_id)
+        user_with_permissions = self.determine_user_with_file_permissions()
+        
+        tasks_args = MD5CalculatorService.prepare_args(self.fpath_client, idx_fpath, url_result, user_with_permissions)
         task_id = MD5CalculatorService.call_service(tasks_args)
         self.serapis_metadata.register_task(task_id, constants.CALC_MD5_TASK)
     
@@ -225,6 +199,14 @@ class SerapisFile(object):
         tasks_args = SeqscapeDBQueryService.prepare_args(url_result, entity_type, field_name, field_value)
         task_id = SeqscapeDBQueryService.call_service(tasks_args)
         self.serapis_metadata.register_task(task_id, constants.SEQSC_QUERY_TASK)
+    
+    
+    def remove_inferred_metadata(self):
+        pass
+    
+    def remove_from_irods(self):
+        ''' if possible...'''
+        pass
     
 #     def store_updates(self):
 #         pass
@@ -245,6 +227,9 @@ class SerapisFile(object):
         pass
     
     def move_file_within_irods(self, src_path, dest_path):
+        pass
+
+    def copy_file_within_irods(self, src_path, dest_path):
         pass
     
     # Before attaching the metadata to the staged file:
@@ -288,14 +273,14 @@ class SerapisBAMFileFormat(SerapisFile):
         self.data.run_id_list = header.run_ids_list
         
         for sample_id in header.sample_list:
-            identifier_type = data.Sample.guess_identifier_type(sample_id)
-            sample = data.Sample()
+            identifier_type = data_entities.Sample.guess_identifier_type(sample_id)
+            sample = data_entities.Sample()
             setattr(sample, identifier_type, sample_id)
             self.data.add_sample(sample)
             self.query_seqscape(constants.SAMPLE_TYPE, identifier_type, sample_id)
         for library_id in header.library_list:
-            idenfier_type = data.Library.guess_identifier_type(library_id)
-            library = data.Library()
+            idenfier_type = data_entities.Library.guess_identifier_type(library_id)
+            library = data_entities.Library()
             setattr(library, idenfier_type, library_id)
             self.data.add_library(library)
             self.query_seqscape(constants.LIBRARY_TYPE, identifier_type, library_id)

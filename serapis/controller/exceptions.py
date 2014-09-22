@@ -40,7 +40,33 @@ class SerapisException(Exception):
             text += self.message
         return text
 
+class UnknownTypeOfStorageError(Exception):
+    ''' This exception if thrown when a path that has been given as input 
+        by the user does not appear to be any of the known storage type.
+        i.e. not lustre/nfs/irods
+    '''
+    
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Type of storage not supported: '+ self.faulty_expression + ' - ' + self.message
+    
 
+class RelativePathsNotSupportedError(Exception):
+    ''' This exception is thrown when the user has given a relative path instead of an ansolute one.
+        Relative paths are not supported by Serapis at all.
+    '''
+    def __init__(self, faulty_expression=None, msg=None):
+        self.faulty_expression = faulty_expression
+        self.message = msg
+        
+    def __str__(self):
+        return 'Relative paths not supported: '+ self.faulty_expression + ' - ' + self.message
+    
+    
+    
 class JSONError(SerapisException):
     ''' Exception raised for errors cause by the structure or contents of a json message.
         

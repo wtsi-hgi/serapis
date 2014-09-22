@@ -237,7 +237,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
     def _get_file_list_permissions(cls, file_paths_list):
         files_permissions = {}
         for path in file_paths_list:
-            status = utils.check_file_permissions(path)
+            status = utils.get_file_permissions(path)
             logging.warn("PATH PERMISSION = %s", status)
             files_permissions[path] = status
 #            if status == constants.NOACCESS:
@@ -249,7 +249,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         ''' Extracts the list of files from the request data. '''
         files_list = []
         if 'dir_path' in request_data:
-            files_list = utils.get_files_from_dir(request_data['dir_path'])
+            files_list = utils.list_and_filter_files_from_dir(request_data['dir_path'], constants.ACCEPTED_FILE_EXTENSIONS)
         if 'files_list' in request_data and type(request_data['files_list']) == list:
             files_list.extend(request_data['files_list'])
 #        if not 'dir_path' in request_data and not 'files_list' in request_data:

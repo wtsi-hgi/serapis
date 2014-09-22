@@ -167,14 +167,18 @@ def extract_basename(fpath):
 
 def extract_dir_path(fpath):
     ''' Extracts the root directory from a filepath.'''
+    if os.path.isdir(fpath):
+        return fpath
     return os.path.dirname(fpath)
 
-#def get_file_extension(fpath):
+#def extract_file_extension(fpath):
 #    _, tail = os.path.split(fpath)
 #    _, ext = os.path.splitext(tail)
 #    return ext[1:]
-#    
-def get_files_from_dir(dir_path):
+# 
+    
+    
+def list_and_filter_files_from_dir(dir_path, accepted_extensions):
     ''' This function returns all the files of the types of interest 
         (e.g.bam, vcf, and ignore .txt) from a directory given as parameter.
     '''
@@ -183,7 +187,7 @@ def get_files_from_dir(dir_path):
         f_path = join(dir_path, f_name)
         if isfile(f_path):
             _, f_extension = os.path.splitext(f_path)
-            if f_extension[1:] in constants.ACCEPTED_FILE_EXTENSIONS:
+            if f_extension[1:] in accepted_extensions:
                 files_list.append(f_path)
     print files_list
     return files_list
@@ -197,7 +201,7 @@ def get_filename_from_path(fpath):
 
 
 def get_filepaths_from_fofn(fofn):
-    files_list = open(fofn, 'r')
+    files_list = [f for f in open(fofn, 'r')]
     return filter(None, files_list)
 
 
@@ -220,7 +224,7 @@ def filter_list_of_files_by_type(list_of_files, filters):
             print "SMTH else in this dir:",f
     return files_filtered
 
-def get_file_extension(fpath):
+def extract_file_extension(fpath):
     if not fpath:
         return None
     _, tail = os.path.split(fpath)
@@ -289,29 +293,29 @@ def infer_filename_from_idxfilename(idx_file_path, file_type):
 def file_exists(fpath):
     return os.path.isfile(fpath)
 
-def check_file_permissions(file_path):
-    ''' Checks if the file exists and file permissions. 
-        Returns a dictionary: {file_path : status}
-        where status can be: READ_ACCESS and NOACCESS.
-        Adds to the errors_dict the file paths that don't exist.
+def get_file_permissions(file_path):
+    ''' Checks the file permissions. 
+        Returns a dictionary: {file_path : permission}
+        where permission can be: READ_ACCESS and NOACCESS.
     '''
-    if not os.path.isfile(file_path):
-        return constants.NON_EXISTING_FILE
     try:
-        with open(file_path): pass
-    except IOError as e:
-        if e.errno == errno.EACCES:
-            return constants.NOACCESS
-    else:
+        f = open(file_path,'r')
+        f.close()
         return constants.READ_ACCESS
-    # Not working for network file sys => I've changed it...
-#    if not os.access(file_path, os.F_OK):
-#        return constants.NON_EXISTING_FILE
-#    if(os.access(file_path, os.R_OK)):
-#        return constants.READ_ACCESS 
-#    elif os.access(file_path, os.F_OK) and not (os.access(file_path,os.R_OK)):
-#        return constants.NOACCESS
-
+    except IOError:
+        return constants.NO_ACCESS
+    
+# os.path might return non existing even if the file exists but I can't access it.
+#     if not os.path.isfile(file_path):
+#         return constants.NON_EXISTING_FILE
+#     try:
+#         with open(file_path): pass
+#     except IOError as e:
+#         if e.errno == errno.EACCES:
+#             return constants.NOACCESS
+#     else:
+#         return constants.READ_ACCESS
+    
 
     
 def check_for_invalid_paths(file_paths_list):
@@ -327,10 +331,10 @@ def check_for_invalid_file_types(file_path_list):
     invalid_files = []
     for file_path in file_path_list:
         is_compressed = False
-        ext = get_file_extension(file_path)
+        ext = extract_file_extension(file_path)
         if ext in constants.COMPRESSION_FORMAT_EXTENSIONS:
             fname, ext = extract_fname_and_ext(file_path)
-            ext = get_file_extension(fname)
+            ext = extract_file_extension(fname)
             is_compressed = True
         if ext and not ext in constants.ACCEPTED_FILE_EXTENSIONS:
             invalid_files.append(file_path)
@@ -342,31 +346,76 @@ def check_for_invalid_file_types(file_path_list):
 def get_file_duplicates(files_list):
     if len(files_list)!=len(set(files_list)):
         return [x for x, y in collections.Counter(files_list).items() if y > 1]
-    return None
+    return []
 
 
 #def list_all_files(dir_path):
 #    ''' This function returns a list with all the files present in a directory.'''
 #    return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
 
-        
+   
 
-def list_files_from_dir(dir_path):
-    ''' Verifies that the path provided as parameter is indeed
-        an existing directory path and check if the directory is empty.
-        Throws a ValueError if the dir doesn't exist or the path 
+def list_abs_fpaths_from_dir(dir_path):
+    ''' Throws a ValueError if the dir doesn't exist or the path 
         is not a dir or if the dir is empty. 
-        Returns the list of files from that dir.'''
-    #files_list = []
-    if not os.path.exists(dir_path):
-        logging.error("Error: directory path provided does not exist.")
-        raise ValueError("Error: directory path provided does not exist.")
-    elif not os.path.isdir(dir_path):
-        logging.error("This path: %s is not a directory.", dir_path)
-        raise ValueError("This path: "+dir_path+" is not a directory.")
-    return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
+        Returns the list of files from that dir.
+    '''
+    files_list = []
+    for f_name in listdir(dir_path):
+        f_path = join(dir_path, f_name)
+        files_list.append(f_path)
+    return files_list
+
     
 
+def list_files_from_dir(dir_path):
+    ''' Throws a ValueError if the dir doesn't exist or the path 
+        is not a dir or if the dir is empty. 
+        Returns the list of files from that dir.'''
+    return [f for f in listdir(dir_path)]
+
+#     try:
+#         file_paths = [f for f in listdir(dir_path)]
+#     except IOError as e:
+#         if e.errno == errno.EACCES:
+#             raise ValueError("")
+#         
+#     if not os.path.exists(dir_path):
+#         logging.error("Error: directory path provided does not exist.")
+#         raise ValueError("Error: directory path provided does not exist.")
+#     elif not os.path.isdir(dir_path):
+#         logging.error("This path: %s is not a directory.", dir_path)
+#         raise ValueError("This path: "+dir_path+" is not a directory.")
+#     return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
+    
+
+def split_path_in_components(path):
+    folders=[]
+    while 1:
+        path,folder=os.path.split(path)
+    
+        if folder!="":
+            folders.append(folder)
+        else:
+            if path!="":
+                folders.append(path)
+            break
+    folders.reverse()
+    return folders
+
+
+def determine_storage_type_from_path(path):
+    if not path:
+        return None
+    folders = split_path_in_components(path)
+    if len(folders[0]) == 1 and (folders[0] == os.path.sep):
+        storage = folders[1]
+        if storage in constants.IRODS_ZONES:
+            storage = constants.IRODS
+    else:
+        storage = folders[0]
+    return storage
+    
 
 def check_all_files_same_type(file_paths_list):
     file_type = None
@@ -387,19 +436,21 @@ def get_all_file_types(fpaths_list):
     '''
     file_types = set()
     for f in fpaths_list:
-        ext = get_file_extension(f)
+        ext = extract_file_extension(f)
         if ext:
             file_types.add(ext)
     return file_types
 
 
     
-#def build_irods_coll_dest_path(submission_date, hgi_project, hgi_subprj=None):
-#    if not hgi_subprj:
-#        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date)
-#    else:
-#        return os.path.join(constants.DEST_DIR_IRODS, hgi_project, submission_date, hgi_subprj)
+def build_irods_permanent_project_path(submission_date, hgi_project, hgi_subprj=None):
+    if not hgi_subprj:
+        return os.path.join(configs.IRODS_PERMANENT_PROJECTS_AREA, hgi_project, submission_date)
+    else:
+        return os.path.join(configs.IRODS_PERMANENT_PROJECTS_AREA, hgi_project, hgi_subprj, submission_date)
 
+def build_irods_staging_area_path(submission_id):
+    return os.path.join(configs.IRODS_STAGING_AREA, submission_id)
 
 # MOVED TO files.py
 # def build_irods_staging_path(submission_id):
@@ -421,7 +472,7 @@ def get_all_file_types(fpaths_list):
 #    return os.path.join(irods_coll_path, src_file_name)
 
 def infer_hgi_project_from_path(path):
-    regex = constants.REGEX_HGI_PROJECT_PATH
+    regex = constants.REGEX_LUSTRE_HGI_PROJECT_PATH
     match = re.search(regex, path)
     if match:
         return match.group(1)
@@ -433,9 +484,29 @@ def is_hgi_project(project):
         return True
     return False
 
+def is_user_id(user_id):
+    regex = constants.REGEX_USER_ID
+    if re.search(regex, user_id):
+        return True
+    return False
+
+def is_coverage(coverage):
+    regex = constants.REGEX_COVERAGE
+    if re.search(regex, coverage):
+        return True
+    return False
+
+def is_library_source(library_source):
+    return library_source.upper() in constants.LIBRARY_SOURCES
+
+def is_library_strategy(library_strategy):
+    return library_strategy in constants.LIBRARY_STRATEGY
+
+def is_genomic_region(genomic_region):
+    return genomic_region.upper() in constants.GENOMIC_REGIONS
 
 def detect_file_type(file_path):
-    #file_extension = utils.get_file_extension(file_path)
+    #file_extension = utils.extract_file_extension(file_path)
     fname, f_ext = extract_fname_and_ext(file_path)
     if f_ext == 'bam':
         return constants.BAM_FILE
@@ -448,6 +519,8 @@ def detect_file_type(file_path):
         return constants.VCF_FILE
     elif f_ext == 'tbi':
         return constants.TBI_FILE
+    elif f_ext == 'txt':
+        return constants.TEXT_FILE
     return None
 #        logging.error("NOT SUPPORTED FILE TYPE!")
 #        raise exceptions.NotSupportedFileType(faulty_expression=file_path, msg="Extension found: "+f_ext)
@@ -468,6 +541,46 @@ def is_date_correct(date):
         raise ValueError("The year given is incorrect. Max year = "+str(max_year))
     return True
         
+def normalize_platform_model(platform):
+    if platform in constants.INSTRUMENT_MODEL:
+        return platform
+    if platform.lower().find("miseq"):
+        return "Illumina MiSeq"
+    elif platform.lower().find("hiseq"):
+        if platform.lower().find("1000"):
+            return "Illumina HiSeq 1000"
+        elif platform.lower().find("2000"):
+            return "Illumina HiSeq 2000"
+        elif platform.lower().find("2500"):
+            return "Illumina HiSeq 2500"
+        else:
+            return "Illumina HiSeq"
+    elif platform.lower().find("Genome Analyser") or platform.find("GA"):
+        if platform.find("IIx"):
+            return "Illumina Genome Analyzer IIx"
+        elif platform.find("II"):
+            return "Illumina Genome Analyzer II"
+        else:
+            return "Illumina Genome Analyzer"
+    elif platform.lower().find("Illumina"):
+        return "Illumina"
+    else:
+        return "unspecified"
+        
+    
+    
+    #             INSTRUMENT_MODEL = [
+#             "Illumina Genome Analyzer",
+#             "Illumina Genome Analyzer II",
+#             "Illumina Genome Analyzer IIx",
+#             "Illumina HiSeq 2500",
+#             "Illumina HiSeq 2000",
+#             "Illumina HiSeq 1000",
+#             "Illumina MiSeq",
+#             "Illumina HiScanSQ",
+#             "unspecified"                    
+#                     ]
+
 
 ############## OTHER GENERAL UTILS ################
 
@@ -558,14 +671,20 @@ def compare_sender_priority(source1, source2):
     
 ############################# ADJACENT THINGS -- PROBABLY SHOULD BE HERE!!! Until I think things through and try diff options ###########
 
-def compare_strings(str1, str2):    
+def compare_strings(str1, str2):
+    ''' Compares two strings and returns True if they are identical, False if not.'''
     if str1 is None or str2 is None:
         raise ValueError("String comparison failed: at least one argument is None.")
     return str1 == str2
     
     
+def compare_strings_ignore_case(str1, str2):
+    ''' Compares two strings ignoring the case. Returns True if they match, False if not.'''
+    str1 = str1.lower()
+    str2 = str2.lower()
+    return compare_strings(str1, str2)
     
-    
+
     
     
     

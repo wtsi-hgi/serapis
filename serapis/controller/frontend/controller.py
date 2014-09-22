@@ -383,7 +383,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
     if file_to_resubmit == None:
         file_to_resubmit = data_access.FileDataAccess.retrieve_submitted_file(file_id) 
     
-    permissions = utils.check_file_permissions(file_to_resubmit.file_path_client)
+    permissions = utils.get_file_permissions(file_to_resubmit.file_path_client)
     submission = data_access.SubmissionDataAccess.retrieve_only_submission_fields(submission_id,['_is_uploaded_as_serapis', 'sanger_user_id'])
     upld_as_srp_flag = submission._is_uploaded_as_serapis
     if permissions == constants.NOACCESS:

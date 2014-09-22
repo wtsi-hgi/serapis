@@ -57,10 +57,13 @@ class GeneralFileTests(object):
         except exceptions.iRODSException as e:
             test_result.error = str(e)
             test_result.result = False
+            test_result.executed = True
         else:
             if result == None:
                 test_result.executed = False
-        #return {'result': result, 'errors': errors, 'executed': executed}
+            else:
+                test_result.executed = True
+                test_result.result = result
         return test_result
 
     
@@ -125,11 +128,12 @@ class GeneralFileTests(object):
     def get_and_compare_file_md5s(cls, fpath_irods):
         md5_ick = FileChecksumUtilityFunctions.get_md5_from_ichksum(fpath_irods)
         md5_calc = iRODSMetadataOperations.get_value_for_key_from_imeta(fpath_irods, "file_md5")
-        return cls.compare_md5s(md5_ick, md5_calc)
+        return cls.compare_md5s(md5_ick.md5, md5_calc)
 
     
     @classmethod
     def compare_md5s(cls, first_md5, other_md5):
+        ''' Takes 2 md5 as string and returns True if they are equal and False otherwise.'''
         are_eq = utils.compare_strings(first_md5, other_md5)
         if not are_eq:
             raise exceptions.iRODSFileDifferentMD5sException("Different md5s: one md5 = "+first_md5+" the other md5="+other_md5)
@@ -499,13 +503,13 @@ class FileTestSuiteRunner(object):
         #result = GeneralFileTests.test_and_report(GeneralFileTests.checksum_file_and_compare_md5s, [fpath_irods])
         result = GeneralFileTests.test_and_report(GeneralFileTests.get_and_compare_file_md5s, [fpath_irods])
         result.test_name = test
-        tests_results_list.append(test)
+        tests_results_list.append(result)
         #error_report[test] = result
     
         test = "Check replicas"
-        result = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
-        result.test_name = test
-        tests_results_list.append(result)
+        results_list = GeneralFileTests.run_file_replicas_test_suit(fpath_irods)
+        #result.test_name = test
+        tests_results_list.extend(results_list)
         #error_report.update(result)
         
         test = "Test all metadata is there"
@@ -626,7 +630,7 @@ class FileTestsUtils(object):
     
     @classmethod
     def check_all_passed(cls, tests_results_list):
-        results = [test.has_passed for test in tests_results_list if test.has_run]
+        results = [test.has_passed() for test in tests_results_list if test.has_run()]
         if any(res is False for res in results):
             return False
         return True

@@ -51,7 +51,7 @@ from serapis.worker.tasks_pkg.task_result import CalculateMD5TaskResult, ErrorTa
 from serapis.com import constants, utils as com_utils
 from serapis.irods import exceptions as irods_excep
 from serapis.worker.logic import exceptions as serapis_excep
-from serapis.controller.logic import remote_messages
+from serapis.external_services import remote_messages
 
 
 # Celery imports:
@@ -86,6 +86,7 @@ atexit.register(kill_child)
 #########################################################################
 # --------------------- ABSTRACT TASKS --------------
 #########################################################################
+
 
   
 class SerapisTask(Task):
@@ -154,6 +155,60 @@ class ParseFileHeaderTask(GatherMetadataTask):
 # --------------------- CONCRETE TASKS ----------------
 ########################################################
 
+
+class GetPermissionsTask(SerapisTask):
+    
+    
+    def get_permissions_for_all(self, file_paths):
+        files_permissions = {}
+        for fpath in file_paths:
+            files_permissions[fpath] = com_utils.get_file_permissions(fpath)
+        return files_permissions
+    
+        
+        
+class GetFilesPermissionsTask(GetPermissionsTask):
+    ''' This task checks if the files given as parameter if the user running the task
+        has READ access over them. Returns a dict containing: { fpath: READ_ACCESS/NO_ACCESS/NON_EXISTING_FILE}.
+    '''
+    def run(self, *args, **kwargs):
+        file_paths = args.file_paths
+        if not file_paths:
+            return []
+        return self.get_permissions_for_all(file_paths)
+        
+            
+class GetPermissionsForAllFilesInDirTask(GetPermissionsTask):
+    ''' This task returns the file permissions of all the files in the directory received as parameter.'''
+    
+    def run(self, *args, **kwargs):
+        try:
+            file_paths = com_utils.list_abs_fpaths_from_dir(args.dir_path)
+        except IOError as e:
+            if e.errno == errno.EACCES:
+                raise IOError(constants.PERMISSION_DENIED)
+            elif e.errno == errno.ENOENT:
+                raise IOError(constants.NON_EXISTING_DIRECTORY_PATH)
+
+        return self.get_permissions_for_all(file_paths)            
+
+
+class GerPermissionsForAllFilesInFOFNTask(GetPermissionsTask):
+    ''' This task returns the file permissions for all the files listed in a fofn (file of file paths).'''
+    
+    def run(self, *args, **kwargs):
+        try:
+            fofn_fd = open(args.fofn)
+        except IOError as e:
+            if e.errno == errno.EACCES:
+                raise IOError(constants.PERMISSION_DENIED)
+            elif e.errno == errno.ENOENT:
+                raise IOError(constants.NON_EXISTING_DIRECTORY_PATH)
+        
+        file_paths = []
+        for line in fofn_fd:
+            file_paths.append(line.strip())
+        return self.get_permissions_for_all(file_paths)
 
 
 class UploadFileTask(iRODSTask):
@@ -906,7 +961,7 @@ class RunFileTestsTask(iRODSTestingTask):
         #result.update(file_error_report)
         result['file'] = file_error_report
         #if not data_tests.FileTestsUtils.check_all_tests_passed(file_error_report):
-        if not data_tests.FileTestsUtils.check_all_tests_passed(file_error_report):
+        if not data_tests.FileTestsUtils.check_all_passed(file_error_report):
             tests_status = constants.FAILURE_STATUS
             print "FILE FAILED ONE OR MORE TESTS.....", str(result)
         
@@ -914,7 +969,7 @@ class RunFileTestsTask(iRODSTestingTask):
         print "RESULT dict after updating it with file report: ", str(result)
         #result.update(index_error_report)
         result['index_file'] = index_error_report
-        if not data_tests.FileTestsUtils.check_all_tests_passed(index_error_report):
+        if not data_tests.FileTestsUtils.check_all_passed(index_error_report):
             tests_status = constants.FAILURE_STATUS
             print "INDEX FILE FAILED ONE OR MORE TESTS......", str(result)
         

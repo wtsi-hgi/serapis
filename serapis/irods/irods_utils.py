@@ -527,7 +527,7 @@ class iRODSiChecksumOutputProcessing():
             by extracting the md5 from it and returning it.
             Params:
                 - the output of ichksum command:
-                e.g.     compare_meta_md5_with_calc.txt    c780edc691b70a04085713d3e7a73848
+                e.g.     file.txt    c780edc691b70a04085713d3e7a73848
                     Total checksum performed = 1, Failed checksum = 0
             Returns:
                 - a IChecksumResult
@@ -549,7 +549,8 @@ class FileChecksumUtilityFunctions:
         ''' 
             Retrieves the md5 from iCAT and returns it.
         '''
-        return iRODSChecksumOperations.retrieve_checksum(fpath_irods)
+        ichksum_out = iRODSChecksumOperations.retrieve_checksum(fpath_irods)
+        return iRODSiChecksumOutputProcessing.process_ichksum_output(ichksum_out)
         
     @staticmethod
     def get_md5_and_checksum_file(fpath_irods):

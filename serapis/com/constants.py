@@ -66,6 +66,18 @@ SECURITY_LEVELS = [
                    SECURITY_LEVEL_4
                    ]
 
+########################## TYPES OF STORAGE ####################################
+
+
+LUSTRE  = "lustre"
+IRODS   = "irods"
+NFS     = "nfs"
+SUPPORTED_STORAGE_TYPES = [NFS, IRODS, LUSTRE]
+
+######################### USERS ################################################
+
+MERCURY_USER = 'mercury'
+SERAPIS_USER = 'serapis'
 
 ########################## QUEUES ##############################################
 
@@ -116,7 +128,7 @@ NR_CONSUMERS_PER_Q_DICT = {
 READ_ACCESS     = "READ_ACCESS"
 WRITE_ACCESS    = "WRITE_ACCESS"
 EXECUTE_ACCESS  = "EXECUTE_ACCESS"
-NOACCESS        = "NOACCESS"
+NO_ACCESS        = "NO_ACCESS"
 
 
 
@@ -145,7 +157,13 @@ CALC_MD5_TASK     = "CALC_MD5_TASK"
 UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
 TEST_FILE_TASK    = "TEST_FILE_TASK"
 SEQSC_QUERY_TASK  = "SEQSCAPE_QUERY_TASK"
-#
+GET_FILES_PERMISSIONS_TASK = "GET_FILES_PERMISSIONS_TASK"
+GET_PERMISSIONS_FOR_FILES_IN_FOFN_TASK = "GET_FILES_PERMISSIONS_TASK"
+GET_PERMISSIONS_FOR_FILES_IN_DIR_TASK = "GET_FILES_PERMISSIONS_TASK"
+
+
+
+
 ## iRODS tasks:
 
 # Category of tasks:
@@ -189,12 +207,12 @@ MAX_DBUPDATE_RETRIES = 5
 
 # HEADER constants:
 # PU header:
-REGEX_PU_1                  = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
-REGEX_COVERAGE              = '[0-9]{1,3}x'
-REGEX_USER_ID               = '[a-z]{2,3}[0-9]{0,2}'
-REGEX_HGI_PROJECT           = "[a-zA-Z0-9_-]{3,17}" 
-REGEX_HGI_PROJECT_PATH      = "/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*"
-REGEX_IRODS_PROJECT_PATH    = "/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/"
+REGEX_PU_1                      = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
+REGEX_COVERAGE                  = '^[0-9]{1,3}x$'
+REGEX_USER_ID                   = '^[a-z]{2,3}[0-9]{0,2}$'
+REGEX_HGI_PROJECT               = '^[a-zA-Z0-9_-]{3,17}$' 
+REGEX_LUSTRE_HGI_PROJECT_PATH   = '^/lustre/scratch[0-9]{3}/projects/([a-zA-Z0-9_-]{3,17})/*'
+REGEX_IRODS_PROJECT_PATH        = '^/humgen/projects/"+REGEX_HGI_PROJECT+"/2013[0-3]{1}[0-9]{1}/$'
 
 DATE_FORMAT = "%Y%m%d"
 MIN_SUBMISSION_YEAR = 2013
@@ -248,6 +266,7 @@ BAM_FILE = "bam"
 BAI_FILE = "bai"
 VCF_FILE = "vcf"
 TBI_FILE = "tbi"
+TEXT_FILE= "txt"
 
 # Compression formats:
 GZ_COMPRESS_FORMAT = 'gz'
@@ -701,6 +720,8 @@ iRODS_NULL_PERMISSION   = "null"
 IRODS_SANGER_ZONE = 'Sanger1'
 IRODS_HUMGEN_ZONE = 'humgen'
 IRODS_SEQ_ZONE    = 'seq'
+
+IRODS_ZONES = [IRODS_HUMGEN_ZONE, IRODS_SANGER_ZONE, IRODS_SEQ_ZONE]
 
 
 

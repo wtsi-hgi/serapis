@@ -10,6 +10,8 @@ class TaskResult(object):
     '''
     pass
     
+    
+    
 class ErrorTaskResult(TaskResult):
     
     def __init__(self, error):
@@ -43,7 +45,17 @@ class SeqscapeQueryTaskResult(TaskResult):
         self.query_result = query_result
         
         
+class GetPermissionsTaskResult(TaskResult):
+    ''' This is the task result for the whole family of permissions-related tasks,
+        since they all return the same thing.
+    '''
+    def __init__(self, files_permissions):
+        self.files_permissions = files_permissions
 
+
+
+
+######################## OLD ################################
 
 class TaskResult1(object):
     
