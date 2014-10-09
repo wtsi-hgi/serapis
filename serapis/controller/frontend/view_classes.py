@@ -275,12 +275,12 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
             #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
             req_result['error'] = str(e)
             return Response(req_result, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.NotEnoughInformationProvided as e:
+        except exceptions.NotEnoughInformationProvidedException as e:
             req_result['error'] = e.strerror
             logging.error("Not enough info %s", e)
             logging.error(e.strerror)
             return Response(req_result, status=424)
-        except exceptions.InformationConflict as e:
+        except exceptions.InformationConflictException as e:
             req_result['error'] = e.strerror
             logging.error("Information conflict %s", e)
             logging.error(e.strerror)
@@ -289,10 +289,10 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
             logging.error("Value error %s", e.message)
             req_result['error'] = e.message
             return Response(req_result, status=424)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             logging.error("Resource not found: %s", e.faulty_expression)
             return Response(e.message, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.InvalidRequestData as e:
+        except exceptions.InvalidRequestDataException as e:
             logging.error("Invalid request data on POST request to submissions.")
             result = {'errors' : e.faulty_expression, 'message' : e.message}
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
@@ -539,7 +539,7 @@ class SubmittedFilesMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -587,7 +587,7 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         except InvalidId as e:
@@ -639,11 +639,11 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.FileDuplicateException as e:
-            result['errors'] = e.msg
+        except exceptions.FileAlreadySubmittedException as e:
+            result['errors'] = e.message
             return Response(result, status=status.HTTP_403_FORBIDDEN)
         else:
             if resubmission_result.error_dict:
@@ -696,17 +696,17 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
-        except exceptions.TaskNotRegisteredError as e:
-            result['errors'] = e.msg
+        except exceptions.TaskNotRegisteredException as e:
+            result['errors'] = e.strerror
             return Response(result, status=status.HTTP_403_FORBIDDEN)
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -735,10 +735,10 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
         else:
@@ -803,14 +803,14 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -850,14 +850,14 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -893,7 +893,7 @@ class LibrariesMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -930,16 +930,16 @@ class LibrariesMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
-        except exceptions.NoEntityCreated as e:
+        except exceptions.NoEntityCreatedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-        except exceptions.EditConflictError as e:
+        except exceptions.EditConflictException as e:
             result['errors'] = e.strerror
             return Response(result, status=409)     # 409 = EditConflict
         else:
@@ -969,7 +969,7 @@ class LibraryRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
@@ -1008,13 +1008,13 @@ class LibraryRequestHandler(SerapisUserAPIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed but was unable to be followed due to semantic errors.
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['erors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -1042,7 +1042,7 @@ class LibraryRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -1082,7 +1082,7 @@ class SamplesMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -1120,16 +1120,16 @@ class SamplesMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
-        except exceptions.NoEntityCreated as e:
+        except exceptions.NoEntityCreatedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-        except exceptions.EditConflictError as e:
+        except exceptions.EditConflictException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_409_CONFLICT)     # 409 = EditConflict
 
@@ -1163,7 +1163,7 @@ class SampleRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
@@ -1203,14 +1203,14 @@ class SampleRequestHandler(SerapisUserAPIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -1238,7 +1238,7 @@ class SampleRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -1274,11 +1274,11 @@ class StudyMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
-            result['result'] = studies
+            result['result'] = str(studies)
             #result_serial = serializers.serialize_excluding_meta(result)
             logging.debug("RESULT IS: "+result)
             return Response(result, status=status.HTTP_200_OK)
@@ -1310,16 +1310,16 @@ class StudyMainPageRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)
-        except exceptions.NoEntityCreated as e:
+        except exceptions.NoEntityCreatedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 = Unprocessable entity => either empty json or invalid fields
-        except exceptions.EditConflictError as e:
+        except exceptions.EditConflictException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_409_CONFLICT)     # 409 = EditConflict
 
@@ -1351,7 +1351,7 @@ class StudyRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "Submission not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
 #        except exceptions.EntityNotFound as e:
@@ -1381,14 +1381,14 @@ class StudyRequestHandler(SerapisUserAPIView):
         except KeyError:
             result['errors'] = "Key not found. Please include only data according to the model."
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        except exceptions.NoEntityIdentifyingFieldsProvided as e:
+        except exceptions.NoIdentifyingFieldsProvidedException as e:
             result['errors'] = e.strerror
             return Response(result, status=422)     # 422 Unprocessable Entity --The request was well-formed 
                                                     # but was unable to be followed due to semantic errors.
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['erors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.DeprecatedDocument as e:
+        except exceptions.DeprecatedDocumentException as e:
             result['errors'] = e.strerror
             return Response(result, status=428)     # Precondition failed prevent- the 'lost update' problem, 
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
@@ -1419,7 +1419,7 @@ class StudyRequestHandler(SerapisUserAPIView):
         except DoesNotExist:        # thrown when searching for a submission
             result['errors'] = "File not found" 
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.ResourceNotFoundError as e:
+        except exceptions.ResourceNotFoundException as e:
             result['errors'] = e.strerror
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -1473,11 +1473,11 @@ class SubmissionIRODSRequestHandler(SerapisUserAPIView):
             result['errors'] = "Submitted file not found"
             result['result'] = False
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.strerror
             result['result'] = False
             return Response(result, status=424)
-        except exceptions.OperationAlreadyPerformed as e:
+        except exceptions.OperationAlreadyPerformedException as e:
             result['errors'] = e.strerror
             result['result'] = False
             return Response(result, status=304)
@@ -1511,10 +1511,10 @@ class SubmittedFileIRODSRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
         else:
@@ -1551,10 +1551,10 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1579,10 +1579,10 @@ class SubmissionIRODSMetaRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.strerror
             return Response(result, status=424)
         else:
@@ -1623,10 +1623,10 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1648,10 +1648,10 @@ class SubmittedFileIRODSMetaRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1687,10 +1687,10 @@ class AllSubmittedFilesIRODSTempTestsRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1728,10 +1728,10 @@ class SubmittedFileIRODSTempTestsRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1773,10 +1773,10 @@ class SubmissionToiRODSPermanentRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
@@ -1811,10 +1811,10 @@ class SubmittedFileToiRODSPermanentRequestHandler(SerapisUserAPIView):
         except DoesNotExist:
             result['errors'] = "Submitted file not found"
             return Response(result, status=status.HTTP_404_NOT_FOUND)
-        except exceptions.OperationNotAllowed as e:
+        except exceptions.OperationNotAllowedException as e:
             result['errors'] = e.message
             return Response(result, status=424)
-        except exceptions.IncorrectMetadataError as e:
+        except exceptions.IncorrectMetadataException as e:
             result['errors'] = e.message
             return Response(result, status=424)
         else:
