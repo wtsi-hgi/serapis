@@ -1,5 +1,5 @@
-serapis-web
-===========
+serapis
+=======
 
 ##How to run the project - (on Ubuntu)
 
