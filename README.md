@@ -1,4 +1,5 @@
-serapis-web <obsolete documentation>
+serapis-web 
+(obsolete documentation)
 ===========
 
 ##How to run the project - (on Ubuntu)
