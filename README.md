@@ -1,4 +1,4 @@
-serapis
+serapis (obsolete docs)
 =======
 
 ##How to run the project - (on Ubuntu)
