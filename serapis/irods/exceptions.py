@@ -25,8 +25,9 @@
 ############## iRODS related exceptions:
 
 class iRODSException(Exception):
-    ''' Exception raised when iput-ing a file to iRODS.
-        Attributes:
+    ''' Exception raised when running icommands in iRODS.
+        Parameters
+        ----------
             error  -- the error thrown
             output -- the output of the command, if any
             msg    -- a message, if set  
@@ -91,6 +92,7 @@ class iMkDirException(iRODSException):
         
     def __str__(self):
         return super(iMkDirException, self).__str__()
+    
         
 class iChksumException(iRODSException):
     ''' Exception raised when running ichksum and the checksum of the file in irods != md5 stored.'''
@@ -118,114 +120,3 @@ class iRMException(iRODSException):
         return super(iRMException, self).__str__()
     
 
-class iRODSNoAccessException(iRODSException):
-    ''' Exception raised when the user doesn't have access to the wanted file/coll in iRODS.'''
-    def __init__(self, error, output, cmd=None, msg=None, extra_info=None):
-        super(iRODSNoAccessException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSNoAccessException, self).__str__()
-    
-    
-
-class iRODSOverwriteWithoutForceFlagException(iRODSException):
-    ''' 
-        Exception thrown when a file is uploaded, but there is already one in the destination collection with the same name.
-        It corresponds to OVERWRITE_WITHOUT_FORCE_FLAG irods error output. 
-    '''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSOverwriteWithoutForceFlagException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSOverwriteWithoutForceFlagException, self).__str__()
-
-################## Serapis specific exceptions concerning iRODS#############################
-
-class iRODSReplicaNotPairedException(iRODSException):
-    ''' Exception thrown when a file has one or more replicas not paired.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSReplicaNotPairedException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSReplicaNotPairedException, self).__str__()
-
-class iRODSFileMissingReplicaException(iRODSException):
-    ''' Exception thrown when a file has not been replicated.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileMissingReplicaException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileMissingReplicaException, self).__str__()
-
-
-class iRODSFileTooManyReplicasException(iRODSException):
-    ''' Exception thrown when a file has too many replicas.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileTooManyReplicasException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileTooManyReplicasException, self).__str__()
-
-
-class iRODSFileStoredOnResourceUnknownException(iRODSException):
-    ''' Exception thrown when a file is stored on an unknown resource.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileStoredOnResourceUnknownException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileStoredOnResourceUnknownException, self).__str__()
-
-
-class iRODSFileNotBackedupOnBothRescGrps(iRODSException):
-    ''' Exception thrown when a file hasn't got replicas on both red and green resource groups.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileNotBackedupOnBothRescGrps, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileNotBackedupOnBothRescGrps, self).__str__()
-    
-
-class iRODSFileDifferentMD5sException(iRODSException):
-    ''' Exception thrown when a file has a different md5 than the calculated md5 by serapis.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileDifferentMD5sException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileDifferentMD5sException, self).__str__()
-    
-
-class iRODSFileMetadataNotStardardException(iRODSException):
-    ''' Exception thrown when a file's metadata is not how it's supposed to be
-        e.g. either it is missing fields or it has too many fields of one kind.'''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileMetadataNotStardardException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileMetadataNotStardardException, self).__str__()
-    
-
-class iRODSFileMetadataMissingException(iRODSException):
-    ''' 
-        Exception thrown when some or all of the file's metadata is missing for some reason.
-    '''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSFileMetadataMissingException, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSFileMetadataMissingException, self).__str__()
-
-
-class iRODSDataObjectAlreadyExisting(iRODSException):
-    ''' 
-        Exception thrown when a file is uploaded, but there is already one in the destination collection with the same name.
-        It corresponds to OVERWRITE_WITHOUT_FORCE_FLAG irods error output. 
-    '''
-    def __init__(self, error, output=None, cmd=None, msg=None, extra_info=None):
-        super(iRODSDataObjectAlreadyExisting, self).__init__(error, output, cmd, msg, extra_info)
-        
-    def __str__(self):
-        return super(iRODSDataObjectAlreadyExisting, self).__str__()
-
-
-    
- 
