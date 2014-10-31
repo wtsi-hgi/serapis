@@ -18,10 +18,16 @@ class ErrorTaskResult(TaskResult):
         self.error = error
         
 
-class UploadFileTaskResult(TaskResult):
+class DoneTaskResult(TaskResult):
     
     def __init__(self, done):
         self.done = done
+
+
+# class UploadFileTaskResult(TaskResult):
+#     
+#     def __init__(self, done):
+#         self.done = done
     
 
 class CalculateMD5TaskResult(TaskResult):
@@ -53,7 +59,19 @@ class GetPermissionsTaskResult(TaskResult):
         self.files_permissions = files_permissions
 
 
-
+# class CreateCollectionAndSetPermissionsTaskResult(TaskResult):
+#     ''' This is the task result for the task for creating a new collection and
+#         setting the corresponding permissions on it.
+#     '''
+#     def __init__(self, done):
+#         self.done = done
+# 
+# class DeleteCollectionTaskResult(TaskResult):
+#     ''' 
+#         This is the task result for the task that deletes a collection in iRODS.
+#     '''
+#     def __init__(self, done):
+#         self.done = done
 
 ######################## OLD ################################
 

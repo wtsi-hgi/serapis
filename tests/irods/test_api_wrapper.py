@@ -101,31 +101,77 @@ class TestiRODSMetaQueryOperations(unittest.TestCase):
         cmd_out = "collection: /seq/10100\ndataObj: 10100_8#0.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#0_phix.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#48.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#48_phix.bam\n"   
         res = irods_api.iRODSMetaQueryOperations._process_icmd_output(cmd_out)
         expected = ["/seq/10100/10100_8#0.bam", "/seq/10100/10100_8#0_phix.bam", "/seq/10100/10100_8#48.bam", "/seq/10100/10100_8#48_phix.bam"]
+        print "EXPECTED: "+str(res)
+        self.assertSetEqual(set(res), set(expected))
+        
+        cmd_out = 'No rows found'
+        res = irods_api.iRODSMetaQueryOperations._process_icmd_output(cmd_out)
+        expected = []
         self.assertEqual(res, expected)
         
         
+class TestiRODSMetaListOperations(unittest.TestCase):
+    
+    def test_extract_attribute_from_line(self):
+        line = 'attribute: id_run\n'
+        res = irods_api.iRODSMetaListOperations._extract_attribute_from_line(line)
+        expected = 'id_run'
+        self.assertEqual(res, expected)
+        
+        line = 'attribute: md5'
+        res = irods_api.iRODSMetaListOperations._extract_attribute_from_line(line)
+        expected = 'md5'
+        self.assertEqual(res, expected)
+        
+        line = 'attribute: This is a long attribute name and with spaces'
+        res = irods_api.iRODSMetaListOperations._extract_attribute_from_line(line)
+        expected = 'This is a long attribute name and with spaces'
+        self.assertEqual(res, expected)
+        
+        line = 'value: 2'
+        self.assertRaises(ValueError, irods_api.iRODSMetaListOperations._extract_attribute_from_line, line)
         
         
+    def test_extract_value_from_line(self):
+        line = 'value: /lustre/scratch109/srpipe/references/Danio_rerio/zv9/all/bwa/zv9_toplevel.fa'
+        res = irods_api.iRODSMetaListOperations._extract_value_from_line(line)
+        expected = '/lustre/scratch109/srpipe/references/Danio_rerio/zv9/all/bwa/zv9_toplevel.fa'
+        self.assertEqual(res, expected)
         
-#    @classmethod
+     
+    def test_process_icmd_output(self):
+        cmd_output = 'attribute: target\nvalue: 1\nunits:\n----\nattribute: id_run\nvalue: 10100\nunits:\n----\nattribute: sample_id\nvalue: 1513933\nunits:\n----\n'
+        res = irods_api.iRODSMetaListOperations._process_icmd_output(cmd_output)
+        expected = [irods_types.MetaAVU(attribute='target',value='1'), 
+                    irods_types.MetaAVU(attribute='id_run', value='10100'),
+                    irods_types.MetaAVU(attribute='sample_id', value='1513933')
+                    ]
+        self.assertSetEqual(set(res), set(expected))
+        
+        cmd_output = 'No rows found'
+        res = irods_api.iRODSMetaListOperations._process_icmd_output(cmd_output)
+        expected = []
+        self.assertEqual(res, expected)
+        
+        
+#     @wrappers.check_args_not_none
 #     def _process_icmd_output(cls, output):
-#         ''' This method converts an output like: collection: /seq/123\n, dataObj: 123.bam to
-#             a list of irods files paths.
-#             Returns the list of file paths from the output.
-#         '''
-#         file_paths = []
+#         ''' This method takes the output of imeta command and converts it to a MetaAVU.'''
+#         avus_list = []
 #         lines = output.split('\n')
-#         lines_iter = iter(lines)
-#         for line in lines_iter:
-#             if line.startswith('collection'):
-#                 coll = line.split(" ")[1]                   # splitting this: collection: /seq/13240
-#                 fname = next(lines_iter).split(" ")[1]      # splitting this: dataObj: 13173_1#0.bam
-#                 _ = next(lines_iter)    # skipping the --- line
-#                 file_paths.append(os.path.join(coll, fname))
-#         return file_paths
-
-        
-        
+#         attr_name, attr_val = None, None
+#         for line in lines:
+#             if not line.startswith('attribute'):
+#                 attr_name = cls._extract_attribute_from_line(line)
+#             elif line.startswith('value: '):
+#                 attr_val = cls._extract_value_from_line(line)
+#                 if not attr_val:
+#                     raise ValueError("Attirbute: "+attr_name+" has a None value!")
+#             
+#             if attr_name and attr_val:
+#                 avus_list.append(irods_types.MetaAVU(attr_name, attr_val))
+#                 attr_name, attr_val = None, None
+#         return avus_list
         
         
         

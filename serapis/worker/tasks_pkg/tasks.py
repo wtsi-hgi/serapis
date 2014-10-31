@@ -40,8 +40,11 @@ from serapis.worker.logic import data_tests
 from serapis.worker.logic import entities
 from serapis.seqscape import data_access
 from serapis.irods.irods_utils import assemble_new_irods_fpath, assemble_irods_humgen_username, assemble_irods_sanger_username 
-from serapis.irods.irods_utils import iRODSMetadataOperations, iRODSModifyOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
+from serapis.irods.irods_utils import iRODSiChmodOperations, iRODSMetaListOperations, iRODSModifyCollOperations, FileChecksumUtilityFunctions, FileMetadataUtilityFunctions, FileListingUtilityFunctions
 from serapis.irods.irods_utils import DataObjectPermissionChangeUtilityFunctions, DataObjectMovingUtilityFunctions, DataObjectUtilityFunctions
+from serapis.irods.irods_user import iRODSUsername
+from serapis.irods.irods_group import iRODSGroup
+
 #from serapis.worker.logic.header_parser import BAMHeaderParser, BAMHeader, VCFHeaderParser, VCFHeader
 from serapis.domain import header_processing
 from serapis.domain.sanger_identifiers import IdentifierHandling
@@ -172,7 +175,7 @@ class GetFilesPermissionsTask(GetPermissionsTask):
         has READ access over them. Returns a dict containing: { fpath: READ_ACCESS/NO_ACCESS/NON_EXISTING_FILE}.
     '''
     def run(self, *args, **kwargs):
-        file_paths = args.file_paths
+        file_paths = args.fpath_permission_dict
         if not file_paths:
             return []
         return self.get_permissions_for_all(file_paths)
@@ -211,6 +214,27 @@ class GerPermissionsForAllFilesInFOFNTask(GetPermissionsTask):
         return self.get_permissions_for_all(file_paths)
 
 
+class CreateCollectionAndSetPermissionsTask(SerapisTask):
+    '''
+        This task creates a new collection in iRODS and sets the desired permissions on it.
+    '''
+    def run(self, *args, **kwargs):
+        created = iRODSModifyCollOperations.make_coll(args.coll_path)
+        if created:
+            for perm_change in args.irods_permissions_list:
+                iRODSiChmodOperations.run_ichmod(args, user=perm_change.usr_or_grp, permission=perm_change.permission, recursive=False)
+        
+        
+                
+class DeleteCollectionTask(SerapisTask):
+    ''' 
+        This task deletes a collection in iRODS.
+    '''
+    def run(self, *args, **kwargs):
+        iRODSModifyCollOperations.remove_coll(args.coll_path)
+        
+        
+
 class UploadFileTask(iRODSTask):
 #    time_limit = 10000          # hard time limit => restarts the worker process when exceeded
 #    soft_time_limit = 7200      # an exception is raised => can be used for cleanup
@@ -226,9 +250,9 @@ class UploadFileTask(iRODSTask):
 
     def rollback(self, fpath_irods, index_fpath_irods=None):
         if index_fpath_irods and DataObjectUtilityFunctions.exists_in_irods(index_fpath_irods):
-            iRODSModifyOperations.remove_file_irods(index_fpath_irods, force=True)
+            iRODSModifyCollOperations.remove_file(index_fpath_irods, force=True)
         if DataObjectUtilityFunctions.exists_in_irods(fpath_irods):
-            iRODSModifyOperations.remove_file_irods(fpath_irods, force=True)
+            iRODSModifyCollOperations.remove_file(fpath_irods, force=True)
         print "ROLLBACK UPLOAD SUCCESSFUL!!!!!!!!!!!!!"
         return True
 
@@ -262,13 +286,13 @@ class UploadFileTask(iRODSTask):
         
         # Upload file - throws: iPut exception if anything happens
         try:
-            iRODSModifyOperations.upload_irods_file(args.src_fpath, args.dest_fpath_irods)
+            iRODSModifyCollOperations.iput_and_chksum_file(args.src_fpath, args.dest_fpath_irods)
             
             # Upload index:
             if args.src_idx_fpath:
-                iRODSModifyOperations.upload_irods_file(args.src_idx_fpath, args.dest_idx_path_irods)
+                iRODSModifyCollOperations.iput_and_chksum_file(args.src_idx_fpath, args.dest_idx_path_irods)
         except irods_excep.iRODSOverwriteWithoutForceFlagException as e:
-            raise irods_excep.iRODSDataObjectAlreadyExisting(error=e.error, output=e.output, cmd=e.cmd)
+            raise irods_excep.FileAlreadyExisting(error=e.error, output=e.output, cmd=e.cmd)
             
             
         # Run som tests on the uploaded files:
@@ -561,7 +585,7 @@ class UpdateFileMdataTask(GatherMetadataTask):
                         has_id_field = True
                         break
                 if not has_id_field:
-                    raise serapis_excep.NoEntityIdentifyingFieldsProvided("This entity has no identifying fields: "+entity)
+                    raise serapis_excep.NoIdentifyingFieldsProvidedException("This entity has no identifying fields: "+entity)
         return incomplete_entities
         
         
@@ -748,17 +772,17 @@ class AddMdataToIRODSFileTask(iRODSTask):
         #current_task.update_state(state=constants.RUNNING_STATUS)
         file_mdata_irods        = kwargs['file_mdata_irods']
         index_file_mdata_irods  = kwargs['index_file_mdata_irods']
-        file_path_irods    = str(kwargs['file_path_irods'])
+        file_path_irods         = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
         
 #        # Adding metadata to the file:
-        iRODSMetadataOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+        iRODSMetaListOperations.add_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
             
         #data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(file_path_irods)
 
         # Adding mdata to the index file:            
         if index_file_path_irods and index_file_mdata_irods:
-            iRODSMetadataOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+            iRODSMetaListOperations.add_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
         #    data_tests.FileTestSuiteRunner.run_metadata_tests_on_file(index_file_path_irods)
         
     
@@ -769,9 +793,9 @@ class AddMdataToIRODSFileTask(iRODSTask):
         file_path_irods         = str(kwargs['file_path_irods'])
         index_file_path_irods   = str(kwargs['index_file_path_irods'])
 
-        iRODSMetadataOperations.remove_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
+        iRODSMetaListOperations.remove_all_kv_pairs_with_imeta(file_path_irods, file_mdata_irods)
         if index_file_path_irods:
-            iRODSMetadataOperations.remove_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
+            iRODSMetaListOperations.remove_all_kv_pairs_with_imeta(index_file_path_irods, index_file_mdata_irods)
         return True
             
         
@@ -886,11 +910,13 @@ class MoveCollectionToPermanentiRODSCollTask(iRODSTask):
         DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_read_access(permanent_coll_irods, access_group, recursive=True)
         
         # Take away the priviledges of the uploader user:
-        irods_username = assemble_irods_sanger_username(owners_username)
+        #irods_username = assemble_irods_sanger_username(owners_username)
+        irods_username = iRODSUsername.build(owners_username, 'humgen')
         DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_null_access(permanent_coll_irods, irods_username, recursive=True)
         
         # Take away the priviledges from serapis:
-        serapis_uname = assemble_irods_humgen_username('serapis')
+        #serapis_uname = assemble_irods_humgen_username('serapis')
+        serapis_uname = iRODSUsername.build('serapis', 'humgen')
         DataObjectPermissionChangeUtilityFunctions.change_permisssions_to_modify_access(permanent_coll_irods, serapis_uname, recursive=True)
 
         # Report back the results:

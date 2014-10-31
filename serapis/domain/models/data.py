@@ -6,7 +6,6 @@ import sets
 import data_entities
 from serapis.com import constants
 from serapis.controller import exceptions
-from serapis.external_services import services
 
 
 #################################################################
@@ -95,18 +94,18 @@ class DNAData(Data):
         return self.samples.add_all_samples(sample_list)
 
     def add_library(self, library):
-        return self.libraries.add_to_set(library)
+        return self.libraries._add_to_set(library)
 
     def add_all_libraries(self, library_list):
         return self.libraries.add_all_libraries(library_list)
     
 
-class ImprovedSequenceData(DNAData):
+class DNASequenceData(DNAData):
     
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None, 
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, 
                  instrument_model=None):
-        super(ImprovedSequenceData, self).__init__(pmid_list, security_level, processing=processing, coverage_list=coverage_list, 
+        super(DNASequenceData, self).__init__(pmid_list, security_level, processing=processing, coverage_list=coverage_list, 
                                                    sorting_order=sorting_order, library_strategy=library_strategy, library_source=library_source)
         self.instrument_model = None
         # contains also these fields:
@@ -119,11 +118,11 @@ class ImprovedSequenceData(DNAData):
 #                                      ])
 
 
-class VariationData(DNAData):
+class DNAVariationData(DNAData):
     
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None, 
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None):
-        super(VariationData, self).__init__(pmid_list, security_level, coverage_list, processing=processing, 
+        super(DNAVariationData, self).__init__(pmid_list, security_level, coverage_list, processing=processing, 
                                             sorting_order=sorting_order, library_strategy=library_strategy, library_source=library_source)
     #     used_samtools = StringField()
     #     used_unified_genotyper = BooleanField()

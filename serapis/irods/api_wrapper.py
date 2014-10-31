@@ -498,6 +498,7 @@ class iRODSMetaQueryOperations(iRODSOperations):
         
         
     @classmethod
+    @wrappers.check_args_not_none
     def _process_icmd_output(cls, output):
         ''' This method converts an output like: collection: /seq/123\n, dataObj: 123.bam to
             a list of irods files paths.
@@ -505,6 +506,8 @@ class iRODSMetaQueryOperations(iRODSOperations):
         '''
         file_paths = []
         lines = output.split('\n')
+        if lines[0].find('No rows found') != -1:
+            return file_paths
         lines_iter = iter(lines)
         for line in lines_iter:
             if line.startswith('collection'):
@@ -515,8 +518,8 @@ class iRODSMetaQueryOperations(iRODSOperations):
         return file_paths
 
     
-    @staticmethod
-    def filter_files_list(file_paths):
+    @classmethod
+    def filter_out_phix_files(cls, file_paths):
         ''' This method is filtering the list of file paths by eliminating the phix data and #0 files.'''
         return [fpath for fpath in file_paths if fpath.find("#0.bam") == -1 and fpath.find("phix.bam")==-1]
        
@@ -574,6 +577,7 @@ class iRODSMetaListOperations(iRODSOperations):
 #         return val
     
     @classmethod
+    @wrappers.check_args_not_none
     def _extract_attribute_from_line(cls, line):
         ''' This is a utility method, which extracts the attribute name from a line like:
             attribute: SEQCAP_STUDY NAME
@@ -581,12 +585,13 @@ class iRODSMetaListOperations(iRODSOperations):
             Returns the name of the attribute (string).
         '''
         
-        if not line.startswith('attribute'):
+        if not line.startswith('attribute: '):
             raise ValueError('Wrong input string. The line parameter should start with `attribute` string.')
         index = len('attribute: ')
         return line[index:].strip()
 
     @classmethod
+    @wrappers.check_args_not_none
     def _extract_value_from_line(cls, line):
         ''' This is a utility method, which extracts the value string from a line like: 
             value: testVal
@@ -599,13 +604,16 @@ class iRODSMetaListOperations(iRODSOperations):
         return line[index:].strip()
                 
     @classmethod
+    @wrappers.check_args_not_none
     def _process_icmd_output(cls, output):
         ''' This method takes the output of imeta command and converts it to a MetaAVU.'''
         avus_list = []
+        if output.find('No rows found')!= -1:
+            return avus_list
         lines = output.split('\n')
         attr_name, attr_val = None, None
         for line in lines:
-            if not line.startswith('attribute'):
+            if line.startswith('attribute: '):
                 attr_name = cls._extract_attribute_from_line(line)
             elif line.startswith('value: '):
                 attr_val = cls._extract_value_from_line(line)
@@ -632,6 +640,7 @@ class iRODSMetaListOperations(iRODSOperations):
 class iRODSMetaAddOperations(iRODSOperations):
     
     @classmethod
+    @wrappers.check_args_not_none
     def _run_imeta_add(cls, path, attribute, value):
         cmd_args = ["imeta", "add", "-d", path, attribute, value]
         try:

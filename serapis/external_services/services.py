@@ -6,7 +6,7 @@ from serapis.com import constants
 from serapis.worker.tasks_pkg import tasks
 from serapis.external_services import task_launcher
 from serapis.external_services import remote_messages
-
+from serapis.external_services import deferred_service_handle as deferred
 
 
 
@@ -17,15 +17,21 @@ class ExternalService(object):
     def prepare_args(cls):
         pass
     
+    @property
+    def task_type(self):
+        return NotImplementedError
+    
     @classmethod
     def call_service(cls, args):
         task_id = task_launcher.TaskLauncher.launch_task(args)
-        return task_id
+        deferred_task = deferred.DeferredServiceHandle(task_id, cls.task_type)
+        return deferred_task
 
 
 class UploaderService(ExternalService):
     
     task_instance = tasks.UploadFileTask()
+    task_type = constants.UPLOAD_FILE_TASK
     
     @classmethod
     def prepare_args(cls,  url_result, src_fpath, dest_fpath, src_idx_fpath=None, dest_idx_fpath=None, user_id='serapis'):
@@ -42,6 +48,7 @@ class UploaderService(ExternalService):
 class MD5CalculatorService(ExternalService):
     
     task_instance = tasks.CalculateMD5Task()
+    task_type = constants.CALC_MD5_TASK
     
     @classmethod
     def prepare_args(cls, fpath, idx_fpath, url_result, user_id='serapis'):
@@ -58,6 +65,7 @@ class MD5CalculatorService(ExternalService):
 class BAMHeaderParserService(ExternalService):
     
     task_instance = tasks.ParseBAMHeaderTask()
+    task_type = constants.PARSE_HEADER_TASK
     
     @classmethod
     def prepare_args(cls, fpath, url_result, user_id='serapis'):
@@ -77,6 +85,7 @@ class ExternalDBQuerierService(ExternalService):
 class SeqscapeDBQueryService(ExternalService):
     
     task_instance = tasks.SeqscapeQueryTask()
+    task_type = constants.SEQSC_QUERY_TASK
     
     @classmethod
     def prepare_args(cls, url_result, entity_type, field_name, field_value):
@@ -95,6 +104,7 @@ class SeqscapeDBQueryService(ExternalService):
 class GetPermissionsOnFilesService(ExternalService):
     
     task_instance = tasks.GetFilesPermissionsTask()
+    task_type = constants.GET_FILES_PERMISSIONS_TASK
     
     @classmethod
     def prepare_args(cls, url_result, file_paths):
@@ -111,6 +121,7 @@ class GetPermissionsOnFilesService(ExternalService):
 class GetPermissionsForAllFilesInDirService(ExternalService):
     
     task_instance = tasks.GetPermissionsForAllFilesInDirTask()
+    task_type = constants.GET_PERMISSIONS_FOR_FILES_IN_DIR_TASK
     
     @classmethod
     def prepare_args(cls, url_result, dir_path):
@@ -127,6 +138,7 @@ class GetPermissionsForAllFilesInDirService(ExternalService):
 class GetPermissionsForAllFilesInFOFNService(ExternalService):
     
     task_instance = tasks.GerPermissionsForAllFilesInFOFNTask()
+    task_type = constants.GET_PERMISSIONS_FOR_FILES_IN_FOFN_TASK
     
     @classmethod
     def prepare_args(cls, url_result, fofn_path):
@@ -143,7 +155,8 @@ class GetPermissionsForAllFilesInFOFNService(ExternalService):
 class CreateCollectionAndSetPermissionsService(ExternalService):
     
     task_instance = tasks.CreateCollectionAndSetPermissionsTask()
-    
+    task_type = constants.CREATE_COLLECTION_AND_SET_PERMISSIONS_TASK
+        
     @classmethod
     def prepare_args(cls, url_result, coll_path, irods_permissions_list=None):
         user_id = "serapis"
@@ -160,6 +173,7 @@ class CreateCollectionAndSetPermissionsService(ExternalService):
 class DeleteCollectionService(ExternalService):
     
     task_instance = tasks.DeleteCollectionTask()
+    task_type = constants.DELETE_COLLECTION_TASK
     
     @classmethod
     def prepare_args(cls, url_result, coll_path, user_id):
@@ -174,12 +188,6 @@ class DeleteCollectionService(ExternalService):
         
         
         
-        
-        
-        
-        
-    
-    
     
     
     

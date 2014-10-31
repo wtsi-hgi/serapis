@@ -76,8 +76,8 @@ SUPPORTED_STORAGE_TYPES = [NFS, IRODS, LUSTRE]
 
 ######################### USERS ################################################
 
-MERCURY_USER = 'mercury'
-SERAPIS_USER = 'serapis'
+FILES_SUPERUSER = 'mercury'
+ARCHIVE_SUPERUSER = 'serapis'
 
 ########################## QUEUES ##############################################
 
@@ -101,6 +101,8 @@ CALCULATE_MD5_Q = "CalculateMD5Q"
 
 # IRODS queue:
 IRODS_Q = "IRODSQ"
+
+
 
 #################### SERAPIS QUEUES ################################
 
@@ -128,7 +130,7 @@ NR_CONSUMERS_PER_Q_DICT = {
 READ_ACCESS     = "READ_ACCESS"
 WRITE_ACCESS    = "WRITE_ACCESS"
 EXECUTE_ACCESS  = "EXECUTE_ACCESS"
-NO_ACCESS        = "NO_ACCESS"
+NO_ACCESS       = "NO_ACCESS"
 
 
 
@@ -137,6 +139,7 @@ NO_ACCESS        = "NO_ACCESS"
 
 INIT_SOURCE             = "INIT"
 EXTERNAL_SOURCE         = "EXTERNAL_SOURCE"
+LOCAL_SOURCE            = "LOCAL_SOURCE"
 
 ################## TASKS SOURCE NAME: ##################
 # Presubmission tasks:
@@ -157,11 +160,11 @@ CALC_MD5_TASK     = "CALC_MD5_TASK"
 UPLOAD_FILE_TASK  = "UPLOAD_FILE_TASK"
 TEST_FILE_TASK    = "TEST_FILE_TASK"
 SEQSC_QUERY_TASK  = "SEQSCAPE_QUERY_TASK"
-GET_FILES_PERMISSIONS_TASK = "GET_FILES_PERMISSIONS_TASK"
-GET_PERMISSIONS_FOR_FILES_IN_FOFN_TASK = "GET_FILES_PERMISSIONS_TASK"
-GET_PERMISSIONS_FOR_FILES_IN_DIR_TASK = "GET_FILES_PERMISSIONS_TASK"
-
-
+GET_FILES_PERMISSIONS_TASK                  = "GET_FILES_PERMISSIONS_TASK"
+GET_PERMISSIONS_FOR_FILES_IN_FOFN_TASK      = "GET_FILES_PERMISSIONS_TASK"
+GET_PERMISSIONS_FOR_FILES_IN_DIR_TASK       = "GET_FILES_PERMISSIONS_TASK"
+CREATE_COLLECTION_AND_SET_PERMISSIONS_TASK  = 'CREATE_COLLECTION_AND_SET_PERMISSIONS_TASK'
+DELETE_COLLECTION_TASK                      = 'DELETE_COLLECTION_TASK'
 
 
 ## iRODS tasks:
@@ -546,6 +549,51 @@ PREDEFINED_WARNINGS = {
 #              6 : 'PERMISSION_DENIED'
 #              }
 
+
+
+#################### ABSTRACT ARCHIVING STEPS ################################
+
+FETCH_FILE_LIST_AND_PERMISSIONS                 = 'FETCH_FILE_LIST_AND_PERMISSIONS'
+CREATE_TEMP_COLL                                = 'CREATE_TEMP_COLL'
+CREATE_FILE_OBJECTS                             = 'CREATE_FILE_OBJECTS'
+UPLOAD_FILE                                     = 'UPLOAD_FILE'
+CALCULATE_FILE_MD5                              = 'CALCULATE_FILE_MD5'
+PARSE_FILE_HEADER                               = 'PARSE_FILE_HEADER'
+FETCH_METADATA_FROM_EXTERNAL_RSC                = 'FETCH_METADATA_FROM_EXTERNAL_RSC'
+ATTACH_METADATA_TO_FILE                         = 'ATTACH_METADATA_TO_FILE'
+CHECK_FILE_METADATA                             = 'CHECK_FILE_METADATA'
+RUN_FILE_TESTS                                  = 'RUN_FILE_TESTS'
+TEST_SUBMITTED_FILES                            = 'TEST_SUBMITTED_FILES'
+
+
+SUBMISSION_STEPS_LIST = [
+                         FETCH_FILE_LIST_AND_PERMISSIONS, 
+                         CREATE_TEMP_COLL,
+                         CREATE_FILE_OBJECTS,
+                         TEST_SUBMITTED_FILES,
+                         ]
+
+FILE_ARCHIVING_STEPS_LIST = [
+                        UPLOAD_FILE,
+                        CALCULATE_FILE_MD5,
+                        PARSE_FILE_HEADER,
+                        FETCH_METADATA_FROM_EXTERNAL_RSC,
+                        ATTACH_METADATA_TO_FILE,
+                        CHECK_FILE_METADATA,
+                        RUN_FILE_TESTS
+                        ]
+
+NOT_EXECUTED    = 'NOT_EXECUTED'
+INCOMPLETE      = 'INCOMPLETE'
+
+STEP_STATUS = [ 
+               NOT_EXECUTED,
+               INCOMPLETE,
+               SUCCESS_STATUS,
+               FAILURE_STATUS
+               ]
+
+
 #----------------------------- SEQSCAPE TABLES: ----------------------
 CURRENT_WELLS_SEQSC_TABLE           = "current_wells"
 CURRENT_MULTIPLEXED_LIBRARY_TABLE   = "current_multiplexed_library_tubes"
@@ -703,8 +751,29 @@ CAT_INVALID_ARGUMENT        = "CAT_INVALID_ARGUMENT"
 
 CAT_NO_ACCESS_PERMISSION    = "CAT_NO_ACCESS_PERMISSION"
 
+CAT_SUCCESS_BUT_WITH_NO_INFO = "CAT_SUCCESS_BUT_WITH_NO_INFO"
+
 CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME = "CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME"
 
+USER_INPUT_PATH_ERR = "USER_INPUT_PATH_ERR"
+
+OVERWRITE_WITHOUT_FORCE_FLAG = "OVERWRITE_WITHOUT_FORCE_FLAG"
+
+CHKSUM_ERROR = "chksum error"
+
+USER_INPUT_OPTION_ERR = "USER_INPUT_OPTION_ERR"
+
+IRODS_ERRORS_THAT_SHOULD_BE_WARNINGS = [CAT_SUCCESS_BUT_WITH_NO_INFO]
+
+IRODS_ERROR_MESSAGE_LIST = [
+                     CAT_INVALID_ARGUMENT, 
+                     CAT_NO_ACCESS_PERMISSION, 
+                     CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME,
+                     USER_INPUT_PATH_ERR, 
+                     OVERWRITE_WITHOUT_FORCE_FLAG, 
+                     CHKSUM_ERROR, 
+                     USER_INPUT_OPTION_ERR,
+                     ]
 
 
 ######################## IRODS PERMISSIONS #####################
@@ -714,6 +783,15 @@ iRODS_MODIFY_PERMISSION = "write"
 iRODS_OWN_PERMISSION    = "own"
 iRODS_NULL_PERMISSION   = "null"
 
+iRODS_PERMISSIONS = [iRODS_MODIFY_PERMISSION, iRODS_NULL_PERMISSION, iRODS_OWN_PERMISSION, iRODS_READ_PERMISSION]
+
+UNIX_READ_PERMISSION = "r"
+UNIX_WRITE_PERMISSION = "w"
+UNIX_EXECUTE_PERMISSION = "x"
+UNIX_NO_PERMISSION = "-"
+
+
+UNIX_PERMISSIONS = [UNIX_READ_PERMISSION, UNIX_WRITE_PERMISSION, UNIX_EXECUTE_PERMISSION]
 
 ####################### IRODS ZONES #############################
 

@@ -25,7 +25,7 @@ class TooManyMatchingEntities(Exception):
 
     
     
-class NoEntityIdentifyingFieldsProvided(Exception):
+class NoIdentifyingFieldsProvidedException(Exception):
     ''' Exception thrown when a POST/PUT request comes in containing the information
         for creating/updating an entity, but the description of the entity does not contain
         any identifier for that entity.'''
@@ -35,7 +35,7 @@ class NoEntityIdentifyingFieldsProvided(Exception):
         
     def __str__(self):
         text = 'No identifying fields for this entity provided.'
-        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)
+        return super(NoIdentifyingFieldsProvidedException, self).__str__(text)
 #        if self.faulty_expression != None:
 #            text += self.faulty_expression
 #        if self.message != None:
@@ -54,4 +54,4 @@ class NotReadyForOperation(Exception):
         
     def __str__(self):
         text = 'Not ready for this operation!'
-        return super(NoEntityIdentifyingFieldsProvided, self).__str__(text)
+        return super(NoIdentifyingFieldsProvidedException, self).__str__(text)

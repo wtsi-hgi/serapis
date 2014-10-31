@@ -14,7 +14,8 @@ from serapis.domain import header_processing
 from serapis.domain.models import data_entities, data
 from serapis.api import api_messages
 from serapis.external_services import remote_messages
-from serapis.external_services.services import UploaderService, BAMHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
+#from serapis.external_services.services import UploaderService, BAMHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
+from serapis.external_services.call_services import CallServices
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
         
@@ -26,11 +27,10 @@ class IndexFile(object):
         self.md5 = None
 
 
-
 class SerapisFileBuilder(object):
     
     @staticmethod
-    def build(params, submission_id):
+    def build(params, submission):
         ''' Creates a SerapisFile from the input parameters.
             Params:
                 - input_params = api_messages.FileCreationAPIInputMsg
@@ -42,25 +42,31 @@ class SerapisFileBuilder(object):
             new_file = SerapisVCFFileFormat()
 
         # Init the irods collection
-        if not params.irods_coll:
-            irods_coll = utils.build_irods_permanent_project_path(submission_id)
+        if not params.dest_path:
+            #dest_path = utils.build_irods_permanent_project_path(submission_id)
+            dest_path = submission.determine_temp_path()
         else:
-            irods_coll = params.irods_coll
-        new_file.irods_coll = irods_coll
+            dest_path = params.dest_path
+        new_file.dest_path = dest_path
         
         # Init metadata:
-        new_file.serapis_metadata = serapis_metadata.SerapisMetadataForFile(submission_id=submission_id)
+        new_file.serapis_metadata = serapis_metadata.SerapisMetadataForFile(submission_id=submission.id)
         
         # Init data:
+#        if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
+#             new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing, 
+#                                                       coverage_list=params.coverage_list, sorting_order=params.sorting_order, genomic_reg=params.genomic_regions,
+#                                                       library_strategy=params.library_strategy, library_source=params.library_source, 
+#                                                       )
+#         elif params.data_type == constants.VARIATION_SETS:
+#             new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing, 
+#                                                coverage_list=params.coverage_list, params.sorting_order, genomic_regions=params.genomic_regions, 
+#                                                library_strategy=params.library_strategy, library_source=params.library_source)
+
         if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
-            new_file.data = data.ImprovedSequenceData(params.pmid_list, params.security_level, processing=params.processing, 
-                                                      coverage_list=params.coverage_list, sorting_order=params.sorting_order, genomic_reg=params.genomic_regions,
-                                                      library_strategy=params.library_strategy, library_source=params.library_source, 
-                                                      )
+            new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing)
         elif params.data_type == constants.VARIATION_SETS:
-            new_file.data = data.VariationData(params.pmid_list, params.security_level, processing=params.processing, 
-                                               coverage_list=params.coverage_list, params.sorting_order, genomic_regions=params.genomic_regions, 
-                                               library_strategy=params.library_strategy, library_source=params.library_source)
+            new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing)
         else:
             raise NotImplementedError
         new_file.data_type = params.data_type
@@ -70,17 +76,27 @@ class SerapisFileBuilder(object):
         
         # Init index file:
         if params.fpath_idx_client:
-            new_file.index_file = IndexFile(fpath = params.fpath_idx_client)
+            new_file.index_file = IndexFile(fpath=params.fpath_idx_client)
 
         # Init the rest of fields:
-        new_file.hgi_project = params.hgi_project
-        new_file.submitter_user_id = params.submitter_user_id  # submitter_user_id
+        new_file.access_group = params.access_group
+        new_file.owner_uid = params.owner_uid  # creator_uid
         new_file.md5 = None     # to be filled in after it is being calculated
- 
-# self.fpath_client = fpath_client
-#         self.hgi_project = hgi_project
-#         self.submitter_user_id = submitter_user_id  # submitter_user_id
-#         self.studies = studies 
+        
+
+# File attributes:
+# - file_format
+# - dest_path
+# - data_type
+# - fpath_client
+# - index_file
+# - access group
+# - owner_uidV
+# - md5
+# - serapis_metadata
+
+
+###################
 #         self.processing = processing_list
 #         self.security_level = security_level
 #         self.pmid_list = pmid_list
@@ -90,6 +106,7 @@ class SerapisFileBuilder(object):
 #         self.coverage_list = coverage_list
 #         self.library_strategy = library_strategy
 #         self.library_source = library_source
+#         self.steps_status = {ARCHIVING_STEPS_LIST}
 
     
 class SerapisFile(object):
@@ -97,28 +114,7 @@ class SerapisFile(object):
     
     ################## Methods exposed by the API: ##############################
     
-#     def archive_file(self, input_params):
-#         ''' Not sure what this is doing, since the functionality is split between stage_file and submit_staged_file.'''
-#         pass
-    
-#     def stage_file(self):
-#         ''' This method uploads this file to a staging area.'''
-#         pass
-#     
-#     def submit_staged_file(self):
-#         ''' This method submits a staged file to the permanent iRODS collection.'''
-#         pass
-    
-#     def seek_for_metadata_in_header(self):
-#         self.file_format.parse_header(self.fpath_client, self._get_result_url(), self.submitter_user_id, self.serapis_metadata)
-    
-#     def attach_all_metadata_to_staged_file(self):
-#             pass
-
-#     def move_from_staging_to_permanent_irods(self):
-#         pass
-
-    
+   
     def retrieve_metadata_version(self):
         pass
     
@@ -148,7 +144,7 @@ class SerapisFile(object):
         
         
     # This shouldn't be here - it is static, doesn't belong to a specific file, or I don't know...
-    def get_irods_staging_dir_path(self):
+    def get_irods_staging_coll_path(self):
         ''' This function returns the path to the corresponding staging area collection. '''
         return os.path.join(configs.IRODS_STAGING_AREA, self._get_submission_id())
 
@@ -161,44 +157,44 @@ class SerapisFile(object):
     def determine_user_with_file_permissions(self):
         if self._has_permission_merc():
             return 'mercury'
-        return self.submitter_user_id
+        return self.creator_uid
     
     def _has_permission_merc(self):
         return self.serapis_metadata.has_permission_mercury()
     
     # Operations executed remotely (tasks):
-    def upload_to_irods(self, src_fpath, src_idx_fpath, dest_irods_coll):
+    def upload_to_irods(self, dest_irods_coll): # , src_fpath, src_idx_fpath=None
         # dest_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id())
+        
         # src_idx_fpath = self.index_file.fpath_client if hasattr(self, 'index_file') else None
         #dest_idx_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id()) if hasattr(self, 'index_file') else None
-        fname = utils.get_filename_from_path(src_fpath)
-        idx_fname = utils.get_filename_from_path(src_idx_fpath)
+        fname = utils.get_filename_from_path(self.fpath_client)
         dest_fpath = os.path.join(dest_irods_coll, fname)
-        dest_idx_fpath = os.path.join(dest_irods_coll, idx_fname)
+        
+        dest_idx_fpath = None
+        if self.index_file.fpath_client:
+            idx_fname = utils.get_filename_from_path(self.index_file.fpath_client)
+            dest_idx_fpath = os.path.join(dest_irods_coll, idx_fname)
+        
         url_result = self._get_result_url()
         user_with_permissions = self.determine_user_with_file_permissions()
         
-        task_args = UploaderService.prepare_args(url_result, src_fpath, dest_fpath, src_idx_fpath, dest_idx_fpath, user_with_permissions)
-        task_id = UploaderService.call_service(task_args)
-        
-        self.serapis_metadata.register_task(task_id, constants.UPLOAD_FILE_TASK)
+        deferred_task = CallServices.upload_file(url_result, self.fpath_client, dest_fpath, self.index_file.fpath_client, dest_idx_fpath, user_with_permissions)
+        self.serapis_metadata.register_deferred_task(deferred_task)
         
         
     def calculate_md5(self): # should this be rerun each time I rerun the upload task?
         idx_fpath = self.index_file.fpath_client if self.index_file != None else None
         url_result = self._get_result_url()
         user_with_permissions = self.determine_user_with_file_permissions()
-        
-        tasks_args = MD5CalculatorService.prepare_args(self.fpath_client, idx_fpath, url_result, user_with_permissions)
-        task_id = MD5CalculatorService.call_service(tasks_args)
-        self.serapis_metadata.register_task(task_id, constants.CALC_MD5_TASK)
+        deferred_task = CallServices.calculate_md5(self.fpath_client, idx_fpath, url_result, user_with_permissions)
+        self.serapis_metadata.register_deferred_task(deferred_task)
     
     
-    def query_seqscape(self, entity_type, field_name, field_value):
+    def lookup_entity_in_ext_resc(self, entity_type, field_name, field_value):
         url_result = self._get_result_url()
-        tasks_args = SeqscapeDBQueryService.prepare_args(url_result, entity_type, field_name, field_value)
-        task_id = SeqscapeDBQueryService.call_service(tasks_args)
-        self.serapis_metadata.register_task(task_id, constants.SEQSC_QUERY_TASK)
+        deferred_task = CallServices.query_seqscape_entity(url_result, entity_type, field_name, field_value)
+        self.serapis_metadata.register_deferred_task(deferred_task)
     
     
     def remove_inferred_metadata(self):
@@ -246,6 +242,11 @@ class SerapisFile(object):
         ''' Funct to change the permissions of the file in discussion, to the ones given as param.'''
         pass
     
+    ##################### DATABASE SPECIFIC FUNCTIONS: ###########################
+    
+    @staticmethod
+    def fetch_from_db(file_id):
+        pass
     
 
 
@@ -256,9 +257,9 @@ class SerapisBAMFileFormat(SerapisFile):
     # class Header ?!
     
     def seek_for_metadata_in_header(self):
-        task_args = BAMHeaderParserService.prepare_args(self.fpath_client, self._get_result_url(), self.submitter_user_id)
+        task_args = BAMHeaderParserService.prepare_args(self.fpath_client, self._get_result_url(), self.creator_uid)
         task_id = BAMHeaderParserService.call_service(task_args)
-        self.serapis_metadata.register_task(task_id, task_type=constants.PARSE_HEADER_TASK)
+        self.serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
 
     # Here I assumed that if 
     def process_metadata_from_header(self, header):
@@ -277,13 +278,13 @@ class SerapisBAMFileFormat(SerapisFile):
             sample = data_entities.Sample()
             setattr(sample, identifier_type, sample_id)
             self.data.add_sample(sample)
-            self.query_seqscape(constants.SAMPLE_TYPE, identifier_type, sample_id)
+            self.lookup_entity_in_ext_resc(constants.SAMPLE_TYPE, identifier_type, sample_id)
         for library_id in header.library_list:
             idenfier_type = data_entities.Library.guess_identifier_type(library_id)
             library = data_entities.Library()
             setattr(library, idenfier_type, library_id)
             self.data.add_library(library)
-            self.query_seqscape(constants.LIBRARY_TYPE, identifier_type, library_id)
+            self.lookup_entity_in_ext_resc(constants.LIBRARY_TYPE, identifier_type, library_id)
             
         norm_platf_list = sets.Set()
         for platform in header.platform_list:
@@ -353,9 +354,9 @@ class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
     def parse_header(self, fpath, url_result, user_id, serapis_metadata):
         task_args = BAMHeaderParserService.prepare_args(fpath, url_result, user_id)
         task_id = BAMHeaderParserService.call_service(task_args)
-        serapis_metadata.register_task(task_id, task_type=constants.PARSE_HEADER_TASK)
+        serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
         
-#         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.submitter_user_id)
+#         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.creator_uid)
 #         task_parameters = {'file_path': file_path}
 #         task_args = task_launcher.TaskLauncherArguments(self.parse_BAM_header_task, task_parameters, task_queue=task_queue)
 #         task_id = task_launcher.TaskLauncher.launch_task(task_args)

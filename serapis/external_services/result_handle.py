@@ -9,7 +9,7 @@ from serapis.services import file_services, submission_services
 
 
 
-class ResultHandler(object):
+class ResultHandle(object):
     
     @abc.abstractmethod
     def handle(self, result):
@@ -27,7 +27,7 @@ class ResultHandler(object):
 # FILE_TESTS_COMPLETED                            = 'FILE_TESTS_COMPLETED'
 
 
-class SubmissionTasksResultHandler(ResultHandler):
+class SubmissionTasksResultHandle(ResultHandle):
     
     def handle(self, result, submission_id):
         submission = subm_pkg.Submission.retrieve_from_db(submission_id)
@@ -38,7 +38,7 @@ class SubmissionTasksResultHandler(ResultHandler):
             return self._handle_success_result(result['task_result'], submission)
 
 
-class GetFilesPermissionsResultHandler(SubmissionTasksResultHandler):
+class GetFilesPermissionsResultHandle(SubmissionTasksResultHandle):
     
     task_name = constants.GET_FILES_PERMISSIONS_TASK
     
@@ -56,7 +56,7 @@ class GetFilesPermissionsResultHandler(SubmissionTasksResultHandler):
 
     def _run_next_step(self, result, submission):
         #submission.data_set.init_all_files(result['files_permissions'])
-        fpaths_with_permission = submission.data_set.filter_fpaths_list_based_on_permissions(permission=constants.READ_ACCESS)
+        fpaths_with_permission = submission.data_set.filter_fpaths_based_on_permissions(permission=constants.READ_ACCESS)
         file_obj_list = submission_services.SubmissionServices.initialize_files(fpaths_with_permission, submission)
         submission_services.SubmissionServices.stage_files(submission, file_obj_list)
         
@@ -67,7 +67,7 @@ class GetFilesPermissionsResultHandler(SubmissionTasksResultHandler):
         pass
         
 
-class CreateCollectionAndSetPermissionsTaskResultHandler(ResultHandler):
+class CreateCollectionAndSetPermissionsTaskResultHandle(ResultHandle):
     
     task_name = constants.CREATE_COLLECTION_AND_SET_PERMISSIONS_TASK
     

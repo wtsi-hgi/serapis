@@ -324,14 +324,14 @@ class TaskLauncher(object):
         else:
             logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
         
-        permanent_coll_irods = file_obj.irods_coll
+        permanent_coll_irods = file_obj.dest_path
         task = move_to_permanent_coll_task.apply_async(kwargs={
                                                                'file_id' : file_obj.file_id,
                                                                'submission_id' : file_obj.submission_id,
                                                                'file_path_irods' : fpath_irods,
                                                                'index_file_path_irods' : index_fpath_irods,
                                                                'permanent_coll_irods' : permanent_coll_irods,
-                                                               'access_group': file_obj.hgi_project,
+                                                               'access_group': file_obj.access_group,
                                                                #'owner_username': SubmissionModelUtilityFunctions.get_uploader_username(file_obj.submission_id)
                                                                },
                                                        queue=constants.IRODS_Q
@@ -363,7 +363,7 @@ class TaskLauncher(object):
         else:
             logging.warning("No indeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex!!!!!!!!!")
     
-        permanent_coll_irods = file_obj.irods_coll
+        permanent_coll_irods = file_obj.dest_path
         task = submit_to_permanent_iRODS_coll_task.apply_async(kwargs={
                                                       'file_id' : file_obj.file_id, 
                                                       'submission_id' : file_obj.submission_id,
@@ -389,7 +389,7 @@ class SubmissionTaskLauncher(TaskLauncher):
         submission_staging_area_path = utils.build_irods_staging_path(submission.id)
         task = move_coll_to_permanent_coll_task.apply_async(kwargs={
                                                                     'submission_id': submission.id,
-                                                                    'access_group': submission.hgi_project,
+                                                                    'access_group': submission.access_group,
                                                                     'owner_username': uploader_username,
                                                                     'src_coll_irods': submission_staging_area_path,
                                                                     'permanent_coll_irods': submission.irods_collection

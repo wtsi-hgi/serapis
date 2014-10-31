@@ -163,7 +163,7 @@ class Study(Entity):
             return val
         
         for srp_val in serapis_dict:
-            str_dist = utils.levenshtein(srp_val.lower, val.lower)
+            str_dist = utils.levenshtein(srp_val.lower(), val.lower())
             if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_val
         print "ERROR: SEQSC -> SERAPIS MAPPER: THE STUDY FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"

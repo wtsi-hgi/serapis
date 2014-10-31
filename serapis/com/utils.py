@@ -33,6 +33,7 @@ from os import listdir
 from os.path import isfile, join, exists
 from serapis.com import constants
 from Celery_Django_Prj import configs
+from collections import defaultdict
 
 
 
@@ -442,15 +443,6 @@ def get_all_file_types(fpaths_list):
     return file_types
 
 
-    
-def build_irods_permanent_project_path(submission_date, hgi_project, hgi_subprj=None):
-    if not hgi_subprj:
-        return os.path.join(configs.IRODS_PERMANENT_PROJECTS_AREA, hgi_project, submission_date)
-    else:
-        return os.path.join(configs.IRODS_PERMANENT_PROJECTS_AREA, hgi_project, hgi_subprj, submission_date)
-
-def build_irods_staging_area_path(submission_id):
-    return os.path.join(configs.IRODS_STAGING_AREA, submission_id)
 
 # MOVED TO files.py
 # def build_irods_staging_path(submission_id):
@@ -478,6 +470,7 @@ def infer_hgi_project_from_path(path):
         return match.group(1)
     return None
 
+
 def is_hgi_project(project):
     regex = constants.REGEX_HGI_PROJECT
     if re.search(regex, project):
@@ -504,6 +497,11 @@ def is_library_strategy(library_strategy):
 
 def is_genomic_region(genomic_region):
     return genomic_region.upper() in constants.GENOMIC_REGIONS
+
+def is_field_empty(obj, field):
+    return not (hasattr(obj, field) and getattr(obj, field) != None)
+
+
 
 def detect_file_type(file_path):
     #file_extension = utils.extract_file_extension(file_path)
@@ -683,7 +681,19 @@ def compare_strings_ignore_case(str1, str2):
     str1 = str1.lower()
     str2 = str2.lower()
     return compare_strings(str1, str2)
-    
+
+
+def get_key_counts(tuples_list):
+    ''' 
+        This function calculates the number of occurences of
+        each key in the list of tuples received as parameter.
+        Returns a dict containing: key - occurances.
+    '''
+    key_freq_dict = defaultdict(int)
+    for item in tuples_list:
+        key_freq_dict[item[0]] += 1
+    return key_freq_dict
+
 
     
     
