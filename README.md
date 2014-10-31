@@ -46,18 +46,6 @@ Browser -> web server (which acts like the Celery-server client) -> saves data i
 		* the name of the function (from views.py file or view_classes.py file) to be called when a request for that url comes in
 		* (optional) name of that url chosen (to distinguish easier between different urls).
 
-- views.py - contains functions that get as parameter a request and decide what to do with it further and what HttpResponse to return
-- views_classes.py - has the same "logical" purpose as views.py, the only difference is that the functions to be called are encapsulated within classes (the framework offers both options - views as functions or as classes, the developer chooses which one he likes
-		- each class has a 
-				* template_name = field which tells which one is the corresponding html page for that view
-				* form_class = field that tells which one is the corresponding form that gets initialized from that html-page-form
-				* success_url = url to be used when/if the request is successful
-
-
-
-- forms.py - contains forms as classes (that inherit forms.Form)
-	 - the fields declared in this kind of classes correspond to fields from the  html page form
-
 - tasks.py - file containing the tasks (defined as functions) to be queued and executed on other machines by the workers (workers = processes/threads started on one or more machines, listening to tasks 'coming' from RabbitMQ queues).
 
 - models.py - Database model used in the application. Each python class defined here corresponds to a document or to an EmbeddedDocument ( a document embedded within another document). I tried to model the data in such a way, that the fields, most of them reside physically in the same document, but to organise them logically in separate entities: the actual document inherits from DynamicDocument (mongoengine class), while the nested types inherit from DynamicEmbeddedDocument. I thought this might ease the handling of the data from the html forms.
