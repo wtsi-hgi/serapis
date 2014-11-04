@@ -56,45 +56,8 @@ BAMHeaderHD = namedtuple('BAMHeaderHD', [])
 BAMHeader = namedtuple('BAMHeader', ['rg', 'pg', 'hd', 'sq'])
 
 
-
-class BAMHeaderParser(HeaderParser):
-    ''' 
-        Class containing the functionality for parsing BAM file's header.
-    '''
-    HEADER_TAGS = {'CN', 'LB', 'SM', 'DT', 'PL', 'DS', 'PU'}  # PU, PL, DS?
-    
-#     @classmethod
-#     @wrappers.check_args_not_none
-#     def _get_header_readgrps_list(cls, file_path):
-#         ''' Parse BAM file header using pysam and extract the desired fields (HEADER_TAGS)
-#             Returns a list of dicts, like: [{'LB': 'bcX98J21 1', 'CN': 'SC', 'PU': '071108_IL11_0099_2', 'SM': 'bcX98J21 1', 'DT': '2007-11-08T00:00:00+0000'}]'''
-#         bamfile = pysam.Samfile(file_path, "rb" )
-#         header = bamfile.header['RG']
-#         for header_grp in header:
-#             for header_elem_key in header_grp.keys():
-#                 if header_elem_key not in cls.HEADER_TAGS:
-#                     header_grp.pop(header_elem_key) 
-#         bamfile.close()
-#         return header
-#     
-    
-   
-    @classmethod
-    @wrappers.check_args_not_none
-    def _group_header_entries_by_type(cls, header_as_dict):
-        ''' Gets the header and extracts from it a list of libraries, a list of samples, etc. 
-            Example of output: {'LB': ['5507617'], 'CN': ['SC'], 'PU': ['120910_HS11_08408_B_C0PNFACXX_6#71', '120731_HS25_08213_B_C0N8CACXX_2#71'...}.
-        '''
-        dictionary = defaultdict(set)
-        for map_json in header_as_dict:
-            for k,v in map_json.items():
-                dictionary[k].add(v)
-        back_to_list = {}
-        for k,v in dictionary.items():
-            back_to_list[k] = list(v)
-        return back_to_list
-
-
+class _RGTagParser(object):
+     
     @classmethod
     @wrappers.check_args_not_none
     def extract_platform_list_from_rg(cls, rg_dict):
@@ -117,6 +80,17 @@ class BAMHeaderParser(HeaderParser):
     @classmethod
     @wrappers.check_args_not_none
     def extract_lanelet_name_from_pu_entry(cls, pu_entry):
+        ''' This method extracts the lanelet name from the pu entry.
+            WARNING! This works only for Sanger-sequenced data.
+            Parameters
+            ----------
+            PU entry: str
+                This is part of RG part of the header, it looks like this: 121211_HS2_08985_B_C16GWACXX_4#16
+            Returns
+            -------
+            lanelet: str
+                This is the name of the lanelet extracted from this part of the header, looking like: e.g. 1234_1#1
+        '''
         pattern = re.compile(LANELET_NAME_REGEX)
         if pattern.match(pu_entry) != None:     # PU entry is just a list of lanelet names
             return pu_entry
@@ -197,40 +171,11 @@ class BAMHeaderParser(HeaderParser):
             else:
                 return str(run) + '_' + str(lane)
         return None
- 
+    
+    
     @classmethod
     @wrappers.check_args_not_none
-    def extract_header(cls, path):
-        ''' This method extracts the header from a BAM file, given its path 
-            Returns
-            -------
-            header
-                A dict containing the groups in the BAM header.
-        '''
-        with pysam.Samfile(path, "rb" ) as bamfile:
-            return bamfile.header
-
-#         bamfile = pysam.Samfile(path, "rb" )
-#         header = bamfile.header
-#         bamfile.close()
-#         return header
-#     
-#     @classmethod
-#     @wrappers.check_args_not_none
-#     def filter_rg_tags(cls, rg_header_list):
-#         filtered_rg_list = []
-#         for rg in rg_header_list:
-#             filtered_rg = {}
-#             for tag in rg.keys():
-#                 if tag in cls.HEADER_TAGS:
-#                     filtered_rg[tag] = rg[tag]
-#             filtered_rg_list.append(filtered_rg)
-#         return filtered_rg_list
-#     
-#         
-    @classmethod
-    @wrappers.check_args_not_none
-    def parse_RG(cls, header_rg_list):
+    def parse_all(cls, header_rg_list):
         seq_center_list, seq_date_list, lanelet_list, platform_list, library_list, sample_list = [], [], [], [], [], []
         for read_grp in header_rg_list:
             is_sanger_sample = False
@@ -245,10 +190,7 @@ class BAMHeaderParser(HeaderParser):
             if 'LB' in read_grp:
                 library_list.append(read_grp['LB'])
             if 'PU' in read_grp and is_sanger_sample:
-                run_id = cls.extract_run_from_pu_entry(read_grp['PU'])
-                lane = cls.extract_lane_from_pu_entry(read_grp['PU'])
-                tag = cls.extract_tag_from_pu_entry(read_grp['PU'])
-                lanelet_list.append(cls.build_lanelet_name(run_id, lane, tag))
+                lanelet_list.append(cls.extract_lanelet_name_from_pu_entry(read_grp['PU']))
                 platform_list.append(cls.extract_platform_list_from_rg(read_grp))
             if not is_sanger_sample and 'PL' in read_grp:
                 platform_list.append(read_grp['PL'])
@@ -262,26 +204,54 @@ class BAMHeaderParser(HeaderParser):
                            sample_list=filter(None, list(set(sample_list)))
                          )
         
+
+class _SQTagParser(object):
+
     @classmethod
-    def parse_SQ(cls, header_sq_list):
+    def parse_all(cls, header_sq_list):
         raise NotImplementedError
     
+
+class _HDTagParser(object):
+
     @classmethod
-    def parse_HD(cls, header_hd_list):
+    def parse_all(cls, header_hd_list):
         raise NotImplementedError
+
+class _PGTagParser(object):
     
     @classmethod
-    def parse_PG(cls, header_pg_list):
+    def parse_all(cls, header_pg_list):
         raise NotImplementedError
+
+
+
+class BAMHeaderParser(HeaderParser):
+    ''' 
+        Class containing the functionality for parsing BAM file's header.
+    '''
+    
+    @classmethod
+    @wrappers.check_args_not_none
+    def extract_header(cls, path):
+        ''' This method extracts the header from a BAM file, given its path 
+            Returns
+            -------
+            header
+                A dict containing the groups in the BAM header.
+        '''
+        with pysam.Samfile(path, "rb" ) as bamfile:
+            return bamfile.header
+
     
     @classmethod
     @wrappers.check_args_not_none
     def parse(cls, path, rg=True, sq=True, hd=True, pg=True):
         header_dict = cls.extract_header(path)
-        sq = cls.parse_SQ(header_dict['SQ']) if sq else None
-        hd = cls.parse_HD(header_dict['HD']) if hd else None
-        pg = cls.parse_RG(header_dict['PG']) if pg else None
-        rg = cls.parse_RG(header_dict['RG']) if rg else None
+        sq = _SQTagParser.parse_all(header_dict['SQ']) if sq else None
+        hd = _HDTagParser.parse_all(header_dict['HD']) if hd else None
+        pg = _PGTagParser.parse_all(header_dict['PG']) if pg else None
+        rg = _RGTagParser.parse_all(header_dict['RG']) if rg else None
         return BAMHeader(sq=sq, hd=hd, pg=pg, rg=rg)
         
     
@@ -292,3 +262,4 @@ class BAMHeaderParser(HeaderParser):
     
     
     
+
