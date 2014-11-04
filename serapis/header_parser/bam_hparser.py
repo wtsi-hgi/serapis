@@ -60,7 +60,7 @@ class _RGTagParser(object):
      
     @classmethod
     @wrappers.check_args_not_none
-    def extract_platform_list_from_rg(cls, rg_dict):
+    def _extract_platform_list_from_rg(cls, rg_dict):
         ''' This method extracts the platform from a file's rg list
             In Sanger BAM files, the header contains: 
             'PL': 'ILLUMINA' - for platform
@@ -73,13 +73,13 @@ class _RGTagParser(object):
         if 'PL' in rg_dict:
             platform = rg_dict['PL']
         if 'PU' in rg_dict:
-            platform = platform + ' ' + cls.extract_platform_from_pu_entry(rg_dict['PU'])
+            platform = platform + ' ' + cls._extract_platform_from_pu_entry(rg_dict['PU'])
         return platform
 
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract_lanelet_name_from_pu_entry(cls, pu_entry):
+    def _extract_lanelet_name_from_pu_entry(cls, pu_entry):
         ''' This method extracts the lanelet name from the pu entry.
             WARNING! This works only for Sanger-sequenced data.
             Parameters
@@ -95,16 +95,16 @@ class _RGTagParser(object):
         if pattern.match(pu_entry) != None:     # PU entry is just a list of lanelet names
             return pu_entry
         else:
-            run = cls.extract_run_from_pu_entry(pu_entry)
-            lane = cls.extract_lane_from_pu_entry(pu_entry)
-            tag = cls.extract_tag_from_pu_entry(pu_entry)
-            lanelet = cls.build_lanelet_name(run, lane, tag)
+            run = cls._extract_run_from_pu_entry(pu_entry)
+            lane = cls._extract_lane_from_pu_entry(pu_entry)
+            tag = cls._extract_tag_from_pu_entry(pu_entry)
+            lanelet = cls._build_lanelet_name(run, lane, tag)
             return lanelet
 
     
     @classmethod
     @wrappers.check_args_not_none
-    def extract_platform_from_pu_entry(cls, pu_entry):
+    def _extract_platform_from_pu_entry(cls, pu_entry):
         ''' This method extracts the platform from the string found in 
             the BAM header's RG section, under PU entry: 
             e.g.'PU': '120815_HS16_08276_A_C0NKKACXX_4#1'
@@ -122,7 +122,7 @@ class _RGTagParser(object):
     
     @classmethod
     @wrappers.check_args_not_none
-    def extract_lane_from_pu_entry(cls, pu_entry):
+    def _extract_lane_from_pu_entry(cls, pu_entry):
         ''' This method extracts the lane from the string found in
             the BAM header's RG section, under PU entry => between last _ and #. 
             A PU entry looks like: '120815_HS16_08276_A_C0NKKACXX_4#1'. 
@@ -138,7 +138,7 @@ class _RGTagParser(object):
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract_tag_from_pu_entry(cls, pu_entry):
+    def _extract_tag_from_pu_entry(cls, pu_entry):
         ''' This method extracts the tag nr from the string found in the 
             BAM header - section RG, under PU entry => the nr after last #
         '''
@@ -150,7 +150,7 @@ class _RGTagParser(object):
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract_run_from_pu_entry(cls, pu_entry):
+    def _extract_run_from_pu_entry(cls, pu_entry):
         ''' This method extracts the run nr from the string found in
             the BAM header's RG section, under PU entry => between 2nd and 3rd _.
         '''
@@ -164,7 +164,7 @@ class _RGTagParser(object):
     
          
     @classmethod
-    def build_lanelet_name(cls, run, lane, tag=None):
+    def _build_lanelet_name(cls, run, lane, tag=None):
         if run and lane:
             if tag:
                 return str(run) + '_' + str(lane) + '#' + str(tag)
@@ -175,9 +175,20 @@ class _RGTagParser(object):
     
     @classmethod
     @wrappers.check_args_not_none
-    def parse_all(cls, header_rg_list):
+    def parse_all(cls, rgs_list):
+        ''' This method parses all the RGs (ReadGroup) in the list received as parameter 
+            and returns a BAMHeaderRG containing the information found there.
+            Parameters
+            ----------
+            rgs_list: list
+                A list of dicts, in which each dict represents a RG - e.g.:[{'ID': 'SZAIPI037128-51', 'LB': 'SZAIPI037128-51', 'PL': 'illumina', 'PU': '131220_I875_FCC3K7HACXX_L4_SZAIPI037128-51', 'SM': 'F05_XX629745'}]
+            Returns
+            -------
+            BAMHeaderRG
+                An object containing the fields of the RG tags.
+        '''
         seq_center_list, seq_date_list, lanelet_list, platform_list, library_list, sample_list = [], [], [], [], [], []
-        for read_grp in header_rg_list:
+        for read_grp in rgs_list:
             is_sanger_sample = False
             if 'CN' in read_grp:
                 seq_center_list.append(read_grp['CN'])
@@ -190,8 +201,8 @@ class _RGTagParser(object):
             if 'LB' in read_grp:
                 library_list.append(read_grp['LB'])
             if 'PU' in read_grp and is_sanger_sample:
-                lanelet_list.append(cls.extract_lanelet_name_from_pu_entry(read_grp['PU']))
-                platform_list.append(cls.extract_platform_list_from_rg(read_grp))
+                lanelet_list.append(cls._extract_lanelet_name_from_pu_entry(read_grp['PU']))
+                platform_list.append(cls._extract_platform_list_from_rg(read_grp))
             if not is_sanger_sample and 'PL' in read_grp:
                 platform_list.append(read_grp['PL'])
 
@@ -208,20 +219,20 @@ class _RGTagParser(object):
 class _SQTagParser(object):
 
     @classmethod
-    def parse_all(cls, header_sq_list):
+    def parse_all(cls, sqs_list):
         raise NotImplementedError
     
 
 class _HDTagParser(object):
 
     @classmethod
-    def parse_all(cls, header_hd_list):
+    def parse_all(cls, hds_list):
         raise NotImplementedError
 
 class _PGTagParser(object):
     
     @classmethod
-    def parse_all(cls, header_pg_list):
+    def parse_all(cls, pgs_list):
         raise NotImplementedError
 
 
@@ -234,11 +245,19 @@ class BAMHeaderParser(HeaderParser):
     @classmethod
     @wrappers.check_args_not_none
     def extract_header(cls, path):
-        ''' This method extracts the header from a BAM file, given its path 
+        ''' This method extracts the header from a BAM file, given its path
+            Parameters
+            ----------
+            path: str
+                The path to the file
             Returns
             -------
             header
                 A dict containing the groups in the BAM header.
+            Raises
+            ------
+            ValueError - if the file is not SAM/BAM format
+
         '''
         with pysam.Samfile(path, "rb" ) as bamfile:
             return bamfile.header
@@ -247,6 +266,27 @@ class BAMHeaderParser(HeaderParser):
     @classmethod
     @wrappers.check_args_not_none
     def parse(cls, path, rg=True, sq=True, hd=True, pg=True):
+        ''' This method takes a BAM file path and parses its header, returning a BAMHeader object
+            Parameters
+            ----------
+            path: str
+                THe path to the BAM file
+            rg: bool
+                Flag - True(default) if the result should contain also the RG (ReadGroups) of the parsed header
+            hd: bool
+                Flag - True(default) if the result should contain also the HD (head) of the parsed header
+            sq: bool
+                Flag - True(default) if the result should contain also the SQ (Sequnce) of the parsed header
+            pg: bool
+                Flag - True(default) if the result should contain also the PG (Programs) of the parsed header
+            Returns
+            -------
+            header: BAMHeader
+                The header parsed, containing the parts specified as paramter
+            Raises
+            ------
+            ValueError - if the file is not SAM/BAM format
+        '''
         header_dict = cls.extract_header(path)
         sq = _SQTagParser.parse_all(header_dict['SQ']) if sq else None
         hd = _HDTagParser.parse_all(header_dict['HD']) if hd else None

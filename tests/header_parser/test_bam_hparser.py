@@ -26,93 +26,93 @@ class Test_RGTagParser(unittest.TestCase):
         
     def test_extract_platform_list_from_rg(self):
         header_rg = {"ID" : "1#71.5", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_8#71", "LB" : "5507617"}
-        platf = _RGTagParser.extract_platform_list_from_rg(header_rg)
+        platf = _RGTagParser._extract_platform_list_from_rg(header_rg)
         print "PLATF: ", str(platf)
         assert_that(platf, equal_to("ILLUMINA HS"))
 
         header_rg = {"ID" : "1#71.4", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_7#71", "LB" : "5507617"}
-        platf = _RGTagParser.extract_platform_list_from_rg(header_rg)
+        platf = _RGTagParser._extract_platform_list_from_rg(header_rg)
         assert_that(platf, equal_to("ILLUMINA HS"))
             
     
     def test_extract_run_from_PUHeader(self):
         pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = _RGTagParser.extract_run_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_run_from_pu_entry(pu_entry)
         self.assertEqual(run, 8276)
         
         pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = _RGTagParser.extract_run_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_run_from_pu_entry(pu_entry)
         self.assertEqual(run, 7874)
         
     def test_extract_tag_from_PUHeader(self):
         pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = _RGTagParser.extract_tag_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_tag_from_pu_entry(pu_entry)
         self.assertEqual(run, 6)
         
         pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = _RGTagParser.extract_tag_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_tag_from_pu_entry(pu_entry)
         self.assertEqual(run, 1)
         
         pu_entry = '120815_HS16_08276_A_C0NKKACXX_4'
-        run = _RGTagParser.extract_tag_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_tag_from_pu_entry(pu_entry)
         self.assertEqual(run, None)
         
         
     def test_extract_lane_from_PUHeader(self):
         pu_entry = '120815_HS16_08276_A_C0NKKACXX_4#1'
-        run = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
         self.assertEqual(run, 4)
         
         pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
         self.assertEqual(run, 7)
         
         pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
-        run = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
         self.assertEqual(run, 2)
         
         pu_entry = '120814_HS5_08271_B_D0WDNACXX'
-        run = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
+        run = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
         self.assertEqual(run, None)
         
 
     def test_build_lanelet_name(self):
         pu_entry = '120415_HS29_07874_B_C0K32ACXX_7#6'
-        run_id = _RGTagParser.extract_run_from_pu_entry(pu_entry)
-        lane = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
-        tag = _RGTagParser.extract_tag_from_pu_entry(pu_entry)
-        lanelet = _RGTagParser.build_lanelet_name(run_id, lane, tag)
+        run_id = _RGTagParser._extract_run_from_pu_entry(pu_entry)
+        lane = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
+        tag = _RGTagParser._extract_tag_from_pu_entry(pu_entry)
+        lanelet = _RGTagParser._build_lanelet_name(run_id, lane, tag)
         self.assertEqual(lanelet, '7874_7#6')
         
         
         pu_entry = '120814_HS5_08271_B_D0WDNACXX_2#88'
-        run_id = _RGTagParser.extract_run_from_pu_entry(pu_entry)
-        lane = _RGTagParser.extract_lane_from_pu_entry(pu_entry)
-        tag = _RGTagParser.extract_tag_from_pu_entry(pu_entry)
-        lanelet = _RGTagParser.build_lanelet_name(run_id, lane, tag)
+        run_id = _RGTagParser._extract_run_from_pu_entry(pu_entry)
+        lane = _RGTagParser._extract_lane_from_pu_entry(pu_entry)
+        tag = _RGTagParser._extract_tag_from_pu_entry(pu_entry)
+        lanelet = _RGTagParser._build_lanelet_name(run_id, lane, tag)
         self.assertEqual(lanelet, '8271_2#88')
         
         
         run = '1111'
         lane = '2'
-        result = _RGTagParser.build_lanelet_name(run, lane)
+        result = _RGTagParser._build_lanelet_name(run, lane)
         self.assertEqual(result, '1111_2')
         
-        result = _RGTagParser.build_lanelet_name(None, None, None)
+        result = _RGTagParser._build_lanelet_name(None, None, None)
         self.assertEqual(None, result)
         
 
     def test_extract_lanelet_name_from_pu_entry(self):
         pu_entry = '111025_HS11_06976_B_C064EACXX_1#3'
-        result = _RGTagParser.extract_lanelet_name_from_pu_entry(pu_entry)
+        result = _RGTagParser._extract_lanelet_name_from_pu_entry(pu_entry)
         self.assertEqual(result, '6976_1#3')
         
         pu_entry = '120724_HS17_08183_B_C0KC9ACXX_5#53'
-        result = _RGTagParser.extract_lanelet_name_from_pu_entry(pu_entry) 
+        result = _RGTagParser._extract_lanelet_name_from_pu_entry(pu_entry) 
         self.assertEqual(result, '8183_5#53')
         
         pu_entry = '1111_1#1'
-        result = _RGTagParser.extract_lanelet_name_from_pu_entry(pu_entry)
+        result = _RGTagParser._extract_lanelet_name_from_pu_entry(pu_entry)
         self.assertEqual(result, pu_entry)
         
 

@@ -29,7 +29,7 @@ class VCFHeaderParser(HeaderParser):
     '''
     @classmethod
     @wrappers.check_args_not_none
-    def extract_sample_list_from_header(cls, header):
+    def _extract_sample_list(cls, header):
         ''' 
             This function extracts the list of samples from the file header  and returns it.
             Params: 
@@ -50,7 +50,7 @@ class VCFHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def extract_reference_from_file_header(cls, header):
+    def _extract_reference(cls, header):
         ''' 
             This function checks if there is any mention in the header 
             regarding the reference file used and returns it if so.  
@@ -69,7 +69,7 @@ class VCFHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def extract_samtools_version(cls, header):
+    def _extract_samtools_version(cls, header):
         '''' 
             This function checks if there is any mention in the header
             that samtools was used for processing, and returns the samtools version if so.
@@ -85,7 +85,7 @@ class VCFHeaderParser(HeaderParser):
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract_vcf_format(cls, header):
+    def _extract_vcf_format(cls, header):
         ''' 
             This function checks if there is any mention in the header
             regarding the vcf format, and returns the format number if so.
@@ -102,15 +102,15 @@ class VCFHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def extract_file_header(cls, fpath):
+    def extract_header(cls, path):
         ''' 
             This function extracts the file header and returns it.
         '''
         header = ''
-        if fpath.endswith('.gz'):
-            infile = gzip.open(fpath, 'rb')
+        if path.endswith('.gz'):
+            infile = gzip.open(path, 'rb')
         else:
-            infile = open(fpath)
+            infile = open(path)
         for line in infile:
             if line.startswith("#"):
                 header += line
@@ -121,12 +121,21 @@ class VCFHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def parse(cls, fpath):
-        header = cls.extract_file_header(fpath)
-        vcf_format = cls.extract_vcf_format(header)
-        samtools_version = cls.extract_samtools_version(header)
-        reference = cls.extract_reference_from_file_header(header)
-        sample_list = cls.extract_sample_list_from_header(header)
+    def parse(cls, path):
+        ''' This method parses the VCF file's header given by path.
+            Parameters
+            ----------
+            path: str
+                The VCF file path to be parsed
+            Returns
+            -------
+            VCFHeader - an object containing all the information found in the header of interest
+        '''
+        header = cls.extract_header(path)
+        vcf_format = cls._extract_vcf_format(header)
+        samtools_version = cls._extract_samtools_version(header)
+        reference = cls._extract_reference(header)
+        sample_list = cls._extract_sample_list(header)
         return VCFHeader(
                            vcf_format=vcf_format,
                            samtools_version=samtools_version,
