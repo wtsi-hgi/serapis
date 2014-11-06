@@ -36,15 +36,6 @@
 #MDATA_QUEUE         = 'MdataQueue'
 
 
-# For a run from hgi-serapis-dev:
-#SEQSC_HOST = "mcs7.internal.sanger.ac.uk"
-#SEQSC_PORT = 3379
-#SEQSC_USER = "warehouse_ro"
-#SEQSC_DB_NAME = "sequencescape_warehouse"
-
-#    ssh -L 3307:mcs7.internal.sanger.ac.uk:3379 ic4@hgi-team
-
-
 
 ########################## URLS ###############################################
 
@@ -210,7 +201,6 @@ MAX_DBUPDATE_RETRIES = 5
 
 # HEADER constants:
 # PU header:
-REGEX_PU_1                      = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
 REGEX_COVERAGE                  = '^[0-9]{1,3}x$'
 REGEX_USER_ID                   = '^[a-z]{2,3}[0-9]{0,2}$'
 REGEX_HGI_PROJECT               = '^[a-zA-Z0-9_-]{3,17}$' 
@@ -429,27 +419,6 @@ JOB_TYPES = (UPDATE_JOBS,
              IRODS_JOBS) 
 
             
-# -------------- UPDATING STRATEGIES: ----------------
-#KEEP_NEW = "KEEP_NEW"
-#IDEMPOTENT_RAISE_CONFLICT = "IDEMPOTENT"
-#KEEP_OLD = "KEEP_OLD"
-
-
-# UPLOAD TASK
-#DEST_DIR_IRODS = "/home/ic4/tmp/serapis_staging_area/"
-#DEST_DIR_IRODS = "/lustre/scratch113/teams/hgi/users/ic4/iRODS_staging_area"
-#DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/humgen/projects"
-
-#DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
-#DEST_DIR_IRODS = "/humgen/projects"
-
-#IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/projects/serapis_staging"
-
-
-#DEST_DIR_IRODS = "/Sanger1-dev/home/ic4/projects"
-#IRODS_STAGING_AREA = "/Sanger1-dev/home/ic4/staging_area" #serapis_staging
-#IRODS_STAGING_AREA = "/home/ic4/tmp/serapis_staging_area/"
-
 #-------- EVENT TYPE -------
 UPDATE_EVENT = 'task-update'
 
@@ -594,11 +563,7 @@ STEP_STATUS = [
                ]
 
 
-#----------------------------- SEQSCAPE TABLES: ----------------------
-CURRENT_WELLS_SEQSC_TABLE           = "current_wells"
-CURRENT_MULTIPLEXED_LIBRARY_TABLE   = "current_multiplexed_library_tubes"
-CURRENT_LIBRARY_TUBES               = "current_library_tubes"
-CURRENT_SAMPLES                     = "current_samples"
+
 
 #----------------------------------- ENTITIES SPECIFICS ----------------
 
@@ -690,6 +655,8 @@ BAM_HEADER_INSTRUMENT_MODEL_MAPPING = {
                                 "HS" : "Illumina HiSeq",
                                 "MS" : "Illumina MiSeq",
                                 "IL" : "Illumina",
+                                "ILLUMINA HS" : "Illumina HiSeq",
+                                "ILLUMINA MS" : "Illumina MiSeq" 
                                }
 ALL_REGIONS = "all_regions"
 CHROM1 = "CHROM1"
