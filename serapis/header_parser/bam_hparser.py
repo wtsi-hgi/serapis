@@ -265,7 +265,7 @@ class BAMHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def parse(cls, path, rg=True, sq=True, hd=True, pg=True):
+    def parse(cls, header_dict, rg=True, sq=True, hd=True, pg=True):
         ''' This method takes a BAM file path and parses its header, returning a BAMHeader object
             Parameters
             ----------
@@ -287,7 +287,6 @@ class BAMHeaderParser(HeaderParser):
             ------
             ValueError - if the file is not SAM/BAM format
         '''
-        header_dict = cls.extract_header(path)
         sq = _SQTagParser.parse_all(header_dict['SQ']) if sq else None
         hd = _HDTagParser.parse_all(header_dict['HD']) if hd else None
         pg = _PGTagParser.parse_all(header_dict['PG']) if pg else None

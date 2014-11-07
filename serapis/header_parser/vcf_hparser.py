@@ -121,7 +121,7 @@ class VCFHeaderParser(HeaderParser):
     
     @classmethod
     @wrappers.check_args_not_none
-    def parse(cls, path):
+    def parse(cls, header):
         ''' This method parses the VCF file's header given by path.
             Parameters
             ----------
@@ -131,7 +131,7 @@ class VCFHeaderParser(HeaderParser):
             -------
             VCFHeader - an object containing all the information found in the header of interest
         '''
-        header = cls.extract_header(path)
+        #header = cls.extract_header(path)
         vcf_format = cls._extract_vcf_format(header)
         samtools_version = cls._extract_samtools_version(header)
         reference = cls._extract_reference(header)

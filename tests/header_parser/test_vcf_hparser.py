@@ -82,6 +82,8 @@ class TestVCFHeaderParser(unittest.TestCase):
                            reference='/lustre/scratch111/resources/ref/Homo_sapiens/1000Genomes_hs37d5/hs37d5.fa',
                            sample_list=['EGAN00001089419', 'EGAN00001094533', 'EGAN00001094534', 'EGAN00001097231', 'EGAN00001097232']
                            )
-        result = VCFHeaderParser.parse(fpath)
+        
+        header = VCFHeaderParser.extract_header(fpath)
+        result = VCFHeaderParser.parse(header)
         assert_that(result, equal_to(expected))
     

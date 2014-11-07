@@ -181,8 +181,9 @@ class Test_RGTagParser(unittest.TestCase):
 
     def test_parse(self):
         path = os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam')
-        header = BAMHeaderParser.parse(path, rg=True, pg=False, hd=False, sq=False)
-        assert_that(header.rg.platform_list, has_item('ILLUMINA HS'))
+        header = BAMHeaderParser.extract_header(path)
+        header_parsed = BAMHeaderParser.parse(header, rg=True, pg=False, hd=False, sq=False)
+        assert_that(header_parsed.rg.platform_list, has_item('ILLUMINA HS'))
         
 
         
