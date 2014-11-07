@@ -42,31 +42,112 @@ def connect(host, port, database, user, password=None, dialect='mysql'):
     return engine
 
 
-def _query_db(engine, model_cls, field, value):
-    field = str(field)
-    value = str(value)
+def _query_one(engine, model_cls, key_name, key_value):
+    key_name = str(key_name)
+    key_value = str(key_value)
     Session = sessionmaker(bind=engine)
     session = Session()
-    filter_text = field+"=:value and is_current=1"
+    filter_text = key_name+"=:key_value and is_current=1"
     return session.query(model_cls).\
                 filter(sql_text(filter_text)).\
-                params(value=value)
+                params(key_value=key_value).all()
 
 
-def query_sample(field, value):
+def query_sample(key_name, key_value):
+    ''' This function queries the database for all the samples having key_name = key_value.
+        Parameters
+        ----------
+        key_name: str
+            The name of the key to query on
+        Key_value: str
+            The value of the key to query on
+        Returns
+        -------
+        sample_list
+            A list of models.Sample objects that match the query
+    '''
     engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
-    return _query_db(engine, Sample, field, value)
+    return _query_one(engine, Sample, key_name, key_value)
+    
 
-
-def query_study(field, value):
+def query_study(key_name, key_value):
     engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
-    return _query_db(engine, Study, field, value)
+    return _query_one(engine, Study, key_name, key_value)
 
 
-def query_library(field, value):
+def query_library(key_name, key_value):
     engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
-    return _query_db(engine, Library, field, value)
+    return _query_one(engine, Library, key_name, key_value)
 
+
+def query_all_by_name(model_cls, keys):
+    ''' This function queries the database for all the entity names given as parameter as a batch.
+        Parameters
+        ----------
+        engine
+            Database engine to run the queries on
+        model_cls
+            A model class - predefined in serapis.seqscape.models e.g. Sample, Study
+        keys
+            A list of keys (name) to run the query for
+        Returns
+        -------
+        obj_list
+            Returns a list of objects of type model_cls found to match the keys given as parameter.
+    '''
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return session.query(model_cls).\
+                filter(model_cls.name.in_(keys)).\
+                filter(model_cls.is_current == 1).all()
+    
+    
+def query_all_by_internal_id(model_cls, keys):
+    ''' This function queries the database for all the entity internal ids given as parameter as a batch.
+        Parameters
+        ----------
+        engine
+            Database engine to run the queries on
+        model_cls
+            A model class - predefined in serapis.seqscape.models e.g. Sample, Study
+        keys
+            A list of internal_ids to run the query for
+        Returns
+        -------
+        obj_list
+            Returns a list of objects of type model_cls found to match the internal_ids given as parameter.
+    '''
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return session.query(model_cls).\
+                filter(model_cls.internal_id.in_(keys)).\
+                filter(model_cls.is_current == 1).all()
+    
+    
+def query_all_by_accession_number(model_cls, keys):
+    ''' This function queries the database for all the entity accession_number given as parameter as a batch.
+        Parameters
+        ----------
+        engine
+            Database engine to run the queries on
+        model_cls
+            A model class - predefined in serapis.seqscape.models e.g. Sample, Study
+        keys
+            A list of accession_number to run the query for
+        Returns
+        -------
+        obj_list
+            Returns a list of objects of type model_cls found to match the accession_number given as parameter.
+    '''
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return session.query(model_cls).\
+                filter(model_cls.accession_number.in_(keys)).\
+                filter(model_cls.is_current == 1).all()
+    
 
 def to_json(model):
     """ Returns a JSON representation of an SQLAlchemy-backed object.
@@ -78,34 +159,32 @@ def to_json(model):
     return dumps([json_repr])
 
 
+#engine = connect('127.0.0.1', str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+print "SAMPLES: "
+obj_list = query_all_by_name(Sample, ['FINNUG1049045', 'HG00635-A', 'HG00629-A'])
+for obj in obj_list: 
+    print to_json(obj)
+
 # engine = connect('127.0.0.1', str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
 # print "SAMPLES: "
-# obj_list = _query_db(engine, Sample, 'internal_id', 1358114)
+# obj_list = _query_one(engine, Sample, 'internal_id', 1358114)
 # for obj in obj_list: 
 #     print to_json(obj)
 #  
 # print "STUDIES:"
-# obj_list = _query_db(engine, Study, 'internal_id', 1834)
+# obj_list = _query_one(engine, Study, 'internal_id', 1834)
 # for obj in obj_list:
 #     print to_json(obj)
 #  
 # print "Query sample by text: "
-# obj_list = _query_db(engine, Sample, 'accession_number', 'EGAN00001192008')
+# obj_list = _query_one(engine, Sample, 'accession_number', 'EGAN00001192008')
 # for obj in obj_list:
 #     print to_json(obj)
 #  
 # print "Query LIbs:"
-# obj_list = _query_db(engine, Library, 'internal_id', 3578830)
+# obj_list = _query_one(engine, Library, 'internal_id', 3578830)
 # for obj in obj_list:
 #     print to_json(obj)
-
-
-
-
-
-
-    
-    
     
  
      
