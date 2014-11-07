@@ -31,8 +31,41 @@ from json import dumps
 from sqlalchemy import create_engine, text as sql_text
 from sqlalchemy.orm import sessionmaker
 
-#from Celery_Django_Prj import configs
-#from serapis.seqscape.models import Sample, Study, Library
+
+from Celery_Django_Prj import configs
+from serapis.seqscape.models import Sample, Study, Library
+
+
+def connect(host, port, database, user, password=None, dialect='mysql'):
+    db_url = dialect+"://"+user+":@"+host+":"+str(port)+"/"+database
+    engine = create_engine(db_url)
+    return engine
+
+
+def _query_db(engine, model_cls, field, value):
+    field = str(field)
+    value = str(value)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    filter_text = field+"=:value and is_current=1"
+    return session.query(model_cls).\
+                filter(sql_text(filter_text)).\
+                params(value=value)
+
+
+def query_sample(field, value):
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    return _query_db(engine, Sample, field, value)
+
+
+def query_study(field, value):
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    return _query_db(engine, Study, field, value)
+
+
+def query_library(field, value):
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    return _query_db(engine, Library, field, value)
 
 
 def to_json(model):
@@ -45,42 +78,24 @@ def to_json(model):
     return dumps([json_repr])
 
 
-def connect(host, port, database, user, password=None, dialect='mysql'):
-    db_url = dialect+"://"+user+":@"+host+":"+str(port)+"/"+database
-    engine = create_engine(db_url)
-    return engine
-
-
-def query_db(engine, model_cls, attribute, value):
-    attribute = str(attribute)
-    value = str(value)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    filter_text = attribute+"=:value and is_current=1"
-    return session.query(model_cls).\
-                filter(sql_text(filter_text)).\
-                params(value=value)
-
-
-
 # engine = connect('127.0.0.1', str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
 # print "SAMPLES: "
-# obj_list = query_db(engine, Sample, 'internal_id', 1358114)
+# obj_list = _query_db(engine, Sample, 'internal_id', 1358114)
 # for obj in obj_list: 
 #     print to_json(obj)
 #  
 # print "STUDIES:"
-# obj_list = query_db(engine, Study, 'internal_id', 1834)
+# obj_list = _query_db(engine, Study, 'internal_id', 1834)
 # for obj in obj_list:
 #     print to_json(obj)
 #  
 # print "Query sample by text: "
-# obj_list = query_db(engine, Sample, 'accession_number', 'EGAN00001192008')
+# obj_list = _query_db(engine, Sample, 'accession_number', 'EGAN00001192008')
 # for obj in obj_list:
 #     print to_json(obj)
 #  
 # print "Query LIbs:"
-# obj_list = query_db(engine, Library, 'internal_id', 3578830)
+# obj_list = _query_db(engine, Library, 'internal_id', 3578830)
 # for obj in obj_list:
 #     print to_json(obj)
 
