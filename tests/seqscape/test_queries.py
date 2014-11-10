@@ -31,15 +31,17 @@ from serapis.seqscape import models, queries
 
 class TestQueries(unittest.TestCase):
 
-    def test_query_sample(self):
-        result = queries.query_sample('name', 'HG00626-A')
+    def test_query_sample(self): #def query_sample(name=None, accession_number=None, internal_id=None):
+#    return _query(Sample, name, accession_number, internal_id)
+
+        result = queries.query_sample(name='HG00626-A')
         expected_acc_nr = 'SRS008692'
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].accession_number, expected_acc_nr)
         self.assertEqual(result[0].organism, 'Human')
         
         internal_id = 1166437
-        result = queries.query_sample('internal_id', internal_id)
+        result = queries.query_sample(internal_id=internal_id)
         self.assertEqual(len(result), 1)
         expected_name = '1866STDY5139782'
         expected_acc_nr = 'EGAN00001099058'
@@ -47,9 +49,22 @@ class TestQueries(unittest.TestCase):
         self.assertEqual(result[0].accession_number, expected_acc_nr)
 
 
+    def test_query_study(self):
+        name = 'SEQCAP_DDD_MAIN_Y2'
+        result = queries.query_study(name=name)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].accession_number, None)
+        self.assertEqual(result[0].internal_id, 2468)
+        
+        acc_nr = 'EGAS00001000228'
+        result = queries.query_study(accession_number=acc_nr)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].internal_id, 2120)
+
+
     def test_query_all_by_accession_number(self):
         samples_acc_nrs = ['EGAN00001179681', 'EGAN00001192046', 'EGAN00001105945']
-        result = queries.query_all_by_accession_number(models.Sample, samples_acc_nrs)
+        result = queries.query_all_samples(accession_number_list=samples_acc_nrs)
         self.assertEqual(len(result), 2)    # First one is not found
         for sample in result:
             if sample.accession_number == 'EGAN00001192046':
@@ -65,7 +80,19 @@ class TestQueries(unittest.TestCase):
 
     def test_query_all_by_internal_id(self):
         internal_id = 123123123123123
-        result = queries.query_all_by_internal_id(models.Study, [internal_id])
+        result = queries.query_all_studies(internal_id_list=[internal_id])
         self.assertEqual(result, [])
+        
+
+    def test_it_throws_exception_if_all_params_missing(self):
+        self.assertRaises(ValueError, queries.query_library, None, None, None)
+        self.assertRaises(ValueError, queries.query_study)
+        self.assertRaises(ValueError, queries.query_all_by_accession_number, models.Study, None)
+        self.assertRaises(ValueError, queries.query_all_studies, None, None, None)
+        self.assertRaises(ValueError, queries.query_all_studies)
+        self.assertRaises(ValueError, queries.query_all_libraries, None, None, None)
+        
+
+
 
 
