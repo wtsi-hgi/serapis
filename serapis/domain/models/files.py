@@ -115,9 +115,6 @@ class SerapisFileBuilder(object):
 class SerapisFile(object):
     
     
-    ################## Methods exposed by the API: ##############################
-    
-   
     def retrieve_metadata_version(self):
         pass
     
