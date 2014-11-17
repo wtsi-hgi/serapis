@@ -115,11 +115,18 @@ class MD5CalculatorServiceResultMsg(ExternalServiceResultMsg):
         super(MD5CalculatorServiceResultMsg, self).__init__(task_id, task_status, task_result)
         
 
-class HeaderParserServiceResultMsg(ExternalServiceResultMsg):
+# class HeaderParserServiceResultMsg(ExternalServiceResultMsg):
+#     
+#     def __init__(self, task_id, task_status, task_result):
+#         self.task_type = constants.PARSE_HEADER_TASK
+#         super(HeaderParserServiceResultMsg, self).__init__(task_id, task_status, task_result)
+
+class BAMFileHeaderParserServiceResultMsg(ExternalServiceResultMsg):
     
     def __init__(self, task_id, task_status, task_result):
         self.task_type = constants.PARSE_HEADER_TASK
-        super(HeaderParserServiceResultMsg, self).__init__(task_id, task_status, task_result)
+        super(BAMFileHeaderParserServiceResultMsg, self).__init__(task_id, task_status, task_result)
+
     
     
 class SeqscapeDBQueryServiceResultMsg(ExternalServiceResultMsg):

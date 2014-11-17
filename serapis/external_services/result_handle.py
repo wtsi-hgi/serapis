@@ -10,6 +10,12 @@ from serapis.services import file_services, submission_services
 
 
 class ResultHandle(object):
+    """ This class is intended for the code which handles the results of the tasks. This code will probably run on the controller
+        or on any client that has requested a task to be executed. It basically receives the result of the task via HTTP, 
+        and after this is converted into the corresponding TaskResult object, the code in this class takes decisions based on what
+        the result of a certain task was - e.g. it stores the values received from the processing within the task, or starts a new task, etc.
+        The objects of this type should all implement a method called handle() - which handles the task result.  
+    """
     
     @abc.abstractmethod
     def handle(self, result):

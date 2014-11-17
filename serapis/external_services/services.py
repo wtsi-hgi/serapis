@@ -62,9 +62,9 @@ class MD5CalculatorService(ExternalService):
         return super(MD5CalculatorService, MD5CalculatorService).call_service(args)
     
     
-class BAMHeaderParserService(ExternalService):
+class BAMFileHeaderParserService(ExternalService):
     
-    task_instance = tasks.ParseBAMHeaderTask()
+    task_instance = tasks.BAMFileHeaderParserTask()
     task_type = constants.PARSE_HEADER_TASK
     
     @classmethod
@@ -75,7 +75,7 @@ class BAMHeaderParserService(ExternalService):
     
     @classmethod
     def call_service(cls, args):
-        super(BAMHeaderParserService, BAMHeaderParserService).call_service(args)
+        super(BAMFileHeaderParserService, BAMFileHeaderParserService).call_service(args)
     
     
 class ExternalDBQuerierService(ExternalService):
