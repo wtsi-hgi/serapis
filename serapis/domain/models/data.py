@@ -28,11 +28,20 @@ class GenomeRegions(object):
 
 class Data(object):
     
-    def __init__(self, processing, pmid_list, security_level=constants.SECURITY_LEVEL_2):
+    def __init__(self, processing, pmid_list, studies=None, security_level=constants.SECURITY_LEVEL_2):
         self.processing = processing
-        self.security_level = security_level
         self.pmid_list = pmid_list
+        self.studies = data_entities.StudyCollection(study_set=studies)          # This has the type StudyCollection
         
+    def add_or_update_study(self, study):
+        return self.studies.add_or_update(study)
+    
+    def remove_study(self, study):
+        return self.studies.remove(study)
+    
+    def remove_study_by_name(self, study_name):
+        return self.studies.remove_by_name(study_name)
+    
     def is_field_empty(self, field):
         return not (hasattr(self, field) and getattr(self, field) != None)
 

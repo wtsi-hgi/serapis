@@ -1,6 +1,7 @@
 
 import sets
-import abc
+from fuzzywuzzy import process as fuzzy_process
+
 from serapis.controller import exceptions
 from serapis.com import constants, utils, wrappers
 from serapis.domain.models import identifiers
@@ -80,13 +81,13 @@ class MetadataEntity(object):
 class Sample(MetadataEntity):
 
 
-    _mandatory_fields = ["name", "taxon_id"]
+    _mandatory_fields = ["name", "taxon_id", "tissue_type"]
     _optional_fields = ["accession_number", "organism", "gender", "cohort", "ethnicity", 
                         "geographical_region", "country_of_origin", "is_sanger_sequenced", "sanger_sample_id", "internal_id"]
 
 
-    def __init__(self, name=None, accession_number=None, taxon_id=9606, organism=constants.HOMO_SAPIENS, gender=None, cohort=None, 
-                 ethnicity=None, geographical_region=None, country_of_origin=None, is_sanger_sequenced=False, sanger_sample_id=None, internal_id=None):
+    def __init__(self, name, tissue_type, accession_number=None, taxon_id=9606, organism=constants.HOMO_SAPIENS, gender=None, cohort=None, 
+                 ethnicity=None, geographical_region=None, country_of_origin=None, internal_id=None):
         self.taxon_id = taxon_id
         self.organism = organism
         # TODO: Write a check that the taxon_id and organism actually match
@@ -96,10 +97,9 @@ class Sample(MetadataEntity):
         self.ethnicity = ethnicity
         self.geographical_region = geographical_region
         self.country_of_origin = country_of_origin
-        self.is_sanger_sequenced = is_sanger_sequenced
-        self.sanger_sample_id = sanger_sample_id
+        #self.is_sanger_sequenced = is_sanger_sequenced
         super(Sample, self).__init__(name=name, accession_number=accession_number, internal_id=internal_id)
-#         sample_tissue_type = StringField() 
+        tissue_type = tissue_type 
 #         reference_genome = StringField()
 
 
@@ -155,6 +155,16 @@ class Study(MetadataEntity):
         
     def get_optional_fields_missing(self):
         return super(Study, self).get_optional_fields_missing()
+    
+    def normalize_study_type(self, study_type):
+        ''' This method tries to normalize a study type, by string match.
+            Returns
+            -------
+            The best string matching the study type given as parameter, 
+            if the matching score is > 70.
+        '''
+        best_match = fuzzy_process.extractOne(study_type, constants.STUDY_TYPES, score_cutoff=70)
+        return best_match
 
 
 class Library(MetadataEntity):

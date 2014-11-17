@@ -36,10 +36,9 @@ class DataSet(object):
     
     def __init__(self, submission_id, dest_path, data_type, access_group, owner_uid, studies=None):
         self.serapis_metadata = serapis_meta_pkg.SerapisMetadataForDataSet(submission_id)
-        self.studies = data_entities.StudyCollection(study_set=studies)          # This has the type StudyCollection
         self.data_type = data_type
         self.access_group = access_group
-        self.owner_uid = owner_uid
+        self.owner_uname = owner_uid
         
         self.dest_path = dest_path
         self.temp_path = None
@@ -61,24 +60,6 @@ class DataSet(object):
     def update_task_status(self, task_id, status):
         return self.serapis_metadata.update_task_status(task_id, status)
 
-    def lookup_study_in_ext_resc(self, study):
-        url_result = self._get_result_url()
-        deferred_task = CallServices.query_seqscape_entity(url_result, constants.STUDY_TYPE, 'name', study.name)
-        self.register_deferred_task(deferred_task)
-    
-    def add_or_update_study(self, study):
-        return self.studies.add_or_update(study)
-    
-#     def add_study_and_query_resc(self, study):
-#         self.query_resc_for_study(study)
-#         return self.studies.add_study(study)
-    
-    def remove_study(self, study):
-        return self.studies.remove(study)
-    
-    def remove_study_by_name(self, study_name):
-        return self.studies.remove_by_name(study_name)
-    
     def log_error(self, error):
         return self.serapis_metadata.log_error(error)
     

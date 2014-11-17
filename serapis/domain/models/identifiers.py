@@ -1,3 +1,24 @@
+#################################################################################
+#
+# Copyright (c) 2013 Genome Research Ltd.
+# 
+# Author: Irina Colgiu <ic4@sanger.ac.uk>
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+# 
+#################################################################################
+
 
 import re
 from serapis.com import wrappers
@@ -7,7 +28,7 @@ class EntityIdentifier(object):
     
     @classmethod
     @wrappers.check_args_not_none
-    def is_accession_nr(cls, field):
+    def _is_accession_nr(cls, field):
         ''' 
             The ENA accession numbers all start with: ERS, SRS, DRS or EGA. 
         '''
@@ -19,7 +40,7 @@ class EntityIdentifier(object):
     
     @classmethod
     @wrappers.check_args_not_none
-    def is_internal_id(cls, field):
+    def _is_internal_id(cls, field):
         ''' All internal ids are int. You can't really tell if one identifier
             is an internal id just by the fact that it's type is int, but you
             can tell if it isn't, if it contains characters other than digits.
@@ -32,7 +53,7 @@ class EntityIdentifier(object):
     
     @classmethod
     @wrappers.check_args_not_none
-    def is_name(cls, field):
+    def _is_name(cls, field):
         ''' You can't tell for sure if one identifier is a name or not either.
             Basically if it contains numbers and alphabet characters, it may be a name.'''
         if not type(field) == str:
@@ -46,9 +67,9 @@ class EntityIdentifier(object):
     @wrappers.check_args_not_none
     def guess_identifier_type(cls, identifier):
         identifier_type = None
-        if cls.is_accession_nr(identifier):
+        if cls._is_accession_nr(identifier):
             identifier_type = 'accession_number'
-        elif cls.is_internal_id(identifier):
+        elif cls._is_internal_id(identifier):
             identifier_type = 'internal_id'
         else:
             identifier_type = 'name'

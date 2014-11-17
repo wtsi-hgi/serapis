@@ -9,12 +9,12 @@ from Celery_Django_Prj import configs
 import serapis_metadata
 
 from serapis.worker.tasks_pkg import tasks
-from serapis.com import constants, utils
+from serapis.com import constants, utils, wrappers
 from serapis.domain import header_processing
-from serapis.domain.models import data_entities, data
+from serapis.domain.models import data_entities, data, identifiers
 from serapis.api import api_messages
 from serapis.external_services import remote_messages
-#from serapis.external_services.services import UploaderService, BAMHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
+from serapis.external_services.services import UploaderService, BAMFileHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
 from serapis.external_services.call_services import CallServices
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
@@ -23,7 +23,7 @@ from serapis.controller.logic.task_result_reporting import TaskResultReportingAd
 class IndexFile(object):
     
     def __init__(self, fpath):
-        self.fpath_client = fpath
+        self.src_path = fpath
         self.md5 = None
 
 
@@ -35,12 +35,14 @@ class SerapisFileBuilder(object):
             Params:
                 - input_params = api_messages.FileCreationAPIInputMsg
         '''
-        file_format = utils.detect_file_type(params.fpath_client)
+        file_format = utils.detect_file_type(params.src_path)
         if file_format == constants.BAM_FILE:
             new_file = SerapisBAMFileFormat()
         elif file_format == constants.VCF_FILE:
             new_file = SerapisVCFFileFormat()
 
+        new_file.security_level = params.security_level
+        
         # Init the irods collection
         if not params.dest_path:
             #dest_path = utils.build_irods_permanent_project_path(submission_id)
@@ -72,7 +74,7 @@ class SerapisFileBuilder(object):
         new_file.data_type = params.data_type
         
         # Init fpath:
-        new_file.fpath_client = params.fpath_client
+        new_file.src_path = params.src_path
         
         # Init index file:
         if params.fpath_idx_client:
@@ -80,7 +82,7 @@ class SerapisFileBuilder(object):
 
         # Init the rest of fields:
         new_file.access_group = params.access_group
-        new_file.owner_uid = params.owner_uid  # creator_uid
+        new_file.owner_uname = params.owner_uname  # creator_uid
         new_file.md5 = None     # to be filled in after it is being calculated
         
 
@@ -88,7 +90,8 @@ class SerapisFileBuilder(object):
 # - file_format
 # - dest_path
 # - data_type
-# - fpath_client
+# - data
+# - src_path
 # - index_file
 # - access group
 # - owner_uidV
@@ -151,7 +154,7 @@ class SerapisFile(object):
     
     def get_irods_staging_file_path(self):
         ''' This function puts together the path where a file is stored in irods staging area. '''
-        (_, fname) = os.path.split(self.fpath_client)
+        (_, fname) = os.path.split(self.src_path)
         return os.path.join(configs.IRODS_STAGING_AREA, self._get_submission_id(), fname)
             
     def determine_user_with_file_permissions(self):
@@ -164,30 +167,30 @@ class SerapisFile(object):
     
     # Operations executed remotely (tasks):
     def upload_to_irods(self, dest_irods_coll): # , src_fpath, src_idx_fpath=None
-        # dest_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id())
+        # dest_fpath = self.get_irods_staging_file_path(self.src_path, self._get_submission_id())
         
-        # src_idx_fpath = self.index_file.fpath_client if hasattr(self, 'index_file') else None
-        #dest_idx_fpath = self.get_irods_staging_file_path(self.fpath_client, self._get_submission_id()) if hasattr(self, 'index_file') else None
-        fname = utils.get_filename_from_path(self.fpath_client)
+        # src_idx_fpath = self.index_file.src_path if hasattr(self, 'index_file') else None
+        #dest_idx_fpath = self.get_irods_staging_file_path(self.src_path, self._get_submission_id()) if hasattr(self, 'index_file') else None
+        fname = utils.get_filename_from_path(self.src_path)
         dest_fpath = os.path.join(dest_irods_coll, fname)
         
         dest_idx_fpath = None
-        if self.index_file.fpath_client:
-            idx_fname = utils.get_filename_from_path(self.index_file.fpath_client)
+        if self.index_file.src_path:
+            idx_fname = utils.get_filename_from_path(self.index_file.src_path)
             dest_idx_fpath = os.path.join(dest_irods_coll, idx_fname)
         
         url_result = self._get_result_url()
         user_with_permissions = self.determine_user_with_file_permissions()
         
-        deferred_task = CallServices.upload_file(url_result, self.fpath_client, dest_fpath, self.index_file.fpath_client, dest_idx_fpath, user_with_permissions)
+        deferred_task = CallServices.upload_file(url_result, self.src_path, dest_fpath, self.index_file.src_path, dest_idx_fpath, user_with_permissions)
         self.serapis_metadata.register_deferred_task(deferred_task)
         
         
     def calculate_md5(self): # should this be rerun each time I rerun the upload task?
-        idx_fpath = self.index_file.fpath_client if self.index_file != None else None
+        idx_fpath = self.index_file.src_path if self.index_file != None else None
         url_result = self._get_result_url()
         user_with_permissions = self.determine_user_with_file_permissions()
-        deferred_task = CallServices.calculate_md5(self.fpath_client, idx_fpath, url_result, user_with_permissions)
+        deferred_task = CallServices.calculate_md5(self.src_path, idx_fpath, url_result, user_with_permissions)
         self.serapis_metadata.register_deferred_task(deferred_task)
     
     
@@ -254,12 +257,28 @@ class SerapisFile(object):
 
 class SerapisBAMFileFormat(SerapisFile):
         
-    # class Header ?!
+    # TODO:
+    # class Header ?! - to add all the functionality related to the header in a class
     
     def seek_for_metadata_in_header(self):
-        task_args = BAMHeaderParserService.prepare_args(self.fpath_client, self._get_result_url(), self.creator_uid)
-        task_id = BAMHeaderParserService.call_service(task_args)
+        task_args = BAMFileHeaderParserService.prepare_args(self.src_path, self._get_result_url(), self.creator_uid)
+        task_id = BAMFileHeaderParserService.call_service(task_args)
         self.serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
+
+    
+    @wrappers.check_args_not_none
+    def map_platform_names(self, platforms_list):
+        ''' This function was originally in HeaderParser class, moved here from logical reasons, 
+            as its functionality has to do with serapis and not with parsing the header.
+        '''
+        normalized_platfs = []
+        for platform in platforms_list:
+            if platform and platform in constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING:
+                platform = constants.BAM_HEADER_INSTRUMENT_MODEL_MAPPING[platform]
+                normalized_platfs.append(platform)
+            else:
+                normalized_platfs.append(platform)
+        return normalized_platfs
 
     # Here I assumed that if 
     def process_metadata_from_header(self, header):
@@ -271,23 +290,24 @@ class SerapisBAMFileFormat(SerapisFile):
         self.data.run_ids_list = header.run_ids_list
         self.data.instrument = header.platform_list
         self.data.seq_date_list = header.seq_date_list
-        self.data.run_id_list = header.run_ids_list
+        
         
         for sample_id in header.sample_list:
-            identifier_type = data_entities.Sample.guess_identifier_type(sample_id)
+            identifier_type = identifiers.EntityIdentifier.guess_identifier_type(sample_id)
             sample = data_entities.Sample()
             setattr(sample, identifier_type, sample_id)
             self.data.add_sample(sample)
             self.lookup_entity_in_ext_resc(constants.SAMPLE_TYPE, identifier_type, sample_id)
         for library_id in header.library_list:
-            idenfier_type = data_entities.Library.guess_identifier_type(library_id)
+            idenfier_type = identifiers.EntityIdentifier.guess_identifier_type(library_id)
             library = data_entities.Library()
             setattr(library, idenfier_type, library_id)
             self.data.add_library(library)
             self.lookup_entity_in_ext_resc(constants.LIBRARY_TYPE, identifier_type, library_id)
             
+        platforms = self.map_platform_names(header.platform_list)
         norm_platf_list = sets.Set()
-        for platform in header.platform_list:
+        for platform in platforms:
             norm_platf = utils.normalize_platform_model(platform)
             norm_platf_list.add(norm_platf)
         self.data.instrument_models = norm_platf_list
@@ -296,7 +316,7 @@ class SerapisBAMFileFormat(SerapisFile):
 
 class SerapisVCFFileFormat(SerapisFile):
     
-    def parse_header(self):
+    def parse(self):
         pass
     
     def process_metadata_from_header(self, header):
@@ -304,7 +324,7 @@ class SerapisVCFFileFormat(SerapisFile):
 
 class FileFormat:
     
-    def parse_header(self, fpath, url_result, user_id, serapis_metadata):
+    def parse(self, path, url_result, user_id, serapis_metadata):
         pass
 
 
@@ -351,9 +371,9 @@ class HeaderParserServiceCaller(object):
 class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
     
     @staticmethod    
-    def parse_header(self, fpath, url_result, user_id, serapis_metadata):
-        task_args = BAMHeaderParserService.prepare_args(fpath, url_result, user_id)
-        task_id = BAMHeaderParserService.call_service(task_args)
+    def parse(self, path, url_result, user_id, serapis_metadata):
+        task_args = BAMFileHeaderParserService.prepare_args(path, url_result, user_id)
+        task_id = BAMFileHeaderParserService.call_service(task_args)
         serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
         
 #         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.creator_uid)
@@ -365,7 +385,7 @@ class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
 class VCFHeaderParserServiceCaller(HeaderParserServiceCaller):
     
     @staticmethod
-    def parse_header(self, file_path):
+    def parse(self, file_path):
         header_str = header_processing.VCFHeaderExtractor.extract(file_path)
         vcf_header = header_processing.VCFHeaderProcessor.process(header_str)   # type = VCFHeader
         return vcf_header 
