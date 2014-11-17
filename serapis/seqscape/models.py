@@ -67,6 +67,7 @@ class Study(Base):
     
     is_current = Column(Integer)
     
+    
 class Library(Base):
     
     __tablename__ = 'current_library_tubes'
@@ -78,3 +79,14 @@ class Library(Base):
     is_current = Column(Integer)
     
 
+class StudySamplesLink(Base):
+    
+    __tablename__ = 'current_study_samples'
+
+    internal_id = Column(Integer, primary_key=True)
+    sample_internal_id = Column(Integer)
+    study_internal_id = Column(Integer)
+    
+    is_current = Column(Integer)
+    
+    

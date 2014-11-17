@@ -33,7 +33,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 from Celery_Django_Prj import configs
-from serapis.seqscape.models import Sample, Study, Library
+from serapis.seqscape.models import Sample, Study, Library, StudySamplesLink
 from serapis.com import wrappers
 
 
@@ -43,7 +43,7 @@ def connect(host, port, database, user, password=None, dialect='mysql'):
     return engine
 
 @wrappers.check_args_not_none
-def query_all_by_name(model_cls, keys):
+def _query_all_by_name(model_cls, keys):
     ''' This function queries the database for all the entity names given as parameter as a batch.
         Parameters
         ----------
@@ -67,7 +67,7 @@ def query_all_by_name(model_cls, keys):
     
     
 @wrappers.check_args_not_none
-def query_all_by_internal_id(model_cls, keys):
+def _query_all_by_internal_id(model_cls, keys):
     ''' This function queries the database for all the entity internal ids given as parameter as a batch.
         Parameters
         ----------
@@ -91,7 +91,7 @@ def query_all_by_internal_id(model_cls, keys):
     
     
 @wrappers.check_args_not_none
-def query_all_by_accession_number(model_cls, keys):
+def _query_all_by_accession_number(model_cls, keys):
     """ This function queries the database for all the entity accession_number given as parameter as a batch.
         Parameters
         ----------
@@ -131,12 +131,11 @@ def _query_all(model_cls, name_list=None, accession_number_list=None, internal_i
             A list of objects returned by the query of type models.*
     """
     if name_list:
-        return query_all_by_name(model_cls, name_list)
+        return _query_all_by_name(model_cls, name_list)
     elif accession_number_list:
-        print "ACCESSION NUMBER LIST:::::", accession_number_list
-        return query_all_by_accession_number(model_cls, accession_number_list)
+        return _query_all_by_accession_number(model_cls, accession_number_list)
     elif internal_id_list:
-        return query_all_by_internal_id(model_cls, internal_id_list)
+        return _query_all_by_internal_id(model_cls, internal_id_list)
     else:
         raise ValueError("All the parameters were None - there needs to be either a name or an accession_number or an internal id given for querying Sequencescape.")
 
@@ -215,19 +214,19 @@ def query_all_studies(name_list=None, accession_number_list=None, internal_id_li
     return _query_all(Study, name_list, accession_number_list, internal_id_list)
 
 
-def to_json(model):
-    """ Returns a JSON representation of an SQLAlchemy-backed object.
-    """
-    json_repr = {}
-    for col in model._sa_class_manager.mapper.mapped_table.columns:
-        if col.name != 'is_current':
-            json_repr[col.name] = getattr(model, col.name)
-    return dumps([json_repr])
-
+def query_studies_by_samples(sample_ids):
+    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return session.query(StudySamplesLink).\
+                                    filter(StudySamplesLink.sample_internal_id.in_(sample_ids)).\
+                                    filter(StudySamplesLink.is_current == 1).all()
+    
+    
 
 #engine = connect('127.0.0.1', str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
 # print "SAMPLES: "
-# obj_list = query_all_by_name(Sample, ['FINNUG1049045', 'HG00635-A', 'HG00629-A'])
+# obj_list = _query_all_by_name(Sample, ['FINNUG1049045', 'HG00635-A', 'HG00629-A'])
 # for obj in obj_list: 
 #     print to_json(obj)
 
