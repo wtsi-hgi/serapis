@@ -1,6 +1,6 @@
 # Django settings for Celery_Django_Prj project.
 
-
+"""
 #################################################################################
 #
 # Copyright (c) 2013 Genome Research Ltd.
@@ -21,7 +21,7 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 # 
 #################################################################################
-
+"""
 
 
 from djcelery import setup_loader
