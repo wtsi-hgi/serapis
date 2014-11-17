@@ -147,16 +147,16 @@ class TestUtils(unittest.TestCase):
     @unittest.skip("This is not a good function, I intend to remove it at some point.")
     def test_check_for_invalid_paths(self):
         paths = ['/an/invalid/path', 'another/invalid/path']
-        self.assertListEqual(utils.check_for_invalid_paths(paths), paths)
+        self.assertListEqual(utils.filter_out_invalid_paths(paths), paths)
         
         paths = ['an/invalid/path', '/home/ic4/data-test/']
-        self.assertListEqual(utils.check_for_invalid_paths(paths), ['an/invalid/path'])
+        self.assertListEqual(utils.filter_out_invalid_paths(paths), ['an/invalid/path'])
 
         paths = ['']
-        self.assertListEqual(utils.check_for_invalid_paths(paths), paths)
+        self.assertListEqual(utils.filter_out_invalid_paths(paths), paths)
 
         path = ['']
-        res = utils.check_for_invalid_paths(path)
+        res = utils.filter_out_invalid_paths(path)
         self.assertEqual(res, path)
         
       
@@ -495,6 +495,48 @@ class TestUtils(unittest.TestCase):
         res = utils.levenshtein(str1, str2)
         self.assertEqual(res, 1)
 
+
+    def test_filter_invalid_paths(self):
+        fpaths = [' ', '/lustre/scratch/1.txt']
+        res = utils.filter_out_invalid_paths(fpaths)
+        expected = ['/lustre/scratch/1.txt']
+        self.assertEqual(res, expected)
+        
+        fpaths = ['']
+        res = utils.filter_out_invalid_paths(fpaths)
+        expected = []
+        self.assertEqual(res, expected)
+        
+        
+    def test_get_key_counts(self):
+        tuples = [('a', 1), ('a', 3)]
+        res = utils.get_key_counts(tuples)
+        expected = {'a' : 2}
+        self.assertEqual(res, expected)
+    
+        tuples = []
+        res = utils.get_key_counts(tuples)
+        expected = {}
+        self.assertEqual(res, expected)
+        
+        tuples = [('a', 1)]
+        res = utils.get_key_counts(tuples)
+        expected = {'a' : 1}
+        self.assertEqual(res, expected)
+        
+        
+# def get_key_counts(tuples_list):
+#     ''' 
+#         This function calculates the number of occurences of
+#         each key in the list of tuples received as parameter.
+#         Returns a dict containing: key - occurances.
+#     '''
+#     key_freq_dict = defaultdict(int)
+#     for item in tuples_list:
+#         key_freq_dict[item[0]] += 1
+#     return key_freq_dict
+        
+        
 
     @unittest.skip("Obsolete, this function has been moved into the submission")
     def test_build_irods_permanent_project_path(self):

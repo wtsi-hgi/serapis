@@ -87,7 +87,7 @@ class TestQueries(unittest.TestCase):
     def test_it_throws_exception_if_all_params_missing(self):
         self.assertRaises(ValueError, queries.query_library, None, None, None)
         self.assertRaises(ValueError, queries.query_study)
-        self.assertRaises(ValueError, queries.query_all_by_accession_number, models.Study, None)
+        self.assertRaises(ValueError, queries._query_all_by_accession_number, models.Study, None)
         self.assertRaises(ValueError, queries.query_all_studies, None, None, None)
         self.assertRaises(ValueError, queries.query_all_studies)
         self.assertRaises(ValueError, queries.query_all_libraries, None, None, None)
