@@ -161,16 +161,16 @@ class FileBusinessLogic:
                                                                           file_obj, 
                                                                           user_id=submission.sanger_user_id, 
                                                                           as_serapis=submission._is_uploaded_as_serapis)
-        file_obj.tasks_dict.update(resubm_tasks_dict)
+        file_obj.tasks.update(resubm_tasks_dict)
         file_status = cls._decide_file_presubmission_status(submission._is_uploaded_as_serapis)
-        cls.after_tasks_submission(file_obj.id, tasks_to_resubmit, file_obj.tasks_dict, file_status)
+        cls.after_tasks_submission(file_obj.id, tasks_to_resubmit, file_obj.tasks, file_status)
         return models.Result(True)
         
     
     
     @classmethod
     def resubmit_tasks_by_id(cls, task_ids_list, file_obj, submission):
-        tasks_to_resubmit = cls._select_and_remove_tasks_by_id(file_obj.tasks_dict, task_ids_list)
+        tasks_to_resubmit = cls._select_and_remove_tasks_by_id(file_obj.tasks, task_ids_list)
         if tasks_to_resubmit:
             return cls.resubmit_presubmission_tasks(tasks_to_resubmit, file_obj, submission)
         return models.Result(False)
@@ -178,7 +178,7 @@ class FileBusinessLogic:
     
     @classmethod
     def resubmit_tasks_by_status(cls, status_list, file_obj, submission):
-        tasks_to_resubmit = cls._select_and_remove_tasks_by_status(file_obj.tasks_dict, status_list)
+        tasks_to_resubmit = cls._select_and_remove_tasks_by_status(file_obj.tasks, status_list)
         if tasks_to_resubmit:
             return cls.resubmit_presubmission_tasks(tasks_to_resubmit, file_obj, submission)
         return models.Result(False)
@@ -186,7 +186,7 @@ class FileBusinessLogic:
 
     @classmethod
     def resubmit_tasks_by_type(cls, task_types_list, file_obj, submission):
-        tasks_to_resubmit = cls._select_and_remove_tasks_by_type(file_obj.tasks_dict, task_types_list)
+        tasks_to_resubmit = cls._select_and_remove_tasks_by_type(file_obj.tasks, task_types_list)
         if tasks_to_resubmit:
             return cls.resubmit_presubmission_tasks(tasks_to_resubmit, file_obj, submission)
         return models.Result(False)
@@ -209,9 +209,9 @@ class FileBusinessLogic:
                                                                               file_obj,
                                                                               user_id=submission.sanger_user_id, 
                                                                               as_serapis=submission._is_uploaded_as_serapis)
-            file_obj.tasks_dict.update(submitted_tasks_dict)
+            file_obj.tasks.update(submitted_tasks_dict)
             file_status = cls._decide_file_presubmission_status(submission._is_uploaded_as_serapis)
-            cls.after_tasks_submission(file_obj.id, list_of_tasks, file_obj.tasks_dict, file_status)
+            cls.after_tasks_submission(file_obj.id, list_of_tasks, file_obj.tasks, file_status)
             return True
         return False
     
@@ -242,9 +242,9 @@ class FileBusinessLogic:
                                                                           file_obj=file_obj, 
                                                                           user_id=None
                                                                           )
-        file_obj.tasks_dict.update(submitted_tasks_dict)
+        file_obj.tasks.update(submitted_tasks_dict)
         file_submission_status = cls._infer_file_submission_status(task_name)
-        cls.after_tasks_submission(file_id, [task_name], file_obj.tasks_dict, file_submission_status)
+        cls.after_tasks_submission(file_id, [task_name], file_obj.tasks, file_submission_status)
         return models.Result(True)
 
 
@@ -254,7 +254,7 @@ class FileBusinessLogic:
             with the status got as parameter. '''
         if not list_of_tasks or not submitted_tasks_dict:
             return False
-        update_dict = {'tasks_dict' : submitted_tasks_dict,
+        update_dict = {'tasks' : submitted_tasks_dict,
                        'file_submission_status' : file_status}
         for task_resubmitted in list_of_tasks:
             if task_resubmitted in constants.METADATA_TASKS:
@@ -263,19 +263,19 @@ class FileBusinessLogic:
         cls.file_data_access.update_file_from_dict(file_id_db, update_dict)
         return True
     
-    
-    @classmethod
+    #file_logic.add_entity_to_filemeta(data, constants.STUDY_TYPE, sender, file_id, file_obj)
+    @classmethod                                        #entity_json, entity_type, file_id, submitted_file=None)
     def add_entity_to_filemeta(cls, entity_json, entity_type, sender, file_id, submitted_file=None):
         if data_access.FileDataAccess.search_JSON_entity(entity_json, entity_type, file_id, submitted_file) != None:
-            raise exceptions.NoEntityCreated("The entity already exists in the list. For update, please send a PUT request.")
+            raise exceptions.NoEntityCreatedException("The entity already exists in the list. For update, please send a PUT request.")
         inserted = data_access.FileDataAccess.insert_JSONentity_in_db(entity_json, entity_type, sender, file_id, submitted_file)
         if inserted == True:
             file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
             file_logic = FileBusinessLogicBuilder.build_from_file(file_id, file_obj)
-            file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], file_id, file_obj)
+            file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], file_obj)
             return True
         else:
-            raise exceptions.EditConflictError("The entity couldn't be inserted.")
+            raise exceptions.EditConflictException("The entity couldn't be inserted.")
         
     
   
@@ -284,14 +284,14 @@ class FileBusinessLogic:
 #    def update_entity_in_filemeta(cls, entity_json, entity_type, sender, file_id, submitted_file=None):
 #        pass
 #        if data_access.FileDataAccess.search_JSON_entity(entity_json, entity_type, file_id, submitted_file) == None:
-#            raise exceptions.NoEntityCreated("Library already exists in the list. For update, please send a PUT request.")
+#            raise exceptions.NoEntityCreatedException("Library already exists in the list. For update, please send a PUT request.")
 #        inserted = data_access.FileDataAccess.insert_JSONentity_in_db(entity_json, entity_type, sender, file_id, submitted_file)
 #        if inserted == True:
 #            file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
 #            file_logic = FileBusinessLogicBuilder.build_from_file(file_id, file_obj)
 #            file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], file_id, file_obj)
 #        else:
-#            raise exceptions.EditConflictError("Library couldn't be inserted.")
+#            raise exceptions.EditConflictException("Library couldn't be inserted.")
     
     
 

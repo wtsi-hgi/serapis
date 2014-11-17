@@ -197,7 +197,7 @@ class IndexFileModel(SerapisModel):
     
     @staticmethod
     def copy_fields(src_index, dest_index):
-        dest_index.irods_coll = src_index.irods_coll
+        dest_index.dest_path = src_index.dest_path
         dest_index.file_path_client = src_index.file_path_client
         dest_index.md5 = src_index.md5
         return dest_index
@@ -222,11 +222,11 @@ class SubmittedFileModel(SerapisModel):
         dest_file.file_id = src_file.file_id
         dest_file.file_type = src_file.file_type
         dest_file.file_path_client = src_file.file_path_client
-        dest_file.irods_coll = src_file.irods_coll
+        dest_file.dest_path = src_file.dest_path
         dest_file.md5 = src_file.md5
         dest_file.data_type = src_file.data_type
         dest_file.data_subtype_tags = src_file.data_subtype_tags
-        dest_file.hgi_project = src_file.hgi_project
+        dest_file.access_group = src_file.access_group
         dest_file.security_level = src_file.security_level
         dest_file.pmid_list = src_file.pmid_list
         
@@ -290,7 +290,7 @@ class Submission(SerapisModel):
     @staticmethod
     def copy_fields(src_subm, dest_subm):
         dest_subm.sanger_user_id = src_subm.sanger_user_id
-        dest_subm.hgi_project = src_subm.hgi_project
+        dest_subm.access_group = src_subm.access_group
         dest_subm.submission_date = src_subm.submission_date
         dest_subm.file_type = src_subm.file_type
         dest_subm.irods_collection = src_subm.irods_collection
@@ -327,8 +327,8 @@ class Submission(SerapisModel):
 
 
 
-#    def __init__(self, irods_coll=None, file_path_client=None, md5=None):
-#        self.irods_coll = irods_coll
+#    def __init__(self, dest_path=None, file_path_client=None, md5=None):
+#        self.dest_path = dest_path
 #        self.file_path_client = file_path_client
 #        self.md5 = md5
 

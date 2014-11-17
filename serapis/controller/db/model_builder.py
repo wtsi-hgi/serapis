@@ -61,8 +61,8 @@ class FileBuilder(object):
     def initialize(cls, file_obj, file_id, submission):
         file_obj.file_id = file_id
         file_obj.submission_id = str(submission.id)
-        file_obj.hgi_project = submission.hgi_project
-        file_obj.irods_coll = submission.irods_collection
+        file_obj.access_group = submission.access_group
+        file_obj.dest_path = submission.irods_collection
         file_obj.file_type = submission.file_type
         
         # NOTE:this implementation is a all-or-nothing => either all files are uploaded as serapis or all as other user...pb?
@@ -83,7 +83,7 @@ class FileBuilder(object):
     def build_index(cls, index_file_path, irods_coll):
         index_file = models.IndexFile()
         index_file.file_path_client=index_file_path
-        index_file.irods_coll = irods_coll
+        index_file.dest_path = irods_coll
         return index_file
     
     @classmethod

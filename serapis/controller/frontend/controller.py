@@ -119,7 +119,7 @@ def create_submission(user_id, data):
     # Get files from the request data:
     file_paths_list = get_files_list_from_request(submission_data)
     if not file_paths_list:
-        raise exceptions.NotEnoughInformationProvided(msg="Files list is empty.")
+        raise exceptions.NotEnoughInformationProvidedException(msg="Files list is empty.")
 
     verif_result = verify_file_paths(file_paths_list)
     if verif_result.error_dict:
@@ -153,7 +153,7 @@ def create_submission(user_id, data):
         submission_data['file_reference_genome_id'] = ref_gen.id
     else:
         logging.warning("NO reference provided!")
-#        raise exceptions.NotEnoughInformationProvided(msg="There was no information regarding the reference genome provided")
+#        raise exceptions.NotEnoughInformationProvidedException(msg="There was no information regarding the reference genome provided")
     
     # Split the files_list in files and indexes:
     file_et_index_map = associate_files_with_indexes(file_paths_list).result
@@ -257,13 +257,13 @@ def get_request_source(data):
 #        for the file identified by file_id.
 #    Throws:
 #        DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-#        ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
+#        ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission. 
 #    Returns the corresponding SubmittedFile identified by file_id.
 #        '''
 #    submission = get_submission(submission_id)
 #    submitted_file = submission.get_file_by_id(file_id)
 #    if submitted_file == None:
-#        raise exceptions.ResourceNotFoundError(file_id, "File not found")
+#        raise exceptions.ResourceNotFoundException(file_id, "File not found")
 #    return submitted_file
 
 
@@ -290,7 +290,7 @@ def get_submitted_file_status_OLD(file_id, file_obj=None):
     # !!! PROBLEM: If there are more tasks of the same type - this should be a list (DIct just for testing! 
     i = 0
     tasks_status_dict = []
-    task_dict = file_obj.tasks_dict
+    task_dict = file_obj.tasks
     for task_id, task_info_dict in task_dict.iteritems():
         task_type = task_info_dict['type']
         async = AsyncResult(task_id)
@@ -320,7 +320,7 @@ def get_submitted_file_status(file_id, file_obj=None):
         file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     result = {'file_path' : file_obj.file_path_client}
     # !!! PROBLEM: If there are more tasks of the same type - this should be a list (DIct just for testing! 
-    task_dict = file_obj.tasks_dict
+    task_dict = file_obj.tasks
     tasks_status_dict = task_dict
     result['tasks'] = tasks_status_dict
     result['file_submission_status'] = file_obj.file_submission_status
@@ -378,7 +378,7 @@ def resubmit_jobs_for_file(submission_id, file_id, file_to_resubmit=None):
     Throws:
         InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
         DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! -- ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     '''
     if file_to_resubmit == None:
         file_to_resubmit = data_access.FileDataAccess.retrieve_submitted_file(file_id) 
@@ -425,7 +425,7 @@ def get_all_libraries(submission_id, file_id):
     Throws:
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
-        #### -- NOT ANY MORE! --ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! --ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     Returns:
         list of libraries
     '''
@@ -439,11 +439,11 @@ def get_library(submission_id, file_id, library_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist. 
+        ResourceNotFoundException -- my custom exception, thrown if the library doesn't exist. 
     '''
     lib = data_access.FileDataAccess.retrieve_library_by_id(library_id, file_id)
     if not lib:
-        raise exceptions.ResourceNotFoundError(library_id)
+        raise exceptions.ResourceNotFoundException(library_id)
     return lib
 
 
@@ -452,12 +452,12 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission or file with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! -- ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
                           but the entity could not be created because it exists already.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
                                              doesn't contain any identifying field (e.g.internal_id, name).
-        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+        EditConflictException -- my custom exception, thrown when the entity hasn't been inserted, most likely
                              because of an editing conflict
     '''
     sender = get_request_source(data)
@@ -465,7 +465,7 @@ def add_library_to_file_mdata(submission_id, file_id, data):
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj)
     added = file_logic.add_entity_to_filemeta(data, constants.LIBRARY_TYPE, sender, file_id, file_obj)
     if not added:
-        raise exceptions.EditConflictError("The library couldn't be added.")
+        raise exceptions.EditConflictException("The library couldn't be added.")
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return True
   
@@ -475,7 +475,7 @@ def update_library(submission_id, file_id, library_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the library doesn't exist.
+        ResourceNotFoundException -- my custom exception, thrown if the library doesn't exist.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the library 
                                              doesn't contain any identifying field (e.g.internal_id, name).
         DeprecatedDocument -- my custom exception, thrown if the version of the document to be
@@ -485,7 +485,7 @@ def update_library(submission_id, file_id, library_id, data):
     upd = data_access.FileDataAccess.update_library_in_db(data, sender, file_id, library_id=library_id)
     logging.info("I AM UPDATING A LIBRARY - result: %s", upd)
     if not upd:
-        raise exceptions.EditConflictError("The library couldn't be updated.")
+        raise exceptions.EditConflictException("The library couldn't be updated.")
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj)
@@ -499,12 +499,12 @@ def delete_library(submission_id, file_id, library_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the library does not exist.
+        ResourceNotFoundException -- my custom exception, thrown if the library does not exist.
     '''
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     deleted = data_access.FileDataAccess.delete_library(library_id,file_id, file_obj)
     if not deleted:
-        raise exceptions.EditConflictError("The library couldn't be deleted.")
+        raise exceptions.EditConflictException("The library couldn't be deleted.")
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return deleted
@@ -517,7 +517,7 @@ def get_all_samples(submission_id, file_id):
     Throws:
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
-        #### -- NOT ANY MORE! --ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! --ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     Returns:
         - list of samples
     '''
@@ -531,12 +531,12 @@ def get_sample(submission_id, file_id, sample_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if there is no sample with this id associated with this file. 
+        ResourceNotFoundException -- my custom exception, thrown if there is no sample with this id associated with this file. 
     
     '''
     sample = data_access.FileDataAccess.retrieve_sample_by_id(sample_id, file_id)
     if not sample:
-        raise exceptions.ResourceNotFoundError(sample_id)
+        raise exceptions.ResourceNotFoundException(sample_id)
     return sample
 
 
@@ -545,12 +545,12 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! -- ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
         NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
                           but the entity could not be created because it exists already.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the sample 
                                              doesn't contain any identifying field (e.g.internal_id, name).
-        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+        EditConflictException -- my custom exception, thrown when the entity hasn't been inserted, most likely
                              because of an editing conflict
     '''
     sender = get_request_source(data)
@@ -558,7 +558,7 @@ def add_sample_to_file_mdata(submission_id, file_id, data):
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     added = file_logic.add_entity_to_filemeta(data, constants.SAMPLE_TYPE, sender, file_id, file_obj)
     if not added:
-        raise exceptions.EditConflictError("Sample couldn't be added.")
+        raise exceptions.EditConflictException("Sample couldn't be added.")
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return True
 
@@ -568,7 +568,7 @@ def update_sample(submission_id, file_id, sample_id, data):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
- ##       ResourceNotFoundError -- my custom exception, thrown if the sample doesn't exist.
+ ##       ResourceNotFoundException -- my custom exception, thrown if the sample doesn't exist.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the sample 
                                              doesn't contain any identifying field (e.g.internal_id, name).
         DeprecatedDocument -- my custom exception, thrown if the version of the document to be
@@ -578,7 +578,7 @@ def update_sample(submission_id, file_id, sample_id, data):
     upd = data_access.FileDataAccess.update_sample_in_db(data, sender, file_id, sample_id=sample_id)
     logging.info("I AM UPDATING A SAMPLE - result: %s", upd)
     if not upd:
-        raise exceptions.EditConflictError("The sample couldn't be updated.")
+        raise exceptions.EditConflictException("The sample couldn't be updated.")
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj)
@@ -592,12 +592,12 @@ def delete_sample(submission_id, file_id, sample_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the sample does not exist.
+        ResourceNotFoundException -- my custom exception, thrown if the sample does not exist.
     '''
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     deleted = data_access.FileDataAccess.delete_sample(sample_id,file_id, file_obj)
     if not deleted:
-        raise exceptions.EditConflictError("The sample couldn't be deleted.")
+        raise exceptions.EditConflictException("The sample couldn't be deleted.")
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return deleted
@@ -611,7 +611,7 @@ def get_all_studies(submission_id, file_id):
     Throws:
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
-        #### -- NOT ANY MORE! --ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+        #### -- NOT ANY MORE! --ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
     Returns:
         list of studies
     '''
@@ -626,32 +626,32 @@ def get_study(submission_id, file_id, study_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist. 
+        ResourceNotFoundException -- my custom exception, thrown if the study doesn't exist. 
     '''
     study = data_access.FileDataAccess.retrieve_study_by_id(study_id, file_id)
     if not study:
-        raise exceptions.ResourceNotFoundError(study_id)
+        raise exceptions.ResourceNotFoundException(study_id)
     return study
 #
 #    study = db_model_operations.retrieve_study_by_id(int(study_id), file_id)
 #    if study == None:
-#        raise exceptions.ResourceNotFoundError(study_id)
+#        raise exceptions.ResourceNotFoundException(study_id)
 #    else:
 #        return study
     
-
+                        # entity_json, entity_type, sender, file_id, submitted_file=None
 def add_study_to_file_mdata(submission_id, file_id, data):
     ''' Adds a new study to the metadata of this file. 
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file 
+        #### -- NOT ANY MORE! -- ResourceNotFoundException -- my custom exception, thrown if a file 
                                                         with the file_id does not exist within this submission.
         NoEntityCreated - my custom exception, thrown if a request to create an entity was received, 
                           but the entity could not be created because it exists already.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the study 
                                              doesn't contain any identifying field (e.g.internal_id, name).
-        EditConflictError -- my custom exception, thrown when the entity hasn't been inserted, most likely
+        EditConflictException -- my custom exception, thrown when the entity hasn't been inserted, most likely
                              because of an editing conflict
     '''
     sender = get_request_source(data)
@@ -659,7 +659,7 @@ def add_study_to_file_mdata(submission_id, file_id, data):
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     added = file_logic.add_entity_to_filemeta(data, constants.STUDY_TYPE, sender, file_id, file_obj)
     if not added:
-        raise exceptions.EditConflictError("Study couldn't be added.")
+        raise exceptions.EditConflictException("Study couldn't be added.")
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return True
     
@@ -669,7 +669,7 @@ def update_study(submission_id, file_id, study_id, data):
     Throws:
         InvalidId -- if the submission_id or file_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission nor file_id with this id in the DB (Mongoengine specific error)
-##        ResourceNotFoundError -- my custom exception, thrown if the study doesn't exist.
+##        ResourceNotFoundException -- my custom exception, thrown if the study doesn't exist.
         NoEntityIdentifyingFieldsProvided -- my custom exception, thrown if the study 
                                              doesn't contain any identifying field (e.g.internal_id, name).
         DeprecatedDocument -- my custom exception, thrown if the version of the document to be
@@ -679,7 +679,7 @@ def update_study(submission_id, file_id, study_id, data):
     upd = data_access.FileDataAccess.update_study_in_db(data, sender, file_id, study_id=study_id)
     logging.info("I AM UPDATING A STUDY - result: %s", upd)
     if not upd:
-        raise exceptions.EditConflictError("The study couldn't be updated.")
+        raise exceptions.EditConflictException("The study couldn't be updated.")
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
@@ -694,12 +694,12 @@ def delete_study(submission_id, file_id, study_id):
     Throws:
         InvalidId -- if the submission_id is not corresponding to MongoDB rules (pymongo specific error)
         DoesNotExist -- if there is no submission with this id in the DB (Mongoengine specific error)
-        ResourceNotFoundError -- my custom exception, thrown if the study does not exist.
+        ResourceNotFoundException -- my custom exception, thrown if the study does not exist.
     '''
     file_obj = data_access.FileDataAccess.retrieve_submitted_file(file_id)
     deleted = data_access.FileDataAccess.delete_study(study_id,file_id, file_obj)
     if not deleted:
-        raise exceptions.EditConflictError("The study couldn't be deleted.")
+        raise exceptions.EditConflictException("The study couldn't be deleted.")
     file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_obj.file_type)
     file_logic.status_checker.check_and_update_all_statuses(file_id, file_obj.reload())
     return deleted

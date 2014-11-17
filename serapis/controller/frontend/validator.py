@@ -153,7 +153,7 @@ submitted_file_schema = Schema({
     'calc_file_md5_job_status' : str,
     'calc_index_file_md5_job_status' : str,
     
-    'tasks_dict' : dict, 
+    #'tasks_dict' : dict, 
     'pmid_list': list,
     'security_level': str,
     

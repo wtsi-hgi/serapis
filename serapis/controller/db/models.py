@@ -209,7 +209,7 @@ class Sample(Entity):          # one sample can be member of many studies
   
 # This is not a document, it's just a container
 class GeneralFileMdata(SerapisModel):
-    #hgi_project = StringField()
+    #access_group = StringField()
     #DATA-RELATED FIELDS:
     data_type = StringField(choices=constants.DATA_TYPES)
     data_subtype_tags = DictField()
@@ -220,7 +220,7 @@ class GeneralFileMdata(SerapisModel):
    
     
 class IndexFile(EmbeddedDocument, SerapisModel):
-    irods_coll = StringField()
+    dest_path = StringField()
     file_path_client = StringField()      #misleading - should be renamed!!! It is actually the collection name
     md5 = StringField()
     
@@ -240,7 +240,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     file_path_client = StringField()
     
     # The irods collection where the file is to be submitted
-    irods_coll = StringField()            #misleading - should be renamed!!! It is actually the collection name
+    dest_path = StringField()            #misleading - should be renamed!!! It is actually the collection name
     
     # The md5 of the file, as calculated on the client
     md5 = StringField() #unique=True
@@ -280,7 +280,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     
     # The list of hgi projects that this file is part of...hmmm -- to think about it
     #hgi_project_list = ListField(default=[])
-    hgi_project = StringField()
+    access_group = StringField()
     
     # ENTITIES:
     study_list = ListField(EmbeddedDocumentField(Study))
@@ -304,7 +304,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
     
     ######################## STATUSES AND APP SPECIFIC METADATA ##################################
     
-    tasks_dict = DictField()   # Dict of tasks: {task_id : {type : 'parse', status : 'RUNNING'}} for all the tasks submitted in PREPARATION phase
+    tasks = DictField()   # Dict of tasks: {task_id : {type : 'parse', status : 'RUNNING'}} for all the tasks submitted in PREPARATION phase
     
     # FIELDS FOR FILE MDATA:
     has_minimal = BooleanField(default=False)
@@ -362,7 +362,7 @@ class SubmittedFile(DynamicDocument, SerapisModel):
             'missing_mandatory_fields_dict',
             'file_submission_status',
             'file_mdata_status',
-            'tasks_dict',
+            'tasks',
             'header_has_mdata', 
             'last_updates_source',
             'file_mdata_status',
@@ -410,7 +410,7 @@ class Submission(DynamicDocument, SerapisModel):
     
     # List of HGI projects that should have access to this data on the backend
     #hgi_project_list = ListField(default=[])
-    hgi_project = StringField()
+    access_group = StringField()
     
     # The date when the submission object was created
     submission_date = StringField()

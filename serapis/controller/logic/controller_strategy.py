@@ -22,7 +22,7 @@ class GeneralContext(object):
     ''' This type is used as a data container to pass over 
         the information taken from the request: parameters and request body.'''
     def __init__(self, user_id, request_data=None):
-        self.submitter_user_id = user_id
+        self.creator_uid = user_id
         self.request_data = request_data
 
         
@@ -223,7 +223,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             utils.extend_errors_dict(invalid_file_types, constants.NOT_SUPPORTED_FILE_TYPE, errors_dict)
         
         # 2. Check that all files exist:
-        invalid_paths = utils.check_for_invalid_paths(file_paths_list)
+        invalid_paths = utils.filter_out_invalid_paths(file_paths_list)
         if invalid_paths:
             utils.extend_errors_dict(invalid_paths, constants.NON_EXISTING_FILE, errors_dict)
     
@@ -253,7 +253,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         if 'files_list' in request_data and type(request_data['files_list']) == list:
             files_list.extend(request_data['files_list'])
 #        if not 'dir_path' in request_data and not 'files_list' in request_data:
-#            raise exceptions.NotEnoughInformationProvided(msg="ERROR: not enough information provided. You need to provide either a directory path (dir_path parameter) or a files_list.")
+#            raise exceptions.NotEnoughInformationProvidedException(msg="ERROR: not enough information provided. You need to provide either a directory path (dir_path parameter) or a files_list.")
         return files_list
         
     @classmethod
@@ -267,7 +267,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
                 else:
                     logging.error("TIMESTAMPS OF FILE > TIMESTAMP OF INDEX ---- PROBLEM!!!!!!!!!!!!")
                     #print "TIMESTAMPS ARE DIFFERENT ---- PROBLEM!!!!!!!!!!!!"
-                    raise exceptions.IndexOlderThanFileError(faulty_expression=index_file_path)
+                    raise exceptions.IndexOlderThanFileException(index_file_path)
         return None
     
     
@@ -308,7 +308,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
                 file_index_map[f_path] = idx
                 if utils.cmp_timestamp_files(f_path, idx) > 0:         # compare file and index timestamp
                     logging.error("TIMESTAMPS OF FILE > TIMESTAMP OF INDEX ---- PROBLEM!!!!!!!!!!!!")
-                    #raise exceptions.IndexOlderThanFileError(faulty_expression=idx)
+                    #raise exceptions.IndexOlderThanFileException(faulty_expression=idx)
                     utils.append_to_errors_dict((f_path, idx), constants.INDEX_OLDER_THAN_FILE, error_dict)
             except KeyError:
                 #raise exceptions.NoFileFoundForIndex(faulty_expression=idx)
@@ -333,7 +333,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         # Get files from the request data:
         file_paths_list = cls._extract_files_list(request_data)
         if not file_paths_list:
-            raise exceptions.NotEnoughInformationProvided(msg="No file provided.")
+            raise exceptions.NotEnoughInformationProvidedException(message="No file provided.")
         extracted_data['files_list'] = file_paths_list
     
         try:
@@ -359,11 +359,11 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             ref_gen = extracted_data.pop('reference_genome')
             db_ref_gen = data_access.ReferenceGenomeDataAccess.retrieve_reference_by_path(ref_gen)
             if not db_ref_gen:
-                raise exceptions.ResourceNotFoundError(ref_gen, msg='No reference genome with the properties given has been found in the DB.')
+                raise exceptions.ResourceNotFoundException(ref_gen, 'No reference genome with the properties given has been found in the DB.')
             extracted_data['file_reference_genome_id'] = db_ref_gen.id
         else:
             logging.warning("NO reference provided!")
-    #        raise exceptions.NotEnoughInformationProvided(msg="There was no information
+    #        raise exceptions.NotEnoughInformationProvidedException(msg="There was no information
         return extracted_data
     
     
@@ -371,7 +371,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
     def verify_data(cls, request_data):
         verification_result = cls._verify_files(request_data['files_list'])
         if verification_result.error_dict:
-            raise exceptions.InvalidRequestData(verification_result.error_dict)
+            raise exceptions.InvalidRequestDataException(verification_result.error_dict)
         
         files_permissions = cls._get_file_list_permissions(request_data)
         
@@ -604,7 +604,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
 #        Throws:
 #            InvalidId -- InvalidId -- if the submission_id is not corresponding to MongoDB rules - checking done offline (pymongo specific error)
 #            DoesNotExist -- if there is not submission with this id in the DB (Mongoengine specific error)
-#            #### -- NOT ANY MORE! -- ResourceNotFoundError -- my custom exception, thrown if a file with the file_id does not exist within this submission.
+#            #### -- NOT ANY MORE! -- ResourceNotFoundException -- my custom exception, thrown if a file with the file_id does not exist within this submission.
 #            KeyError -- if a key does not exist in the model of the submitted file
 #        '''
 #        #logging.info("*********************************** START ************************************************" + str(file_id))
@@ -624,9 +624,9 @@ class FileModificationStrategy(ResourceModificationStrategy):
         print "Checking the task id is valid..."
         print "This is the message that arrived from task:"+str(context.request_data)
         try: 
-            task_type = subm_file.tasks_dict[context.request_data['task_id']]['type']
+            task_type = subm_file.tasks[context.request_data['task_id']]['type']
         except KeyError:
-            raise exceptions.TaskNotRegisteredError(faulty_expression=context.request_data['task_id'])
+            raise exceptions.TaskNotRegisteredException(context.request_data['task_id'])
         
         try:
             errors = context.request_data['errors']
@@ -656,7 +656,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
                                                           task_id=context.request_data['task_id'], 
                                                           task_status=context.request_data['status'], 
                                                           errors=errors)
-        except exceptions.FileDuplicateException as e:
+        except exceptions.FileAlreadySubmittedException as e:
 #             data_access.FileDataAccess.update_file_submission_status(subm_file.id, constants.IMPOSSIBLE_TO_ARCHIVE_STATUS)
             print "ERROR FILE DUPLICATION -- let's see what's in error obj: ", vars(e)
             upd = 0
@@ -734,7 +734,7 @@ class FileDeletionStrategy(ResourceDeletionStrategy):
         subm_file = data_access.FileDataAccess.retrieve_submitted_file(context.file_id)
         if subm_file.file_submission_status in [constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS, constants.SUBMISSION_IN_PROGRESS_STATUS]:
             error_msg = "The file can't be deleted because it has already been submitted to iRODS. (status="+subm_file.file_submission_status+")" 
-            raise exceptions.OperationNotAllowed(msg=error_msg)
+            raise exceptions.OperationNotAllowedException(message=error_msg)
         submission = data_access.SubmissionDataAccess.retrieve_submission(context.submission_id) 
         file_obj_id = ObjectId(context.file_id)
         if file_obj_id in submission.files_list:

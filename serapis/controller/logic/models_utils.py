@@ -81,7 +81,7 @@ class EntityModelUtilityFunctions:
             return None
         has_identifying_fields = EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(json_obj)
         if not has_identifying_fields:
-            raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields for this entity have been given. Please provide either name or internal_id.")
+            raise exceptions.NoIdentifyingFieldsProvidedException("No identifying fields for this entity have been given. Please provide either name or internal_id.")
         ent = entity_class()
         has_new_field = False
         for key in json_obj:
@@ -108,7 +108,7 @@ class EntityModelUtilityFunctions:
     @staticmethod
     def json2sample(json_obj, source):
 #        return cls.json2entity(json_obj, source, models.Sample)
-        print "FROM JSON2SAMPLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+        print "FROM JSON2SAMPLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"+str(json_obj)
         return models.Sample.from_json(json_obj)
     
     @staticmethod

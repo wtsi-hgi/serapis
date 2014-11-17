@@ -212,6 +212,7 @@ class Library(Entity):
 
 class Sample(Entity):
 
+    organism = ['human', 'Human', 'Human (breast cancer)', ]
     mandatory_fields_list = constants.SAMPLE_MANDATORY_FIELDS
     optional_fields_list = constants.SAMPLE_OPTIONAL_FIELDS
 
@@ -547,12 +548,12 @@ class SubmittedFile(object):
             raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
         return out         
     
-    @staticmethod
-    def to_json(obj):
-        result = simplejson.dumps(obj, default=SubmittedFile.__encode_model__)    #, indent=4
-        print "RESULT FROM TO_JSON......................", result
-        return result
-    
+#     @staticmethod
+#     def to_json(obj):
+#         result = simplejson.dumps(obj, default=SubmittedFile.__encode_model__)    #, indent=4
+#         print "RESULT FROM TO_JSON......................", result
+#         return result
+#     
     def check_if_has_minimal_mdata(self):
         ''' A file has minimal mdata to be submitted if all its entities 
             have minimal mdata and none of the entity lists is empty. '''

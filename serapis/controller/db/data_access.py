@@ -278,7 +278,7 @@ class FileDataAccess(DataAccess):
 
     @classmethod
     def retrieve_sample_list(cls, file_id):
-        return models.SubmittedFile.objects(id=ObjectId(file_id)).only('entity_set').get().entity_set
+        return models.SubmittedFile.objects(id=ObjectId(file_id)).only('sample_list').get().sample_list
     
     @classmethod
     def retrieve_library_list(cls, file_id):
@@ -305,7 +305,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
         else:
-            sample_list = submitted_file.entity_set
+            sample_list = submitted_file.sample_list
         return models_utils.EntityModelUtilityFunctions.get_entity_by_field('name', sample_name, sample_list)
     
     @classmethod
@@ -331,7 +331,7 @@ class FileDataAccess(DataAccess):
         if submitted_file == None:
             sample_list = cls.retrieve_sample_list(file_id)
         else:
-            sample_list = submitted_file.entity_set
+            sample_list = submitted_file.sample_list
         return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(sample_id), sample_list)
     
     @classmethod
@@ -375,7 +375,7 @@ class FileDataAccess(DataAccess):
     
     @classmethod    
     def retrieve_tasks_dict(cls, file_id):
-        return models.SubmittedFile.objects(id=file_id).only('tasks_dict').get().tasks_dict
+        return models.SubmittedFile.objects(id=file_id).only('tasks').get().tasks
     
             
         
@@ -430,14 +430,14 @@ class FileDataAccess(DataAccess):
             - the entity if it was found
             - None if not
         Throws:
-            exceptions.NoEntityIdentifyingFieldsProvided -- if the entity_json doesn't contain
+            exceptions.NoIdentifyingFieldsProvidedException -- if the entity_json doesn't contain
                                                             any field to identify it.
         '''
         if entity_list == None or len(entity_list) == 0:
             return None
         has_ids = models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(entity_json)     # This throws an exception if the json entity doesn't have any ids
         if not has_ids:
-            raise exceptions.NoEntityIdentifyingFieldsProvided(faulty_expression=entity_json)
+            raise exceptions.NoIdentifyingFieldsProvidedException(faulty_expression=entity_json)
         for ent in entity_list:
             if models_utils.EntityModelUtilityFunctions.check_if_entities_are_equal(ent, entity_json) == True:
                 return ent
@@ -465,7 +465,7 @@ class FileDataAccess(DataAccess):
     def search_JSONSample(cls, sample_json, file_id, submitted_file=None):
         if submitted_file == None:
             submitted_file = cls.retrieve_submitted_file(file_id)
-        return cls.search_JSONEntity_in_list(sample_json, submitted_file.entity_set)
+        return cls.search_JSONEntity_in_list(sample_json, submitted_file.sample_list)
     
     @classmethod
     def search_JSONStudy(cls, study_json, file_id, submitted_file=None):
@@ -482,7 +482,7 @@ class FileDataAccess(DataAccess):
         elif entity_type == constants.LIBRARY_TYPE:
             return cls.search_JSONEntity_in_list(entity_json, submitted_file.library_list)
         elif entity_type == constants.SAMPLE_TYPE:
-            return cls.search_JSONEntity_in_list(entity_json, submitted_file.entity_set)
+            return cls.search_JSONEntity_in_list(entity_json, submitted_file.sample_list)
         return None
     
     
@@ -513,7 +513,7 @@ class FileDataAccess(DataAccess):
             if entity_type == constants.LIBRARY_TYPE:
                 submitted_file.library_list.append(entity)
             elif entity_type == constants.SAMPLE_TYPE:
-                submitted_file.entity_set.append(entity)
+                submitted_file.sample_list.append(entity)
             elif entity_type == constants.STUDY_TYPE:
                 submitted_file.study_list.append(entity)
             return True
@@ -536,7 +536,7 @@ class FileDataAccess(DataAccess):
             return False
         if cls.search_JSONSample(sample_json, submitted_file.id, submitted_file) == None:
             sample = models_utils.EntityModelUtilityFunctions.json2sample(sample_json, sender)
-            submitted_file.entity_set.append(sample)
+            submitted_file.sample_list.append(sample)
             return True
         return False
     
@@ -642,11 +642,11 @@ class FileDataAccess(DataAccess):
     def update_library_in_db(cls, library_json, sender, file_id, library_id=None):
         ''' Throws:
                 - DoesNotExist exception -- if the file being queried does not exist in the DB
-                - exceptions.NoEntityIdentifyingFieldsProvided -- if the library_id isn't provided
+                - exceptions.NoIdentifyingFieldsProvidedException -- if the library_id isn't provided
                                                               neither as a parameter, nor in the library_json
         '''
         if library_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(library_json) == False:
-            raise exceptions.NoEntityIdentifyingFieldsProvided()
+            raise exceptions.NoIdentifyingFieldsProvidedException()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if library_id != None:
             library_json['internal_id'] = int(library_id)
@@ -661,11 +661,11 @@ class FileDataAccess(DataAccess):
         ''' Updates the metadata for a sample in the DB. 
         Throws:
             - DoesNotExist exception -- if the file being queried does not exist in the DB
-            - exceptions.NoEntityIdentifyingFieldsProvided -- if the sample_id isn't provided
+            - exceptions.NoIdentifyingFieldsProvidedException -- if the sample_id isn't provided
                                                               neither as a parameter, nor in the sample_json
         '''
         if sample_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(sample_json) == False:
-            raise exceptions.NoEntityIdentifyingFieldsProvided()
+            raise exceptions.NoIdentifyingFieldsProvidedException()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if sample_id != None:
             sample_json['internal_id'] = int(sample_id)
@@ -679,11 +679,11 @@ class FileDataAccess(DataAccess):
     def update_study_in_db(cls, study_json, sender, file_id, study_id=None):
         ''' Throws:
                 - DoesNotExist exception -- if the file being queried does not exist in the DB
-                - exceptions.NoEntityIdentifyingFieldsProvided -- if the study_id isn't provided
+                - exceptions.NoIdentifyingFieldsProvidedException -- if the study_id isn't provided
                                                                   neither as a parameter, nor in the study_json            
         '''
         if study_id == None and models_utils.EntityModelUtilityFunctions.check_if_JSONEntity_has_identifying_fields(study_json) == False:
-            raise exceptions.NoEntityIdentifyingFieldsProvided()
+            raise exceptions.NoIdentifyingFieldsProvidedException()
         submitted_file = cls.retrieve_submitted_file(file_id)
         if study_id != None:
             study_json['internal_id'] = int(study_id)
@@ -886,10 +886,10 @@ class FileDataAccess(DataAccess):
 #                         update_db_dict['inc__version__2'] = 1
                         update_db_dict['inc__version__0'] = 1
 #                         #logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-                elif field_name == 'entity_set':
+                elif field_name == 'sample_list':
                     if len(field_val) > 0:
                         #was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
-                        update_db_dict['set__sample_list'] = file_updates['entity_set']
+                        update_db_dict['set__sample_list'] = file_updates['sample_list']
                         update_db_dict['inc__version__1'] = 1
                         update_db_dict['inc__version__0'] = 1
                         #logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
@@ -928,7 +928,7 @@ class FileDataAccess(DataAccess):
                             update_db_dict['set__index_file__md5'] = field_val['md5']
                             update_db_dict['inc__version__0'] = 1
                         else:
-                            raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
+                            raise exceptions.MetadataProblemException("Calc md5 task did not return a dict with an md5 field in it!!!")
                 #elif field_name == 'hgi_project_list':
                 elif field_name == 'hgi_project':
                     if update_source == constants.EXTERNAL_SOURCE:
@@ -976,7 +976,7 @@ class FileDataAccess(DataAccess):
                     #ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
                     ref_gen = ReferenceGenomeDataAccess.retrieve_reference_by_path(field_val)
                     if not ref_gen:
-                        raise exceptions.ResourceNotFoundError(field_val, "Reference genome not in the DB.")
+                        raise exceptions.ResourceNotFoundException(field_val, "Reference genome not in the DB.")
                     update_db_dict['set__file_reference_genome_id'] = ref_gen.md5
             else:
                 logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
@@ -1019,10 +1019,10 @@ class FileDataAccess(DataAccess):
                         update_db_dict['inc__version__2'] = 1
                         update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT --- UPDATING LIBRARY LIST.................................%s ", was_updated)
-                elif field_name == 'entity_set':
+                elif field_name == 'sample_list':
                     if len(field_val) > 0:
                         was_updated = cls.update_sample_list(field_val, update_source, submitted_file)
-                        update_db_dict['set__sample_list'] = submitted_file.entity_set
+                        update_db_dict['set__sample_list'] = submitted_file.sample_list
                         update_db_dict['inc__version__1'] = 1
                         update_db_dict['inc__version__0'] = 1
                         logging.info("UPDATE  FILE TO SUBMIT ---UPDATING SAMPLE LIST -- was it updated? %s", was_updated)
@@ -1061,7 +1061,7 @@ class FileDataAccess(DataAccess):
                             update_db_dict['set__index_file__md5'] = field_val['md5']
                             update_db_dict['inc__version__0'] = 1
                         else:
-                            raise exceptions.MdataProblem("Calc md5 task did not return a dict with an md5 field in it!!!")
+                            raise exceptions.MetadataProblemException("Calc md5 task did not return a dict with an md5 field in it!!!")
                 #elif field_name == 'hgi_project_list':
                 elif field_name == 'hgi_project':
                     if update_source == constants.EXTERNAL_SOURCE:
@@ -1116,7 +1116,7 @@ class FileDataAccess(DataAccess):
                     #ref_gen = ReferenceGenomeDataAccess.get_or_insert_reference_genome(field_val)     # field_val should be a path
                     ref_gen = ReferenceGenomeDataAccess.retrieve_reference_by_path(field_val)
                     if not ref_gen:
-                        raise exceptions.ResourceNotFoundError(field_val, "Reference genome not in the DB.")
+                        raise exceptions.ResourceNotFoundException(field_val, "Reference genome not in the DB.")
                     update_db_dict['set__file_reference_genome_id'] = ref_gen.md5
             else:
                 logging.error("KEY ERROR RAISED!!! KEY = %s, VALUE = %s", field_name, field_val)
@@ -1187,7 +1187,7 @@ class FileDataAccess(DataAccess):
                     print "MESSAGE of the exception:::::", e.message
                     print "ARGS of the exception: ::::::::::", e.args
                     error_message = "File duplicate in database file_id = %s" % str(file_id)
-                    raise exceptions.FileDuplicateException(file_id=str(file_id), message=error_message)
+                    raise exceptions.FileAlreadySubmittedException(file_id=str(file_id), message=error_message)
                 
                 logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             if upd == 1:
@@ -1349,13 +1349,13 @@ class FileDataAccess(DataAccess):
         if found == True:
             return models.SubmittedFile.objects(id=file_id, version__2=cls.get_library_version(file_obj.id, file_obj)).update_one(inc__version__2=1, inc__version__0=1, set__library_list=new_list)
         else:
-            raise exceptions.ResourceNotFoundError(library_id)
+            raise exceptions.ResourceNotFoundException(library_id)
     
     #sample_id,file_id, file_obj)
     @classmethod
     def delete_sample(cls, sample_id, file_id, file_obj=None):
         if not file_obj:
-            file_obj = cls.retrieve_SFile_fields_only(file_id, ['entity_set', 'version'])
+            file_obj = cls.retrieve_SFile_fields_only(file_id, ['sample_list', 'version'])
         new_list = []
         found = False
         for sample in file_obj.entity_set:
@@ -1366,7 +1366,7 @@ class FileDataAccess(DataAccess):
         if found == True:
             return models.SubmittedFile.objects(id=file_id, version__1=cls.get_sample_version(file_obj.id, file_obj)).update_one(inc__version__1=1, inc__version__0=1, set__sample_list=new_list)
         else:
-            raise exceptions.ResourceNotFoundError(sample_id)
+            raise exceptions.ResourceNotFoundException(sample_id)
     
     @classmethod
     def delete_study(cls, study_id, file_id, file_obj=None):
@@ -1382,7 +1382,7 @@ class FileDataAccess(DataAccess):
         if found == True:
             return models.SubmittedFile.objects(id=file_id, version__3=cls.get_study_version(file_obj.id, file_obj)).update_one(inc__version__3=1, inc__version__0=1, set__study_list=new_list)
         else:
-            raise exceptions.ResourceNotFoundError(study_id)
+            raise exceptions.ResourceNotFoundException(study_id)
     
     @classmethod
     def delete_submitted_file(cls, file_id, submitted_file=None):
@@ -1595,7 +1595,7 @@ class ReferenceGenomeDataAccess(DataAccess):
     @classmethod
     def retrieve_reference_genome(cls, ref_gen_dict):
         if not ref_gen_dict:
-            raise exceptions.NoEntityIdentifyingFieldsProvided("No identifying fields provided for the reference genome.")
+            raise exceptions.NoIdentifyingFieldsProvidedException("No identifying fields provided for the reference genome.")
         
         ref_gen_id_by_name, ref_gen_id_by_path = None, None
         if 'name' in ref_gen_dict:
@@ -1604,7 +1604,7 @@ class ReferenceGenomeDataAccess(DataAccess):
             ref_gen_id_by_path = cls.retrieve_reference_by_path(ref_gen_dict['path'])
         
         if ref_gen_id_by_name and ref_gen_id_by_path and ref_gen_id_by_name != ref_gen_id_by_path:
-            raise exceptions.InformationConflict(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
+            raise exceptions.InformationConflictException(msg="The reference genome name "+ref_gen_dict['name'] +"and the path "+ref_gen_dict['path']+" corresponds to different entries in our DB.")
         if ref_gen_id_by_name:
             return ref_gen_id_by_name.id
         if ref_gen_id_by_path:

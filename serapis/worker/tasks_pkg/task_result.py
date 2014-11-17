@@ -36,13 +36,50 @@ class CalculateMD5TaskResult(TaskResult):
         self.md5 = md5
         
         
-class HeaderParserTaskResult(TaskResult):
-    ''' 
-        This type of message keeps a header in it and nothing else.
-        The header field is something like BAMHeader or VCFHeader.
-    '''
-    def __init__(self, header):
-        self.header = header
+# class HeaderParserTaskResult(TaskResult):
+#     ''' 
+#         This type of message keeps a header in it and nothing else.
+#         The header field is something like BAMHeader or VCFHeader.
+#     '''
+#     def __init__(self, header):
+#         self.header = header
+
+class BAMHeaderParserTaskResult(TaskResult):
+    """
+          This type of task result keeps the information from a BAM file header,
+          processed in the way that the identifiers have a type, as opposed to a plain 
+          header, where there is no information as to what type is each identifier for an entity.
+    """
+    def __init__(self, sample_list=None, library_list=None, seq_centers=None, 
+                 seq_date_list=None, lanelet_list=None, platform_list=None):
+        self.sample_list = sample_list
+        self.library_list = library_list
+        self.seq_centers = seq_centers
+        self.seq_date_list = seq_date_list
+        self.lanelet_list = lanelet_list
+        self.platform_list = platform_list
+
+
+class CollectBAMFileMetadataTaskResult(BAMHeaderParserTaskResult):
+    """ 
+        This type of task result keeps the information found in a BAM file's header,
+        plus what could be collected from adjacent databases. It differs from the 
+        BAMHeaderParserTaskResult in the way that 
+    """
+    def __init__(self, study_list, sample_list=None, library_list=None, seq_centers=None, 
+                    seq_date_list=None, lanelet_list=None, platform_list=None):
+        self.study_list = study_list
+        super(CollectBAMFileMetadataTaskResult, self).__init__(sample_list, library_list, seq_centers, seq_date_list, lanelet_list, platform_list)
+
+#     def __init__(self, sample_list=None, library_list=None, study_list=None, seq_centers=None, 
+#                  seq_date_list=None, lanelet_list=None, platform_list=None):
+#         self.sample_list = sample_list
+#         self.library_list = library_list
+#         self.study_list = study_list
+#         self.seq_centers = seq_centers
+#         self.seq_date_list = seq_date_list
+#         self.lanelet_list = lanelet_list
+#         self.platform_list = platform_list
         
 
 class SeqscapeQueryTaskResult(TaskResult):

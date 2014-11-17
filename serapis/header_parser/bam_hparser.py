@@ -27,7 +27,7 @@ Created on Nov 3, 2014
 '''
 import re
 import pysam
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 
 from serapis.com import wrappers
 from serapis.header_parser.hparser import HeaderParser
@@ -294,11 +294,21 @@ class BAMHeaderParser(HeaderParser):
         return BAMHeader(sq=sq, hd=hd, pg=pg, rg=rg)
         
     
-    
-    
-    
-    
-    
+# # import os
+# # from Celery_Django_Prj import configs    
+# # header = BAMHeaderParser.extract_header('/home/ic4/media-tmp2/mc14-vb-carl-fvg-hdd/F13FTSEUHT1058/WX51A92R4342/F13FTSEUHT1058_HUMabyR/result/582130/result_alignment.582130.rmdup.bam')
+# # print "Header: ", header
+# header_dict = {'RG' :[{'ID' :'SZAIPI037008-27', 'PL':'illumina', 'PU': '140123_I878_FCC3LVVACXX_L6_SZAIPI037008-27', 'LB':'SZAIPI037008-27', 'SM': '582130'}]}
+# # @RG     ID:SZAIPI037008-27.1    PL:illumina     PU:131217_I297_FCC35YVACXX_L7_SZAIPI037008-27   LB:SZAIPI037008-27      SM:582130
+# # @RG     ID:SZAIPI037008-27.2    PL:illumina     PU:140123_I878_FCC3LVVACXX_L5_SZAIPI037008-27   LB:SZAIPI037008-27      SM:582130
+# 
+# parsed = BAMHeaderParser.parse(header_dict, sq=False, hd=False, pg=False)
+# print "Parsed: ", parsed
+#     
+#     
+# # header = [{"ID" : "1#71.5", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_8#71", "LB" : "5507617"},
+# #                   {"ID" : "1#71.4", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_7#71", "LB" : "5507617"}]
+#   
     
     
 

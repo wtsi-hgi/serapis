@@ -234,7 +234,7 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
     if file_to_submit == None:
         file_to_submit = retrieve_submitted_file(file_id)
     upd_dict = {}
-    presubmission_tasks_finished = check_all_tasks_finished(file_to_submit.tasks_dict, constants.PRESUBMISSION_TASKS)
+    presubmission_tasks_finished = check_all_tasks_finished(file_to_submit.tasks, constants.PRESUBMISSION_TASKS)
     if presubmission_tasks_finished:
         if check_update_file_obj_if_has_min_mdata(file_to_submit) == True:
             logging.info("FILE HAS MIN DATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!!!!!!!!!!!!!")
@@ -249,8 +249,8 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
             upd_dict['inc__version__2'] = 1
             upd_dict['inc__version__3'] = 1
 
-            #logging.error("CHECK TASK TYPE STATUS: -- upload task name=%s and task dict=%s", UPLOAD_TASK_NAME, file_to_submit.tasks_dict)
-            if check_task_type_status(file_to_submit.tasks_dict, constants.UPLOAD_FILE_TASK, constants.SUCCESS_STATUS):
+            #logging.error("CHECK TASK TYPE STATUS: -- upload task name=%s and task dict=%s", UPLOAD_TASK_NAME, file_to_submit.tasks)
+            if check_task_type_status(file_to_submit.tasks, constants.UPLOAD_FILE_TASK, constants.SUCCESS_STATUS):
                 upd_dict['set__file_submission_status'] = constants.READY_FOR_IRODS_SUBMISSION_STATUS
                 upd_dict['inc__version__0'] = 1
             else:       # if Upload failed:
@@ -269,10 +269,10 @@ def check_and_update_all_file_statuses(file_id, file_to_submit=None):
         upd_dict['set__file_submission_status'] = constants.SUBMISSION_IN_PREPARATION_STATUS
         upd_dict['inc__version__0'] = 1
         
-    if check_task_type_status(file_to_submit.tasks_dict, constants.ADD_META_TO_IRODS_FILE_TASK, constants.SUCCESS_STATUS) == True:
+    if check_task_type_status(file_to_submit.tasks, constants.ADD_META_TO_IRODS_FILE_TASK, constants.SUCCESS_STATUS) == True:
         upd_dict['set__file_submission_status'] = constants.METADATA_ADDED_TO_STAGED_FILE
-    if (check_task_type_status(file_to_submit.tasks_dict, constants.MOVE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
-        check_task_type_status(file_to_submit.tasks_dict, constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS)):
+    if (check_task_type_status(file_to_submit.tasks, constants.MOVE_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS) or
+        check_task_type_status(file_to_submit.tasks, constants.SUBMIT_TO_PERMANENT_COLL_TASK, constants.SUCCESS_STATUS)):
             upd_dict['set__file_submission_status'] = constants.SUCCESS_SUBMISSION_TO_IRODS_STATUS
     if upd_dict:
         return models.SubmittedFile.objects(id=file_to_submit.id, version__0=get_file_version(file_to_submit.id, file_to_submit)).update_one(**upd_dict)
