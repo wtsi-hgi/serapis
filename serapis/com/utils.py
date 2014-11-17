@@ -26,14 +26,14 @@ import time
 import unicodedata
 import datetime
 import logging
-import hashlib
 import collections
-import simplejson
-from os import listdir
+
 from os.path import isfile, join, exists
-from serapis.com import constants
-from Celery_Django_Prj import configs
 from collections import defaultdict
+
+from serapis.com import constants, wrappers
+from Celery_Django_Prj import configs
+
 
 
 
@@ -47,19 +47,6 @@ from collections import defaultdict
 
 ########################## GENERAL USE FUNCTIONS ################################
 
-
-BLOCK_SIZE = 1048576
-
-def calculate_md5(file_path):
-    fd = open(file_path, 'r')
-    file_obj = fd
-    md5_sum = hashlib.md5()
-    while True:
-        data = file_obj.read(BLOCK_SIZE/4)
-        if not data:
-            break
-        md5_sum.update(data)
-    return md5_sum.hexdigest()
 
 
 ######################### JSON CONVERSION #######################################
@@ -184,7 +171,7 @@ def list_and_filter_files_from_dir(dir_path, accepted_extensions):
         (e.g.bam, vcf, and ignore .txt) from a directory given as parameter.
     '''
     files_list = []
-    for f_name in listdir(dir_path):
+    for f_name in os.listdir(dir_path):
         f_path = join(dir_path, f_name)
         if isfile(f_path):
             _, f_extension = os.path.splitext(f_path)
@@ -291,8 +278,9 @@ def infer_filename_from_idxfilename(idx_file_path, file_type):
     
 
 
-def file_exists(fpath):
-    return os.path.isfile(fpath)
+# MOVED to lustre
+# def file_exists(fpath):
+#     return os.path.isfile(fpath)
 
 def get_file_permissions(file_path):
     ''' Checks the file permissions. 
@@ -319,13 +307,9 @@ def get_file_permissions(file_path):
     
 
     
-def check_for_invalid_paths(file_paths_list):
-    invalid_paths = []
-    for file_path in file_paths_list:
-        if not file_path or file_path == ' ': #or not os.access(file_path, os.F_OK): -- the intention was good, but the server running as serapis will NEVER has access to files owned by mercury (e.g.)
-            invalid_paths.append(file_path)
-    return invalid_paths
-
+def filter_out_invalid_paths(file_paths_list):
+    return [fpath for fpath in file_paths_list if fpath not in [None, ' ', '']]
+    
 
 
 def check_for_invalid_file_types(file_path_list):
@@ -356,39 +340,21 @@ def get_file_duplicates(files_list):
 
    
 
-def list_abs_fpaths_from_dir(dir_path):
+def list_fullpaths_from_dir(path):
     ''' Throws a ValueError if the dir doesn't exist or the path 
         is not a dir or if the dir is empty. 
         Returns the list of files from that dir.
     '''
-    files_list = []
-    for f_name in listdir(dir_path):
-        f_path = join(dir_path, f_name)
-        files_list.append(f_path)
-    return files_list
+    return [join(path, fname) for fname in os.listdir(path)]
+#     files_list = []
+#     for f_name in os.listdir(path):
+#         f_path = join(path, f_name)
+#         files_list.append(f_path)
+#     return files_list
 
     
 
-def list_files_from_dir(dir_path):
-    ''' Throws a ValueError if the dir doesn't exist or the path 
-        is not a dir or if the dir is empty. 
-        Returns the list of files from that dir.'''
-    return [f for f in listdir(dir_path)]
 
-#     try:
-#         file_paths = [f for f in listdir(dir_path)]
-#     except IOError as e:
-#         if e.errno == errno.EACCES:
-#             raise ValueError("")
-#         
-#     if not os.path.exists(dir_path):
-#         logging.error("Error: directory path provided does not exist.")
-#         raise ValueError("Error: directory path provided does not exist.")
-#     elif not os.path.isdir(dir_path):
-#         logging.error("This path: %s is not a directory.", dir_path)
-#         raise ValueError("This path: "+dir_path+" is not a directory.")
-#     return [ f for f in listdir(dir_path) if isfile(join(dir_path,f)) ]
-    
 
 def split_path_in_components(path):
     folders=[]
@@ -443,6 +409,16 @@ def get_all_file_types(fpaths_list):
     return file_types
 
 
+def filter_out_none_keys_and_values(my_dict):
+    return {k:v for (k,v) in my_dict.iteritems() if k is not None and v is not None}
+
+def check_all_keys_have_the_same_value(my_dict, my_value=None):
+        if my_value:
+            return all(val==my_value for val in my_dict.values())
+        return len(set(my_dict.values()))==1
+    
+
+###########################################################################
 
 # MOVED TO files.py
 # def build_irods_staging_path(submission_id):
@@ -539,6 +515,7 @@ def is_date_correct(date):
         raise ValueError("The year given is incorrect. Max year = "+str(max_year))
     return True
         
+
 def normalize_platform_model(platform):
     if platform in constants.INSTRUMENT_MODEL:
         return platform
@@ -669,18 +646,15 @@ def compare_sender_priority(source1, source2):
     
 ############################# ADJACENT THINGS -- PROBABLY SHOULD BE HERE!!! Until I think things through and try diff options ###########
 
+@wrappers.check_args_not_none
 def compare_strings(str1, str2):
     ''' Compares two strings and returns True if they are identical, False if not.'''
-    if str1 is None or str2 is None:
-        raise ValueError("String comparison failed: at least one argument is None.")
     return str1 == str2
     
     
 def compare_strings_ignore_case(str1, str2):
     ''' Compares two strings ignoring the case. Returns True if they match, False if not.'''
-    str1 = str1.lower()
-    str2 = str2.lower()
-    return compare_strings(str1, str2)
+    return compare_strings(str1.lower(), str2.lower())
 
 
 def get_key_counts(tuples_list):

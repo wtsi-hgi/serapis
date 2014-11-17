@@ -697,20 +697,18 @@ FILE_META_FIELDS    = ['last_updates_source', 'tasks_dict', 'missing_optional_fi
 
 #ENTITY_APP_MDATA_FIELDS = ['last_updates_source']
 
-ENTITY_IDENTIFYING_FIELDS = ['internal_id', 
-                             'name', 
-                             'accession_number']
+# ENTITY_IDENTIFYING_FIELDS = ['internal_id', 
+#                              'name', 
+#                              'accession_number']
 
 STUDY_NORMALIZATION_MAP = {'study_type' : STUDY_TYPES,
                            'study_visibility' : STUDY_VISIBILITY,
                            }
 
-SAMPLE_NORMALIZATION_MAP = {'common_name' : HOMO_SAPIENS,
-                            'organism' : HOMO_SAPIENS
-                            }
+# SAMPLE_NORMALIZATION_MAP = {'common_name' : HOMO_SAPIENS,
+#                             'organism' : HOMO_SAPIENS
+#                             }
 
-SEQSC_FIELDS = {'organism' : ['Homo sapiens', 'human']
-                }
 
 ########################## iRODS ERRORS #########################
 
