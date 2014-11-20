@@ -26,10 +26,11 @@
 from hamcrest import *
 import unittest
 
-from serapis.seqscape import data_access as warehouse_tested
+#from serapis.seqscape import data_access as warehouse_tested
 from serapis.worker.logic import entities
 from serapis.irods import exceptions
 
+@unittest.skip
 class TestFunctions(unittest.TestCase):
     
     

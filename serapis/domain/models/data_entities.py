@@ -99,9 +99,9 @@ class Sample(MetadataEntity):
         self.country_of_origin = country_of_origin
         self.tissue_type = tissue_type
         #self.is_sanger_sequenced = is_sanger_sequenced
+        #       reference_genome = StringField()
         super(Sample, self).__init__(name=name, accession_number=accession_number, internal_id=internal_id)
-        tissue_type = tissue_type 
-#         reference_genome = StringField()
+
 
 
     def is_field_empty(self, field):

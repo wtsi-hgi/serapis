@@ -1,6 +1,6 @@
 
 from serapis.com import constants
-from serapis.filesystem.permissions import Permissions 
+from serapis.storage.permissions import Permissions
 from usr_or_grp import iRODSUserOrGroup
 
 class iRODSPermissions(Permissions):

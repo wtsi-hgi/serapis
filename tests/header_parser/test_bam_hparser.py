@@ -123,9 +123,9 @@ class Test_RGTagParser(unittest.TestCase):
         header = BAMHeaderParser.extract_header(fpath)
         header_rg = _RGTagParser.parse_all(header['RG'])
         self.assertSetEqual(set(header_rg.seq_centers), set(['SC']))
-        assert_that(header_rg.library_list, has_item('5507617'))
-        assert_that(header_rg.platform_list, has_item('ILLUMINA HS'))
-        assert_that(header_rg.sample_list, has_item('EGAN00001071830'))
+        assert_that(header_rg.libraries, has_item('5507617'))
+        assert_that(header_rg.platforms, has_item('ILLUMINA HS'))
+        assert_that(header_rg.samples, has_item('EGAN00001071830'))
     
         
         fpath = os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam') 
@@ -137,7 +137,7 @@ class Test_RGTagParser(unittest.TestCase):
         assert_that(header_rg, hasattr(header_rg, 'seq_dates'))
         assert_that(header_rg, hasattr(header_rg, 'platforms'))
         assert_that(header_rg, hasattr(header_rg, 'lanelets'))
-        assert_that(header_rg.platform_list, instance_of(list))
+        assert_that(header_rg.platforms, instance_of(list))
         
         fpath = os.path.join(configs.LUSTRE_HOME, 'bams/agv-ethiopia/egpg5306042.bam')
         header = BAMHeaderParser.extract_header(fpath)
@@ -174,17 +174,15 @@ class Test_RGTagParser(unittest.TestCase):
                       'LB': 'SZAIPI037128-51', 
                       'SM': 'F05_XX629745'}]
         parsed_header_rg = _RGTagParser.parse_all(header_rg)
-        assert_that(parsed_header_rg.sample_list, has_item('F05_XX629745'))
-        assert_that(parsed_header_rg.platform_list, has_item('illumina'))
-        assert_that(parsed_header_rg.library_list, has_item('SZAIPI037128-51'))
+        assert_that(parsed_header_rg.samples, has_item('F05_XX629745'))
+        assert_that(parsed_header_rg.platforms, has_item('illumina'))
+        assert_that(parsed_header_rg.libraries, has_item('SZAIPI037128-51'))
 
 
     def test_parse(self):
         path = os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam')
         header = BAMHeaderParser.extract_header(path)
         header_parsed = BAMHeaderParser.parse(header, rg=True, pg=False, hd=False, sq=False)
-        assert_that(header_parsed.rg.platform_list, has_item('ILLUMINA HS'))
+        assert_that(header_parsed.rg.platforms, has_item('ILLUMINA HS'))
         
 
-        
-        

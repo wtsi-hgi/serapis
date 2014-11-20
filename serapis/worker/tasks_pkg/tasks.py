@@ -299,9 +299,9 @@ class CollectBAMFileMetadataTask(Task):
         return CollectBAMFileMetadataTask.collect_metadata_for_bam_file(path)
         
 
-task = CollectBAMFileMetadataTask()
-task_result = task.collect_metadata_for_bam_file(os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam'))
-print str(task_result)
+# task = CollectBAMFileMetadataTask()
+# task_result = task.collect_metadata_for_bam_file(os.path.join(configs.LUSTRE_HOME, 'bams/crohns/WTCCC113699.bam'))
+# print str(task_result)
 
         
 # BAMHeaderRG = namedtuple('BAMHeaderRG', [
