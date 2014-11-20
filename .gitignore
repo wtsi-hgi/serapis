@@ -1,4 +1,5 @@
 Celery_Django_Prj/configs.py
+*.coverage
 *.pyc
 *.pyo
 *.zip
