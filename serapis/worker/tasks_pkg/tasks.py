@@ -1,26 +1,25 @@
-
-'''
+"""
 #################################################################################
 #
 # Copyright (c) 2013 Genome Research Ltd.
-# 
+#
 # Author: Irina Colgiu <ic4@sanger.ac.uk>
-# 
+#
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 #################################################################################
-'''
+"""
 
 
 from subprocess import call, check_output
@@ -232,20 +231,20 @@ class CollectBAMFileMetadataTask(Task):
     
     @classmethod
     @wrappers.check_args_not_none
-    def collect_metadata_for_studies_given_samples(cls, sample_list):
-        sample_internal_ids = [sample.internal_id for sample in sample_list if sample.internal_id is not None]
+    def collect_metadata_for_studies_given_samples(cls, sample_ids):
+        sample_internal_ids = [sample.internal_id for sample in sample_ids if sample.internal_id is not None]
         return cls.query_for_studies_associated_with_samples(sample_internal_ids)
 
     @classmethod
     @wrappers.check_args_not_none
-    def collect_metadata_for_libraries(cls, library_list):
-        if cls.check_all_identifiers_have_same_type(library_list):
-            a_lib = library_list[0]
+    def collect_metadata_for_libraries(cls, library_ids):
+        if cls.check_all_identifiers_have_same_type(library_ids):
+            a_lib = library_ids[0]
             common_id_type, _ = a_lib.items()[0]
-            library_ids = [lib[common_id_type] for lib in library_list]
+            library_ids = [lib[common_id_type] for lib in library_ids]
             libraries = cls.query_for_libraries_as_batch(library_ids, common_id_type)
         else:
-            libraries = cls.query_for_libraries_individually(library_list)
+            libraries = cls.query_for_libraries_individually(library_ids)
         return libraries
     
     @classmethod

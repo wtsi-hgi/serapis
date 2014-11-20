@@ -10,14 +10,15 @@ import serapis_metadata
 
 from serapis.worker.tasks_pkg import tasks
 from serapis.com import constants, utils, wrappers
-from serapis.domain import header_processing
+#from serapis.domain import header_processing
 from serapis.domain.models import data_entities, data, identifiers
-from serapis.api import api_messages
+#from serapis.api import api_messages
 from serapis.external_services import remote_messages
 from serapis.external_services.services import UploaderService, BAMFileHeaderParserService, MD5CalculatorService, SeqscapeDBQueryService
 from serapis.external_services.call_services import CallServices
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
+from serapis.header_parser import bam_hparser, vcf_hparser
         
 
 class IndexFile(object):
@@ -114,10 +115,7 @@ class SerapisFileBuilder(object):
     
 class SerapisFile(object):
     
-    
-    ################## Methods exposed by the API: ##############################
-    
-   
+
     def retrieve_metadata_version(self):
         pass
     
@@ -144,14 +142,12 @@ class SerapisFile(object):
     
     def _get_result_url(self):
         return self.serapis_metadata._get_result_url()
-        
-        
+
     # This shouldn't be here - it is static, doesn't belong to a specific file, or I don't know...
     def get_irods_staging_coll_path(self):
         ''' This function returns the path to the corresponding staging area collection. '''
         return os.path.join(configs.IRODS_STAGING_AREA, self._get_submission_id())
 
-    
     def get_irods_staging_file_path(self):
         ''' This function puts together the path where a file is stored in irods staging area. '''
         (_, fname) = os.path.split(self.src_path)
@@ -260,12 +256,35 @@ class SerapisBAMFileFormat(SerapisFile):
     # TODO:
     # class Header ?! - to add all the functionality related to the header in a class
     
-    def seek_for_metadata_in_header(self):
-        task_args = BAMFileHeaderParserService.prepare_args(self.src_path, self._get_result_url(), self.creator_uid)
-        task_id = BAMFileHeaderParserService.call_service(task_args)
-        self.serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
+    # def seek_for_metadata_in_header(self):
+    #     task_args = BAMFileHeaderParserService.prepare_args(self.src_path, self._get_result_url(), self.creator_uid)
+    #     task_id = BAMFileHeaderParserService.call_service(task_args)
+    #     self.serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
 
-    
+    def parse_header(self):
+        raw_header = bam_hparser.BAMHeaderParser.extract_header(self.src_path)
+        return bam_hparser.BAMHeaderParser.parse(raw_header, rg=True, sq=False, hd=False, pg=False)
+
+
+    def intergrate_header_as_metadata(self, header):
+        self.data.seq_centers = header.seq_centers
+        self.data.seq_dates = header.seq_date_list
+        self.data.run_ids_list = header.run_ids_list
+        self.data.instrument = header.platform_list
+        self.data.seq_date_list = header.seq_date_list
+
+#     'seq_centers',
+#     'seq_date_list',
+#     'lanelet_list',
+#     'platform_list',
+#     'library_list',
+#     'sample_list',
+# ])
+
+    def collect_metadata(self):
+        header = self.parse_header()
+
+
     @wrappers.check_args_not_none
     def map_platform_names(self, platforms_list):
         ''' This function was originally in HeaderParser class, moved here from logical reasons, 
@@ -357,42 +376,42 @@ class FileHeader(object):
     def build(file_format):
         pass
     
-
-class HeaderParserServiceCaller(object):
-    
-    @staticmethod
-    def build(file_format):
-        if file_format == constants.BAM_FILE:
-            return BAMHeaderParserServiceCaller()
-        elif file_format == constants.VCF_FILE:
-            return VCFHeaderParserServiceCaller()
-        
-
-class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
-    
-    @staticmethod    
-    def parse(self, path, url_result, user_id, serapis_metadata):
-        task_args = BAMFileHeaderParserService.prepare_args(path, url_result, user_id)
-        task_id = BAMFileHeaderParserService.call_service(task_args)
-        serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
-        
-#         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.creator_uid)
-#         task_parameters = {'file_path': file_path}
-#         task_args = task_launcher.TaskLauncherArguments(self.parse_BAM_header_task, task_parameters, task_queue=task_queue)
-#         task_id = task_launcher.TaskLauncher.launch_task(task_args)
-#         return task_id
-    
-class VCFHeaderParserServiceCaller(HeaderParserServiceCaller):
-    
-    @staticmethod
-    def parse(self, file_path):
-        header_str = header_processing.VCFHeaderExtractor.extract(file_path)
-        vcf_header = header_processing.VCFHeaderProcessor.process(header_str)   # type = VCFHeader
-        return vcf_header 
-     
-    
-    def parse_header_remotely(self, file_path):
-        pass
+#
+# class HeaderParserServiceCaller(object):
+#
+#     @staticmethod
+#     def build(file_format):
+#         if file_format == constants.BAM_FILE:
+#             return BAMHeaderParserServiceCaller()
+#         elif file_format == constants.VCF_FILE:
+#             return VCFHeaderParserServiceCaller()
+#
+#
+# class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
+#
+#     @staticmethod
+#     def parse(self, path, url_result, user_id, serapis_metadata):
+#         task_args = BAMFileHeaderParserService.prepare_args(path, url_result, user_id)
+#         task_id = BAMFileHeaderParserService.call_service(task_args)
+#         serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
+#
+# #         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.creator_uid)
+# #         task_parameters = {'file_path': file_path}
+# #         task_args = task_launcher.TaskLauncherArguments(self.parse_BAM_header_task, task_parameters, task_queue=task_queue)
+# #         task_id = task_launcher.TaskLauncher.launch_task(task_args)
+# #         return task_id
+#
+# class VCFHeaderParserServiceCaller(HeaderParserServiceCaller):
+#
+#     @staticmethod
+#     def parse(self, file_path):
+#         header_str = headerg.VCFHeaderExtractor.extract(file_path)
+#         vcf_header = header_processing.VCFHeaderProcessor.process(header_str)   # type = VCFHeader
+#         return vcf_header
+#
+#
+#     def parse_header_remotely(self, file_path):
+#         pass
 
 
 class FileUtils:    

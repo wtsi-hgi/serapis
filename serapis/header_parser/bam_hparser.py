@@ -36,16 +36,15 @@ from serapis.header_parser.hparser import HeaderParser
 LANELET_NAME_REGEX = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
 
 
-
 # Named tuples for each header type used as container for returning results:
 BAMHeaderRG = namedtuple('BAMHeaderRG', [
-                                         'seq_centers', 
-                                         'seq_date_list', 
-                                         'lanelet_list',
-                                         'platform_list',
-                                         'library_list',
-                                         'sample_list',
-                                         ])
+    'seq_centers',
+    'seq_date_list',
+    'lanelet_list',
+    'platform_list',
+    'library_list',
+    'sample_list',
+])
 
 BAMHeaderPG = namedtuple('BAMHeaderPG', [])
 
@@ -57,7 +56,6 @@ BAMHeader = namedtuple('BAMHeader', ['rg', 'pg', 'hd', 'sq'])
 
 
 class _RGTagParser(object):
-     
     @classmethod
     @wrappers.check_args_not_none
     def _extract_platform_list_from_rg(cls, rg_dict):
@@ -92,7 +90,7 @@ class _RGTagParser(object):
                 This is the name of the lanelet extracted from this part of the header, looking like: e.g. 1234_1#1
         '''
         pattern = re.compile(LANELET_NAME_REGEX)
-        if pattern.match(pu_entry) != None:     # PU entry is just a list of lanelet names
+        if pattern.match(pu_entry) != None:  # PU entry is just a list of lanelet names
             return pu_entry
         else:
             run = cls._extract_run_from_pu_entry(pu_entry)
@@ -101,7 +99,7 @@ class _RGTagParser(object):
             lanelet = cls._build_lanelet_name(run, lane, tag)
             return lanelet
 
-    
+
     @classmethod
     @wrappers.check_args_not_none
     def _extract_platform_from_pu_entry(cls, pu_entry):
@@ -118,8 +116,8 @@ class _RGTagParser(object):
         if pat.match(platf_beat) != None:
             return pat.match(platf_beat).groups()[0]
         return None
-    
-    
+
+
     @classmethod
     @wrappers.check_args_not_none
     def _extract_lane_from_pu_entry(cls, pu_entry):
@@ -144,8 +142,8 @@ class _RGTagParser(object):
         '''
         last_hash_index = pu_entry.rfind("#", 0, len(pu_entry))
         if last_hash_index != -1:
-            if pu_entry[last_hash_index + 1 :].isdigit():
-                return int(pu_entry[last_hash_index + 1 :])
+            if pu_entry[last_hash_index + 1:].isdigit():
+                return int(pu_entry[last_hash_index + 1:])
         return None
 
     @classmethod
@@ -161,8 +159,8 @@ class _RGTagParser(object):
         if run_beat[0] == '0':
             return int(run_beat[1:])
         return int(run_beat)
-    
-         
+
+
     @classmethod
     def _build_lanelet_name(cls, run, lane, tag=None):
         if run and lane:
@@ -171,8 +169,8 @@ class _RGTagParser(object):
             else:
                 return str(run) + '_' + str(lane)
         return None
-    
-    
+
+
     @classmethod
     @wrappers.check_args_not_none
     def parse_all(cls, rgs_list):
@@ -207,41 +205,38 @@ class _RGTagParser(object):
                 platform_list.append(read_grp['PL'])
 
         return BAMHeaderRG(
-                           seq_centers=filter(None, list(set(seq_center_list))),
-                           seq_date_list=filter(None, list(set(seq_date_list))),
-                           lanelet_list=filter(None, list(set(lanelet_list))),
-                           platform_list=filter(None, list(set(platform_list))),
-                           library_list=filter(None, list(set(library_list))),
-                           sample_list=filter(None, list(set(sample_list)))
-                         )
-        
+            seq_centers=filter(None, list(set(seq_center_list))),
+            seq_date_list=filter(None, list(set(seq_date_list))),
+            lanelet_list=filter(None, list(set(lanelet_list))),
+            platform_list=filter(None, list(set(platform_list))),
+            library_list=filter(None, list(set(library_list))),
+            sample_list=filter(None, list(set(sample_list)))
+        )
+
 
 class _SQTagParser(object):
-
     @classmethod
     def parse_all(cls, sqs_list):
         raise NotImplementedError
-    
+
 
 class _HDTagParser(object):
-
     @classmethod
     def parse_all(cls, hds_list):
         raise NotImplementedError
 
+
 class _PGTagParser(object):
-    
     @classmethod
     def parse_all(cls, pgs_list):
         raise NotImplementedError
-
 
 
 class BAMHeaderParser(HeaderParser):
     ''' 
         Class containing the functionality for parsing BAM file's header.
     '''
-    
+
     @classmethod
     @wrappers.check_args_not_none
     def extract_header(cls, path):
@@ -259,10 +254,10 @@ class BAMHeaderParser(HeaderParser):
             ValueError - if the file is not SAM/BAM format
 
         '''
-        with pysam.Samfile(path, "rb" ) as bamfile:
+        with pysam.Samfile(path, "rb") as bamfile:
             return bamfile.header
 
-    
+
     @classmethod
     @wrappers.check_args_not_none
     def parse(cls, header_dict, rg=True, sq=True, hd=True, pg=True):
@@ -292,8 +287,8 @@ class BAMHeaderParser(HeaderParser):
         pg = _PGTagParser.parse_all(header_dict['PG']) if pg else None
         rg = _RGTagParser.parse_all(header_dict['RG']) if rg else None
         return BAMHeader(sq=sq, hd=hd, pg=pg, rg=rg)
-        
-    
+
+
 # # import os
 # # from Celery_Django_Prj import configs    
 # # header = BAMHeaderParser.extract_header('/home/ic4/media-tmp2/mc14-vb-carl-fvg-hdd/F13FTSEUHT1058/WX51A92R4342/F13FTSEUHT1058_HUMabyR/result/582130/result_alignment.582130.rmdup.bam')
@@ -304,7 +299,7 @@ class BAMHeaderParser(HeaderParser):
 # 
 # parsed = BAMHeaderParser.parse(header_dict, sq=False, hd=False, pg=False)
 # print "Parsed: ", parsed
-#     
+#
 #     
 # # header = [{"ID" : "1#71.5", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_8#71", "LB" : "5507617"},
 # #                   {"ID" : "1#71.4", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_7#71", "LB" : "5507617"}]
