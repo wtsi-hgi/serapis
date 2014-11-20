@@ -1,4 +1,9 @@
 Celery_Django_Prj/configs.py
-.idea/
 *.pyc
+*.pyo
+*.zip
+*.log
+*.sql
+*.sqlite
+*.idea/
 *.*~
