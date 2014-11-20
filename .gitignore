@@ -1,3 +1,4 @@
-Celery_Django_Prj/settings.py
+Celery_Django_Prj/configs.py
+.idea/
 *.pyc
 *.*~
