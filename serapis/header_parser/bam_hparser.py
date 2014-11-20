@@ -38,13 +38,14 @@ LANELET_NAME_REGEX = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
 
 # Named tuples for each header type used as container for returning results:
 BAMHeaderRG = namedtuple('BAMHeaderRG', [
-    'seq_centers',
-    'seq_date_list',
-    'lanelet_list',
-    'platform_list',
-    'library_list',
-    'sample_list',
-])
+
+                                         'seq_centers', 
+                                         'seq_dates', 
+                                         'lanelets',
+                                         'platforms',
+                                         'libraries',
+                                         'samples',
+                                         ])
 
 BAMHeaderPG = namedtuple('BAMHeaderPG', [])
 
@@ -185,7 +186,7 @@ class _RGTagParser(object):
             BAMHeaderRG
                 An object containing the fields of the RG tags.
         '''
-        seq_center_list, seq_date_list, lanelet_list, platform_list, library_list, sample_list = [], [], [], [], [], []
+        seq_center_list, seq_dates, lanelets, platforms, libraries, samples = [], [], [], [], [], []
         for read_grp in rgs_list:
             is_sanger_sample = False
             if 'CN' in read_grp:
@@ -193,25 +194,26 @@ class _RGTagParser(object):
                 if read_grp['CN'] == 'SC':
                     is_sanger_sample = True
             if 'DT' in read_grp:
-                seq_date_list.append(read_grp['DT'])
+                seq_dates.append(read_grp['DT'])
             if 'SM' in read_grp:
-                sample_list.append(read_grp['SM'])
+                samples.append(read_grp['SM'])
             if 'LB' in read_grp:
-                library_list.append(read_grp['LB'])
+                libraries.append(read_grp['LB'])
             if 'PU' in read_grp and is_sanger_sample:
-                lanelet_list.append(cls._extract_lanelet_name_from_pu_entry(read_grp['PU']))
-                platform_list.append(cls._extract_platform_list_from_rg(read_grp))
+                lanelets.append(cls._extract_lanelet_name_from_pu_entry(read_grp['PU']))
+                platforms.append(cls._extract_platform_list_from_rg(read_grp))
             if not is_sanger_sample and 'PL' in read_grp:
-                platform_list.append(read_grp['PL'])
+                platforms.append(read_grp['PL'])
 
         return BAMHeaderRG(
             seq_centers=filter(None, list(set(seq_center_list))),
-            seq_date_list=filter(None, list(set(seq_date_list))),
-            lanelet_list=filter(None, list(set(lanelet_list))),
-            platform_list=filter(None, list(set(platform_list))),
-            library_list=filter(None, list(set(library_list))),
-            sample_list=filter(None, list(set(sample_list)))
-        )
+                           seq_dates=filter(None, list(set(seq_dates))),
+                           lanelets=filter(None, list(set(lanelets))),
+                           platforms=filter(None, list(set(platforms))),
+                           libraries=filter(None, list(set(libraries))),
+                           samples=filter(None, list(set(samples)))
+                         )
+        
 
 
 class _SQTagParser(object):
