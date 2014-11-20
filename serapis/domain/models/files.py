@@ -56,15 +56,19 @@ class SerapisFileBuilder(object):
         new_file.serapis_metadata = serapis_metadata.SerapisMetadataForFile(submission_id=submission.id)
         
         # Init data:
-#        if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
-#             new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing, 
-#                                                       coverage_list=params.coverage_list, sorting_order=params.sorting_order, genomic_reg=params.genomic_regions,
-#                                                       library_strategy=params.library_strategy, library_source=params.library_source, 
-#                                                       )
-#         elif params.data_type == constants.VARIATION_SETS:
-#             new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing, 
-#                                                coverage_list=params.coverage_list, params.sorting_order, genomic_regions=params.genomic_regions, 
-#                                                library_strategy=params.library_strategy, library_source=params.library_source)
+        if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
+            new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing,
+                                                      coverage_list=params.coverage_list, sorting_order=params.sorting_order,
+                                                      genomic_reg=params.genomic_regions,
+                                                      library_strategy=params.library_strategy,
+                                                      library_source=params.library_source,
+                                                      )
+        elif params.data_type == constants.VARIATION_SETS:
+            new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing,
+                                               coverage_list=params.coverage_list, sorting_order=params.sorting_order,
+                                               genomic_regions=params.genomic_regions,
+                                               library_strategy=params.library_strategy,
+                                               library_source=params.library_source)
 
         if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
             new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing)
@@ -269,17 +273,17 @@ class SerapisBAMFileFormat(SerapisFile):
     def intergrate_header_as_metadata(self, header):
         self.data.seq_centers = header.seq_centers
         self.data.seq_dates = header.seq_date_list
-        self.data.run_ids_list = header.run_ids_list
-        self.data.instrument = header.platform_list
-        self.data.seq_date_list = header.seq_date_list
+        self.data.lanelets = header.lanelets
+        self.data.instrument = header.platforms
 
-#     'seq_centers',
-#     'seq_date_list',
-#     'lanelet_list',
-#     'platform_list',
-#     'library_list',
-#     'sample_list',
-# ])
+                                         #
+                                         # 'seq_centers',
+                                         # 'seq_dates',
+                                         # 'lanelets',
+                                         # 'platforms',
+                                         # 'libraries',
+                                         # 'samples',
+                                         # ])
 
     def collect_metadata(self):
         header = self.parse_header()

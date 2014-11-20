@@ -86,7 +86,7 @@ class Sample(MetadataEntity):
                         "geographical_region", "country_of_origin", "is_sanger_sequenced", "sanger_sample_id", "internal_id"]
 
 
-    def __init__(self, name, tissue_type, accession_number=None, taxon_id=9606, organism=constants.HOMO_SAPIENS, gender=None, cohort=None, 
+    def __init__(self, name, tissue_type=None, accession_number=None, taxon_id=9606, organism=constants.HOMO_SAPIENS, gender=None, cohort=None,
                  ethnicity=None, geographical_region=None, country_of_origin=None, internal_id=None):
         self.taxon_id = taxon_id
         self.organism = organism
@@ -97,6 +97,7 @@ class Sample(MetadataEntity):
         self.ethnicity = ethnicity
         self.geographical_region = geographical_region
         self.country_of_origin = country_of_origin
+        self.tissue_type = tissue_type
         #self.is_sanger_sequenced = is_sanger_sequenced
         super(Sample, self).__init__(name=name, accession_number=accession_number, internal_id=internal_id)
         tissue_type = tissue_type 
