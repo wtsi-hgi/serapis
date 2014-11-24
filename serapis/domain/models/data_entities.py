@@ -200,7 +200,7 @@ class LibraryStrategy(object):
 ###################### Metadata Entity Collections ##########
 
 class MetadataEntityCollection(object):
-    ''' This class holds a collection of MetadataEntity.'''
+    """ This class holds a collection of MetadataEntity."""
     
     
 #     @abc.abstractproperty
@@ -236,11 +236,11 @@ class MetadataEntityCollection(object):
     
     @wrappers.check_args_not_none
     def _add_to_set(self, entity):
-        ''' This method adds a new entity to the set, if it doesn't already exist.
+        """ This method adds a new entity to the set, if it doesn't already exist.
             Throws:
                 - ValueError if the entity is None
                 - exceptions.NoIdentifyingFieldsProvidedException if the entity does not have identifying fields
-        '''
+        """
         if entity.has_identifing_fields():
             self.entity_set.add(entity)
             return True
@@ -268,7 +268,7 @@ class MetadataEntityCollection(object):
 
     @wrappers.check_args_not_none
     def remove_by_name(self, entity_name):
-        ''' Given an entity by name, this method removes it from the set.'''
+        """ Given an entity by name, this method removes it from the set."""
         entity = self.get_by_name(entity_name)
         if not entity:
             raise exceptions.ItemNotFoundException(entity_name)
@@ -276,16 +276,16 @@ class MetadataEntityCollection(object):
 
     @wrappers.check_args_not_none        
     def remove(self, entity):
-        ''' Removes the entity object received as parameter. 
-            If the entity doesn't exists, raises KeyError exception.'''
+        """ Removes the entity object received as parameter.
+            If the entity doesn't exists, raises KeyError exception."""
         self.entity_set.remove(entity)
         return True
     
     @wrappers.check_args_not_none    
     def replace_entity(self, new_entity):
-        ''' This method removes the entity with the same identifiers 
+        """ This method removes the entity with the same identifiers
             from this collection, and adds the new one to it.
-        '''
+        """
         self.remove_by_name(new_entity.name)
         return self._add_to_set(new_entity)
     
@@ -293,9 +293,9 @@ class MetadataEntityCollection(object):
         return all([entity.has_enough_metadata() for entity in self.entity_set])
     
     def get_mandatory_fields_missing(self):
-        ''' This method gets all the missing mandatory fields from all the entities in this collection 
-            It returns a dictionary containing: key = name of the entity, value = list of fields missing. 
-        '''
+        """ This method gets all the missing mandatory fields from all the entities in this collection
+            It returns a dictionary containing: key = name of the entity, value = list of fields missing.
+        """
         result = {}
         for entity in self.entity_set:
             fields = entity.get_mandatory_fields_missing()
@@ -304,9 +304,9 @@ class MetadataEntityCollection(object):
         return result
     
     def get_optional_fields_missing(self):
-        ''' This method gets all the missing optional fields from all the entities in this collection 
-            It returns a dictionary containing: key = name of the entity, value = list of fields missing. 
-        '''
+        """ This method gets all the missing optional fields from all the entities in this collection
+            It returns a dictionary containing: key = name of the entity, value = list of fields missing.
+        """
         result = {}
         for entity in self.entity_set:
             fields = entity.get_optional_fields_missing()
