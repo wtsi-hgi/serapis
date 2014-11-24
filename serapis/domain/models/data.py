@@ -1,24 +1,25 @@
-import abc
-import re
-import sets
+"""
+This module is implementing the functionality related to the data that one stores in a file,
+where by data we refer to the actual information content of a file.
+"""
 
 import data_entities
 from serapis.com import constants
 from serapis.controller import exceptions
 
 
-# ################################################################
-
-
 class DataProcessing(object):
-    ''' This class keeps the collection of processings done on the actual data'''
+    """ This class keeps the collection of processings done on the actual data"""
 
     def __init__(self, processing_list=[]):
-        self.processing_list = processing_list  # items in this list can be: hgi_bam_improvement, spatial_filter, merged_lanelets, not sure what type they are yet
+        self.processing_list = processing_list  # items in this list can be:
+                                                            # hgi_bam_improvement -> or this can be synonym with a list of processings...
+                                                            # spatial_filter,
+                                                            # merged_lanelets, not sure what type they are yet
 
 
 class GenomeRegions(object):
-    ''' Contains a list of chromosomes or other details regarding which regions the data contains'''
+    """ Contains a list of chromosomes or other details regarding which regions the data contains"""
 
     def __init__(self, chrom_list=['all']):
         self.chrom_list = chrom_list  # list of chromosomes
@@ -28,6 +29,7 @@ class Data(object):
     def __init__(self, processing, pmid_list, studies=None, security_level=constants.SECURITY_LEVEL_2):
         self.processing = processing
         self.pmid_list = pmid_list
+        self.security_level = security_level
         self.studies = data_entities.StudyCollection(study_set=studies)  # This has the type StudyCollection
 
     def add_or_update_study(self, study):
@@ -57,27 +59,24 @@ class Data(object):
             result['pmid_list'] = ''
         if self.is_field_empty('processing'):
             result['processing'] = ''
-
-        #     # alternative title: check_and_set_metadata_status()
+            # # alternative title: check_and_set_metadata_status()
 
     def check_and_update_and_report_status(self):
         # Not sure how to organise this status check functions..I need to check if a file has min meta, update the status correspondingly
         # and report the missing fields if there are any...
         pass
 
-    #     def query_external_db_by_name(self, entity_type, name, url_result):
+    # def query_external_db_by_name(self, entity_type, name, url_result):
     # #         if not self.is_field_empty('accession_number'):
     # #             field_name = 'accession_number'
     # #             field_value = self.accession_number
     # #         else:
     # #             field_name = 'name'
     # #             field_value = self.name
-    #         task_args = SeqscapeDBQueryService.prepare_args(url_result, entity_type, 'name', name)
+    # task_args = SeqscapeDBQueryService.prepare_args(url_result, entity_type, 'name', name)
     #         task_id = SeqscapeDBQueryService.call_service(task_args)
     #         return task_id
     #         #register_task_id
-
-
 
     def update(self, new_data):
         pass
@@ -100,7 +99,7 @@ class DNAData(Data):
         return self.samples.add_all_samples(sample_list)
 
     def add_library(self, library):
-        return self.libraries._add_to_set(library)
+        return self.libraries.add_library(library)
 
     def add_all_libraries(self, library_list):
         return self.libraries.add_all_libraries(library_list)
@@ -112,7 +111,10 @@ class DNAData(Data):
         return self.samples.remove_by_name(name)
 
     def remove_all_samples(self):
-        self.samples.r
+        pass
+
+    def remove_all_libraries(self):
+        pass
 
 
 class DNASequenceData(DNAData):
@@ -135,7 +137,7 @@ class DNAVariationData(DNAData):
         super(DNAVariationData, self).__init__(pmid_list, security_level, coverage_list, processing=processing,
                                                sorting_order=sorting_order, library_strategy=library_strategy,
                                                library_source=library_source)
-        #     used_samtools = StringField()
-        #     used_unified_genotyper = BooleanField()
+        # used_samtools = StringField()
+        # used_unified_genotyper = BooleanField()
         #     used_haplotype_caller = BooleanField()
 
