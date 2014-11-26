@@ -100,3 +100,92 @@ class TestQueries(unittest.TestCase):
         self.assertEqual(studies[0].name, 'Osteosarcoma Exome')
 
 
+    def test_query_all_studies_individually(self):
+        studies = [('accession_number', 'EGAS00001000689'), ('name', 'SEQCAP_DDD_MAIN_Y2')]
+        result = queries.query_all_studies_individually(studies)
+        self.assertEqual(len(result), 2)
+        bluepr_study = result[0] if result[0].accession_number == 'EGAS00001000689' else result[1]
+        self.assertEqual(bluepr_study.name, 'SEQCAP_WGS_BLUEPRINT')
+        self.assertEqual(bluepr_study.faculty_sponsor, 'Nicole Soranzo')
+        self.assertEqual(bluepr_study.internal_id, 2772)
+        self.assertEqual(bluepr_study.study_type, 'Whole Genome Sequencing')
+
+        # Testing an existing non-existing study (EGAS00001000581) and an existing one => should return a list with 1 res
+        studies = [('accession_number', 'EGAS00001000581'), ('name', 'SEQCAP_DDD_MAIN_Y2')]
+        result = queries.query_all_studies_individually(studies)
+        self.assertEqual(len(result), 1)
+
+
+    def test_query_all_as_batch(self):
+        self.assertRaises(ValueError, queries._query_all_as_batch, models.Sample, ['1', '2'], 'NON-EXISTING ID TYPE')
+
+
+    def test_query_library(self):
+        # Testing a lib that has 2 entries in the db - should raise an error
+        lib_name = 'bcX98J21 1'
+        self.assertRaises(ValueError, queries.query_library, lib_name)
+
+        # Testing a lib that doesn't exist in the DB - should return []
+        lib_name = '3656641'
+        result = queries.query_library(name=lib_name)
+        self.assertEqual(len(result), 0)
+
+
+    def test_query_all_samples_individually(self):
+        # Testing same sample given by 2 diff identifiers
+        samples = [('accession_number', 'EGAN00001105945'), ('name', 'SC_COLORS5537586')]
+        result = queries.query_all_samples_individually(samples)
+        self.assertEqual(len(result), 2)
+
+        # Testing same sample by different identifiers, including internal_id
+        samples = [('accession_number', 'EGAN00001105945'), ('name', 'SC_COLORS5537586'), ('internal_id', 1633262)]
+        result = queries.query_all_samples_individually(samples)
+        self.assertEqual(len(result), 3)
+
+        # Testing a non-existing sample - should return []
+        samples = [('name', 'non-existent_sample')]
+        result = queries.query_all_samples_individually(samples)
+        self.assertEqual(len(result), 0)
+
+
+    def test_query_all_libraries_individually(self):
+        # Testing it fetches some libs - nothing special about them
+        libs = [('name', 'NZO_1 1 2')]
+        result = queries.query_all_libraries_individually(libs)
+        self.assertEqual(len(result), 1)
+
+
+    def test_query_all_libraries_as_batch(self):
+        # Testing it returns 2 libs for 2 valid names
+        lib_names = ['NC4_exo_depleted 1', 'NC4_oligodT 1']
+        result = queries.query_all_libraries_as_batch(lib_names, 'name')
+        self.assertEqual(len(result), 2)
+
+        # Test on a normal lib, the result should have the fields populated with correct values
+        lib_names = ['NC4_exo_depleted 1']
+        result = queries.query_all_libraries_as_batch(lib_names, 'name')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].internal_id, 52017)
+
+
+    def test_query_one(self):
+        # Test on a normal sample, to see its fields are actually populated
+        sample_acc_nr = 'EGAN00001033497'
+        result = queries._query_one(model_cls=models.Sample, accession_number=sample_acc_nr)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].name, 'HELIC5102415')
+        self.assertEqual(result[0].internal_id, 1125648)
+
+        # Test what happens if all the params are None - should return []
+        result = queries._query_one(models.Sample)
+        self.assertEqual(result, [])
+
+        # Test what happens when a sample has 2 rows in the DB -- should raise a ValueError
+        self.assertRaises(ValueError, queries._query_one, models.Sample, 'bcX98J21 1', None, None)
+
+
+
+
+
+
+

@@ -141,21 +141,60 @@ def _query_all_as_batch(model_cls, ids, id_type):
 
 
 def _query_one(model_cls, name=None, accession_number=None, internal_id=None):
-    kwargs = locals()
-    kwargs.pop('model_cls', model_cls)
-    filtered_kwargs = dict((k, v) for k, v in kwargs.iteritems() if v is not None)
-    if len(filtered_kwargs) > 1:
-        raise ValueError("You can't send more than one parameter from: name, accession_number and internal_id to this function!")
-    id_type, id_val = filtered_kwargs.items()[0]
-    query_params = dict(ids=[id_val], id_type=id_type, model_cls=model_cls)
-    return _query_all_as_batch(**query_params)          # This fct takes: (model_cls, ids, id_type)
+    """
+    This function queries on the entity of type model_cls, by one (and only one) of the identifiers:
+    name, accession_number, internal_id and returns the results found in Seqscape corresponding to
+    that identifier. Since it is expecting one result per identifier, it throws a ValueError if there
+    are multiple rows in the DB corresponding to that identifier.
+    Note: only one identifier should be provided
+    Parameters
+    ----------
+    model_cls : class
+        The type of model to be queried on and returned. Can be: models.Sample or models.Study or models.Library
+    name : str
+        The name of the entity to query on
+    accession_number : str
+        The accession number of the entity to query on
+    Returns
+    -------
+    result : model_cls type
+        The entity found in the database to have the identifier given as parameter
+    Raises
+    ------
+    ValueError - if there are more rows corresponding to the identifier provided as param
+    """
+    if name:
+        result = _query_all_as_batch_by_name(model_cls, [name])
+    elif accession_number:
+        result = _query_all_as_batch_by_accession_number(model_cls, [accession_number])
+    elif internal_id:
+        result = _query_all_as_batch_by_internal_id(model_cls, [internal_id])
+    else:
+        #raise ValueError("No identifier provided to query on.")
+        return []
+    if len(result) > 1:
+        err = "This query has more than one row associated in SEQSCAPE"+str([s.name for s in result])
+        raise ValueError(err)
+    return result
+
+
+@wrappers.check_args_not_none
+def _query_all_individually(model_cls, ids_as_tuples):
+    results = []
+    for id_type, id_val in ids_as_tuples:
+        try:
+            result_matching_qu = _query_one(**{'model_cls' : model_cls,id_type: id_val})
+        except ValueError:
+            print "Multiple entities with the same id found in the DB"
+        else:
+            if result_matching_qu:
+                results.append(result_matching_qu[0])
+    return results
 
 
 @wrappers.check_args_not_none
 def _query_for_study_ids_by_sample_ids(sample_internal_ids):
-    engine = connect(configs.SEQSC_HOST, str(configs.SEQSC_PORT), configs.SEQSC_DB_NAME, configs.SEQSC_USER)
-    session_cls = sessionmaker(bind=engine)
-    session = session_cls()
+    session = connect_and_get_session_instance()
     return session.query(StudySamplesLink). \
         filter(StudySamplesLink.sample_internal_id.in_(sample_internal_ids)). \
         filter(StudySamplesLink.is_current == 1).all()
@@ -173,6 +212,8 @@ def query_sample(name=None, accession_number=None, internal_id=None):
         ------
         ValueError
             If all 3 parameters are None at the same time => nothing to query about
+        ValueError
+            If there are more than 1 samples matching a query on one of the ids.
     """
     return _query_one(Sample, name, accession_number, internal_id)
 
@@ -189,6 +230,8 @@ def query_library(name=None, accession_number=None, internal_id=None):
         ------
         ValueError
             If all 3 parameters are None at the same time => nothing to query about
+        ValueError
+            If there are more than 1 samples matching a query on one of the ids.
     """
     return _query_one(Library, name, accession_number, internal_id)
 
@@ -205,6 +248,8 @@ def query_study(name=None, accession_number=None, internal_id=None):
         ------
         ValueError
             If all 3 parameters are None at the same time => nothing to query about
+        ValueError
+            If there are more than 1 samples matching a query on one of the ids.
     """
     return _query_one(Study, name, accession_number, internal_id)
 
@@ -220,19 +265,8 @@ def query_all_samples_individually(ids_as_tuples):
         -------
         samples : list
             A list of samples as extracted from the DB, where a sample is of type models.Sample
-        Raises
-        ------
-        ValueError: if there are more than 1 samples matching a query on one of the ids.
     """
-    samples = []
-    for id_type, id_val in ids_as_tuples:
-        samples_matching = query_sample(id_val, id_type)
-        if len(samples_matching) == 1:
-            samples.append(samples_matching[0])
-        elif len(samples_matching) > 1:
-            err = "One or more samples has more rows associated in SEQSCAPE"+str([s.name for s in samples_matching])
-            raise ValueError(err)
-    return samples
+    return _query_all_individually(Sample, ids_as_tuples)
 
 
 @wrappers.check_args_not_none
@@ -250,16 +284,7 @@ def query_all_libraries_individually(ids_as_tuples):
     ------
     ValueError: if there are more than 1 library matching a query on one of the ids.
     """
-
-    libraries = []
-    for id_type, id_val in ids_as_tuples.iteritems():
-        libraries_matching = query_library(id_val, id_type)
-        if len(libraries_matching) == 1:
-            libraries.append(libraries_matching[0])
-        elif len(libraries_matching) > 1:
-            err = "Querying for one library, but more results were found in SEQSCAPE"+str([s.name for s in libraries_matching])
-            raise ValueError(err)
-    return libraries
+    return _query_all_individually(Library, ids_as_tuples)
 
 
 @wrappers.check_args_not_none
@@ -277,15 +302,7 @@ def query_all_studies_individually(ids_as_tuples):
     ------
     ValueError: if there are more than 1 study matching a query on one of the ids.
     """
-    studies = []
-    for id_type, id_val in ids_as_tuples.iteritems():
-        studies_matching = query_study(id_val, id_type)
-        if len(studies_matching) == 1:
-            studies.append(studies_matching[0])
-        elif len(studies_matching) > 1:
-            err = "Querying for one library, but more results were found in SEQSCAPE"+str([s.name for s in studies_matching])
-            raise ValueError(err)
-    return studies
+    return _query_all_individually(Study, ids_as_tuples)
 
 
 @wrappers.check_args_not_none
