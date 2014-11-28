@@ -68,6 +68,12 @@ class MetadataEntityCollection(object):
 
     #### PUBLIC METHODS ##########
 
+    def add(self, entity):
+        return self._add_to_set(entity)
+
+    def add_all(self, entities):
+        return self._add_all_to_set(entities)
+
     # TODO: check that the entity is of the correct type
     # TODO: re-write this one, it doesn't feel right that it searches for an entity with same ids - this fct is not
     # good, should be checking what ids are there, and then retrieving the corresponding entity with get_by_name (e.g)
@@ -197,19 +203,25 @@ class SampleCollection(MetadataEntityCollection):
         self._entity_set = set(sample_set)  # set of Sample objects
 
     def add(self, sample):
-        return self._add_to_set(sample)
+        return self._entity_set.add(sample)
+
+    def add_all(self, samples):
+        return self._entity_set.add_all(samples)
+
+    def add_or_update(self, sample):
+        super(SampleCollection, self).add_or_update(sample)
+
+    def add_or_update_all(self, samples):
+        super(SampleCollection, self).add_or_update_all(samples)
 
     def add_all(self, sample_list):
-        return self._add_all_to_set(sample_list)
+        return self._entity_set.add_all(sample_list)
 
     def has_enough_metadata(self):
         return all(sample.has_enough_metadata() for sample in self._entity_set)
 
-    def update_sample(self, updated_sample):
-        return self.update_entity(updated_sample)
-
-    def replace_sample(self, old_sample, new_sample):
-        return self.replace(old_sample, new_sample)
+    def replace(self, old_sample, new_sample):
+        return super(SampleCollection, self).replace(old_sample, new_sample)
 
 
 class LibraryCollection(MetadataEntityCollection):
@@ -218,40 +230,47 @@ class LibraryCollection(MetadataEntityCollection):
         self.strategy = strategy  # WES, WGS, TARGET
         self.source = source
 
+    def add(self, library):
+        return self._entity_set.add(library)
+
+    def add_all(self, library_list):
+        return self._entity_set.add_all(library_list)
+
+    def add_or_update(self, library):
+        super(LibraryCollection, self).add_or_update(library)
+
+    def add_or_update_all(self, libraries):
+        super(LibraryCollection, self).add_or_update_all(libraries)
+
+    def replace(self, old_library, new_library):
+        super(LibraryCollection, self).replace(old_library, new_library)
+
     def has_enough_metadata(self):
         if self.is_field_empty("strategy") or self.is_field_empty("source"):
             return False
         return all([library.has_enough_metadata() for library in self._entity_set])
 
-    def add(self, library):
-        return self._add_to_set(library)
-
-    def add_all(self, library_list):
-        return self.add_or_update_all(library_list)
-
-    def update(self, updated_library):
-        return self.update_entity(updated_library)
-
-    def replace_library(self, old_library, new_library):
-        return self.replace(old_library, new_library)
 
 
 class StudyCollection(MetadataEntityCollection):
     def __init__(self, study_set=[]):
         self._entity_set = set(study_set)
 
-    def has_enough_metadata(self):
-        return all([study.has_enough_metadata() for study in self._entity_set])
-
     def add(self, study):
-        return self._add_to_set(study)
+        return self._entity_set.add(study)
 
     def add_all(self, study_list):
-        return self.add_or_update_all(study_list)
+        return self.add_all(study_list)
 
-    def update(self, updated_study):
-        return self.update_entity(updated_study)
+    def add_or_update(self, study):
+        super(StudyCollection, self).add_or_update(study)
+
+    def add_or_update_all(self, studies):
+        super(StudyCollection, self).add_or_update_all(studies)
 
     def replace_study(self, old_study, new_study):
         return self.replace(old_study, new_study)
+
+    def has_enough_metadata(self):
+        return all([study.has_enough_metadata() for study in self._entity_set])
 
