@@ -367,8 +367,10 @@ def query_all_studies_associated_with_samples(sample_internal_ids):
         A list of models.Study found for the samples given as parameter by internal_id
     """
     studies_samples = _query_for_study_ids_by_sample_ids(sample_internal_ids)
-    study_ids = [study_sample.study_internal_id for study_sample in studies_samples]
-    return query_all_studies_as_batch(study_ids, 'internal_id')
+    if studies_samples:
+        study_ids = [study_sample.study_internal_id for study_sample in studies_samples]
+        return query_all_studies_as_batch(study_ids, 'internal_id')
+    return []
 
 
 # OLD and obsolete - left here only as an example of using this api
