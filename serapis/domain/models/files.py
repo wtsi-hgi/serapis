@@ -9,7 +9,7 @@ import serapis_metadata
 from serapis.worker.tasks_pkg import tasks
 from serapis.com import constants, utils, wrappers
 # from serapis.domain import header_processing
-from serapis.domain.models import data_entities, data, identifiers
+from serapis.domain.models import data_entity, data, identifiers
 # from serapis.api import api_messages
 from serapis.external_services import remote_messages
 from serapis.external_services.services import UploaderService, BAMFileHeaderParserService, MD5CalculatorService, \
@@ -18,6 +18,8 @@ from serapis.external_services.call_services import CallServices
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
 from serapis.header_parser import bam_hparser, vcf_hparser
+
+from serapis.meta_external_resc import usage as ext_resc_usage
 
 
 class IndexFile(object):
@@ -39,42 +41,50 @@ class SerapisFileBuilder(object):
         elif file_format == constants.VCF_FILE:
             new_file = SerapisVCFFileFormat()
 
-        new_file.security_level = params.security_level
+            # TODO: check if moving this field to data has any negative impact on my logic
+        # new_file.security_level = params.security_level
 
+        # TODO: move it in SERAPIS metadata
+        # I think this should be in SERAPIS METADATA - It does NOT have to do with the file directly,
+        # but with archiving a file to SERAPIS...
         # Init the irods collection
-        if not params.dest_path:
-            #dest_path = utils.build_irods_permanent_project_path(submission_id)
-            dest_path = submission.determine_temp_path()
-        else:
-            dest_path = params.dest_path
-        new_file.dest_path = dest_path
+        # if not params.dest_path:
+        # #dest_path = utils.build_irods_permanent_project_path(submission_id)
+        # dest_path = submission.determine_temp_path()
+        # else:
+        # dest_path = params.dest_path
+        # new_file.dest_path = dest_path
 
         # Init metadata:
         new_file.serapis_metadata = serapis_metadata.SerapisMetadataForFile(submission_id=submission.id)
 
         # Init data:
-        if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
+        if params.data_type == constants.SINGLE_SAMPLE_SEQUENCE_DATA:
             new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing,
                                                  coverage_list=params.coverage_list, sorting_order=params.sorting_order,
                                                  genomic_reg=params.genomic_regions,
                                                  library_strategy=params.library_strategy,
                                                  library_source=params.library_source,
             )
-        elif params.data_type == constants.VARIATION_SETS:
+        elif params.data_type == constants.VARIATION_DATA:
             new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing,
                                                   coverage_list=params.coverage_list,
                                                   sorting_order=params.sorting_order,
                                                   genomic_regions=params.genomic_regions,
                                                   library_strategy=params.library_strategy,
-                                                  library_source=params.library_source)
+                                                  library_source=params.library_source
+            )
 
-        if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
+        new_file.data_type = params.data_type
+
+        # This part appears twice, WHY?
+        #if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
+        if params.data_type == constants.SINGLE_SAMPLE_SEQUENCE_DATA:
             new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing)
-        elif params.data_type == constants.VARIATION_SETS:
+        elif params.data_type == constants.VARIATION_DATA:
             new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing)
         else:
             raise NotImplementedError
-        new_file.data_type = params.data_type
 
         # Init fpath:
         new_file.src_path = params.src_path
@@ -83,9 +93,12 @@ class SerapisFileBuilder(object):
         if params.fpath_idx_client:
             new_file.index_file = IndexFile(fpath=params.fpath_idx_client)
 
+        # TODO: evaluate if these should be moved in SERAPIS METADATA
+        # These fields 'feel' like they belong to the "archiving" domain, maybe they should be in SERAPIS META?!
         # Init the rest of fields:
         new_file.access_group = params.access_group
         new_file.owner_uname = params.owner_uname  # creator_uid
+
         new_file.md5 = None  # to be filled in after it is being calculated
 
 
@@ -102,9 +115,9 @@ class SerapisFileBuilder(object):
 # - serapis_metadata
 
 
-###################
-#         self.processing = processing_list
-#         self.security_level = security_level
+# ##################
+# self.processing = processing_list
+# self.security_level = security_level
 #         self.pmid_list = pmid_list
 #         self.data_type = data_type
 #         self.sorting_order = sorting_order
@@ -196,12 +209,9 @@ class SerapisFile(object):
         deferred_task = CallServices.query_seqscape_entity(url_result, entity_type, field_name, field_value)
         self.serapis_metadata.register_deferred_task(deferred_task)
 
-    def lookup_entity_in_seqscape(self, entity):
-        pass
 
-    def lookup_sample_in_seqscape(self, sample):
+    def collect_metadata_from_seqscape(self):
         pass
-
 
     def remove_inferred_metadata(self):
         pass
@@ -225,7 +235,7 @@ class SerapisFile(object):
         pass
 
     def replace_list_of_metadata_in_file(self, triplet_tuples):
-        ''' Triplets in the input list are: (key, old_val, new_val)'''
+        """ Triplets in the input list are: (key, old_val, new_val)"""
         pass
 
     def move_file_within_irods(self, src_path, dest_path):
@@ -268,23 +278,107 @@ class SerapisBAMFileFormat(SerapisFile):
         raw_header = bam_hparser.BAMHeaderParser.extract_header(self.src_path)
         return bam_hparser.BAMHeaderParser.parse(raw_header, rg=True, sq=False, hd=False, pg=False)
 
-    def intergrate_header_as_metadata(self, header):
-        self.data.seq_centers = header.seq_centers
-        self.data.seq_dates = header.seq_dates
-        self.data.lanelets = header.lanelets
-        self.data.instrument = header.platforms
+    # def intergrate_header_as_metadata(self, header):
+    #     self.data.seq_centers = header.seq_centers
+    #     self.data.seq_dates = header.seq_dates
+    #     self.data.lanelets = header.lanelets
+    #     self.data.instrument = header.platforms
+    #
+    #     # if not Sanger sample:
+    #     samples = [data_entity.Sample.build_from_identifier(identif) for identif in header.samples]
+    #     libraries = [data_entity.Library.build_from_identifier(identif) for identif in header.libraries]
+    #
+    #     # Really?! Not sure about that...
+    #     self.data.add_all(samples)
+    #     self.data.add_all(libraries)
 
-        samples = [data_entities.Sample.build_from_identifier(identif) for identif in header.samples]
-        libraries = [data_entities.Library.build_from_identifier(identif) for identif in header.libraries]
+    def collect_metadata_from_header(self):
+        # return a type of data
+        pass
 
-        self.data.add_all_samples(samples)
-        self.data.add_all_libraries(libraries)
+    def collect_metadata_from_header_and_exernal_resc(self):
+        # return a type of data
+        pass
+
+    def collect_metadata_from_external_resc(self, some_params):
+        # give in some standard params -- how should they look like?
+        # return ?
+        pass
 
 
-    def collect_metadata(self):
-        header = self.parse_header()
-        self.intergrate_header_as_metadata(header)
+    # TODO: isolate the code accessing seqscape in a higher-level abstraction layer, smth called: "external_services/.."
+    # TODO: and make it fetch data through a higher-level interface - the same  no matter what ext. serv you use.
+    def collect_metadata_for_file(self):
+        """
+            Collects metadata for this file.
+            Returns a Data object with the metadata collected for this type of file
+        """
+        # Parsing the header
+        raw_header = bam_hparser.BAMHeaderParser.extract_header(self.src_path)
+        all_header_data = bam_hparser.BAMHeaderParser.parse(raw_header, rg=True, sq=False, hd=False, pg=False)
+        header = all_header_data.rg
 
+        # We know that a BAM file has sequence data - so it shoudl return DNASequenceData
+        file_data = data.DNASequenceData()
+        file_data.seq_centers = header.seq_centers
+        file_data.seq_dates = header.seq_dates
+        file_data.lanelets = header.lanelets
+        file_data.instrument = header.platforms
+
+        sample_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
+        seqsc_samples = data.get_metadata_for_samples_from_seqscape(sample_ids_as_tuples)
+        srp_samples = [data_entity.Sample.build_from_seqsc_model(sampl) for sampl in seqsc_samples]
+        file_data.samples = srp_samples
+
+        lib_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
+        seqsc_libs = data.get_metadata_for_libraries_from_seqscape(lib_ids_as_tuples)
+        srp_libs = [data_entity.Library.build_from_seqsc_model(lib) for lib in seqsc_libs]
+        file_data.libraries = srp_libs
+
+        sample_internal_ids = [sample.internal_id for sample in srp_samples]
+        seqsc_studies = data.get_metadata_for_studies_by_samples_from_seqscape(sample_internal_ids)
+        srp_studies = [data_entity.Study.build_from_seqsc_model(study) for study in seqsc_studies]
+        file_data.studies = srp_studies
+        return file_data
+
+
+    def collect_all_metadata_for_file(self, external_resc_type=None):
+        """
+            Collects metadata for this file, mainly from the header, but it also takes
+            an optional parameter telling it from which external resource to collect information
+            in addition to the header. Usually it's called with configs.METADATA_EXTERNAL_RESC
+            Returns a Data object with the metadata collected for this type of file
+        """
+        # Parsing the header
+        raw_header = bam_hparser.BAMHeaderParser.extract_header(self.src_path)
+        all_header_data = bam_hparser.BAMHeaderParser.parse(raw_header, rg=True, sq=False, hd=False, pg=False)
+        header = all_header_data.rg
+
+        # Lookup the header entities for more information:
+        samples, libraries, studies = [], [], []
+        if external_resc_type:
+            sample_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
+            lib_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
+            lookup_result = ext_resc_usage.lookup_entities_in_ext_resc(ext_resc_type=external_resc_type,
+                                                                       sample_ids_tuples=sample_ids_as_tuples,
+                                                                       library_ids_tuples=lib_ids_as_tuples)
+            samples = lookup_result.samples
+            libraries = lookup_result.libraries
+            studies = lookup_result.studies
+        else:
+            samples = [data_entity.Sample.build_from_identifier(sample_id) for sample_id in header.samples]
+            libraries = [data_entity.Library.build_from_identifier(lib_id) for lib_id in header.libraries]
+
+        # We know that a BAM file has sequence data - so it should return DNASequenceData
+        file_data = data.DNASequenceData()
+        file_data.seq_centers = header.seq_centers
+        file_data.seq_dates = header.seq_dates
+        file_data.lanelets = header.lanelets
+        file_data.instrument = header.platforms
+        file_data.samples = samples
+        file_data.libraries = libraries
+        file_data.studies = studies
+        return file_data
 
 
     @wrappers.check_args_not_none
@@ -314,15 +408,15 @@ class SerapisBAMFileFormat(SerapisFile):
 
         for sample_id in header.sample_list:
             identifier_type = identifiers.EntityIdentifier.guess_identifier_type(sample_id)
-            sample = data_entities.Sample()
+            sample = data_entity.Sample()
             setattr(sample, identifier_type, sample_id)
-            self.data.add_sample(sample)
+            self.data.add(sample)
             self.lookup_entity_in_ext_resc(constants.SAMPLE_TYPE, identifier_type, sample_id)
         for library_id in header.library_list:
             idenfier_type = identifiers.EntityIdentifier.guess_identifier_type(library_id)
-            library = data_entities.Library()
+            library = data_entity.Library()
             setattr(library, idenfier_type, library_id)
-            self.data.add_library(library)
+            self.data.add(library)
             self.lookup_entity_in_ext_resc(constants.LIBRARY_TYPE, identifier_type, library_id)
 
         platforms = self.map_platform_names(header.platform_list)
