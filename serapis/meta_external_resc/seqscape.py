@@ -66,12 +66,15 @@ class SeqscapeExternalResc(base.ExternalResc):
         samples, libraries, studies = [],[],[]
         if library_ids_tuples:
             libraries = cls.lookup_libraries(library_ids_tuples)
+        if study_ids_tuples:
+            studies = cls.lookup_studies(study_ids_tuples)
         if sample_ids_tuples:
             samples = SeqscapeExternalResc.lookup_samples(sample_ids_tuples)
-            # Lookup studies by samples if possible:
-            sample_internal_ids = [sample.internal_id for sample in samples]
-            if sample_internal_ids:
-                studies = cls.lookup_studies_given_samples(sample_internal_ids)
+            if not studies:
+                # Lookup studies by samples if possible:
+                sample_internal_ids = [sample.internal_id for sample in samples]
+                if sample_internal_ids:
+                    studies = cls.lookup_studies_given_samples(sample_internal_ids)
         return base.LookupResult(samples=samples, libraries=libraries, studies=studies)
 
 

@@ -142,6 +142,11 @@ class TestSeqscape(unittest.TestCase):
         self.assertEqual(len(result_libs), 1)
         self.assertEqual(result_libs[0].name, 'DDD_MAIN5159735 3578830')
 
+        # Test studies:
+        result_studies = results.studies
+        self.assertEqual(len(result_studies), 1)
+        self.assertEqual(result_studies[0].name, 'SEQCAP_WES_INTERVAL')
+
         # Test it works also for only one param - e.g. only samples:
         sample_ids = [('accession_number', 'EGAN00001218652')]
         results = seqsc_ext_resc.SeqscapeExternalResc.lookup_entities(sample_ids_tuples=sample_ids)
