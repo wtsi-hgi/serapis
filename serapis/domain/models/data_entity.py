@@ -25,12 +25,12 @@ class MetadataEntity(object):
         else:
             return self.name == other.name
 
-    @staticmethod
-    def build_from_seqsc_model(entity):
-        srp_entity = MetadataEntity()
-        for field_name, field_val in vars(entity).iteritems():
-            setattr(srp_entity, field_name, field_val)
-        return srp_entity
+    # @staticmethod
+    # def build_from_seqsc_model(entity):
+    #     srp_entity = MetadataEntity()
+    #     for field_name, field_val in vars(entity).iteritems():
+    #         setattr(srp_entity, field_name, field_val)
+    #     return srp_entity
 
     @classmethod
     def build_from_identifier(cls, identifier):

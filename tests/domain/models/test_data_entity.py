@@ -166,24 +166,6 @@ class TestMetadataEntity(unittest.TestCase):
         self.assertEqual(ent1, expected)
 
 
-    def test_build_from_seqsc_model(self):
-        seqsc_ent = seqsc_models.Sample()
-        seqsc_ent.accession_number = 'EGA123'
-        seqsc_ent.internal_id = 123
-        seqsc_ent.name = "Joanne"
-        result = data_entity.MetadataEntity.build_from_seqsc_model(seqsc_ent)
-        self.assertEqual(result.accession_number, 'EGA123')
-        self.assertEqual(result.name, 'Joanne')
-        self.assertEqual(result.internal_id, 123)
-        self.assertDictEqual(result.__dict__, seqsc_ent.__dict__)
-
-        seqsc_ent = seqsc_models.Study()
-        seqsc_ent.accession_number = 'EGA123'
-        seqsc_ent.study_type = 'Whole Genome Sequencing'
-        result = data_entity.MetadataEntity.build_from_seqsc_model(seqsc_ent)
-        self.assertEqual(result.accession_number, 'EGA123')
-        self.assertEqual(result.study_type, 'Whole Genome Sequencing')
-
     def test_export_identifier_as_tuple(self):
         ent = data_entity.Study()
         ent.accession_number = 'EGA123'
@@ -212,9 +194,11 @@ class TestMetadataEntity(unittest.TestCase):
     def test_build_from_identifier(self):
         ent = data_entity.Sample.build_from_identifier('EGA123')
         self.assertEqual(ent.accession_number, 'EGA123')
+        self.assertEqual(type(ent), data_entity.Sample)
 
         ent = data_entity.Sample.build_from_identifier(123)
         self.assertEqual(ent.internal_id, 123)
+        self.assertEqual(type(ent), data_entity.Sample)
 
         ent = data_entity.Sample.build_from_identifier('some_name')
         self.assertEqual(ent.name, 'some_name')
