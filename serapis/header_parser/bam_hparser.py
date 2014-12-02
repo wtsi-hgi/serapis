@@ -240,7 +240,7 @@ class BAMHeaderParser(HeaderParser):
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract_header(cls, path):
+    def extract(cls, path):
         ''' This method extracts the header from a BAM file, given its path
             Parameters
             ----------

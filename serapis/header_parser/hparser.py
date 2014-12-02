@@ -12,7 +12,13 @@ import abc
 class HeaderParser(object):
     ''' 
         Abstract class to be inherited by all the classes that contain header parsing functionality.
-    '''    
+    '''
+
+    @classmethod
+    @abc.abstractmethod
+    def extract(cls, path):
+        raise NotImplementedError
+
     @classmethod
     @abc.abstractmethod
     def parse(self):

@@ -5,28 +5,23 @@ Created on Nov 3, 2014
 '''
 import gzip
 from collections import namedtuple
-
-
-
 from serapis.com import wrappers
 from serapis.header_parser.hparser import HeaderParser
 
 
-
 VCFHeader = namedtuple('VCFHeader', [
-                                     'vcf_format', 
-                                     'samtools_version',
-                                     'reference',
-                                     'sample_list'
-                                     ])
+    'vcf_format',
+    'samtools_version',
+    'reference',
+    'sample_list'
+])
 
 
-
-   
 class VCFHeaderParser(HeaderParser):
     ''' 
         This class contains the functionality needed for VCF file's header.
     '''
+
     @classmethod
     @wrappers.check_args_not_none
     def _extract_sample_list(cls, header):
@@ -42,12 +37,12 @@ class VCFHeaderParser(HeaderParser):
             if line.startswith('#CHROM'):
                 columns = line.split()
                 for col in columns:
-                    if col not in ['#CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO', 'FORMAT']:
+                    if col not in ['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT']:
                         samples.append(col)
                 break
         return samples
-    
-    
+
+
     @classmethod
     @wrappers.check_args_not_none
     def _extract_reference(cls, header):
@@ -65,8 +60,8 @@ class VCFHeaderParser(HeaderParser):
                         ref_path = ref_path[7:]
                 break
         return ref_path
-                
-    
+
+
     @classmethod
     @wrappers.check_args_not_none
     def _extract_samtools_version(cls, header):
@@ -98,11 +93,11 @@ class VCFHeaderParser(HeaderParser):
                     vcf_format = items[1]
                 break
         return vcf_format
-                
-    
+
+
     @classmethod
     @wrappers.check_args_not_none
-    def extract_header(cls, path):
+    def extract(cls, path):
         ''' 
             This function extracts the file header and returns it.
         '''
@@ -118,7 +113,7 @@ class VCFHeaderParser(HeaderParser):
                 break
         infile.close()
         return header
-    
+
     @classmethod
     @wrappers.check_args_not_none
     def parse(cls, header):
@@ -131,16 +126,15 @@ class VCFHeaderParser(HeaderParser):
             -------
             VCFHeader - an object containing all the information found in the header of interest
         '''
-        #header = cls.extract_header(path)
+        # header = cls.extract_header(path)
         vcf_format = cls._extract_vcf_format(header)
         samtools_version = cls._extract_samtools_version(header)
         reference = cls._extract_reference(header)
         sample_list = cls._extract_sample_list(header)
         return VCFHeader(
-                           vcf_format=vcf_format,
-                           samtools_version=samtools_version,
-                           reference=reference,
-                           sample_list=sample_list,
-                           ) 
-    
-        
+            vcf_format=vcf_format,
+            samtools_version=samtools_version,
+            reference=reference,
+            sample_list=sample_list,
+        )
+
