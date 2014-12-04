@@ -1,28 +1,24 @@
 """
-#################################################################################
-#
-# Copyright (c) 2013 Genome Research Ltd.
-#
-# Author: Irina Colgiu <ic4@sanger.ac.uk>
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 3 of the License, or (at your option) any later
-# version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#################################################################################
+Copyright (C) 2014  Genome Research Ltd.
 
-Created on Nov 3, 2014
+Author: Irina Colgiu <ic4@sanger.ac.uk>
 
-@author: ic4
+This program is part of serapis.
+
+serapis is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+This file has been created on Nov 3, 2014
 
 """
 import re
@@ -174,7 +170,7 @@ class _RGTagAnalyser(object):
 
     @classmethod
     @wrappers.check_args_not_none
-    def parse_all(cls, rgs_list):
+    def analyse_all(cls, rgs_list):
         """ This method parses all the RGs (ReadGroup) in the list received as parameter
             and returns a BAMHeaderRG containing the information found there.
             Parameters
@@ -217,25 +213,25 @@ class _RGTagAnalyser(object):
         )
 
 
-class _SQTagParser(object):
+class _SQTagAnalyser(object):
     @classmethod
     def parse_all(cls, sqs_list):
         raise NotImplementedError
 
 
-class _HDTagParser(object):
+class _HDTagAnalyser(object):
     @classmethod
     def parse_all(cls, hds_list):
         raise NotImplementedError
 
 
-class _PGTagParser(object):
+class _PGTagAnalyser(object):
     @classmethod
     def parse_all(cls, pgs_list):
         raise NotImplementedError
 
 
-class BAMHeaderParser(HeaderAnalyser):
+class BAMHeaderAnalyser(HeaderAnalyser):
     """
         Class containing the functionality for parsing BAM file's header.
     """
@@ -336,10 +332,10 @@ class BAMHeaderParser(HeaderAnalyser):
             ------
             ValueError - if the file is not SAM/BAM format
         """
-        sq = _SQTagParser.parse_all(header_dict['SQ']) if sq else None
-        hd = _HDTagParser.parse_all(header_dict['HD']) if hd else None
-        pg = _PGTagParser.parse_all(header_dict['PG']) if pg else None
-        rg = _RGTagAnalyser.parse_all(header_dict['RG']) if rg else None
+        sq = _SQTagAnalyser.parse_all(header_dict['SQ']) if sq else None
+        hd = _HDTagAnalyser.parse_all(header_dict['HD']) if hd else None
+        pg = _PGTagAnalyser.parse_all(header_dict['PG']) if pg else None
+        rg = _RGTagAnalyser.analyse_all(header_dict['RG']) if rg else None
         return BAMHeader(sq=sq, hd=hd, pg=pg, rg=rg)
 
 
