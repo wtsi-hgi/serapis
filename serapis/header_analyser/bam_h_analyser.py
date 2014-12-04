@@ -28,9 +28,11 @@ Created on Nov 3, 2014
 import re
 import pysam
 from collections import namedtuple
+import subprocess
 
+from Celery_Django_Prj import configs
 from serapis.com import wrappers
-from serapis.header_parser.hparser import HeaderParser
+from serapis.header_analyser.h_analyser import HeaderAnalyser
 
 
 LANELET_NAME_REGEX = '[0-9]{4}_[0-9]{1}#[0-9]{1,2}'
@@ -55,7 +57,7 @@ BAMHeaderHD = namedtuple('BAMHeaderHD', [])
 BAMHeader = namedtuple('BAMHeader', ['rg', 'pg', 'hd', 'sq'])
 
 
-class _RGTagParser(object):
+class _RGTagAnalyser(object):
     @classmethod
     @wrappers.check_args_not_none
     def _extract_platform_list_from_rg(cls, rg_dict):
@@ -89,7 +91,7 @@ class _RGTagParser(object):
                 This is the name of the lanelet extracted from this part of the header, looking like: e.g. 1234_1#1
         """
         pattern = re.compile(LANELET_NAME_REGEX)
-        if pattern.match(pu_entry) != None:  # PU entry is just a list of lanelet names
+        if pattern.match(pu_entry) is not None:  # PU entry is just a list of lanelet names
             return pu_entry
         else:
             run = cls._extract_run_from_pu_entry(pu_entry)
@@ -233,36 +235,87 @@ class _PGTagParser(object):
         raise NotImplementedError
 
 
-class BAMHeaderParser(HeaderParser):
+class BAMHeaderParser(HeaderAnalyser):
     """
         Class containing the functionality for parsing BAM file's header.
     """
 
     @classmethod
     @wrappers.check_args_not_none
-    def extract(cls, path):
-        ''' This method extracts the header from a BAM file, given its path
+    def extract_and_parse_header_from_file(cls, path):
+        """ This method extracts the header from a BAM file, given its path and parses it
+            returning the header as a dict, where the keys are header tags (e.g. 'SM', 'LB')
             Parameters
             ----------
             path: str
-                The path to the file
+                The path to the file - in a non-iRODS File System
             Returns
             -------
-            header
+            header : dict
                 A dict containing the groups in the BAM header.
             Raises
             ------
             ValueError - if the file is not SAM/BAM format
 
-        '''
+        """
         with pysam.Samfile(path, "rb") as bamfile:
             return bamfile.header
 
 
     @classmethod
     @wrappers.check_args_not_none
-    def parse(cls, header_dict, rg=True, sq=True, hd=True, pg=True):
-        """ This method takes a BAM file path and parses its header, returning a BAMHeader object
+    def extract_header_from_irods_file(cls, path):
+        """
+            This method extracts the header from iRODS file and returns it as text.
+            Parameters
+            ----------
+            path : str
+                The path to the file in iRODS
+            Returns
+            -------
+            header : str
+                The header of the file as text.
+            Raises
+            ------
+            IOError - if the file header could not have been extracted
+                        (probably because the file could not be accessed in iRODS)
+        """
+        irods_fpath = 'irods:'+str(path)
+        child_proc = subprocess.Popen([configs.SAMTOOLS_IRODS_PATH, 'view', '-H', irods_fpath], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            print "ERROR calling samtools irods on " + str(irods_fpath)
+            raise IOError(err)
+        return out
+
+
+    @classmethod
+    @wrappers.check_args_not_none
+    def parse_header(cls, header):
+        """
+            Receives a BAM header as text (string) and parses it in order to make it in a structured object.
+        """
+        header = {}
+        rg_list, sq_list, pg_list, hd_list = [], [], [], []
+        lines = header.split('\n')
+        for line in lines:
+            if line.startswith('@SQ'):
+                pass
+            elif line.startswith('@HD'):
+                pass
+            elif line.startswith('@PG'):
+                break
+            elif line.startswith('@RG'):
+                rg_list.append(line)
+            #elif line.startswith(...) -- TODO: implement for other tags if needed
+        rgs_parsed = cls._parse_RG_tag(rg_list)
+        return rgs_parsed
+
+
+    @classmethod
+    @wrappers.check_args_not_none
+    def extract_metadata_from_header(cls, header_dict, rg=True, sq=True, hd=True, pg=True):
+        """ This method takes a BAM file path and processes its header into a BAMHeader object
             Parameters
             ----------
             path: str
@@ -286,7 +339,7 @@ class BAMHeaderParser(HeaderParser):
         sq = _SQTagParser.parse_all(header_dict['SQ']) if sq else None
         hd = _HDTagParser.parse_all(header_dict['HD']) if hd else None
         pg = _PGTagParser.parse_all(header_dict['PG']) if pg else None
-        rg = _RGTagParser.parse_all(header_dict['RG']) if rg else None
+        rg = _RGTagAnalyser.parse_all(header_dict['RG']) if rg else None
         return BAMHeader(sq=sq, hd=hd, pg=pg, rg=rg)
 
 

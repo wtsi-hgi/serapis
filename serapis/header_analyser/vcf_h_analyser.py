@@ -6,7 +6,7 @@ Created on Nov 3, 2014
 import gzip
 from collections import namedtuple
 from serapis.com import wrappers
-from serapis.header_parser.hparser import HeaderParser
+from serapis.header_analyser.h_analyser import HeaderAnalyser
 
 
 VCFHeader = namedtuple('VCFHeader', [
@@ -17,7 +17,7 @@ VCFHeader = namedtuple('VCFHeader', [
 ])
 
 
-class VCFHeaderParser(HeaderParser):
+class VCFHeaderParser(HeaderAnalyser):
     ''' 
         This class contains the functionality needed for VCF file's header.
     '''
