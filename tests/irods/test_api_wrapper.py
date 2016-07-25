@@ -101,7 +101,7 @@ class TestiRODSMetaQueryOperations(unittest.TestCase):
         cmd_out = "collection: /seq/10100\ndataObj: 10100_8#0.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#0_phix.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#48.bam\n----\ncollection: /seq/10100\ndataObj: 10100_8#48_phix.bam\n"   
         res = irods_api.iRODSMetaQueryOperations._process_icmd_output(cmd_out)
         expected = ["/seq/10100/10100_8#0.bam", "/seq/10100/10100_8#0_phix.bam", "/seq/10100/10100_8#48.bam", "/seq/10100/10100_8#48_phix.bam"]
-        print "EXPECTED: "+str(res)
+        print("EXPECTED: "+str(res))
         self.assertSetEqual(set(res), set(expected))
         
         cmd_out = 'No rows found'

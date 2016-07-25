@@ -27,7 +27,7 @@ class Test_RGTagParser(unittest.TestCase):
     def test_extract_platform_list_from_rg(self):
         header_rg = {"ID" : "1#71.5", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_8#71", "LB" : "5507617"}
         platf = _RGTagAnalyser._extract_platform_list_from_rg(header_rg)
-        print "PLATF: ", str(platf)
+        print("PLATF: ", str(platf))
         assert_that(platf, equal_to("ILLUMINA HS"))
 
         header_rg = {"ID" : "1#71.4", "PL" : "ILLUMINA", "PU" : "120910_HS11_08408_B_C0PNFACXX_7#71", "LB" : "5507617"}

@@ -89,7 +89,7 @@ class MetadataEntity(object):
     @wrappers.check_args_not_none
     def check_if_conflicting_entities(self, other):
         ''' This method tests if 2 entities contain conflicting information, meaning same same fields with different values'''
-        for k, v in vars(other).iteritems():
+        for k, v in vars(other).items():
             if not self.is_field_empty(k) and v is not None:
                 if v != getattr(self, k):
                     err = "Entity merge_other operation impossible to perform: there are conflicts between the 2 entities in key=" + str(
@@ -100,7 +100,7 @@ class MetadataEntity(object):
     @wrappers.check_args_not_none
     def merge_other(self, other):
         self.check_if_conflicting_entities(other)
-        for k, v in vars(other).iteritems():
+        for k, v in vars(other).items():
             if k is None or v is None:
                 continue
             if not hasattr(self, k):

@@ -67,7 +67,7 @@ class EntityModelUtilityFunctions:
             lead to entities added multiple times in the DB.
         '''
         for identifying_field in constants.ENTITY_IDENTIFYING_FIELDS:
-            if json_entity.has_key(identifying_field):
+            if identifying_field in json_entity:
                 return True
         return False
     
@@ -102,13 +102,13 @@ class EntityModelUtilityFunctions:
     @staticmethod
     def json2study(json_obj, source):
 #        return cls.json2entity(json_obj, source, models.Study)
-        print "FROM JSON2STUDYyyyyyyyyyyyyyyyyyyyyyyYYYYYYYYYYYYYYYYYYYYYYYYYYY"
+        print("FROM JSON2STUDYyyyyyyyyyyyyyyyyyyyyyyYYYYYYYYYYYYYYYYYYYYYYYYYYY")
         return models.Study.from_json(json_obj)
     
     @staticmethod
     def json2sample(json_obj, source):
 #        return cls.json2entity(json_obj, source, models.Sample)
-        print "FROM JSON2SAMPLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"+str(json_obj)
+        print("FROM JSON2SAMPLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"+str(json_obj))
         return models.Sample.from_json(json_obj)
     
     @staticmethod

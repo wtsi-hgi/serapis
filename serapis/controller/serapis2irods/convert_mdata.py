@@ -146,7 +146,7 @@ def convert_BAMFile(bamfile):
                               'multiplex_lib_list' : 'multiplex_lib_id'
                               }
     irods_file_mdata = []
-    for field_name in BAMFILE_FIELDS_MAPPING.keys():
+    for field_name in list(BAMFILE_FIELDS_MAPPING.keys()):
         if hasattr(bamfile, field_name) and getattr(bamfile, field_name) != None:
             field_val = getattr(bamfile, field_name)
             if isinstance(field_val, list):
@@ -221,7 +221,7 @@ def convert_file_mdata(subm_file, submission_date, ref_genome=None, sanger_user_
                 irods_file_mdata.append((field_name, field_val))
             elif field_name == 'data_subtype_tags':
                 field_val = utils.unicode2string(field_val)
-                for tag_val in field_val.values():
+                for tag_val in list(field_val.values()):
                     irods_file_mdata.append(('data_subtype_tag', utils.unicode2string(tag_val)))
             elif field_name == 'pmid_list':
                 field_val = utils.unicode2string(field_val)

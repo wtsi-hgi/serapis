@@ -80,7 +80,7 @@ class SubmissionBusinessLogic(BusinessLogic):
                 submission.files = file_ids
                 # This is wrong!!! It shouldn't delete the submission, but mark that exact file as IMPOSSIBLE_TO_ARCHIVE, DUPLICATE!!
                 data_access.SubmissionDataAccess.delete_submission(submission.id, submission)
-                print "NOT UNIQUE => DELETING SUBMISSION!!!!"
+                print("NOT UNIQUE => DELETING SUBMISSION!!!!")
                 raise
 
         if not files_to_subm_list:
@@ -101,8 +101,7 @@ class SubmissionBusinessLogic(BusinessLogic):
         pass
     
     
-class FileBusinessLogic:
-    __metaclass__ = abc.ABCMeta
+class FileBusinessLogic(metaclass=abc.ABCMeta):
     batch_tasks_launcher    = None
     file_builder            = None
     meta_status_checker     = None
@@ -127,7 +126,7 @@ class FileBusinessLogic:
     @classmethod
     def _select_and_remove_tasks_by_status(cls, tasks_dict, status_list):
         selected_tasks = set()
-        for task_id, task_info in tasks_dict.items():
+        for task_id, task_info in list(tasks_dict.items()):
             if task_info['status'] in status_list:
                 removed_task = tasks_dict.pop(task_id)
                 selected_tasks.add(removed_task['type'])
@@ -137,7 +136,7 @@ class FileBusinessLogic:
     @classmethod
     def _select_and_remove_tasks_by_id(cls, tasks_dict, task_ids):
         selected_tasks = set()
-        for task_id in tasks_dict.keys():
+        for task_id in list(tasks_dict.keys()):
             if task_id in task_ids:
                 removed_task = tasks_dict.pop(task_id)
                 selected_tasks.add(removed_task['type'])
@@ -147,7 +146,7 @@ class FileBusinessLogic:
     @classmethod
     def _select_and_remove_tasks_by_type(cls, tasks_dict, task_types):
         selected_tasks = set()
-        for task_id, task_info in tasks_dict.items():
+        for task_id, task_info in list(tasks_dict.items()):
             if task_info['type'] in task_types:
                 removed_task = tasks_dict.pop(task_id)
                 selected_tasks.add(removed_task['type'])

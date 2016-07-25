@@ -49,7 +49,7 @@ class ObjectIdEncoder(JSONEncoder):
 def encode_model(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
         out = dict(obj._data)
-        for k,v in out.items():
+        for k,v in list(out.items()):
             if isinstance(v, ObjectId):
                 #out['id'] = str(v)
                 out[k] = str(v)
@@ -66,13 +66,13 @@ def encode_model(obj):
         out = obj
     else:
         logging.info(obj)
-        raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
-    print "BEFORE RETURNING ENCODED OBJ: ", out
+        raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
+    print("BEFORE RETURNING ENCODED OBJ: ", out)
     return out          
         
 def encode2(obj):
     ret= dict(obj._data)
-    print "BEFORE RETURNING: ", ret
+    print("BEFORE RETURNING: ", ret)
     return ret
         
 class MyEncoder(JSONEncoder):
@@ -104,7 +104,7 @@ def encode_excluding_meta(obj):
     if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
         internal_fields = obj.get_internal_fields()
         out = dict(obj._data)
-        for k,v in out.items():
+        for k,v in list(out.items()):
             #if k in models.FILE_SUBMITTED_META_FIELDS:
             if k in internal_fields:
                 out.pop(k)
@@ -119,7 +119,7 @@ def encode_excluding_meta(obj):
         out = obj
     else:
         logging.info(obj)
-        raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+        raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
     return out          
         
 

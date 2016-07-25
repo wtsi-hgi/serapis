@@ -39,7 +39,7 @@ def remove_empty_fields(obj_as_dict):
             A new dict containing only the fields that are not empty
     """
     result = {}
-    for field_name, field_val in obj_as_dict.iteritems():
+    for field_name, field_val in obj_as_dict.items():
         if not field_val in [None, '', ' ', 'Not specified', ]:
             result[field_name] = field_val
     return result

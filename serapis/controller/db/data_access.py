@@ -50,7 +50,7 @@ class SubmissionDataAccess(DataAccess):
     @classmethod
     def build_submission_update_dict(cls, update_dict, submission):
         update_db_dict = dict()
-        for (field_name, field_val) in update_dict.iteritems():
+        for (field_name, field_val) in update_dict.items():
             if field_name == 'files_list':
                 pass
 #            elif field_name == 'hgi_project_list' and field_val:
@@ -346,7 +346,7 @@ class FileDataAccess(DataAccess):
     def retrieve_study_by_id(cls, study_id, file_id, submitted_file=None):
         if submitted_file == None:
             study_list = cls.retrieve_study_list(file_id)
-            print "STUDY LIST: ", study_list
+            print("STUDY LIST: ", study_list)
         else:
             study_list = submitted_file.study_list
         return models_utils.EntityModelUtilityFunctions.get_entity_by_field('internal_id', int(study_id), study_list)
@@ -785,7 +785,7 @@ class FileDataAccess(DataAccess):
             return False
         if not hasattr(submitted_file, 'library_list') or not getattr(submitted_file, 'library_list'):
             submitted_file.library_list = library_list
-            print "IT enters this fct --- update_library_list in data_access.FileDataAccess......................................"
+            print("IT enters this fct --- update_library_list in data_access.FileDataAccess......................................")
             return True
         for library in library_list:
             cls.insert_or_update_library_in_SFObj(library, sender, submitted_file)
@@ -797,7 +797,7 @@ class FileDataAccess(DataAccess):
             return False
         if not hasattr(submitted_file, 'entity_set') or not getattr(submitted_file, 'entity_set'):
             submitted_file.entity_set = sample_list
-            print "UPDATING SAMPLES LIST WITH update_sample_list..................................."
+            print("UPDATING SAMPLES LIST WITH update_sample_list...................................")
             return True
         for sample in sample_list:
             cls.insert_or_update_sample_in_SFObj(sample, sender, submitted_file)
@@ -809,7 +809,7 @@ class FileDataAccess(DataAccess):
             return False
         if not hasattr(submitted_file, 'study_list') or not getattr(submitted_file, 'study_list'):
             submitted_file.study_list = study_list
-            print "Using this fct for updating study........................"
+            print("Using this fct for updating study........................")
             return True
         for study in study_list:
             cls.insert_or_update_study_in_SFObj(study, sender, submitted_file)
@@ -858,7 +858,7 @@ class FileDataAccess(DataAccess):
         if not file_updates:
             return None
         update_db_dict = dict()
-        for (field_name, field_val) in file_updates.iteritems():
+        for (field_name, field_val) in file_updates.items():
             if field_val == 'null' or not field_val:
                 pass
             if field_name in models.SubmittedFile._fields:        
@@ -904,12 +904,12 @@ class FileDataAccess(DataAccess):
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif field_name == 'missing_entities_error_dict':
                     if field_val:
-                        for entity_categ, entities in field_val.iteritems():
+                        for entity_categ, entities in field_val.items():
                             update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
                         update_db_dict['inc__version__0'] = 1
                 elif field_name == 'not_unique_entity_error_dict':
                     if field_val:
-                        for entity_categ, entities in field_val.iteritems():
+                        for entity_categ, entities in field_val.items():
                             #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                             update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
                         update_db_dict['inc__version__0'] = 1
@@ -996,7 +996,7 @@ class FileDataAccess(DataAccess):
         if not file_updates:
             return None
         update_db_dict = dict()
-        for (field_name, field_val) in file_updates.iteritems():
+        for (field_name, field_val) in file_updates.items():
             if field_val == 'null' or not field_val:
                 pass
             if field_name in submitted_file._fields:        
@@ -1037,12 +1037,12 @@ class FileDataAccess(DataAccess):
                 # Fields that only the workers' PUT req are allowed to modify - donno how to distinguish...
                 elif field_name == 'missing_entities_error_dict':
                     if field_val:
-                        for entity_categ, entities in field_val.iteritems():
+                        for entity_categ, entities in field_val.items():
                             update_db_dict['add_to_set__missing_entities_error_dict__'+entity_categ] = entities
                         update_db_dict['inc__version__0'] = 1
                 elif field_name == 'not_unique_entity_error_dict':
                     if field_val:
-                        for entity_categ, entities in field_val.iteritems():
+                        for entity_categ, entities in field_val.items():
                             #update_db_dict['push_all__not_unique_entity_error_dict'] = entities
                             update_db_dict['add_to_set__not_unique_entity_error_dict__'+entity_categ] = entities
                         update_db_dict['inc__version__0'] = 1
@@ -1153,7 +1153,7 @@ class FileDataAccess(DataAccess):
                 try:
                     upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
                 except Exception as e:
-                    print "This exception has been thrown:", str(e)
+                    print("This exception has been thrown:", str(e))
                 
                 logging.info("ATOMIC UPDATE RESULT from :%s, NR TRY = %s, WAS THE FILE UPDATED? %s", update_source, i, upd)
             if upd == 1:
@@ -1182,10 +1182,10 @@ class FileDataAccess(DataAccess):
                 try:
                     upd = models.SubmittedFile.objects(id=file_id, version__0=cls.get_file_version(submitted_file.id, submitted_file)).update_one(**db_update_dict)
                 except OperationError as e:
-                    print "Operation error caught---: ", str(e)
+                    print("Operation error caught---: ", str(e))
                     logging.error("File duplicate in database %s", str(file_id))
-                    print "MESSAGE of the exception:::::", e.message
-                    print "ARGS of the exception: ::::::::::", e.args
+                    print("MESSAGE of the exception:::::", e.message)
+                    print("ARGS of the exception: ::::::::::", e.args)
                     error_message = "File duplicate in database file_id = %s" % str(file_id)
                     raise exceptions.FileAlreadySubmittedException(file_id=str(file_id), message=error_message)
                 
@@ -1224,7 +1224,7 @@ class FileDataAccess(DataAccess):
         if not statuses_dict:
             return 0
         upd_dict = dict()
-        for k,v in statuses_dict.items():
+        for k,v in list(statuses_dict.items()):
             upd_dict['set__'+k] = v
         upd_dict['inc__version__0'] = 1
         return upd_dict
@@ -1248,7 +1248,7 @@ class FileDataAccess(DataAccess):
         old_error_log = submitted_file.file_error_log
         if type(error_log) == list:
             old_error_log.extend(error_log)
-        elif type(error_log) == str or type(error_log) == unicode:
+        elif type(error_log) == str or type(error_log) == str:
             old_error_log.append(error_log)
         logging.error("IN UPDATE ERROR LOG LIST ------------------- PRINT ERROR LOG LIST:::::::::::: %s", ' '.join(str(it) for it in error_log))
         upd_dict = {'set__file_error_log' : old_error_log, 'inc__version__0' : 1}
@@ -1261,7 +1261,7 @@ class FileDataAccess(DataAccess):
         while i < nr_retries and upd == 0:
             i+=1
             upd = models.SubmittedFile.objects(id=file_id, version__0=file_version).update_one(**updates_dict)
-            print "UPD ------------ from save_update_dict: ", str(upd)
+            print("UPD ------------ from save_update_dict: ", str(upd))
         return upd
         
     
@@ -1315,7 +1315,7 @@ class FileDataAccess(DataAccess):
             else:
                 logging.error("Update file fields -- Different updates than the 4 type acccepted? %s", update_type_list)
                 
-        for upd_field, val in update_dict.items():
+        for upd_field, val in list(update_dict.items()):
             db_upd_dict['set__'+upd_field] =  val
         upd, i = 0, 0
         while i < nr_retries and upd == 0:
@@ -1410,7 +1410,7 @@ class BAMFileDataAccess(FileDataAccess):
         if not file_updates:
             return None
         update_db_dict = {}
-        for (field_name, field_val) in file_updates.iteritems():
+        for (field_name, field_val) in file_updates.items():
             if field_val == 'null' or not field_val:
                 pass
             if field_name in submitted_file._fields:        
@@ -1476,7 +1476,7 @@ class VCFFileDataAccess(FileDataAccess):
         if not file_updates:
             return {}
         update_db_dict = {}
-        for (field_name, field_val) in file_updates.iteritems():
+        for (field_name, field_val) in file_updates.items():
             if field_val == 'null' or not field_val:
                 pass
             elif field_name == 'used_samtools':
@@ -1529,12 +1529,12 @@ class ReferenceGenomeDataAccess(DataAccess):
         ref_gen = models.ReferenceGenome()
         if 'name' in ref_genome_dict:
             ref_gen.name = ref_genome_dict['name']
-            print "NAME: ", ref_gen.name
+            print("NAME: ", ref_gen.name)
         if 'path' in ref_genome_dict:
             ref_gen.paths = [ref_genome_dict['path']]
-            print "PATHS: ", ref_gen.paths
+            print("PATHS: ", ref_gen.paths)
         ref_gen.md5 = utils.calculate_md5(ref_genome_dict['path'])
-        print "REF GEN BEFORE ADDING IT: ;:::::::::::::::", vars(ref_gen)
+        print("REF GEN BEFORE ADDING IT: ;:::::::::::::::", vars(ref_gen))
         ref_gen.save()
         return ref_gen
     

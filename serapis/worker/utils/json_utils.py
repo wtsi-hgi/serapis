@@ -29,7 +29,7 @@ class SerapisJSONEncoder():
             out = obj.__dict__
         else:
             logging.info(obj)
-            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+            raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
         return out       
 
     @classmethod
@@ -43,7 +43,7 @@ class GeneralJSONEncoder(JSONEncoder):
     
     
     def encode(self, obj):
-        if isinstance(obj, (list, dict, str, unicode, int, float, bool, type(None))):
+        if isinstance(obj, (list, dict, str, int, float, bool, type(None))):
             return JSONEncoder.default(self, obj)
         if hasattr(obj, 'to_json'):
             return obj.to_json()

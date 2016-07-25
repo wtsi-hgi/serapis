@@ -36,20 +36,17 @@ from serapis.com import utils
 
 
 
-class Builder:
-    __metaclass__ = abc.ABCMeta
-    
+class Builder(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def build(self, type):    
         return
     
 
     
-class FileBuilder(object):
+class FileBuilder(object, metaclass=abc.ABCMeta):
     ''' This class offers the functionality for building files.
         It is not meant to be instantiate (it's abstract), but gathers
         the functionality that different types of files have in common.'''
-    __metaclass__ = abc.ABCMeta
     
     @classmethod
     @abc.abstractmethod

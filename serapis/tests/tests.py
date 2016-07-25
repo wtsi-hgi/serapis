@@ -46,7 +46,7 @@ def delete_files_from_submission():
                 submission.files_list.remove(file_to_del.id)
                 if len(submission.files_list) == 0:
                     #submission.delete()
-                    print "DELETED ALL FILES!!!"
+                    print("DELETED ALL FILES!!!")
                 else:
                     db_model_operations.update_submission_file_list(submission_id, submission.files_list)
             file_to_del.delete()
@@ -62,18 +62,18 @@ class TestLibraryFctControllerNEW(unittest.TestCase):
         subm_file = models.SubmittedFile()
         subm_file.save()
         subm_file = db_model_operations.retrieve_submitted_file(subm_file.id)
-        print [str(lib) for lib in subm_file.library_list]
+        print([str(lib) for lib in subm_file.library_list])
         subm_file.library_list = []
         subm_file.save()
         
-        print db_model_operations.insert_library_in_db({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", subm_file.id)
+        print(db_model_operations.insert_library_in_db({"name" : "NZO_1 1 3"}, "EXTERNAL_SOURCE", subm_file.id))
         subm_file.reload()
-        print [lib.name for lib in subm_file.library_list]
+        print([lib.name for lib in subm_file.library_list])
         
-        print db_model_operations.update_library_in_db({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", subm_file.id)
-        print [(lib.name, lib.library_type) for lib in subm_file.library_list]
+        print(db_model_operations.update_library_in_db({"name" : "NZO_1 1 3", "library_type" : "SEQUNECING..."}, "EXTERNAL_SOURCE", subm_file.id))
+        print([(lib.name, lib.library_type) for lib in subm_file.library_list])
         subm_file.reload()
-        print [(lib.name, lib.library_type) for lib in subm_file.library_list]
+        print([(lib.name, lib.library_type) for lib in subm_file.library_list])
         
 
 #class TestLibraryFctController(unittest.TestCase):
@@ -360,13 +360,13 @@ class TestAddEntityAndDBModelRequests(unittest.TestCase):
                    "upload_as_serapis" : True, "irods_collection" : "/humgen/projects/crohns/20130000", "hgi_project" : "crohns",
                    "study" : {"name" : "SEQCAP_Whole_Genome_Sequencing_of_Crohns_Disease_Patients", "pi_list" : ["ca3", "jb26"]}}
         self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = headers)
-        print "POST REQ made -- response:", self.post_req.text
+        print("POST REQ made -- response:", self.post_req.text)
         submission_info = self.post_req.text
         #print "AND TEXT: ", submission_info
         submission_info = json.loads(submission_info)
         self.submission = submission_info['result']
         self.file_id = submission_info['testing'][0]
-        print "SUBMISSION ID: ",self.submission, " AND FILE ID: ", self.file_id
+        print("SUBMISSION ID: ",self.submission, " AND FILE ID: ", self.file_id)
     
     
     def test_concurrency_POST_libraries(self):
@@ -444,7 +444,7 @@ class TestRequests(unittest.TestCase):
                    "upload_as_serapis" : True, "irods_collection" : "/humgen/projects/crohns/20130000", "hgi_project" : "crohns",
                    "study" : {"name" : "SEQCAP_Whole_Genome_Sequencing_of_Crohns_Disease_Patients", "pi_list" : ["ca3", "jb26"]}}
         self.post_req = requests.post(self.URL, data=json.dumps(payload), headers = self.headers)
-        print "POST REQ made -- response:", self.post_req.text
+        print("POST REQ made -- response:", self.post_req.text)
         submission_info = self.post_req.text
         #print "AND TEXT: ", submission_info
         submission_info = json.loads(submission_info)
@@ -483,16 +483,16 @@ class TestRequests(unittest.TestCase):
         
         
     def test_duplicates_in_entity_lists(self):
-        print "DUPLICATES TEST -- FILE ID: ", self.file_id
+        print("DUPLICATES TEST -- FILE ID: ", self.file_id)
         
         url = self.URL + self.submission + '/files/' + self.file_id + '/samples/'
         payload = {"internal_id" : 3009}
         self.post_req = requests.post(url, data=json.dumps(payload), headers = self.headers)
-        print "1. DUPLICATES--------- POST REQ made -- response:", self.post_req.text
+        print("1. DUPLICATES--------- POST REQ made -- response:", self.post_req.text)
         
         payload = {"name" : "PK12-C 300"}
         self.post_req = requests.post(url, data=json.dumps(payload), headers = self.headers)
-        print "2. DUPLICATES---------POST REQ made -- response:", self.post_req.text
+        print("2. DUPLICATES---------POST REQ made -- response:", self.post_req.text)
         
         
     
@@ -505,13 +505,13 @@ class TestRequests(unittest.TestCase):
         
         
         db_file = controller.get_submitted_file(self.file_id)
-        print "1. DB FILE: ", [s.name for s in db_file.entity_set]
+        print("1. DB FILE: ", [s.name for s in db_file.entity_set])
         #print "SAMPLES LIST: ", db_file.entity_set
         
         import time
         time.sleep(10)
         db_file = controller.get_submitted_file(self.file_id)
-        print "2. DB FILE: ", [s.name for s in db_file.entity_set]
+        print("2. DB FILE: ", [s.name for s in db_file.entity_set])
         
         #if db_file.file_upload_job_status == SUCCESS_STATUS:
         self.assertEqual(len(db_file.entity_set), 1)
@@ -544,7 +544,7 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
      
         samples = controller.get_all_samples(self.submission, self.file_id)
-        print "3. DB FILE: ", [s.name for s in samples]
+        print("3. DB FILE: ", [s.name for s in samples])
         #time.sleep(5)
         
     # EVIL TEST - Failing because the first entity (id 3007) is the same as this one (name = PK...), but at the POST requests moment
@@ -567,7 +567,7 @@ class TestRequests(unittest.TestCase):
         payload = {"ethnicity" : "German"}
         url = url + "3007/"
         r = requests.put(url, data=json.dumps(payload), headers=headers)
-        print "PUT STATUS: ", r.status_code
+        print("PUT STATUS: ", r.status_code)
         self.assertEqual(r.status_code, 200)
 
         db_file = controller.get_submitted_file(self.file_id)

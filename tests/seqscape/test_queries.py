@@ -52,7 +52,7 @@ class TestQueries(unittest.TestCase):
     def test_query_study(self):
         name = 'SEQCAP_DDD_MAIN_Y2'
         result = queries.query_study(name=name)
-        print "RESULTS: " + str(result)
+        print("RESULTS: " + str(result))
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].accession_number, None)
         self.assertEqual(result[0].internal_id, 2468)

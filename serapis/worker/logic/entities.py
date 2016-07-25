@@ -145,7 +145,7 @@ class Study(Entity):
     @staticmethod
     def build_from_json(json_obj):
         study = Study()
-        for key, val in json_obj.iteritems():
+        for key, val in json_obj.items():
             if not key in constants.FILE_META_FIELDS and val != None:
                 setattr(study, key, json_obj[key])
         return study
@@ -166,7 +166,7 @@ class Study(Entity):
             str_dist = utils.levenshtein(srp_val.lower(), val.lower())
             if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_val
-        print "ERROR: SEQSC -> SERAPIS MAPPER: THE STUDY FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        print("ERROR: SEQSC -> SERAPIS MAPPER: THE STUDY FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return val
 
 
@@ -174,7 +174,7 @@ class Study(Entity):
     @staticmethod
     def build_from_seqscape(study_mdata):
         study = Study()
-        for field_name, field_val in study_mdata.iteritems():
+        for field_name, field_val in study_mdata.items():
             if field_val != None:
                 norm_field_val = Study.normalize_value(field_name, field_val)
                 setattr(study, field_name, norm_field_val)
@@ -196,7 +196,7 @@ class Library(Entity):
     @staticmethod
     def build_from_json(json_obj):
         lib = Library()
-        for key, val in json_obj.iteritems():
+        for key, val in json_obj.items():
             if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(lib, key, json_obj[key])
         return lib
@@ -204,7 +204,7 @@ class Library(Entity):
     @staticmethod
     def build_from_seqscape(lib_mdata):
         lib = Library()
-        for field_name, field_val in lib_mdata.iteritems():
+        for field_name, field_val in lib_mdata.items():
             if field_val != None:
                 setattr(lib, field_name, field_val)
         return lib
@@ -226,7 +226,7 @@ class Sample(Entity):
     @staticmethod
     def build_from_json(json_obj):
         sampl = Sample()
-        for key, val in json_obj.iteritems():
+        for key, val in json_obj.items():
             if key not in constants.FILE_META_FIELDS and val != None:
                 setattr(sampl, key, json_obj[key])
         return sampl
@@ -254,7 +254,7 @@ class Sample(Entity):
                 str_dist = utils.levenshtein(seqsc_val.lower(), val.lower())
                 if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                     return srp_dict_entry
-            print "NO NORMALIZATION ON ORGANISM! val = ", val
+            print("NO NORMALIZATION ON ORGANISM! val = ", val)
             return val
             
         if key == 'country_of_origin':
@@ -276,7 +276,7 @@ class Sample(Entity):
             #print "DISIM ratio -- COMMON NAME: ", float(str_dist) / len(val), " and culprits: key=",key, " seqsc val=",val, " srp val = ",srp_dict_entry, "type: ", type(srp_dict_entry) 
             if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_dict_entry
-            print "NO NORMALIZATION ON COMMONA_name, val=",val
+            print("NO NORMALIZATION ON COMMONA_name, val=",val)
             return val
 
         if type(srp_dict_entry) == list:
@@ -291,7 +291,7 @@ class Sample(Entity):
             if float(str_dist) / len(val) < constants.MAX_STRING_DISIMILARITY_RATIO:
                 return srp_dict_entry
                        
-        print "ERROR: SEQSC -> SERAPIS MAPPER: THE SAMPLE FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        print("ERROR: SEQSC -> SERAPIS MAPPER: THE SAMPLE FIELD key="+key+" val="+val+"  couldn't be mapped!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return val
 
     @classmethod
@@ -308,7 +308,7 @@ class Sample(Entity):
     @classmethod
     def build_from_seqscape(cls, sample_mdata):
         sample = Sample()
-        for field_name, field_val in sample_mdata.iteritems():
+        for field_name, field_val in sample_mdata.items():
             if field_val != None: 
                 norm_field_val = Sample.normalize_value(field_name, sample_mdata[field_name])
                 setattr(sample, field_name, norm_field_val)
@@ -520,7 +520,7 @@ class SubmittedFile(object):
     @staticmethod
     def __remove_null_props_dict__(obj_to_modify):       # Deletes properties that are null from an object
         result_dict = dict()
-        for k, v in vars(obj_to_modify).items():
+        for k, v in list(vars(obj_to_modify).items()):
             if v != None:
                 result_dict[k] = v
         return result_dict
@@ -528,7 +528,7 @@ class SubmittedFile(object):
     @staticmethod
     def __remove_fields__dict(obj_to_modify):
         result_dict = dict()
-        for k, v in vars(obj_to_modify).items():
+        for k, v in list(vars(obj_to_modify).items()):
             if k not in constants.FILE_META_FIELDS:
                 result_dict[k] = v
         return result_dict
@@ -545,7 +545,7 @@ class SubmittedFile(object):
             out = SubmittedFile.__remove_nulls_dict__(obj)
             out = SubmittedFile.__remove_fields__dict(out)
         else:
-            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+            raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
         return out         
     
 #     @staticmethod

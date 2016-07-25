@@ -37,7 +37,7 @@ from serapis.controller.logic import controller_strategy
 
 from voluptuous import MultipleInvalid
 #from django.http import HttpResponse
-from renderer import SerapisJSONRenderer, SerapisHTMLRenderer
+from .renderer import SerapisJSONRenderer, SerapisHTMLRenderer
 from rest_framework.renderers import JSONRenderer, XMLRenderer, YAMLRenderer, BrowsableAPIRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser
 from rest_framework.response import Response
@@ -187,7 +187,7 @@ class ReferenceRequestHandler(SerapisUserAPIView):
     def patch(self, request, reference_id):
         if not roles.is_admin(request):
             return Response("This request can only be fulfilled if you are logged in as admin.", status=status.HTTP_403_FORBIDDEN)
-        print "PATCH REQUEST CALLED!!!!!!!"
+        print("PATCH REQUEST CALLED!!!!!!!")
         return Response("PATCH -- accepted, yey!", status=status.HTTP_200_OK)
 
 # ----------------------- GET MORE SUBMISSIONS OR CREATE A NEW ONE-------
@@ -204,13 +204,13 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
     def get(self, request):
         ''' Retrieves all the submissions for this user. '''
         user_id = USER_ID
-        print "USER: ", request.user
+        print("USER: ", request.user)
         context = controller_strategy.GeneralSubmissionContext(user_id)
         if roles.is_admin(request):
-            print "Is admin..."
+            print("Is admin...")
             strategy = controller_strategy.SubmissionRetrievalAdminStrategy()
         else:
-            print "normal user...."
+            print("normal user....")
             strategy = controller_strategy.SubmissionRetrievalUserStrategy()            
         submission_list = strategy.process_request(context)
         return Response(submission_list, status=status.HTTP_200_OK)
@@ -226,7 +226,7 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
         '''
         user_id = USER_ID
         try:
-            print "REQUEST.DATA =============", request.DATA
+            print("REQUEST.DATA =============", request.DATA)
             if not hasattr(request, 'DATA'):
                 err = dict()
                 err['error'] = 'No DATA attached'
@@ -239,9 +239,9 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
             subm_result = controller_strategy.SubmissionCreationStrategy.process_request(context)
             
             t2 = time.time() - t1
-            print "TIME TAKEN TO RUN create_subm: ", t2 
+            print("TIME TAKEN TO RUN create_subm: ", t2) 
             submission_id = subm_result.result
-            print "SUBMISSION RESULT: ", vars(subm_result)
+            print("SUBMISSION RESULT: ", vars(subm_result))
             if subm_result.error_dict:
                 req_result['errors'] = subm_result.error_dict
             if not submission_id:
@@ -270,8 +270,8 @@ class SubmissionsMainPageRequestHandler(SerapisUserAPIView):
                     path = path+ '->' + str(p)
                 else:
                     path = str(p)
-            print "TYPE: ", type(e)
-            print " and e: ", str(e)
+            print("TYPE: ", type(e))
+            print(" and e: ", str(e))
             #req_result['error'] = "Message contents invalid: "+e.message + " "+ path
             req_result['error'] = str(e)
             return Response(req_result, status=status.HTTP_400_BAD_REQUEST)
@@ -610,7 +610,7 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
             POST req body should look like: 
             {"permissions_changed : True"} - if he manually changed permissions for this file. '''
         try:
-            print "RECEIVED POST REQUEST!!!!!!!!! ", request.DATA
+            print("RECEIVED POST REQUEST!!!!!!!!! ", request.DATA)
             #data = request.DATA
             #data = utils.unicode2string(data)
             result = dict()
@@ -664,13 +664,13 @@ class SubmittedFileRequestHandler(SerapisUserAPIView):
     
     def put(self, request, submission_id, file_id, format=None):
         ''' Updates the corresponding info for this file.'''
-        print "RECEIVED PUT REQUEST........"
+        print("RECEIVED PUT REQUEST........")
         if hasattr(request, 'DATA'):
             req_data = request.DATA
-            print "PUT REQUEST received --with data: ", req_data
+            print("PUT REQUEST received --with data: ", req_data)
         else:
-            print "It seems that there is no data attached to this request: ", vars(request)
-            print "REQUEST>DATA ===============", request.DATA
+            print("It seems that there is no data attached to this request: ", vars(request))
+            print("REQUEST>DATA ===============", request.DATA)
             return Response("Nothing to update.", status=status.HTTP_304_NOT_MODIFIED)
         #logging.info("FROM submitted-file's PUT request :-------------"+str(data))
         try:
@@ -771,13 +771,13 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
             return Response("This request doesn't have a file attached.", status=status.HTTP_400_BAD_REQUEST)
         req_data = request.FILES['file']
         
-        print "In views, start reading the FILE into memory..."
+        print("In views, start reading the FILE into memory...")
         req_data = req_data.read()
         
-        print "In views, start decoding..."
+        print("In views, start decoding...")
         req_data = req_data.decode("zlib")
         
-        print "In views, start deserializing..."
+        print("In views, start deserializing...")
         req_data = serializers.deserialize(req_data)
 
         try:
@@ -786,7 +786,7 @@ class WorkerSubmittedFileRequestHandler(SerapisWorkerAPIView):
             context = controller_strategy.WorkerSpecificFileContext(submission_id, file_id, request_data=req_data)
             strategy = controller_strategy.FileModificationStrategy()
             
-            print "Start processing the request data, still in views, calling strategy..."
+            print("Start processing the request data, still in views, calling strategy...")
             strategy.process_request(context)
         except MultipleInvalid as e:
             path = ''
@@ -1089,7 +1089,7 @@ class SamplesMainPageRequestHandler(SerapisUserAPIView):
             result['result'] = samples
             logging.debug("NOT SERIALIZED RESULT: "+str([(s.name,s.internal_id) for s in samples]))
             #result_serial = serializers.serialize_excluding_meta(result)
-            print "PRINT RESULT SERIAL: ", result
+            print("PRINT RESULT SERIAL: ", result)
             logging.debug("RESULT IS: "+result)
             return Response(result, status=status.HTTP_200_OK)
         
@@ -1154,7 +1154,7 @@ class SampleRequestHandler(SerapisUserAPIView):
         ''' Retrieves a specific sampl, identified by sample_id.'''
         try:
             result = dict()
-            print "VIEW -------- SAMPLE ID IS: ", sample_id
+            print("VIEW -------- SAMPLE ID IS: ", sample_id)
             sample = controller.get_sample(submission_id, file_id, sample_id)
             
         except InvalidId:
@@ -1216,7 +1216,7 @@ class SampleRequestHandler(SerapisUserAPIView):
                                                     # where a client GETs a resource's state, modifies it, and PUTs it back 
                                                     # to the server, when meanwhile a third party has modified the state on the server, leading to a conflict
         else:
-            print "WAS UPDATED? -- from views: ", was_updated
+            print("WAS UPDATED? -- from views: ", was_updated)
             if was_updated == 1:
                 result['message'] = "Successfully updated"
                 return Response(result, status=status.HTTP_200_OK)
@@ -1834,13 +1834,13 @@ class SubmittedFileToiRODSPermanentRequestHandler(SerapisUserAPIView):
 class WorkerOnlineRequestHandler(APIView):
     
     def post(self, request):
-        print "REQUEST for worker-online received....", request
+        print("REQUEST for worker-online received....", request)
         return Response(status=status.HTTP_200_OK)
         
 class WorkerOfflineRequestHandler(APIView):
     
     def post(self, request):
-        print "REQUEST for worker OFFline received...", request
+        print("REQUEST for worker OFFline received...", request)
         return Response(status=status.HTTP_200_OK)
        
     

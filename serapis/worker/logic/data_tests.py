@@ -83,18 +83,18 @@ class GeneralFileTests(object):
         irods_fnames = utils.filter_list_of_files_by_type(irods_fnames, file_types) #['bam', 'bai']
     
         # Comparing fofn and irods collection contents:
-        print "Number of files in irods collection: ",len(irods_fnames)
-        print "Number of files in YANG's list: ", len(lustre_fnames)
+        print("Number of files in irods collection: ",len(irods_fnames))
+        print("Number of files in YANG's list: ", len(lustre_fnames))
         
         if not utils.lists_contain_same_elements(irods_fnames, lustre_fnames):
             # checking that both lists contain the same file names:
             for f in lustre_fnames:
                 if not f in irods_fnames:
-                    print "FILE PRESENT IN FOFN, BUT NOT IN PERMANENT COLL: ", f
+                    print("FILE PRESENT IN FOFN, BUT NOT IN PERMANENT COLL: ", f)
             
             for f in irods_fnames:
                 if not f in lustre_fnames:
-                    print "FILES present in irods permanent coll, but not in fofn:", f
+                    print("FILES present in irods permanent coll, but not in fofn:", f)
             return False
         return True
     
@@ -122,7 +122,7 @@ class GeneralFileTests(object):
     @classmethod
     def checksum_file_and_compare_md5_for_all_files_coll(cls, irods_coll):
         irods_fpaths = FileListingUtilityFunctions.list_files_full_path_in_coll(irods_coll)
-        return map(cls.checksum_file_and_compare_md5s, irods_fpaths)
+        return list(map(cls.checksum_file_and_compare_md5s, irods_fpaths))
         
     @classmethod
     def get_and_compare_file_md5s(cls, fpath_irods):
@@ -447,7 +447,7 @@ class FileTestSuiteRunner(object):
         elif file_type in [constants.VCF_FILE, constants.TBI_FILE]:
             return VCFFileMetadataTests
         else:
-            print "FILE TYPE UNKNOWN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print("FILE TYPE UNKNOWN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     
     @classmethod
     def run_metadata_tests_on_file(cls, fpath_irods):
@@ -565,7 +565,7 @@ def run_submission_test_suite(lustre_fofn, irods_coll):
     error_report = {}
     all_archived = GeneralFileTests.compare_fofn_and_irods_coll(lustre_fofn, irods_coll)
     if not all_archived:
-        print "Not all the files have been archived!"
+        print("Not all the files have been archived!")
         #return False
         error_report["Compare fofn with irods coll"] = "Not all archived!"
     test_suite_report = run_test_suit_on_coll(irods_coll)
@@ -581,15 +581,15 @@ def print_error_report(error_report):
 #            print "KEY:", k, " -- ", v
 #        print "\n"
 
-    for k, v in error_report.items():
-        print k
-        for test, res in v.items():
+    for k, v in list(error_report.items()):
+        print(k)
+        for test, res in list(v.items()):
             if type(res) == dict:
-                for t, r in res.items():
-                    print t, " -- ", r
+                for t, r in list(res.items()):
+                    print(t, " -- ", r)
             else:
-                print test, " -- ", res
-        print "\n"
+                print(test, " -- ", res)
+        print("\n")
 
     
 def test_coll(irods_coll):    
@@ -623,7 +623,7 @@ class TestResult(object):
         return self.executed
     
     def __str__(self):
-        return ','.join(filter(None, vars(self)))
+        return ','.join([_f for _f in vars(self) if _f])
         
 
 class FileTestsUtils(object):

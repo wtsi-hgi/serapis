@@ -3,7 +3,7 @@ This module is implementing the functionality related to the data that one store
 where by data we refer to the actual information content of a file.
 """
 
-import data_entity
+from . import data_entity
 from serapis.com import constants
 from multimethods import multimethod
 from serapis.seqscape import queries as seqsc

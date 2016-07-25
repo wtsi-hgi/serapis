@@ -40,7 +40,7 @@ class iRODSException(Exception):
         self.extra_info = extra_info
         
     def __str__(self):
-        fields = filter(None, [self.error, self.output, self.cmd, self.msg, self.extra_info])
+        fields = [_f for _f in [self.error, self.output, self.cmd, self.msg, self.extra_info] if _f]
         fields =[str(field) for field in fields]
         all_fields = ' '.join(fields)
         return all_fields

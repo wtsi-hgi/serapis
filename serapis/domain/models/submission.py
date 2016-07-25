@@ -4,7 +4,7 @@ import os
 from serapis.com import utils, constants
 from Celery_Django_Prj import configs
 
-import data_set
+from . import data_set
 
 from serapis.controller.db import db_models
 from serapis.controller import exceptions

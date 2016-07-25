@@ -49,7 +49,7 @@ class iRODSStorage(Storage):
         back_exc = cls._map_strings_on_exceptions(irods_exc.output)
         if back_exc is not None:
             return back_exc(irods_exc.output)
-        print "WARNING! There wasn't any exception found for this string: "+str(irods_exc.error)+" Returning a general BackendException.."
+        print("WARNING! There wasn't any exception found for this string: "+str(irods_exc.error)+" Returning a general BackendException..")
         return backend_exc.BackendException(irods_exc.error)
     
 #v         CAT_INVALID_ARGUMENT        = "CAT_INVALID_ARGUMENT"
@@ -271,7 +271,7 @@ class iRODSStorage(Storage):
                 exc = cls._map_irods_exc_on_backend_exc(e)
                 errors[avu].append(str(exc))
         if errors:
-            raise backend_exc.FileMetadataCannotBeAdded(values=errors.keys(), reasons=errors)
+            raise backend_exc.FileMetadataCannotBeAdded(values=list(errors.keys()), reasons=errors)
             
             
         
@@ -299,7 +299,7 @@ class iRODSStorage(Storage):
                 exc = cls._map_irods_exc_on_backend_exc(e)
                 errors[avu].append(str(exc))
         if errors:
-            raise backend_exc.FileMetadataCannotBeRemoved(values=errors.keys(), reasons=errors)
+            raise backend_exc.FileMetadataCannotBeRemoved(values=list(errors.keys()), reasons=errors)
 
 
     

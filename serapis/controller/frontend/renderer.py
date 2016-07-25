@@ -55,7 +55,7 @@ class SerapisJSONRenderer(BaseRenderer):
     def encode_model(self, obj):
         if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
             out = dict(obj._data)
-            for k,v in out.items():
+            for k,v in list(out.items()):
                 if isinstance(v, ObjectId):
                     out[k] = str(v)
         elif isinstance(obj, ObjectId):
@@ -68,7 +68,7 @@ class SerapisJSONRenderer(BaseRenderer):
             out = obj.__dict__
         else:
             logging.info(obj)
-            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+            raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
         return out       
 
 
@@ -77,7 +77,7 @@ class SerapisJSONRenderer(BaseRenderer):
         if isinstance(obj, (mongoengine.Document, mongoengine.EmbeddedDocument)):
             internal_fields = obj.get_internal_fields()
             out = dict(obj._data)
-            for k,v in out.items():
+            for k,v in list(out.items()):
             #if k in models.FILE_SUBMITTED_META_FIELDS:
                 if k in internal_fields:
                     out.pop(k)
@@ -92,7 +92,7 @@ class SerapisJSONRenderer(BaseRenderer):
             out = obj
         else:
             logging.info(obj)
-            raise TypeError, "Could not JSON-encode type '%s': %s" % (type(obj), str(obj))
+            raise TypeError("Could not JSON-encode type '%s': %s" % (type(obj), str(obj)))
         return out          
         
 

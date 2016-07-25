@@ -63,7 +63,7 @@ from Celery_Django_Prj import configs
 ######################### UNICODE processing ####################################
 
 def __ucode2str__(ucode):
-    if type(ucode) == unicode:
+    if type(ucode) == str:
         return unicodedata.normalize('NFKD', ucode).encode('ascii','ignore')
     return ucode
 
@@ -80,7 +80,7 @@ def __ucode2str_dict__(ucode_dict):
         and returns a dict of strings.
     '''
     str_dict = dict()
-    for key, val in ucode_dict.items():
+    for key, val in list(ucode_dict.items()):
         key = unicode2string(key)
         val = unicode2string(val)
         str_dict[key] = val
@@ -94,7 +94,7 @@ def unicode2string(ucode):
         return __ucode2str_dict__(ucode)
     elif type(ucode) == list:
         return __ucode2str_list__(ucode)
-    elif type(ucode) == unicode:
+    elif type(ucode) == str:
         return __ucode2str__(ucode)
     return ucode
 
@@ -177,7 +177,7 @@ def list_and_filter_files_from_dir(dir_path, accepted_extensions):
             _, f_extension = os.path.splitext(f_path)
             if f_extension[1:] in accepted_extensions:
                 files_list.append(f_path)
-    print files_list
+    print(files_list)
     return files_list
 
 
@@ -190,7 +190,7 @@ def get_filename_from_path(fpath):
 
 def get_filepaths_from_fofn(fofn):
     files_list = [f for f in open(fofn, 'r')]
-    return filter(None, files_list)
+    return [_f for _f in files_list if _f]
 
 
 def get_filenames_from_filepaths(filepaths_list):
@@ -209,7 +209,7 @@ def filter_list_of_files_by_type(list_of_files, filters):
         if ext in filters:
             files_filtered.append(f)
         else:
-            print "SMTH else in this dir:",f
+            print("SMTH else in this dir:",f)
     return files_filtered
 
 def extract_file_extension(fpath):
@@ -330,7 +330,7 @@ def check_for_invalid_file_types(file_path_list):
 
 def get_file_duplicates(files_list):
     if len(files_list)!=len(set(files_list)):
-        return [x for x, y in collections.Counter(files_list).items() if y > 1]
+        return [x for x, y in list(collections.Counter(files_list).items()) if y > 1]
     return []
 
 
@@ -386,7 +386,7 @@ def determine_storage_type_from_path(path):
 
 def check_all_files_same_type(file_paths_list):
     file_type = None
-    print "CHECK ALL FILES SAME TYPE  --- ------------ ------- - -------- -", file_paths_list, type(file_paths_list)
+    print("CHECK ALL FILES SAME TYPE  --- ------------ ------- - -------- -", file_paths_list, type(file_paths_list))
     for file_path in file_paths_list:
         f_type = detect_file_type(file_path)
         if not file_type:
@@ -410,11 +410,11 @@ def get_all_file_types(fpaths_list):
 
 
 def filter_out_none_keys_and_values(my_dict):
-    return {k:v for (k,v) in my_dict.iteritems() if k is not None and v is not None}
+    return {k:v for (k,v) in my_dict.items() if k is not None and v is not None}
 
 def check_all_keys_have_the_same_value(my_dict, my_value=None):
         if my_value:
-            return all(val==my_value for val in my_dict.values())
+            return all(val==my_value for val in list(my_dict.values()))
         return len(set(my_dict.values()))==1
     
 
@@ -507,7 +507,7 @@ def is_date_correct(date):
         # Only caught the error to change the message with a more relevant one
         raise ValueError("Error: date is not in the correct format.")
     year = date_struct.tm_year
-    print year
+    print(year)
     max_year = datetime.date.today().year
     if int(year) < 2010:
         raise ValueError("The year given is incorrect. Min year = 2013")
@@ -602,7 +602,7 @@ def levenshtein(a,b):
         a,b = b,a
         n,m = m,n
         
-    current = range(n+1)
+    current = list(range(n+1))
     for i in range(1,m+1):
         previous, current = current, [i]+[0]*n
         for j in range(1,n+1):

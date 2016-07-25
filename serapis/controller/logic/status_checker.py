@@ -35,8 +35,7 @@ from serapis.controller.db import data_access, models
 
  
     
-class MetadataStatusChecker:
-    __metaclass__ = abc.ABCMeta
+class MetadataStatusChecker(metaclass=abc.ABCMeta):
     mandatory_fields_list = None
     optional_fields_list = None
     
@@ -66,11 +65,10 @@ class MetadataStatusChecker:
             
 
 
-class EntityMetaStatusChecker(MetadataStatusChecker):
+class EntityMetaStatusChecker(MetadataStatusChecker, metaclass=abc.ABCMeta):
     ''' This class contains the functionality needed for checking
         the status of an entity - i.e. whether it has minimal metadata
         required for iRODS submission or not, and if not which fields are missing.'''    
-    __metaclass__ = abc.ABCMeta
     entity_type = None
     mandatory_fields_list = None
     optional_fields_list = None
@@ -142,10 +140,9 @@ class LibraryMetaStatusChecker(EntityMetaStatusChecker):
         return super(LibraryMetaStatusChecker, cls).check_minimal_and_report_missing_fields(library)
     
 
-class FileMetaStatusChecker(MetadataStatusChecker):
+class FileMetaStatusChecker(MetadataStatusChecker, metaclass=abc.ABCMeta):
     ''' This is an abstract class which holds the functionality needed to check the status
         of a file, i.e. evaluating whether it has enough metadata to be submitted to iRODS or not.'''
-    __metaclass__ = abc.ABCMeta
     
     # Class properties:
     mandatory_fields_list = constants.FILE_MANDATORY_FIELDS
@@ -193,7 +190,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         for sample in sample_list:
             if not SampleMetaStatusChecker.check_minimal_and_report_missing_fields(sample):
                 has_min_mdata = False
-                print "MISSING SOME SAMPLE INFORMATION FOR SOME SAMPLES..."
+                print("MISSING SOME SAMPLE INFORMATION FOR SOME SAMPLES...")
         return has_min_mdata
     
     @classmethod
@@ -202,7 +199,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         for lib in library_list:
             if not LibraryMetaStatusChecker.check_minimal_and_report_missing_fields(lib):
                 has_min_mdata = False
-                print "MISSING SOME LIBRARY INFORMATION FOR SPECIFIC LIBS......"
+                print("MISSING SOME LIBRARY INFORMATION FOR SPECIFIC LIBS......")
         return has_min_mdata
     
     @classmethod
@@ -211,7 +208,7 @@ class FileMetaStatusChecker(MetadataStatusChecker):
         for study in study_list:                   #(cls, entity, error_report_dict, warning_report_dict=None):
             if not StudyMetaStatusChecker.check_minimal_and_report_missing_fields(study):
                 has_min_mdata = False
-                print "MISSING SOME STUDY INFORMATION...."
+                print("MISSING SOME STUDY INFORMATION....")
         return has_min_mdata
    
    
@@ -219,14 +216,14 @@ class FileMetaStatusChecker(MetadataStatusChecker):
     def _check_all_tasks_finished(cls, tasks_dict, task_categ):
         ''' Checks that all the tasks in the task dictionary that belong to a certain 
             category, e.g. PRESUBMISSION_TASKS, have a finished status.'''
-        for task_info in tasks_dict.values():
+        for task_info in list(tasks_dict.values()):
             if task_info['type'] in task_categ and not task_info['status'] in constants.FINISHED_STATUS:
                 return False
         return True
     
     @classmethod
     def _check_task_type_status(cls, tasks_dict, task_type, status):
-        for task_info in tasks_dict.values():
+        for task_info in list(tasks_dict.values()):
             if task_info['type'] == task_type and task_info['status'] == status:
                 return True
         return False

@@ -4,7 +4,7 @@ import sets
 
 from Celery_Django_Prj import configs
 
-import serapis_metadata
+from . import serapis_metadata
 
 from serapis.worker.tasks_pkg import tasks
 from serapis.com import constants, utils, wrappers

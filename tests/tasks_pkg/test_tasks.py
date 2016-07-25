@@ -15,12 +15,12 @@ class TestCollectBAMFileMetadataTask(unittest.TestCase):
     def test_infer_all_identifiers_type_from_values(self):
         identifier_list = ['EGAN00001059977']#, 123, 'ThisName']
         identifiers_dict = tasks.CollectBAMFileMetadataTask.infer_all_identifiers_type_from_values(identifier_list)
-        print identifiers_dict
+        print(identifiers_dict)
         self.assertDictEqual(identifiers_dict, {'EGAN00001059977' : 'accession_number'})
         
         identifier_list = ['EGAN00001059977', 123] #, 'ThisName']
         identifiers_dict = tasks.CollectBAMFileMetadataTask.infer_all_identifiers_type_from_values(identifier_list)
-        print identifiers_dict
+        print(identifiers_dict)
         self.assertDictEqual(identifiers_dict, {'EGAN00001059977' : 'accession_number', 123: 'internal_id'})
         
 #        tasks.CollectBAMFileMetadataTask.collect_metadata_for_bam_file(path)

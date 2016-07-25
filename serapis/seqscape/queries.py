@@ -185,7 +185,7 @@ def _query_all_individually(model_cls, ids_as_tuples):
         try:
             result_matching_qu = _query_one(**{'model_cls' : model_cls,id_type: id_val})
         except ValueError:
-            print "Multiple entities with the same id found in the DB"
+            print("Multiple entities with the same id found in the DB")
         else:
             if result_matching_qu:
                 results.append(result_matching_qu[0])

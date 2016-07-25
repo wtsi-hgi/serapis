@@ -165,13 +165,13 @@ def create_submission(user_id, data):
         return models.Result(False, message="All the files in a submission must be of the same type.") 
     submission_data['file_type'] = files_type
     
-    print "FILE TYPE -- taken from files: ", submission_data['file_type']
+    print("FILE TYPE -- taken from files: ", submission_data['file_type'])
     # Build the submission:
     submission_id = model_builder.SubmissionBuilder.build_and_save(submission_data, user_id)
     if not submission_id:
         return models.Result(False, message="Submission couldn't be created.")
     submission = data_access.SubmissionDataAccess.retrieve_submission(submission_id)
-    print "SUBMISSION FILE TYPE ---- ", submission.file_type, vars(submission)
+    print("SUBMISSION FILE TYPE ---- ", submission.file_type, vars(submission))
     
     submission_logic_layer = app_logic.SubmissionBusinessLogic(submission.file_type)
     files_init = submission_logic_layer.init_and_submit_files(file_et_index_map, submission)
@@ -291,7 +291,7 @@ def get_submitted_file_status_OLD(file_id, file_obj=None):
     i = 0
     tasks_status_dict = []
     task_dict = file_obj.tasks
-    for task_id, task_info_dict in task_dict.iteritems():
+    for task_id, task_info_dict in task_dict.items():
         task_type = task_info_dict['type']
         async = AsyncResult(task_id)
         if async:
@@ -302,7 +302,7 @@ def get_submitted_file_status_OLD(file_id, file_obj=None):
                 tasks_status_dict.append((task_type, state))
             else:
                 tasks_status_dict.append((task_type, task_info_dict['status']))
-            print "TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type
+            print("TASK STATE::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::", task_id, " TASK STATE: ", state, " DB STATE: ", task_info_dict['status'], " TYPE: ", task_type)
         else:
             tasks_status_dict.append((task_type, task_info_dict['status']))
         i +=1
@@ -845,9 +845,9 @@ def add_meta_to_all_staged_files_atomic(submission_id):
 
 def add_meta_to_all_staged_files(submission_id, data):
     if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
-        print "NON ATOMIC called...."
+        print("NON ATOMIC called....")
         return add_meta_to_all_staged_files_nonatomic(submission_id)
-    print "ATOMIC one called......"
+    print("ATOMIC one called......")
     return add_meta_to_all_staged_files_atomic(submission_id)
     
 
@@ -902,9 +902,9 @@ def move_all_to_iRODS_permanent_coll_atomic(submission_id):
 
 def move_all_to_iRODS_permanent_coll(submission_id, data=None):
     if data and 'atomic' in data and str(data['atomic']).lower() == 'false':
-        print "NON ATOMIC called...."
+        print("NON ATOMIC called....")
         return move_all_to_iRODS_permanent_coll_nonatomic(submission_id)
-    print "ATOMIC one called......"
+    print("ATOMIC one called......")
     return move_all_to_iRODS_permanent_coll_atomic(submission_id)
 
 

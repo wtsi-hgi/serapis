@@ -36,7 +36,7 @@ class TestDeferredServiceHandle(unittest.TestCase):
         self.assertEqual(deferred.status, old_status)
         deferred.update_status(new_status)
         self.assertEqual(deferred.status, new_status)
-        self.assertNotEquals(None, deferred.last_updated)
+        self.assertNotEqual(None, deferred.last_updated)
 
 
 
@@ -87,13 +87,13 @@ class TestDeferredServiceHandleCollection(unittest.TestCase):
     def test_find1(self):
         task_id = '111'
         task_found = self.deferred_coll.find(task_id)
-        self.assertEquals(task_found, self.deferred)
+        self.assertEqual(task_found, self.deferred)
         
         
     def test_find2(self):
         task_id = 'non-existing'
         task_found = self.deferred_coll.find(task_id)
-        self.assertEquals(None, task_found)
+        self.assertEqual(None, task_found)
 
 
     def test_find3(self):
@@ -106,7 +106,7 @@ class TestDeferredServiceHandleCollection(unittest.TestCase):
         desired_status = 'DESIRED_STATUS'
         self.assertEqual(self.deferred_coll.tasks[task_id].status, constants.PENDING_ON_WORKER_STATUS)
         self.deferred_coll.update_service_status(task_id, desired_status)
-        self.assertEquals(self.deferred_coll.tasks[task_id].status, desired_status)
+        self.assertEqual(self.deferred_coll.tasks[task_id].status, desired_status)
         
     def test_update_service_status2(self):
         self.assertRaises(exceptions.TaskNotRegisteredException, self.deferred_coll.update_service_status, '123123', 'Doesnt MATTER STATUS')

@@ -108,7 +108,7 @@ class CollectBAMFileMetadataTask(Task):
     def check_all_identifiers_have_same_type(cls, entity_list):
         common_type = None
         for entity in entity_list:
-            id_type, _ = entity.items()[0]
+            id_type, _ = list(entity.items())[0]
             if not common_type:
                 common_type = id_type
             if not id_type == common_type: 
@@ -179,7 +179,7 @@ class CollectBAMFileMetadataTask(Task):
     @wrappers.check_args_not_none
     def query_for_libraries_individually(cls, library_list):
             libraries = []
-            for id_type, id_val in library_list.iteritems():
+            for id_type, id_val in library_list.items():
                 query_params = {id_type : id_val}
                 libraries_matching = seqsc_queries.query_library(**query_params)
                 if len(libraries_matching) == 1:
@@ -221,7 +221,7 @@ class CollectBAMFileMetadataTask(Task):
     def collect_metadata_for_samples(cls, sample_list):
         if cls.check_all_identifiers_have_same_type(sample_list):
             a_sample = sample_list[0]
-            id_type, _ = a_sample.items()[0] 
+            id_type, _ = list(a_sample.items())[0] 
             sample_ids = [sample[id_type] for sample in sample_list]
             samples = cls.query_for_samples_as_batch(sample_ids, id_type)
         else:
@@ -240,7 +240,7 @@ class CollectBAMFileMetadataTask(Task):
     def collect_metadata_for_libraries(cls, library_ids):
         if cls.check_all_identifiers_have_same_type(library_ids):
             a_lib = library_ids[0]
-            common_id_type, _ = a_lib.items()[0]
+            common_id_type, _ = list(a_lib.items())[0]
             library_ids = [lib[common_id_type] for lib in library_ids]
             libraries = cls.query_for_libraries_as_batch(library_ids, common_id_type)
         else:
@@ -251,7 +251,7 @@ class CollectBAMFileMetadataTask(Task):
     @wrappers.check_args_not_none
     def transform_ids_into_entities(cls, id_list):
         id_types = cls.infer_all_identifiers_type_from_values(id_list)
-        return [{id_type : id_val } for id_val, id_type in id_types.iteritems()]
+        return [{id_type : id_val } for id_val, id_type in id_types.items()]
     
     @classmethod
     @wrappers.check_args_not_none
@@ -270,7 +270,7 @@ class CollectBAMFileMetadataTask(Task):
             samples_found = cls.collect_metadata_for_samples(sample_list)
             if samples_found:
                 sample_list = [seqsc_utils.to_primitive_types(model) for model in samples_found]
-                print "SAMPLES: ", str(sample_list)
+                print("SAMPLES: ", str(sample_list))
                 sample_list = [seqsc_utils.remove_empty_fields(sample) for sample in sample_list]
                 
                 study_list = cls.collect_metadata_for_studies_given_samples(samples_found)

@@ -21,7 +21,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
 import subprocess
-import exceptions
+from . import exceptions
 from collections import defaultdict, namedtuple
 
 from serapis.com import utils, constants
@@ -62,7 +62,7 @@ class iRODSMetadataOperations:
         child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            print "ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out
+            print("ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out)
             raise exceptions.iRODSFileMetadataNotStardardException(err, out, cmd="Command = imeta ls -d "+file_path_irods)
         return out
         #return convert_imeta_result_to_tuples(out)
@@ -73,7 +73,7 @@ class iRODSMetadataOperations:
         ret = subprocess.Popen(["imeta", "ls", "-d", fpath_irods, key], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = ret.communicate()
         if err:
-            print "ERROR imeta ls -d ", fpath_irods
+            print("ERROR imeta ls -d ", fpath_irods)
         elif out.find('does not exist') != -1 or out.find("None") != -1:
             raise exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have "+key+" in its metadata.", cmd="imeta ls -d "+fpath_irods)
         else:
@@ -99,7 +99,7 @@ class iRODSMetadataOperations:
         child_proc = subprocess.Popen(["imeta", "add","-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            print "ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out, "KEY=", key, "VALUE=",value
+            print("ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out, "KEY=", key, "VALUE=",value)
             if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                 raise exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
         
@@ -116,7 +116,7 @@ class iRODSMetadataOperations:
         child_proc = subprocess.Popen(["imeta", "rm", "-d", fpath_irods, key, value], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            print "ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error text is: ", err, " output: ",out
+            print("ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error text is: ", err, " output: ",out)
             if not err.find(constants.CAT_INVALID_ARGUMENT):
                 raise exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
     
@@ -136,7 +136,7 @@ class iRODSMetadataOperations:
         child_proc = subprocess.Popen(["jq", "-n", baton_formated_meta, "|", configs.baton_metamod, "--operation", "add"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         (out, err) = child_proc.communicate()
         if err:
-            print "Baton adding all the metadata to the files FAILED with:ERR="+str(err)+" and OUT="+out
+            print("Baton adding all the metadata to the files FAILED with:ERR="+str(err)+" and OUT="+out)
             raise exceptions.iMetaException(err=err, out, cmd="jq -n <metadata> | baton --operation add")
         return True
 #         for attr_val in list_of_tuples:

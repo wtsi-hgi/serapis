@@ -69,7 +69,7 @@ class TestUtils(unittest.TestCase):
         input_param = [s2]
         #expected_result = [should_be]
         actual_result = utils.normalize_sample_data(input_param)
-        self.assertEquals(actual_result[0].organism, 'Homo Sapiens')
+        self.assertEqual(actual_result[0].organism, 'Homo Sapiens')
         
         
 # @wrappers.check_args_not_none

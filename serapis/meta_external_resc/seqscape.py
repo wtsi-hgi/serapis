@@ -82,9 +82,9 @@ class SeqscapeExternalResc(base.ExternalResc):
     def _convert_entity_to_serapis_type(cls, entity, entity_type):
         #srp_entity = srp_entities.MetadataEntity()
         srp_entity = entity_type()
-        for field_name, field_val in vars(entity).iteritems():
+        for field_name, field_val in vars(entity).items():
             setattr(srp_entity, field_name, field_val)
-        print "ENTITY created before returning: "+str(srp_entity.name)
+        print("ENTITY created before returning: "+str(srp_entity.name))
         return srp_entity
 
     @classmethod

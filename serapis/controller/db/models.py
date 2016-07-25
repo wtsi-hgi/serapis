@@ -78,7 +78,7 @@ class Result:
         if type(self.result) == list:
             return all(item == True for item in self.result)
         if type(self.result) == dict:
-            return all(item == True for item in self.result.values())
+            return all(item == True for item in list(self.result.values()))
 
     def is_false(self):
         return not self.is_true()
@@ -151,9 +151,9 @@ class Study(Entity, SerapisModel):
 
     
 class AbstractLibrary(DynamicEmbeddedDocument, SerapisModel):
-    library_source = StringField(choices=constants.LIBRARY_SOURCES.keys())
+    library_source = StringField(choices=list(constants.LIBRARY_SOURCES.keys()))
 #    library_selection = StringField(default="unspecified")
-    library_strategy = StringField(choices=constants.LIBRARY_STRATEGY.keys())
+    library_strategy = StringField(choices=list(constants.LIBRARY_STRATEGY.keys()))
     instrument_model = StringField(choices=constants.INSTRUMENT_MODEL, default="unspecified")
     coverage = StringField()
 

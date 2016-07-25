@@ -21,7 +21,7 @@
 
 
 
-import exceptions
+from . import exceptions
 from serapis.controller.db import models
 from serapis.com import  constants, utils
 import time
@@ -192,39 +192,39 @@ def check_all_tasks_statuses(task_dict, task_status):
     '''
     if not task_dict:
         return True
-    for status in task_dict.values():
+    for status in list(task_dict.values()):
         if not status == task_status:
             return False
     return True
 
 
 def check_any_task_has_status(tasks_dict, status, task_categ):
-    for task_info in tasks_dict.values():
+    for task_info in list(tasks_dict.values()):
         if task_info['type'] in task_categ and task_info['status'] == status:
             return True
     return False
 
 def check_all_tasks_finished(tasks_dict, task_categ):
-    for task_info in tasks_dict.values():
+    for task_info in list(tasks_dict.values()):
         if task_info['type'] in task_categ and not task_info['status'] in constants.FINISHED_STATUS:
             return False
     return True
 
 def check_all_tasks_have_status(tasks_dict, task_categ, status):
-    for task_info in tasks_dict.values():
+    for task_info in list(tasks_dict.values()):
         if task_info['type'] in task_categ and not task_info['status'] == status:
             return False
     return True
 
 def check_task_type_status(tasks_dict, task_type, status):
-    for task_info in tasks_dict.values():
+    for task_info in list(tasks_dict.values()):
         if task_info['type'] == task_type and task_info['status'] == status:
             return True
     return False
 
 
 def exists_tasks_of_type(tasks_dict, task_categ):
-    for task_info in tasks_dict.values():
+    for task_info in list(tasks_dict.values()):
         if task_info['type'] in task_categ:
             return True
     return False

@@ -19,7 +19,7 @@ import os
 try:
     from urllib.parse import urlsplit
 except ImportError:
-    from urlparse import urlsplit
+    from urllib.parse import urlsplit
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Celery_Django_Prj.settings")
@@ -49,7 +49,7 @@ class ReverseProxied(object):
             environ['wsgi.url_scheme'] = environ['HTTP_X_FORWARDED_PROTO']
 
         script_name = environ.get('HTTP_X_SCRIPT_NAME', prefix)
-        print "THIS IS BEING RUN!!! -- script name is: ", script_name
+        print("THIS IS BEING RUN!!! -- script name is: ", script_name)
         if script_name:
 
             environ['SCRIPT_NAME'] = script_name

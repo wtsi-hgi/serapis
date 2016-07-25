@@ -1,7 +1,7 @@
 
 import os
 #from serapis.external_services import services
-import serapis_metadata as serapis_meta_pkg
+from . import serapis_metadata as serapis_meta_pkg
 import data_entities
 from serapis.domain.models import files
 from serapis.api import api_messages
@@ -198,13 +198,13 @@ class DataSetAsIndependentFiles(DataSetAsFiles):
             current information.
         '''
         # donno what to process, those are the permissions, they have importance only at file obj creation and task submission...
-        no_access_fpath = [fpath for fpath, permission in file_permission_dict.items() if permission == constants.NO_ACCESS]
+        no_access_fpath = [fpath for fpath, permission in list(file_permission_dict.items()) if permission == constants.NO_ACCESS]
         error = "Don't have the permission to access there files:"+ str(no_access_fpath)
         self.serapis_metadata.log_error(error, source='Permission checks')
         
         
     def filter_fpaths_based_on_permissions(self, permission=constants.READ_ACCESS):
-        return [fpath for fpath, perm in self.files_permission_dict.items() if perm == permission]
+        return [fpath for fpath, perm in list(self.files_permission_dict.items()) if perm == permission]
         
         
 #     def initialize_all_files(self, fpaths_list, submission):

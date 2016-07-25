@@ -84,7 +84,7 @@ class HTTPRequestHandler(object):
             response = cls.__send_post_request(url, data, headers)
         else:
             response = cls.__send_put_request(url, data, headers)
-        print "RESPONSE RECEIVED FROM CONTROLLER WHEN REPORTING RESULTS: "+str(response.status_code)
+        print("RESPONSE RECEIVED FROM CONTROLLER WHEN REPORTING RESULTS: "+str(response.status_code))
         return response
       
         

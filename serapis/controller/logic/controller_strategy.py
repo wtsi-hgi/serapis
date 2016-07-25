@@ -83,10 +83,9 @@ class WorkerSpecificFileContext(WorkerRequestContext):
         super(WorkerSpecificFileContext, self).__init__(request_data)
 
 
-class ResourceHandlingStrategy(object):
+class ResourceHandlingStrategy(object, metaclass=abc.ABCMeta):
     ''' This is the interface for all the classes that implement a strategy 
         for handling a type of request'''
-    __metaclass__ = abc.ABCMeta
     
     @classmethod
     def convert(self, request_data):
@@ -291,7 +290,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             file_type_map[file_path] = file_type
             if file_type in constants.FILE2IDX_MAP:
                 file_index_map[file_path] = ''
-            elif file_type in constants.FILE2IDX_MAP.values():
+            elif file_type in list(constants.FILE2IDX_MAP.values()):
                 indexes.append(file_path)
             else:
                 utils.append_to_errors_dict(file_path, constants.NOT_SUPPORTED_FILE_TYPE, error_dict)
@@ -375,7 +374,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
         
         files_permissions = cls._get_file_list_permissions(request_data)
         
-        if request_data['upload_as_serapis'] == True and constants.NOACCESS in files_permissions.values():
+        if request_data['upload_as_serapis'] == True and constants.NOACCESS in list(files_permissions.values()):
             errors_dict = {}
             no_access_file = [f for f in files_permissions if files_permissions[f] == constants.NOACCESS ]
             utils.extend_errors_dict(no_access_file, constants.NOACCESS, errors_dict)
@@ -401,7 +400,7 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
             return models.Result(False, error_dict=file_and_index_map.error_dict, warning_dict=file_and_index_map.warning_dict)
         
         file_and_index_map = file_and_index_map.result
-        no_index_files = [f for f, v in file_and_index_map.items() if v=='']
+        no_index_files = [f for f, v in list(file_and_index_map.items()) if v=='']
         if no_index_files:
             utils.extend_errors_dict(no_index_files, constants.FILE_WITHOUT_INDEX, error_dict)
             return models.Result(False, error_dict=error_dict)
@@ -433,9 +432,8 @@ class SubmissionCreationStrategy(ResourceCreationStrategy):
     
     
  
-class SubmissionRetrievalStrategy(ResourceRetrivalStrategy):
+class SubmissionRetrievalStrategy(ResourceRetrivalStrategy, metaclass=abc.ABCMeta):
     ''' This abstract class should be inherited by all the strategies for submission retrieval. '''
-    __metaclass__ = abc.ABCMeta
 
 
 class SubmissionRetrievalAdminStrategy(SubmissionRetrievalStrategy):
@@ -474,11 +472,10 @@ class SubmissionRetrievalUserStrategy(SubmissionRetrievalStrategy):
 
 
         
-class FileRetrievalStrategy(ResourceRetrivalStrategy):
+class FileRetrievalStrategy(ResourceRetrivalStrategy, metaclass=abc.ABCMeta):
     ''' 
         Abstract class to be inherited by all the subclasses implementing file retrieval strategies.
     '''
-    __metaclass__ = abc.ABCMeta
     
         
 class FileRetrievalAdminStrategy(FileRetrievalStrategy):
@@ -576,7 +573,7 @@ class FileModificationStrategy(ResourceModificationStrategy):
         
         file_logic.file_data_access.save_task_updates(file_to_update.id, context.request_data, update_source=constants.EXTERNAL_SOURCE)
         file_to_update.reload()
-        print "Saved updates from USER!!!!"
+        print("Saved updates from USER!!!!")
         if has_new_entities == True:
             #file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(file_to_update.file_type)
             submitted = file_logic.submit_presubmission_tasks([constants.UPDATE_MDATA_TASK], file_to_update)
@@ -584,13 +581,13 @@ class FileModificationStrategy(ResourceModificationStrategy):
                 #return False
                 logging.error("Tasks not submitted, though they should have been, as new entities have been found in the update message!")
  
-        print "Update finished, now retrieving the file again..."
+        print("Update finished, now retrieving the file again...")
         file_to_update = file_logic.file_data_access.retrieve_submitted_file(file_to_update.id)
         
-        print "Gathering metadata for the file submission..."
+        print("Gathering metadata for the file submission...")
         serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(file_to_update.id, file_obj=file_to_update)
         
-        print "Cheking the file status..."
+        print("Cheking the file status...")
         file_logic.check_and_update_all_file_statuses(file_to_update.id, file_to_update)
 
         return True
@@ -621,8 +618,8 @@ class FileModificationStrategy(ResourceModificationStrategy):
         file_logic = app_logic.FileBusinessLogicBuilder.build_from_type(subm_file.file_type)
         
         #print "RECEIVED THE FOLLOWING IN UPDATE_FILE_FROM_TASK::::::::::::: ", vars(context)
-        print "Checking the task id is valid..."
-        print "This is the message that arrived from task:"+str(context.request_data)
+        print("Checking the task id is valid...")
+        print("This is the message that arrived from task:"+str(context.request_data))
         try: 
             task_type = subm_file.tasks[context.request_data['task_id']]['type']
         except KeyError:
@@ -634,14 +631,14 @@ class FileModificationStrategy(ResourceModificationStrategy):
             errors = None
     
         try:
-            print "Starting updating from the task..."
+            print("Starting updating from the task...")
             if 'result' not in context.request_data:
                 file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
             else:
 #                 if context.request_data['status'] == constants.FAILURE_STATUS:
 #                     file_logic.file_data_access.update_task_status(subm_file.id, task_id=context.request_data['task_id'], task_status=context.request_data['status'], errors=errors)
 #                 else:
-                print "FROM CONTROLLER --- BEFORE CALLING DATA_access module, this is what I've received: "+str(context.request_data)
+                print("FROM CONTROLLER --- BEFORE CALLING DATA_access module, this is what I've received: "+str(context.request_data))
                 if task_type in [constants.PARSE_HEADER_TASK, constants.CALC_MD5_TASK]:
                     file_logic.file_data_access.save_task_updates(subm_file.id, context.request_data['result'],
                                                               task_type, 
@@ -658,14 +655,14 @@ class FileModificationStrategy(ResourceModificationStrategy):
                                                           errors=errors)
         except exceptions.FileAlreadySubmittedException as e:
 #             data_access.FileDataAccess.update_file_submission_status(subm_file.id, constants.IMPOSSIBLE_TO_ARCHIVE_STATUS)
-            print "ERROR FILE DUPLICATION -- let's see what's in error obj: ", vars(e)
+            print("ERROR FILE DUPLICATION -- let's see what's in error obj: ", vars(e))
             upd = 0
             while upd == 0:
                 subm_file.reload()
                 status_dict = {'file_submission_status' : constants.IMPOSSIBLE_TO_ARCHIVE_STATUS}
                 update_dict = data_access.FileDataAccess.build_file_error_log_update_dict(e.message, subm_file.id, subm_file)
                 update_dict.update(data_access.FileDataAccess.build_file_statuses_updates_dict(subm_file.id, status_dict))
-                print "LET's see what is in the update dict: ", str(update_dict)
+                print("LET's see what is in the update dict: ", str(update_dict))
                 upd = data_access.FileDataAccess.save_update_dict(subm_file.id, data_access.FileDataAccess.get_file_version(subm_file.id, subm_file), update_dict)
             #file_id, file_version, updates_dict, nr_retries=constants.MAX_DBUPDATE_RETRIES):
             
@@ -674,31 +671,31 @@ class FileModificationStrategy(ResourceModificationStrategy):
 #             file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
 #             serapis2irods.serapis2irods_logic.gather_file_mdata(file_to_update)
         else:
-            print "Update finished, now retrieving the file again..."
+            print("Update finished, now retrieving the file again...")
             #file_to_update = file_logic.file_data_access.retrieve_submitted_file(subm_file.id)
             subm_file.reload()
             
-            print "Gathering metadata for the file submission..."
+            print("Gathering metadata for the file submission...")
             serapis2irods.serapis2irods_logic.get_all_file_meta_from_DB(subm_file.id, file_obj=subm_file)
             
-            print "Cheking the file status..."
+            print("Cheking the file status...")
             file_logic.check_and_update_all_file_statuses(subm_file.id, subm_file)
         
-            print "FINISHED ALL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print("FINISHED ALL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         
     
     @multimethod(WorkerSpecificFileContext)
     def process_request(self, context):
-        print "Converting unicode to string, in strategy, before anything, start converting...."
+        print("Converting unicode to string, in strategy, before anything, start converting....")
         context.request_data = self.convert(context.request_data)
         
-        print "Updating from task starting now..."
+        print("Updating from task starting now...")
         self.update_file_from_task(context)
      
     
     @multimethod(SpecificFileContext)
     def process_request(self, context):
-        print "Called SpecificFileContext process_req in file modif, context: ", vars(context)
+        print("Called SpecificFileContext process_req in file modif, context: ", vars(context))
         context.request_data = self.convert(context.request_data)
         self.validate(context.request_data)
         self.update_file_from_user(context)
@@ -854,9 +851,8 @@ class AddFileToSubmissionStrategy(ResourceHandlingStrategy):
 
     
 
-class BackendOperationsStrategy(object):
+class BackendOperationsStrategy(object, metaclass=abc.ABCMeta):
     ''' This class contains the logic for various iRODS operations.'''
-    __metaclass__ = abc.ABCMeta
     task_name = None
 
     def check_file_ready(self, context, file_obj=None):

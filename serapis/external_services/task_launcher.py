@@ -88,9 +88,8 @@ class TaskLauncherArguments(object):
         self.task_queue = task_queue
         
 
-class TaskLauncher(object):
+class TaskLauncher(object, metaclass=abc.ABCMeta):
     """ This class contains the functionality needed for submitting tasks to the queues.""" 
-    __metaclass__ = abc.ABCMeta
     
     
     @staticmethod
@@ -284,7 +283,7 @@ class TaskLauncher(object):
         # It seems to be working like this as well, I am not sure what the difference is:
         #chain_res = add_task_sign.apply_async(link=test_task_sign(**test_task_args))
         
-        print "CHAIN RESULT:::::::::::::::::::::::::::::::", chain_res
+        print("CHAIN RESULT:::::::::::::::::::::::::::::::", chain_res)
         #print "CHAIN PARENT RESULT:..........",chain_res.parent.id
         #return chain_res.parent.id
         return chain_res.id
@@ -450,9 +449,8 @@ class TaskLauncherVCFFile(TaskLauncher):
     
 
 
-class BatchTasksLauncher(object):
+class BatchTasksLauncher(object, metaclass=abc.ABCMeta):
     '''' This class contains the functionality for submitting tasks in batches to the queues.'''
-    __metaclass__ = abc.ABCMeta
     
     @abc.abstractproperty
     def task_launcher(self):
@@ -560,7 +558,7 @@ class BAMPipelineTasksLauncher(PipelineTasksLauncher):
     @classmethod
     def chain_list_of_tasks(cls, list_of_tasks, file_obj, user_id, as_serapis=True):
         res = chain(add.s(2, 2), add.s(4), add.s(8))()
-        print "RESULT OF THE CHAINNNNNNNNNNNNNNNNNNNNNNNNN: ", str(res)
+        print("RESULT OF THE CHAINNNNNNNNNNNNNNNNNNNNNNNNN: ", str(res))
     
     @classmethod
     def chain_presubmission_tasks(cls, file_obj, user_id, as_serapis=True):

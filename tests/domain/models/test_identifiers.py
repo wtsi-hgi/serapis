@@ -61,19 +61,19 @@ class TestIdentifiers(unittest.TestCase):
     def test_guess_identifier_type(self): 
         identif = 123
         id_type = identifiers.EntityIdentifier.guess_identifier_type(identif)
-        self.assertEquals(id_type, 'internal_id')
+        self.assertEqual(id_type, 'internal_id')
         
         identif = "jane"
         id_type = identifiers.EntityIdentifier.guess_identifier_type(identif)
-        self.assertEquals(id_type, 'name')
+        self.assertEqual(id_type, 'name')
         
         identif = "EGAS123"
         id_type = identifiers.EntityIdentifier.guess_identifier_type(identif)
-        self.assertEquals(id_type, 'accession_number')
+        self.assertEqual(id_type, 'accession_number')
         
         identif = "This_should_be_a_name"
         id_type = identifiers.EntityIdentifier.guess_identifier_type(identif)
-        self.assertEquals(id_type, 'name')
+        self.assertEqual(id_type, 'name')
         
         identif = None
         self.assertRaises(ValueError, identifiers.EntityIdentifier.guess_identifier_type, identif)

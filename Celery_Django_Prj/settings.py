@@ -34,7 +34,7 @@ import configs
 from serapis.com import constants
 from kombu import Exchange, Queue
 
-print "Constants found!", constants.ACCEPTED_FILE_EXTENSIONS
+print("Constants found!", constants.ACCEPTED_FILE_EXTENSIONS)
 import sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
@@ -86,7 +86,7 @@ class PredeclareRouter(object):
             queues = current_app.amqp.queues
             channel = conn.default_channel
             if celery_version >= (2, 6):
-                for queue in queues.itervalues():
+                for queue in queues.values():
                     queue(channel).declare()
 #            else:
 #                from kombu.common import entry_to_queue

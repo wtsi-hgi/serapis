@@ -180,12 +180,12 @@ class TestUtils(unittest.TestCase):
         
         
     def test_unicode2string(self):
-        task_dict={u'400f65eb-16d4-4e6b-80d5-4d1113fcfdf4': {u'status': u'SUCCESS', u'type': u'serapis.worker.tasks.UpdateFileMdataTask'}, 
-                   u'397df5da-7dd1-4068-9a67-9ebac1a64472': {u'status': u'SUCCESS', u'type': u'serapis.worker.tasks.ParseBAMHeaderTask'},
-                    u'033f350c-6961-4eb5-9b0d-5cda99dbe7e9': {u'status': u'SUCCESS', u'type': u'serapis.worker.tasks.UploadFileTask'}, 
-                   u'257da594-bc55-4735-8200-67ce9447ba0b': {u'status': u'SUCCESS', u'type': u'serapis.worker.tasks.CalculateMD5Task'}}
+        task_dict={'400f65eb-16d4-4e6b-80d5-4d1113fcfdf4': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.UpdateFileMdataTask'}, 
+                   '397df5da-7dd1-4068-9a67-9ebac1a64472': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.ParseBAMHeaderTask'},
+                    '033f350c-6961-4eb5-9b0d-5cda99dbe7e9': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.UploadFileTask'}, 
+                   '257da594-bc55-4735-8200-67ce9447ba0b': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.CalculateMD5Task'}}
         task_dict_str = utils.unicode2string(task_dict)
-        print "TASK DICT AFTER UNICODE CONVERT: %s" % repr(task_dict_str)
+        print("TASK DICT AFTER UNICODE CONVERT: %s" % repr(task_dict_str))
         self.assertDictEqual(task_dict, task_dict_str)
         
     

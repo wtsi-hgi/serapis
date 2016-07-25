@@ -56,19 +56,19 @@ def test_file_meta_pairs(tuple_list):
     for attr in UNIQUE_FIELDS:
         if attr in key_occ_dict:
             if key_occ_dict[attr] != 1:
-                print "ERROR -- field freq != 1!!!" + attr+" freq = ", key_occ_dict[attr]
+                print("ERROR -- field freq != 1!!!" + attr+" freq = ", key_occ_dict[attr])
                 return -1
         else:
-            print "ERROR -- field entirely missing!!! attr="+attr
+            print("ERROR -- field entirely missing!!! attr="+attr)
             return -1    
     
     for attr in AT_LEAST_ONE:
         if attr in key_occ_dict:
             if key_occ_dict[attr] < 1:
-                print "ERROR -- field frequency not correct!!!"+attr+" and freq: "+key_occ_dict[attr]
+                print("ERROR -- field frequency not correct!!!"+attr+" and freq: "+key_occ_dict[attr])
                 return -1
         else:
-            print "ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+key_occ_dict[attr]
+            print("ERROR: --- field entirely missing!!! attr: "+attr+" and freq:"+key_occ_dict[attr])
             return -1
             
     
@@ -113,7 +113,7 @@ def get_tuples_from_imeta_output(imeta_out):
             attr_val = line[index:]
             attr_val = attr_val.strip()
             if not attr_val:
-                print "Attribute's value is NONE!!! "+attr_name
+                print("Attribute's value is NONE!!! "+attr_name)
         
         if attr_name and attr_val:
             tuple_list.append((attr_name, attr_val))
@@ -130,13 +130,13 @@ class TestWorkerEntitiesOperations(unittest.TestCase):
                       "taxon_id": "9606"} 
                     #"organism": "Homo sapiens"}
         sample = entities.Sample.build_from_seqscape(seqsc_dict)
-        print "SAMPLE AFTER MAPPING: ", vars(sample)
+        print("SAMPLE AFTER MAPPING: ", vars(sample))
         serapis_dict = {"gender": "Male", 
                       #"common_name": "Homo Sapiens", 
                       "taxon_id": "9606", 
                       "organism": "Homo Sapiens"}
-        print "SERAPIS DICT: ", serapis_dict
-        print "Seqscape dict: ", seqsc_dict
+        print("SERAPIS DICT: ", serapis_dict)
+        print("Seqscape dict: ", seqsc_dict)
         self.assertDictEqual(serapis_dict, vars(sample))
 
 
@@ -249,7 +249,7 @@ class TestDBFct(unittest.TestCase):
                            "library" : {"LIB2" : ["library_type"], 
                                         "LIB3" : ["library_type"]}
                         }
-        print "CALLING FIND AND DELETE ----  ORganism should be missing...", missing_fields_dict
+        print("CALLING FIND AND DELETE ----  ORganism should be missing...", missing_fields_dict)
         self.assertDictEqual(must_be_dict, missing_fields_dict)
         
         
@@ -265,7 +265,7 @@ class TestDBFct(unittest.TestCase):
                                        },
                            "library" : {"LIB3" : ["library_type"]}
                         }
-        print "CALLING FIND AND DELETE ----  lib2 should be missing...", missing_fields_dict
+        print("CALLING FIND AND DELETE ----  lib2 should be missing...", missing_fields_dict)
         self.assertDictEqual(must_be_dict, missing_fields_dict)
         
         
@@ -281,7 +281,7 @@ class TestDBFct(unittest.TestCase):
                            "library" : {"LIB2" : ["library_type"], 
                                         "LIB3" : ["library_type"]}
                         }
-        print "CALLING FIND AND DELETE ----  ", missing_fields_dict
+        print("CALLING FIND AND DELETE ----  ", missing_fields_dict)
         self.assertDictEqual(must_be_dict, missing_fields_dict)
 
     
@@ -378,7 +378,7 @@ class TestController(unittest.TestCase):
                  '/home/ic4/data-test/unit-tests/err_bams/bam5.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
         res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
-        print "ERROR DICT: ", res.error_dict
+        print("ERROR DICT: ", res.error_dict)
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
                                                [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                                                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')],
@@ -391,7 +391,7 @@ class TestController(unittest.TestCase):
                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bam.bai',
                  '/home/ic4/data-test/unit-tests/err_bams/bam4.bam']
         res = controller_strategy.SubmissionCreationStrategy._associate_files_with_indexes(paths)
-        print "ERROR DICT: ", res.error_dict
+        print("ERROR DICT: ", res.error_dict)
         self.assertDictEqual(res.error_dict, {constants.INDEX_OLDER_THAN_FILE : 
                                                [('/home/ic4/data-test/unit-tests/err_bams/bam3.bam', 
                                                  '/home/ic4/data-test/unit-tests/err_bams/bam3.bai')],

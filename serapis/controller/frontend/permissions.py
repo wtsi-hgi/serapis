@@ -44,9 +44,9 @@ class HasAdminAccess(permissions.BasePermission):
     
     def has_permissions(self, request, view, obj):
         if request.user == 'admin':
-            print "THe user is an admin --- from permissions file."
+            print("THe user is an admin --- from permissions file.")
             return True
-        print "The user is not an ADMIN ...from permissions file..."
+        print("The user is not an ADMIN ...from permissions file...")
         return False
     
 
