@@ -20,28 +20,27 @@ This file has been created on Oct 26, 2014
 
 """
 
+# Not sure about the existence of this class, as it shouldn't be part of the archival system,
+# but rather part of some sort of tool for handling iRODS
+
+# NOT USED
 class FileMetadataServices:
 
     def seek_metadata(self, file_obj):
         pass
-    
-    def reseek_metadata(self, file_obj):
-        pass
-    
+
     def reset_metadata(self, file_obj):
         pass
-    
+
     def get_metadata(self, file_obj):
         pass
-    
+
     def add_avu(self, file_obj, attributes):
         pass
-    
+
     def remove_avu(self, file_obj, attributes):
         pass
-     
-    def update_metadata(self, file_obj):
+
+    def modify_avu(self, file_obj, attribute, value):
         pass
-    
-    def test_metadata(self, file_obj):
-        pass
+
