@@ -4,44 +4,55 @@ from serapis.domain.models import files, submission
 
 class FileServices:
 
-
     @staticmethod
-    @wrappers.check_args_not_none
     def stage_file(file_obj):
         irods_staging_coll = file_obj.get_irods_staging_coll_path()
         file_obj.upload_to_irods(irods_staging_coll)
         file_obj.calculate_md5()
-    
+
+    @staticmethod
     def unstage_file(self, file_obj):
         pass
-    
+
+    @staticmethod
     def restage_file(self, file_obj):
         pass
-    
-    def test_file_before_submitting(self, file_obj):
+
+    # Rename it to check_staged_file
+    @staticmethod
+    def test_file_before_submitting(file_obj):
         pass
-    
-    def test_file_after_submitting(self, file_obj):
+
+    # check_submitted_file
+    @staticmethod
+    def test_file_after_submitting(file_obj):
         pass
-    
-    def submit_file(self, file_obj):
+
+    @staticmethod
+    def submit_file(file_obj):
         pass
-    
-    def get_status(self, file_obj):
+
+    @staticmethod
+    def get_status(file_obj):
         pass
-    
-    def list_errors(self, file_obj):
-        pass
-    
-    def collect_metadata(self, path):
-        ''' This method gathers the file metadata from different sources and returns it 
-            to the user as some sort object..should also be possible to turn it into json afterwards.
+
+    # This should be part of get status
+    # @staticmethod
+    # def list_errors(file_obj):
+    #     pass
+
+    @staticmethod
+    def collect_metadata(path):
+        """
+        This method gathers the file metadata from different sources and returns it
+        to the user as some sort object..should also be possible to turn it into json afterwards.
         
-        '''
+        """
         pass
-    
-    def extract_and_gather_metadata(self, path):
-        pass
+
+    #
+    # def extract_and_gather_metadata(self, path):
+    #     pass
         
         
     # params verification
