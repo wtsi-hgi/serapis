@@ -5,38 +5,6 @@ from serapis.domain.models import files, submission
 class FileServices:
 
 
-
-#     def add_all_files_to_submission(self, input_params, submission_id):
-#         ''' input params are probably: list of files, and other data fields
-#             returns True if ok '''
-#         # for each file in list:
-#         # call add_file_to_submission which returns a file_id
-#         # add file_id to a list of file ids
-#         # update Submission obj to add all the list of files to it
-#         pass
-#     
-#     
-#     def add_file_to_submission(self, input_params, submission_id):
-#         ''' input_params: api_message.FileCreationInputMsg, Returns the file_id of the file created in DB.'''
-#         #new_file = files.SerapisFileBuilder.build(input_params, submission_id)
-#         #new_file.save()
-#         # check_file ok, then new_file.upload() OR launch the whole graph of tasks -- check_path, upload, parse header, md5, etc...
-#         # or check_File-ok and upload are the same, it's just that UploadService will throw an error if it can't upload the file...
-#         # 
-#         pass 
-    
-    
-#     @staticmethod
-#     def initialize_files(fpath_list, submission):
-#         file_objects = submission.data_set.init_all_files(fpath_list, submission)
-#         return file_objects
-    
-#     @staticmethod
-#     def initialize_file(fpath, submission):
-#         ''' Initialises a file object.'''
-#         file_obj = submission.data_set.initialize_file(fpath, submission)
-#         return file_obj
-    
     @staticmethod
     @wrappers.check_args_not_none
     def stage_file(file_obj):
@@ -115,4 +83,38 @@ class SubmissionServices(object):
         # params: irods_coll, hgi_project, submitted_user_id
         pass
     
+
+# May be of interest:
+
+
+#     def add_all_files_to_submission(self, input_params, submission_id):
+#         ''' input params are probably: list of files, and other data fields
+#             returns True if ok '''
+#         # for each file in list:
+#         # call add_file_to_submission which returns a file_id
+#         # add file_id to a list of file ids
+#         # update Submission obj to add all the list of files to it
+#         pass
+#
+#
+#     def add_file_to_submission(self, input_params, submission_id):
+#         ''' input_params: api_message.FileCreationInputMsg, Returns the file_id of the file created in DB.'''
+#         #new_file = files.SerapisFileBuilder.build(input_params, submission_id)
+#         #new_file.save()
+#         # check_file ok, then new_file.upload() OR launch the whole graph of tasks -- check_path, upload, parse header, md5, etc...
+#         # or check_File-ok and upload are the same, it's just that UploadService will throw an error if it can't upload the file...
+#         #
+#         pass
+
+
+#     @staticmethod
+#     def initialize_files(fpath_list, submission):
+#         file_objects = submission.data_set.init_all_files(fpath_list, submission)
+#         return file_objects
+
+#     @staticmethod
+#     def initialize_file(fpath, submission):
+#         ''' Initialises a file object.'''
+#         file_obj = submission.data_set.initialize_file(fpath, submission)
+#         return file_obj
     
