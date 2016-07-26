@@ -57,9 +57,12 @@ class FileServices:
     
     # stage file:
         # upload()
-        # parse_header()
-        # fetch_infor_for_study()
-        # start md5
+        # calculate md5
+        # collect metadata
+        # check if complete metadata
+        # if yes => attach metadata to file
+        # test it's all fine with file and metadata
+
         
     # unstage file:
         # delete file from DB
