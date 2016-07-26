@@ -1,48 +1,63 @@
+"""
+Copyright (C) 2014, 2016  Genome Research Ltd.
 
-from serapis.com import wrappers
-from serapis.domain.models import files, submission
+Author: Irina Colgiu <ic4@sanger.ac.uk>
+
+This program is part of serapis
+
+serapis is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+"""
 
 class FileServices:
 
     @staticmethod
-    def stage_file(file_obj):
-        pass
-        # irods_staging_coll = file_obj.get_irods_staging_coll_path()
-        # file_obj.upload_to_irods(irods_staging_coll)
-        # file_obj.calculate_md5()
-
-    @staticmethod
-    def unstage_file(file_obj):
+    def stage_file(fpath):
+        """
+        This method stages a file to the long-term storage (uploads it to a staging area).
+        :param file_obj:
+        :return:
+        """
         pass
 
     @staticmethod
-    def restage_file(file_obj):
-        pass
-
-    # Rename it to check_staged_file
-    @staticmethod
-    def check_staged_file(file_obj):
-        pass
-
-    # check_submitted_file
-    @staticmethod
-    def check_submitted_file(file_obj):
+    def unstage_file(fpath):
         pass
 
     @staticmethod
-    def submit_file(file_obj):
+    def restage_file(fpath):
         pass
 
     @staticmethod
-    def get_status(file_obj):
+    def check_staged_file(some_file_id):
         pass
 
     @staticmethod
-    def collect_metadata(path):
+    def check_submitted_file(some_file_id):
+        pass
+
+    @staticmethod
+    def submit_file(some_file_id):
+        pass
+
+    @staticmethod
+    def get_status(some_file_id):
+        pass
+
+    @staticmethod
+    def collect_metadata(fpath):
         """
         This method gathers the file metadata from different sources and returns it
-        to the user as some sort object..should also be possible to turn it into json afterwards.
-        
+        to the user as some sort of object..should also be possible to turn it into json afterwards.
         """
         pass
 
