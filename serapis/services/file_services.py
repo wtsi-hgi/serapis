@@ -6,26 +6,27 @@ class FileServices:
 
     @staticmethod
     def stage_file(file_obj):
-        irods_staging_coll = file_obj.get_irods_staging_coll_path()
-        file_obj.upload_to_irods(irods_staging_coll)
-        file_obj.calculate_md5()
+        pass
+        # irods_staging_coll = file_obj.get_irods_staging_coll_path()
+        # file_obj.upload_to_irods(irods_staging_coll)
+        # file_obj.calculate_md5()
 
     @staticmethod
-    def unstage_file(self, file_obj):
+    def unstage_file(file_obj):
         pass
 
     @staticmethod
-    def restage_file(self, file_obj):
+    def restage_file(file_obj):
         pass
 
     # Rename it to check_staged_file
     @staticmethod
-    def test_file_before_submitting(file_obj):
+    def check_staged_file(file_obj):
         pass
 
     # check_submitted_file
     @staticmethod
-    def test_file_after_submitting(file_obj):
+    def check_submitted_file(file_obj):
         pass
 
     @staticmethod
@@ -36,11 +37,6 @@ class FileServices:
     def get_status(file_obj):
         pass
 
-    # This should be part of get status
-    # @staticmethod
-    # def list_errors(file_obj):
-    #     pass
-
     @staticmethod
     def collect_metadata(path):
         """
@@ -50,11 +46,7 @@ class FileServices:
         """
         pass
 
-    #
-    # def extract_and_gather_metadata(self, path):
-    #     pass
-        
-        
+
     # params verification
         # check on all the files
         # check all params' value received for validity
