@@ -2,14 +2,13 @@
 import os
 #from serapis.external_services import services
 from . import serapis_metadata as serapis_meta_pkg
-import data_entities
 from serapis.domain.models import files
 from serapis.api import api_messages
 from serapis.com import constants, utils
 from serapis.controller import exceptions
 from serapis.external_services.call_services import CallServices
 from Celery_Django_Prj import configs
-from serapis.irods.irods_permission  import iRODSPermissions
+from serapis.storage.irods.irods_permission  import iRODSPermissions
 
 class DataSetBuilder:
     

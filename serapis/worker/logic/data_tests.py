@@ -22,14 +22,8 @@
 #################################################################################
 '''
 
-
-
 import abc
-import os, subprocess
-from collections import defaultdict, namedtuple
 
-from serapis.irods import exceptions
-from serapis.irods.irods_utils import iRODSListOperations, iRODSMetaListOperations, FileChecksumUtilityFunctions, FileListingUtilityFunctions, FileMetadataUtilityFunctions
 from serapis.com import utils, constants
         
 
@@ -39,7 +33,7 @@ from serapis.com import utils, constants
 #################### ACTUAL TESTS ##########################
 
 #TestResult = namedtuple('TestResult', ['result', 'errors', 'test_executed'])
-
+from serapis.storage.irods import exceptions
 
 
 class GeneralFileTests(object):

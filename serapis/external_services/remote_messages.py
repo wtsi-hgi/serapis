@@ -1,6 +1,5 @@
 
 from serapis.com import constants
-from serapis.irods import irods_permission
 
 ############## TASK INPUT #################################
 
