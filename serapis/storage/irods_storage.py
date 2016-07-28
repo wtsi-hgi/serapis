@@ -7,8 +7,15 @@ from serapis.storage.base import Storage
 from serapis.storage import exceptions as backend_exc
 from serapis.com import constants
 from serapis.storage.irods import api_wrapper as irods_api
-from serapis.storage.irods import exceptions as irods_exc
+#from serapis.storage.irods import _exceptions as irods_exc
+from serapis.storage import exceptions as storage_except
 
+
+from baton.api import connect_to_irods_with_baton
+from baton.models import SearchCriterion
+from baton.collections import IrodsMetadata
+
+import config
 
 class iRODSDataStorage(Storage):
 
@@ -217,14 +224,14 @@ class iRODSDataStorage(Storage):
 
 class MetadataStorage:
     @classmethod
-    def add_metadata(cls, path, avu_list):
+    def add_metadata(cls, fpath, avu_dict):
         """
         This method adds metadata given as a list of avus to the file/directory
         given by path argument.
         Parameters
         ----------
-        :param path:
-        :param avu_list:
+        :param fpath: the filepath in iRODS
+        :param avu_dict: a dict with key = str, value = set of values for that key
         path : str
         The path to the file/dir to be added metadata to
         avu_list : list
@@ -234,20 +241,25 @@ class MetadataStorage:
         FileMetadataCannotBeAdded
             If there were any avus that could not have been added.
         """
-        errors = {}
-        for avu in avu_list:
-            try:
-                irods_api.iRODSMetaAddOperations.add_avu(path, avu)
-            except irods_exc.iMetaException as e:
-                exc = cls._map_irods_exc_on_backend_exc(e)
-                errors[avu].append(str(exc))
-        if errors:
-            raise backend_exc.FileMetadataCannotBeAdded(values=list(errors.keys()), reasons=errors)
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection.data_object.metadata().add(fpath, IrodsMetadata(avu_dict))
+        except Exception as e:
+            storage_except.FileMetadataCannotBeAdded(reasons=e)
+        return True
+
 
     @classmethod
-    def get_metadata(cls, path):
-        # baton-wrapper
-        pass
+    def get_metadata(cls, fpath):
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            data_object = connection.data_object.get_by_path(fpath)
+        except Exception as e:
+            if str(e).find('KRB_ERROR_ACQUIRING_CREDS') != -1:
+                raise storage_except.AcquiringCredentialsOnStorageException("ERROR: you need to log into iRODS and aquire the KERBEROS credentials.")
+            else:
+                raise e
+        return data_object.metadata.items() if data_object else []
 
     @classmethod
     def update_metadata(self, old_kv, new_kv):
@@ -256,7 +268,7 @@ class MetadataStorage:
 
 
     @classmethod
-    def remove_metadata(cls, path, avu_list):
+    def remove(cls, path, avu_dict):
         """ This method removes metadata given as a list of avus to the file/directory
             given by path argument.
             Parameters
@@ -270,17 +282,26 @@ class MetadataStorage:
             FileMetadataCannotBeRemoved
                 If there were any avus that could not have been removed.
         """
-        errors = {}
-        for avu in avu_list:
-            try:
-                irods_api.iRODSMetaRMOperations.remove_avu(path, avu)
-            except irods_exc.iMetaException as e:
-                exc = cls._map_irods_exc_on_backend_exc(e)
-                errors[avu].append(str(exc))
-        if errors:
-            raise backend_exc.FileMetadataCannotBeRemoved(values=list(errors.keys()), reasons=errors)
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection.data_object.metadata.remove(path, IrodsMetadata(avu_dict))
+        except Exception as e:
+            raise storage_except.FileMetadataCannotBeRemoved(e)
+        return True
 
-
+    @classmethod
+    def remove_all(cls, path):
+        """
+        This method removes all the metadata associated to a file.
+        :param path: file path (data object path)
+        :return:
+        """
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection.data_object.metadata.remove_all(path)
+        except Exception as e:
+            raise storage_except.FileMetadataCannotBeRemoved(e)
+        return True
 
 
     @classmethod
@@ -316,7 +337,7 @@ class MetadataStorage:
         if back_exc is not None:
             return back_exc(irods_exc.output)
         print("WARNING! There wasn't any exception found for this string: "+str(irods_exc.error)+" Returning a general BackendException..")
-        return backend_exc.BackendException(irods_exc.error)
+        return backend_exc.StorageException(irods_exc.error)
 
 
 
