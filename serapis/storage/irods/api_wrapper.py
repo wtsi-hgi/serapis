@@ -48,12 +48,11 @@ This file has been created on Oct 27, 2014
 
 import os
 import subprocess
-from . import exceptions
-from collections import defaultdict, namedtuple
-from multimethods import multimethod
 
+from . import exceptions
 from serapis.com import constants, utils, wrappers
-from serapis.irods import data_types as irods_types
+
+
 
 
 ######################## DATA STRUCTURES ###############################
@@ -61,6 +60,8 @@ from serapis.irods import data_types as irods_types
 
 
 ######################## UTILS ##########################################
+from serapis.storage.irods import data_types as irods_types
+
 
 def assemble_new_irods_fpath(fpath, irods_coll):
     ''' 

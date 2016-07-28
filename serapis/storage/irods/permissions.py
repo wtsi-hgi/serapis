@@ -22,7 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from serapis.com import constants
 from serapis.storage.permissions import Permissions
-from .usr_or_grp import iRODSUserOrGroup
+from .serapis.storage.irods.usr_or_grp import iRODSUserOrGroup
 
 class iRODSPermissions(Permissions):
     ''' An iRODSPermission inherits from Permissions the following fields:
