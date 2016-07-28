@@ -23,7 +23,7 @@ import subprocess
 
 from serapis.com import utils, constants
 from Celery_Django_Prj import configs
-from serapis.storage.irods import exceptions
+from serapis.storage.irods import _exceptions
 
 
 class BatonHelperFunctions:
@@ -60,7 +60,7 @@ class iRODSMetadataOperations:
         (out, err) = child_proc.communicate()
         if err:
             print("ERROR IMETA of file: ", file_path_irods, " err=",err," out=", out)
-            raise exceptions.iRODSFileMetadataNotStardardException(err, out, cmd="Command = imeta ls -d "+file_path_irods)
+            raise _exceptions.iRODSFileMetadataNotStardardException(err, out, cmd="Command = imeta ls -d "+file_path_irods)
         return out
         #return convert_imeta_result_to_tuples(out)
 
@@ -72,7 +72,7 @@ class iRODSMetadataOperations:
         if err:
             print("ERROR imeta ls -d ", fpath_irods)
         elif out.find('does not exist') != -1 or out.find("None") != -1:
-            raise exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have "+key+" in its metadata.", cmd="imeta ls -d "+fpath_irods)
+            raise _exceptions.iRODSFileMetadataNotStardardException(out, "This file doesn't have "+key+" in its metadata.", cmd="imeta ls -d "+fpath_irods)
         else:
             #print "OUT: ", out, "ERR: ", err, "Problematic file: ", fpath_irods
             # TODO: throw an exception if the length of data_line_items is less than 2p (probably). Otherwise I will never know...
@@ -98,7 +98,7 @@ class iRODSMetadataOperations:
         if err:
             print("ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out, "KEY=", key, "VALUE=",value)
             if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
-                raise exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
+                raise _exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
         
     @staticmethod    
     def remove_kv_pair_with_imeta(fpath_irods, key, value):
@@ -115,7 +115,7 @@ class iRODSMetadataOperations:
         if err:
             print("ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error text is: ", err, " output: ",out)
             if not err.find(constants.CAT_INVALID_ARGUMENT):
-                raise exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
+                raise _exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
     
 #      jq -n '{collection: "test", data_object: "a.txt",      \
 #                "avus": [{attribute: "x", value: "y"},   \
@@ -134,7 +134,7 @@ class iRODSMetadataOperations:
         (out, err) = child_proc.communicate()
         if err:
             print("Baton adding all the metadata to the files FAILED with:ERR="+str(err)+" and OUT="+out)
-            raise exceptions.iMetaException(err=err, out, cmd="jq -n <metadata> | baton --operation add")
+            raise _exceptions.iMetaException(err=err, out, cmd="jq -n <metadata> | baton --operation add")
         return True
 #         for attr_val in list_of_tuples:
 #             attr = str(attr_val[0])

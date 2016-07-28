@@ -24,7 +24,7 @@
 
 import unittest
 
-from serapis.storage.irods import exceptions
+from serapis.storage.irods import _exceptions
 from serapis.worker import data_tests
 
 #from serapis.worker.data_tests import * 
@@ -64,18 +64,18 @@ class TestFunctions(unittest.TestCase):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/same_resc_test.txt'
         #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
-        self.assertRaises(exceptions.FileNotBackedupOnBothRescGrps, data_tests.GeneralFileTests.check_replicas_by_resource, replicas)
+        self.assertRaises(_exceptions.FileNotBackedupOnBothRescGrps, data_tests.GeneralFileTests.check_replicas_by_resource, replicas)
         
     def test_check_replicas_by_number(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
         #replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
-        self.assertRaises(exceptions.FileHasTooManyReplicasException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
+        self.assertRaises(_exceptions.FileHasTooManyReplicasException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
         
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/no_replica_test.txt'
         replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
 #        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
-        self.assertRaises(exceptions.FileMissingReplicaException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
+        self.assertRaises(_exceptions.FileMissingReplicaException, data_tests.GeneralFileTests.check_replicas_by_number, replicas)
         
     
     def test_check_replicas_are_paired(self):
@@ -87,7 +87,7 @@ class TestFunctions(unittest.TestCase):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/md5-check.out'
 #        replicas = data_tests.GeneralFileTests.get_file_replicas(irods_path)
         replicas = FileListingUtilityFunctions.list_all_file_replicas(irods_path)
-        self.assertRaises(exceptions.FileReplicaNotPairedException, data_tests.GeneralFileTests.check_replicas_are_paired, replicas)
+        self.assertRaises(_exceptions.FileReplicaNotPairedException, data_tests.GeneralFileTests.check_replicas_are_paired, replicas)
         
     
     def test_compare_fofn(self):
@@ -130,12 +130,12 @@ class TestFunctions(unittest.TestCase):
     
     def test_compare_file_md5(self):
         irods_file_path = '/humgen/projects/serapis_staging/test-coll/unittest-data-checks/compare_meta_md5_with_calc.txt'
-        self.assertRaises(exceptions.DifferentFileMD5sException, data_tests.GeneralFileTests.checksum_file_and_compare_md5s, irods_file_path)
+        self.assertRaises(_exceptions.DifferentFileMD5sException, data_tests.GeneralFileTests.checksum_file_and_compare_md5s, irods_file_path)
         
         
     def test_checksum_all_replicas(self):
         irods_file_path = '/humgen/projects/serapis_staging/md5-check.out'
-        self.assertRaises(exceptions.DifferentFileMD5sException, data_tests.GeneralFileTests.checksum_all_replicas, irods_file_path)
+        self.assertRaises(_exceptions.DifferentFileMD5sException, data_tests.GeneralFileTests.checksum_all_replicas, irods_file_path)
 
 
     def test_get_tuples_from_imeta_output(self):
