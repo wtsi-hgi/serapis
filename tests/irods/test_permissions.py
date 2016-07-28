@@ -4,9 +4,9 @@ Created on Oct 28, 2014
 @author: ic4
 '''
 import unittest
-from serapis.com import constants
-from serapis.irods import permissions
 
+from serapis.com import constants
+from serapis.storage.irods import permissions
 
 
 class TestiRODSPermissions(unittest.TestCase):

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2014  Genome Research Ltd.
+Copyright (C) 2013, 2014  Genome Research Ltd.
 
 Author: Irina Colgiu <ic4@sanger.ac.uk>
 
@@ -21,54 +21,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 27, 2014
 """
 
-
-
-#################################################################################
-#
-# Copyright (c) 2013 Genome Research Ltd.
-# 
-# Author: Irina Colgiu <ic4@sanger.ac.uk>
-# 
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 3 of the License, or (at your option) any later
-# version.
-# 
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
-# details.
-# 
-# You should have received a copy of the GNU General Public License along with
-# this program. If not, see <http://www.gnu.org/licenses/>.
-# 
-#################################################################################
-
-
-
 import os
 import subprocess
-
 from . import exceptions
 from serapis.com import constants, utils, wrappers
-
-
-
-
-######################## DATA STRUCTURES ###############################
-
-
-
-######################## UTILS ##########################################
 from serapis.storage.irods import data_types as irods_types
 
 
 def assemble_new_irods_fpath(fpath, irods_coll):
-    ''' 
+    """
         This function puts together the new file path of a file which has been moved
         or copied from fpath to an irods collection, where fpath is a non-irods storage resource
         (e.g. lustre).
-    '''
+    """
     fname = utils.extract_fname(fpath)
     return os.path.join(irods_coll, fname)
 # 
@@ -84,10 +49,10 @@ def assemble_new_irods_fpath(fpath, irods_coll):
 ######################## ICOMMANDS CALLING FUNCTIONS #####################
 
 class iRODSOperations(object):
-    '''
-        This is an abstract class, parent of all the classes implementing 
+    """
+        This is an abstract class, parent of all the classes implementing
         wrappers around the icommands.
-    '''
+    """
     @classmethod
     def _build_icmd_args(cls, cmd_name, args_list, options=[]):
         cmd_list = [cmd_name]
@@ -115,13 +80,13 @@ class iRODSListOperations(iRODSOperations):
     @classmethod
     @wrappers.check_args_not_none
     def _run_ils_long(cls, path):
-        ''' This function runs ils -l command on a file path and returns a list of lines
+        """ This function runs ils -l command on a file path and returns a list of lines
             received as result, which correspond each to a file replica:
             e.g.
              '  serapis           1 irods-ddn-rd10a-4           14344 2014-03-11.18:43   md5-check.out'
                 serapis           2 irods-ddn-gg07-2           217896 2014-03-12.11:42 & md5-check.out'
-             
-        '''
+
+        """
         cmd_args = cls._build_icmd_args('ils', [path], ['-l'])
         try:
             return cls._run_icmd(cmd_args)
@@ -172,22 +137,22 @@ class iRODSListOperations(iRODSOperations):
     @classmethod
     @wrappers.check_args_not_none
     def _process_icmd_output(cls, output):
-        ''' This function returns a CollListing object, which contains a list of FileLine and a list of CollLine.
+        """ This function returns a CollListing object, which contains a list of FileLine and a list of CollLine.
             Parameters
             ----------
             ils -l output, which looks like this:
                 "    /Sanger1/home/ic4:\n  ic4               0 wtsiusers                 8265360 2014-03-05.13:24 & egpg5306007.bam.bai\n  ic4               0 wtsiusers                    5371 2013-07-25.11:40 & imp-cluster2.txt\n  ic4               0 wtsiusers                    3696 2014-02-05.11:46 & users.txt\n  C- /Sanger1/home/ic4/test-dir\n "
             Returns
             -------
-            list of CollListing 
-                consisting of a list of FileLine and a list of strings corresponding to 
+            list of CollListing
+                consisting of a list of FileLine and a list of strings corresponding to
             Throws
             ------
             iLSException
                 if the collection doesn't exist or the user is not allowed to ils it
             UnexpectedIRODSiCommandOutputException
                 if there is something unusual about the ils output.
-        '''
+        """
         out_lines = output.split('\n')[1:]
         clean_lines = [f.strip() for f in out_lines]
         clean_lines = [_f for _f in clean_lines if _f]
@@ -201,13 +166,13 @@ class iRODSListOperations(iRODSOperations):
     @classmethod
     @wrappers.check_args_not_none
     def list_files_in_coll(cls, path):
-        ''' 
+        """
             This method lists all the files and collections in the collection given as parameter.
             Returns
             -------
-            irods_types.CollListinglist 
+            irods_types.CollListinglist
                 A list of irods_types.FileLine and a list of irods_types.CollLine
-        '''
+        """
         output = cls._run_ils_long(path)
         print("OUTPUT from list_files_in_coll: "+str(output))
         return cls._process_icmd_output(output)
@@ -216,10 +181,10 @@ class iRODSListOperations(iRODSOperations):
     @classmethod    
     @wrappers.check_args_not_none
     def list_files_full_path_in_coll(cls, path):
-        ''' 
+        """
             This function returns a list of files' full path of all
             the files in the collection provided as parameter.
-        '''
+        """
         file_lines = cls.list_files_in_coll(path).file_lines
         file_names = [f.fname for f in file_lines]
         return [os.path.join(path, fname) for fname in file_names]
@@ -228,13 +193,13 @@ class iRODSListOperations(iRODSOperations):
     @classmethod
     @wrappers.check_args_not_none
     def list_all_file_replicas(cls, path):
-        ''' 
+        """
             Lists all file replicas of the file given by its path.
             Returns
             -------
-            list of irods_types.FileLine - each corresponding to a file replica 
-            
-        '''
+            list of irods_types.FileLine - each corresponding to a file replica
+
+        """
         #output = cls._get_ilsl_output(path)
         output = cls._run_ils_long(path)
         files_and_colls = cls._process_icmd_output(output)
@@ -245,7 +210,7 @@ class iRODSRMOperations(iRODSOperations):
     
     @classmethod
     def _run_irm(cls, path, options):
-        ''' This method runs irm command for removing either a file or a collection.'''
+        """ This method runs irm command for removing either a file or a collection."""
         cmd_args = cls._build_icmd_args('irm', [path], options)
         try:
             cls._run_icmd(cmd_args)
@@ -267,14 +232,14 @@ class iRODSRMOperations(iRODSOperations):
     #@Warning("force is not implemented!")
     @classmethod
     def remove_file(cls, path, force=False):
-        ''' 
+        """
             This function removes the file given as parameter from irods.
             Params:
                 - file path in irods
                 - force -- to force-remove the file - without putting it into trash
             Throws:
                 - iRMException if something goes wrong during the file removal.
-        '''
+        """
 #         if force:        # -f means Immediate removal of data-objects without putting them in trash
 #             icmd_args.append("-f")
         return cls._run_irm(path)
@@ -282,10 +247,10 @@ class iRODSRMOperations(iRODSOperations):
         
     @classmethod
     def remove_coll(cls, path):
-        ''' 
-            This function deletes the collection given as parameter 
-            and all the files in it if the user has permissions. 
-        '''
+        """
+            This function deletes the collection given as parameter
+            and all the files in it if the user has permissions.
+        """
         return cls._run_irm(path, ['-r'])
   
   

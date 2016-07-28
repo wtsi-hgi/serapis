@@ -24,15 +24,12 @@
 
 import unittest
 
-import hamcrest
-
+from serapis.storage.irods import exceptions
 from serapis.worker import data_tests
-#from serapis.worker.data_tests import * 
-from serapis.irods import exceptions
-from serapis.irods.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
-from serapis.com import utils
 
-from serapis.worker.data_tests import TestResult
+#from serapis.worker.data_tests import * 
+from serapis.storage.irods.irods_utils import FileListingUtilityFunctions, FileMetadataUtilityFunctions
+from serapis.com import utils
 
 
 class TestFunctions(unittest.TestCase):

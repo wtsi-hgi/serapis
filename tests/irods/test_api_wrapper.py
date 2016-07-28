@@ -4,11 +4,12 @@ Created on Oct 28, 2014
 @author: ic4
 '''
 import unittest
+
 import mock
-import serapis.irods.api_wrapper
 import serapis.irods.api_wrapper as irods_api
-from serapis.irods import data_types as irods_types
 from serapis.irods import exceptions as irods_exc
+from serapis.storage.irods import data_types as irods_types
+
 
 def run_ils_fake1(output):
     m = mock.Mock()
