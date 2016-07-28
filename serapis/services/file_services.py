@@ -34,7 +34,13 @@ class FileServices:
         pass
 
     @staticmethod
-    def restage_file(fpath):
+    def restage_file(fpath, some_sort_of_file_id):
+        """
+        Given a previous try to stage a file that failed, now I want to replace the staged file with a new one,
+        most likely having the same name.
+        :param either fpath or file_id
+        :return:
+        """
         pass
 
     @staticmethod

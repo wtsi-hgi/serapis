@@ -8,8 +8,8 @@ from serapis.com import constants
 
 
 class Storage(object):
-    
-    
+
+    # TODO: make all these class methods
     def get_file_permissions(self):
         pass
     
@@ -23,20 +23,20 @@ class Storage(object):
         pass
     
     
-#     def upload_file(self):
-#         ''' This function uploads a file from a different FS, into this FS.'''
-#         pass
-#     
-#     def upload_dir(self):
-#         pass
-#     
+    def upload_file(self):
+        """ This function uploads a file from a different FS, into this FS."""
+        pass
+
+    def upload_dir(self):
+        pass
+
     
     def copy_file(self):
-        ''' This method copies a file within the same storage system'''
+        """ This method copies a file within the same storage system"""
         pass
     
     def copy_dir(self):
-        ''' This method copies a directory from one location to another within the same storage system'''
+        """ This method copies a directory from one location to another within the same storage system"""
         pass
     
     def move_file(self):
@@ -66,9 +66,7 @@ class Storage(object):
     def is_file(self):
         pass
     
-#     def checksum_file(self):
-#         pass
-    
+
     def checksum_file(self, path, checksum_type='md5'):
         pass
     
