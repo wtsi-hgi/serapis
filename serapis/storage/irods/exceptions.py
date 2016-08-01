@@ -27,7 +27,7 @@ class IrodsException(Exception):
 class ACLRetrievalException(IrodsException):
     pass
 
-class ACLSettingException(IrodsException):
+class ACLModificationException(IrodsException):
     pass
 
 
