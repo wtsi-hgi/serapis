@@ -3,6 +3,7 @@ Created on Oct 24, 2014
 
 @author: ic4
 '''
+from serapis import config
 from serapis.storage.base import Storage
 from serapis.storage import exceptions as backend_exc
 from serapis.com import constants
@@ -10,12 +11,6 @@ from serapis.storage.irods import _api_wrapper as irods_api
 #from serapis.storage.irods import _exceptions as irods_exc
 from serapis.storage import exceptions as storage_except
 
-
-from baton.api import connect_to_irods_with_baton
-from baton.models import SearchCriterion, User, AccessControl
-from baton.collections import IrodsMetadata
-
-import config
 
 class iRODSDataStorage(Storage):
 
