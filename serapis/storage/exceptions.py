@@ -10,6 +10,10 @@ class StorageException(exceptions.SerapisException):
     pass
 
 
+class ACLRetrievalException(exceptions.SerapisException):
+    pass
+
+
 class AcquiringCredentialsOnStorageException(exceptions.SerapisException):
     """ Exception raised when the user running the code hasn't authenticated into iRODS beforehands."""
     def __init__(self, values=[], message='No access'):
