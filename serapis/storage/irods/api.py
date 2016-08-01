@@ -21,38 +21,48 @@ This file has been created on Aug 01, 2016.
 
 
 class IrodsEntityAPI:
-    def get_acls(self):
+    @classmethod
+    def get_acls(cls):
         pass
 
-    def set_acls(self):
+    @classmethod
+    def set_acls(cls):
         pass
 
-    def upload(self):
+    @classmethod
+    def upload(cls):
         pass
 
-    def copy(self):
+    @classmethod
+    def copy(cls):
         pass
 
-    def move(self):
+    @classmethod
+    def move(cls):
         pass
 
-    def remove(self):
+    @classmethod
+    def remove(cls):
         pass
 
 
 class CollectionAPI(IrodsEntityAPI):
-    def create(self):
+    @classmethod
+    def create(cls):
         pass
 
-    def list_contents(self):
+    @classmethod
+    def list_contents(cls):
         pass
 
 
 class DataObjectAPI:
-    def checksum(self, path, checksum_type='md5'):
+    @classmethod
+    def checksum(cls, path, checksum_type='md5'):
         pass
 
-    def get_checksum(self, path):
+    @classmethod
+    def get_checksum(cls, path):
         pass
 
 
@@ -66,7 +76,7 @@ class MetadataAPI:
         pass
 
     @classmethod
-    def update(self, old_kv, new_kv):
+    def update(cls, old_kv, new_kv):
         # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
         pass
 
