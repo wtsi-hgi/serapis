@@ -20,7 +20,7 @@ This file has been created on Aug 01, 2016.
 """
 
 
-class IrodsEntity:
+class IrodsEntityAPI:
     def get_acls(self):
         pass
 
@@ -40,7 +40,7 @@ class IrodsEntity:
         pass
 
 
-class Collection(IrodsEntity):
+class CollectionAPI(IrodsEntityAPI):
     def create(self):
         pass
 
@@ -48,7 +48,7 @@ class Collection(IrodsEntity):
         pass
 
 
-class DataObject:
+class DataObjectAPI:
     def checksum(self, path, checksum_type='md5'):
         pass
 
@@ -56,7 +56,7 @@ class DataObject:
         pass
 
 
-class Metadata:
+class MetadataAPI:
     @classmethod
     def add(cls, fpath, avu_dict):
         pass
