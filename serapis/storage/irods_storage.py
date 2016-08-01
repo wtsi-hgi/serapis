@@ -6,13 +6,13 @@ Created on Oct 24, 2014
 from serapis.storage.base import Storage
 from serapis.storage import exceptions as backend_exc
 from serapis.com import constants
-from serapis.storage.irods import api_wrapper as irods_api
+from serapis.storage.irods import _api_wrapper as irods_api
 #from serapis.storage.irods import _exceptions as irods_exc
 from serapis.storage import exceptions as storage_except
 
 
 from baton.api import connect_to_irods_with_baton
-from baton.models import SearchCriterion
+from baton.models import SearchCriterion, User, AccessControl
 from baton.collections import IrodsMetadata
 
 import config
@@ -20,19 +20,33 @@ import config
 class iRODSDataStorage(Storage):
 
     @classmethod
-    def get_file_permissions(cls):
-        # done with baton-wrapper (currently implemented)
-        pass
+    def _get_permissions(cls, path):
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection.data_object.access_control.get_all(path)
+        except Exception as e:
+            raise storage_except.ACLRetrievalException() from e
+        return True
+
+
+    @classmethod
+    def get_file_permissions(cls, fpath):
+        return cls._get_permissions(fpath)
     
     @classmethod
-    def get_dir_permissions(cls):
-        # done with baton-wrapper (currently implemented)
-        pass
+    def get_dir_permissions(cls, path):
+        return cls._get_permissions(path)
     
     @classmethod
-    def set_file_permissions(cls):
+    def set_file_permissions(cls, fpath, user, zone, permission):
         # done with baton-wrapper (currently implemented)
-        pass
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            acl = AccessControl(User(user, zone), )
+            connection.data_object.access_control.add_or_replace(fpath)
+        except Exception as e:
+            raise storage_except.ACLRetrievalException() from e
+        return True
     
     @classmethod
     def set_dir_permissions(cls):
