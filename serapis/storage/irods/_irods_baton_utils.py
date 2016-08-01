@@ -27,8 +27,8 @@ from serapis.storage.irods import _exceptions
 
 
 class BatonHelperFunctions:
-    
-    
+
+
 #     {"collection": "/unit/home/user",
 #        "avus": [{"attribute": "a", "value": "b", "units": "c"},
 #                 {"attribute": "m", "value": "n"},
@@ -40,7 +40,7 @@ class BatonHelperFunctions:
         for tupl in tuples_list:
             avus.append({"attribute": tupl[0], "value": tupl[1]})
         return avus
-    
+
     @staticmethod
     def from_tuples_to_baton_format(tuples_list, fpath_irods):
         data_object = utils.extract_fname(fpath_irods)
@@ -49,11 +49,11 @@ class BatonHelperFunctions:
         avus = BatonHelperFunctions.from_tuples_to_avus(tuples_list)
         baton_metadata["avus"] = avus
         return baton_metadata
-        
-        
+
+
 
 class iRODSMetadataOperations:
-    
+
     @staticmethod
     def get_file_meta_from_irods(file_path_irods):
         child_proc = subprocess.Popen(["imeta", "ls","-d", file_path_irods], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -82,10 +82,10 @@ class iRODSMetadataOperations:
             val = data_line_items[1]
         return val
 
-    
+
     @staticmethod
     def add_kv_pair_with_imeta(fpath_irods, key, value):
-        ''' 
+        '''
             This function adds a metadata key-value to the file given by path.
             Params:
                 - file path in irods
@@ -99,10 +99,10 @@ class iRODSMetadataOperations:
             print("ERROR IMETA of file: ", fpath_irods, " err=",err," out=", out, "KEY=", key, "VALUE=",value)
             if not err.find(constants.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME):
                 raise _exceptions.iMetaException(err, out, cmd="imeta add -d "+fpath_irods+" "+key+" "+value)
-        
-    @staticmethod    
+
+    @staticmethod
     def remove_kv_pair_with_imeta(fpath_irods, key, value):
-        ''' 
+        '''
             This function removes the metadata key-value given from the file metadata.
             Params:
                 - file path in irods
@@ -116,15 +116,15 @@ class iRODSMetadataOperations:
             print("ERROR -- imeta in ROLLBACK file path: ",fpath_irods, " error text is: ", err, " output: ",out)
             if not err.find(constants.CAT_INVALID_ARGUMENT):
                 raise _exceptions.iMetaException(err, out, cmd="imeta rm -d "+fpath_irods+" "+key+" "+value)
-    
+
 #      jq -n '{collection: "test", data_object: "a.txt",      \
 #                "avus": [{attribute: "x", value: "y"},   \
 #                         {attribute: "m", value: "n"}]}' | baton-metamod --operation add
-    @staticmethod    
+    @staticmethod
     def add_all_kv_pairs_with_imeta(fpath_irods, tuples_list):
         ''' Adds all the key-value tuples as metadata to the file received as param.
             Params:
-                - irods file path 
+                - irods file path
                 - a list of key-value tuples containing the metadata for this file.
             Throws:
                 - iMetaException if an error occurs while adding a k-v tuple
@@ -142,11 +142,11 @@ class iRODSMetadataOperations:
 #             if attr and val:
 #                 iRODSMetadataOperations.add_kv_pair_with_imeta(fpath_irods, attr, val)
 #         return True
-                
-    @staticmethod            
+
+    @staticmethod
     def remove_all_kv_pairs_with_imeta(fpath_irods, list_of_tuples):
-        ''' 
-            This function removes all the key-value metadata pairs 
+        '''
+            This function removes all the key-value metadata pairs
             from the file metadata using imeta command.
             Params:
                 - irods file path
@@ -160,7 +160,7 @@ class iRODSMetadataOperations:
             if attr and val:
                 iRODSMetadataOperations.remove_kv_pair_with_imeta(fpath_irods, attr, val)
         return True
-    
-    
-    
+
+
+
     
