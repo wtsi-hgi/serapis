@@ -8,7 +8,7 @@ import unittest
 import mock
 import serapis.irods.api_wrapper as irods_api
 from serapis.irods import exceptions as irods_exc
-from serapis.storage.irods import data_types as irods_types
+from serapis.storage.irods import _data_types as irods_types
 
 
 def run_ils_fake1(output):
