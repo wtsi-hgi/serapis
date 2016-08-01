@@ -18,43 +18,80 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Aug 01, 2016.
 """
-
+from serapis import config
 from serapis.storage.irods.api import IrodsEntityAPI, CollectionAPI, DataObjectAPI, MetadataAPI
+from serapis.storage.irods.exceptions import ACLRetrievalException
+from serapis.storage.irods.entities import ACL
+
+from baton.api import connect_to_irods_with_baton
+from baton.models import SearchCriterion, User, AccessControl
+from baton.collections import IrodsMetadata
 
 
 class BatonIrodsEntityAPI(IrodsEntityAPI):
-    def get_acls(self):
-        pass
+    @classmethod
+    def _get_acls(cls, path: str):
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection.data_object.access_control.get_all(path)
+        except Exception as e:
+            raise ACLRetrievalException from e
+        return True
 
-    def set_acls(self):
-        pass
+    @classmethod
+    def get_acls(cls, path: str):
+        return cls._get_acls(path)
 
-    def upload(self):
-        pass
+    @classmethod
+    def set_acls(cls, path: str, acl):
+        """
+        This method sets acls
+        :param path:
+        :param acl: an ACL object of type serapis.storage.irods.entities.ACL
+        :return:
+        """
+        try:
+            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            acl = AccessControl(User(acl.user, acl.zone), acl.permission)
+            connection.data_object.access_control.add_or_replace(path, acl)
+        except Exception as e:
+            raise ACLRetrievalException() from e
+        return True
 
-    def copy(self):
-        pass
+    @classmethod
+    def upload(cls):
+        raise NotImplementedError("BATON does not support upload at the moment.")
 
-    def move(self):
-        pass
+    @classmethod
+    def copy(cls):
+        raise NotImplementedError("BATON does not support copy operation at the moment.")
 
-    def remove(self):
-        pass
+    @classmethod
+    def move(cls):
+        raise NotImplementedError("BATON does not support move operation at the moment.")
+
+    @classmethod
+    def remove(cls):
+        raise NotImplementedError("BATON does not support remove operation at the moment.")
 
 
 class BatonCollectionAPI(CollectionAPI):
-    def create(self):
+    @classmethod
+    def create(cls):
         pass
 
-    def list_contents(self):
+    @classmethod
+    def list_contents(cls):
         pass
 
 
 class BatonDataObjectAPI(DataObjectAPI):
-    def checksum(self, path, checksum_type='md5'):
+    @classmethod
+    def checksum(cls, path, checksum_type='md5'):
         pass
 
-    def get_checksum(self, path):
+    @classmethod
+    def get_checksum(cls, path):
         pass
 
 
@@ -68,7 +105,7 @@ class BatonMetadataAPI(MetadataAPI):
         pass
 
     @classmethod
-    def update(self, old_kv, new_kv):
+    def update(cls, old_kv, new_kv):
         # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
         pass
 
