@@ -28,7 +28,7 @@ from hamcrest import *
 
 
 #from serapis.irods.irods_utils import FileListingUtilityFunctions, DataObjectUtilityFunctions
-from serapis.storage.irods import _exceptions
+from serapis.storage.irods import exceptions
 
 
 @unittest.skip
@@ -53,5 +53,5 @@ class TestFileListingUtilityFunctions(unittest.TestCase):
     def test_list_files_full_path_in_coll2(self):
         irods_path = '/humgen/projects/serapis_staging/test-coll/unittest-nonexisting'
         assert_that(calling(FileListingUtilityFunctions.list_files_full_path_in_coll).with_args(irods_path), raises(
-            _exceptions.iLSException))
+            exceptions.iLSException))
         
