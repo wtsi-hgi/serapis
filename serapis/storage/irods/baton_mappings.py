@@ -20,13 +20,16 @@ This file has been created on Aug 02, 2016.
 """
 
 from serapis.storage.irods.entities import ACL
+from baton.models import AccessControl, User
 
 class ACLMapping:
 
     @staticmethod
-    def from_baton(baton_acls):
-        result = []
-        for acl in baton_acls:
-            new_acl = ACL(user=acl.user.name, zone=acl.user.zone, permission=acl.level.name)
-            result.append(new_acl)
-        return result
+    def from_baton(acl):
+        return ACL(user=acl.user.name, zone=acl.user.zone, permission=acl.level.name)
+
+    @staticmethod
+    def to_baton(acl):
+        permission = getattr(AccessControl.Level, acl.permission)
+        return AccessControl(User(acl.user, acl.zone), permission)
+
