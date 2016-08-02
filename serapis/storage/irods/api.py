@@ -77,7 +77,6 @@ class MetadataAPI:
 
     @classmethod
     def update(cls, old_kv, new_kv):
-        # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
         pass
 
     @classmethod
