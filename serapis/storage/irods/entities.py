@@ -32,4 +32,10 @@ class ACL:
     def __hash__(self):
         return hash(self.user) + hash(self.zone) + hash(self.permission)
 
+    def __str__(self):
+        return "User: " + str(self.user) + ", zone: " + str(self.zone) + ", permission: " + str(self.permission)
+
+    def __repr__(self):
+        return self.__str__()
+
 
