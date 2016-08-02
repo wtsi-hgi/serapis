@@ -19,10 +19,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
-from serapis.storage.irods.api import IrodsEntityAPI, CollectionAPI, DataObjectAPI, MetadataAPI
+from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
 
 
-class ICmdsIrodsEntityAPI(IrodsEntityAPI):
+class ICmdsBasicAPI(IrodsBasicAPI):
     def get_acls(self):
         pass
 

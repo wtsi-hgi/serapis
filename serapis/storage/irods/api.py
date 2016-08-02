@@ -20,7 +20,7 @@ This file has been created on Aug 01, 2016.
 """
 
 
-class IrodsEntityAPI:
+class IrodsBasicAPI:
     @classmethod
     def get_acls(cls):
         pass
@@ -46,7 +46,7 @@ class IrodsEntityAPI:
         pass
 
 
-class CollectionAPI(IrodsEntityAPI):
+class CollectionAPI(IrodsBasicAPI):
     @classmethod
     def create(cls):
         pass

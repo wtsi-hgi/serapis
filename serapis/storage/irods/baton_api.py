@@ -19,24 +19,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 from serapis import config
-from serapis.storage.irods.api import IrodsEntityAPI, CollectionAPI, DataObjectAPI, MetadataAPI
+from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
 from serapis.storage.irods.exceptions import ACLRetrievalException
 from serapis.storage.irods.entities import ACL
+from serapis.storage.irods.baton_mappings import ACLMapping
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
 from baton.collections import IrodsMetadata
 
 
-class BatonIrodsEntityAPI(IrodsEntityAPI):
+class BatonBasicAPI(IrodsBasicAPI):
+    BATON_BIN_PATH = config.BATON_BIN
+
     @classmethod
     def _get_acls(cls, path: str):
         try:
-            connection = connect_to_irods_with_baton(config.BATON_BIN)
-            connection.data_object.access_control.get_all(path)
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            acls = connection.data_object.access_control.get_all(path)
         except Exception as e:
             raise ACLRetrievalException from e
-        return True
+        return ACLMapping.from_baton(acls)
 
     @classmethod
     def get_acls(cls, path: str):
@@ -51,7 +54,7 @@ class BatonIrodsEntityAPI(IrodsEntityAPI):
         :return:
         """
         try:
-            connection = connect_to_irods_with_baton(config.BATON_BIN)
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
             acl = AccessControl(User(acl.user, acl.zone), acl.permission)
             connection.data_object.access_control.add_or_replace(path, acl)
         except Exception as e:
