@@ -55,8 +55,8 @@ class BatonBasicAPI(IrodsBasicAPI):
         """
         try:
             connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            acl = AccessControl(User(acl.user, acl.zone), acl.permission)
-            connection.data_object.access_control.add_or_replace(path, acl)
+            baton_acl = ACLMapping.to_baton(acl)
+            connection.data_object.access_control.add_or_replace(path, baton_acl)
         except Exception as e:
             raise ACLRetrievalException() from e
         return True
