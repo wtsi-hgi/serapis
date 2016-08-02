@@ -29,19 +29,20 @@ class ACLMappingTests(unittest.TestCase):
 
     def test_from_baton_when_ok(self):
         baton_acl = AccessControl(User('ic4', 'humgen'), AccessControl.Level.READ)
-        serapis_acl = ACLMapping.from_baton([baton_acl])
+        serapis_acl = ACLMapping.from_baton(baton_acl)
         expected = ACL(user='ic4', zone='humgen', permission='READ')
-        self.assertEqual(serapis_acl[0], expected)
-
-    def test_from_baton_when_empty(self):
-        result = ACLMapping.from_baton([])
-        expected = []
-        self.assertEqual(result, expected)
+        self.assertEqual(serapis_acl, expected)
 
     def test_from_baton_when_more_acls(self):
-        baton_acls = []
-        baton_acls.append(AccessControl(User('ic4', 'humgen'), AccessControl.Level.READ))
-        baton_acls.append(AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.WRITE))
-        result = ACLMapping.from_baton(baton_acls)
-        expected = [ACL(user='ic4', zone='humgen', permission='READ'),ACL(user='ic4', zone='Sanger1', permission='WRITE')]
-        self.assertListEqual(result, expected)
+        baton_acl = AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.WRITE)
+        result = ACLMapping.from_baton(baton_acl)
+        expected = ACL(user='ic4', zone='Sanger1', permission='WRITE')
+        self.assertEqual(result, expected)
+
+    def test_to_baton_when_ok(self):
+        acl = ACL(user='ic4', zone='Sanger1', permission='OWN')
+        result = ACLMapping.to_baton(acl)
+        expected = AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.OWN)
+        self.assertEqual(result, expected)
+
+

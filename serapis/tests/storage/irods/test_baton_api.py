@@ -25,11 +25,32 @@ from serapis.storage.irods.entities import ACL
 
 class BatonBasicAPITest(unittest.TestCase):
 
-    def test_get_acls(self):
+    def test_get_acls_data_object(self):
         result = BatonBasicAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test_acls.txt")
-        expected = [ACL(user='ic4', zone='humgen', permission='READ'), ACL(user='ic4', zone='Sanger1', permission='READ')]
-        self.assertListEqual(result, expected)
+        expected = {ACL(user='ic4', zone='humgen', permission='READ'),
+                    ACL(user='ic4', zone='Sanger1', permission='READ'),
+                    ACL(user='humgenadmin', zone='humgen', permission='OWN'),
+                    ACL(user='mercury', zone='Sanger1', permission='OWN'),
+                    ACL(user='irods', zone='humgen', permission='OWN'),
+                    ACL(user='serapis', zone='humgen', permission='OWN')
+        }
+        self.assertSetEqual(result, expected)
 
+    def test_get_acls_collection(self):
+        result = BatonBasicAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test-collection-acls")
+        expected = {
+                    ACL(user='ic4', zone='humgen', permission='OWN'),
+                    ACL(user='ic4', zone='Sanger1', permission='READ'),
+                    ACL(user='ic4', zone='humgen', permission='READ'),
+                    ACL(user='humgenadmin', zone='humgen', permission='OWN'),
+                    ACL(user='mercury', zone='Sanger1', permission='OWN'),
+                    ACL(user='irods', zone='humgen', permission='OWN'),
+                    ACL(user='serapis', zone='humgen', permission='OWN'),
+                    ACL(user='jr17', zone='humgen', permission='OWN'),
+                    ACL(user='pc7', zone='humgen', permission='OWN'),
+                    ACL(user='mp15', zone='humgen', permission='OWN'),
+        }
+        self.assertSetEqual(result, expected)
 
 
 # class BatonIrodsEntityAPI(IrodsEntityAPI):
