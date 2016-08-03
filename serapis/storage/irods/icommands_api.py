@@ -31,15 +31,15 @@ class ICmdsBasicAPI(IrodsBasicAPI):
         pass
 
     @classmethod
-    def add_or_replace_acls_as_batch(cls, path: str, acls: typing.List):
+    def add_or_replace_a_list_of_acls(cls, path: str, acls: typing.List):
         pass
 
     @classmethod
-    def remove_acl(cls):
+    def remove_acl_for_user(cls):
         pass
 
     @classmethod
-    def remove_acls_as_batch(cls, path, acls:typing.List):
+    def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
         pass
 
     @classmethod
