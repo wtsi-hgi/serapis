@@ -20,13 +20,15 @@ This file has been created on Aug 01, 2016.
 """
 from serapis import config
 from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
-from serapis.storage.irods.exceptions import ACLRetrievalException
+from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
 from serapis.storage.irods.baton_mappings import ACLMapping
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
 from baton.collections import IrodsMetadata
+
+import typing
 
 
 class BatonBasicAPI(IrodsBasicAPI):
@@ -36,17 +38,17 @@ class BatonBasicAPI(IrodsBasicAPI):
     def _get_acls(cls, path: str):
         try:
             connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            acls = connection.data_object.access_control.get_all(path)
+            baton_acls = connection.data_object.access_control.get_all(path)
         except Exception as e:
             raise ACLRetrievalException from e
-        return ACLMapping.from_baton(acls)
+        return {ACLMapping.from_baton(acl) for acl in baton_acls}
 
     @classmethod
     def get_acls(cls, path: str):
         return cls._get_acls(path)
 
     @classmethod
-    def set_acls(cls, path: str, acl):
+    def add_or_replace_acl(cls, path: str, acl):
         """
         This method sets acls
         :param path:
@@ -60,6 +62,58 @@ class BatonBasicAPI(IrodsBasicAPI):
         except Exception as e:
             raise ACLRetrievalException() from e
         return True
+
+    @classmethod
+    def add_or_replace_acls_as_batch(cls, path: str, acls: typing.List):
+        """
+        This method sets acls
+        :param path:
+        :param acl: an ACL object of type serapis.storage.irods.entities.ACL
+        :return:
+        """
+        try:
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            baton_acls = []
+            for acl in acls:
+                b_acl = ACLMapping.to_baton(acl)
+                baton_acls.append(b_acl)
+            connection.data_object.access_control.add_or_replace(path, baton_acls)
+        except Exception as e:
+            raise ACLRetrievalException() from e
+        return True
+
+
+    @classmethod
+    def remove_acl(cls, path, acl):
+        try:
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            baton_acl = ACLMapping.to_baton(acl)
+            connection.data_object.access_control.revoke(path, baton_acl)
+        except Exception as e:
+            raise ACLRemovingException() from e
+        return True
+
+    @classmethod
+    def remove_acls_as_batch(cls, path, acls:typing.List):
+        try:
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            baton_acls = []
+            for acl in acls:
+                b_acl = ACLMapping.to_baton(acl)
+                baton_acls.append(b_acl)
+            connection.data_object.access_control.revoke(path, baton_acls)
+        except Exception as e:
+            raise ACLRemovingException() from e
+        return True
+
+
+    @classmethod
+    def remove_all_acls(cls, path):
+        try:
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            connection.data_object.access_control.revoke_all(path)
+        except Exception as e:
+            raise ACLRemovingException() from e
 
     @classmethod
     def upload(cls):
