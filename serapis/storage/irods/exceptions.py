@@ -30,4 +30,7 @@ class ACLRetrievalException(IrodsException):
 class ACLModificationException(IrodsException):
     pass
 
+class ACLRemovingException(IrodsException):
+    pass
+
 
