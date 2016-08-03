@@ -21,12 +21,29 @@ This file has been created on Aug 01, 2016.
 
 from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
 
+import typing
 
 class ICmdsBasicAPI(IrodsBasicAPI):
     def get_acls(self):
         pass
 
-    def set_acls(self):
+    def add_or_replace_acl(self):
+        pass
+
+    @classmethod
+    def add_or_replace_acls_as_batch(cls, path: str, acls: typing.List):
+        pass
+
+    @classmethod
+    def remove_acl(cls):
+        pass
+
+    @classmethod
+    def remove_acls_as_batch(cls, path, acls:typing.List):
+        pass
+
+    @classmethod
+    def remove_all_acls(cls):
         pass
 
     def upload(self):
@@ -40,6 +57,8 @@ class ICmdsBasicAPI(IrodsBasicAPI):
 
     def remove(self):
         pass
+
+
 
 
 class ICmdsCollectionAPI(CollectionAPI):

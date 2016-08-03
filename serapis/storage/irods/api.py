@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
+import typing
 
 class IrodsBasicAPI:
     @classmethod
@@ -26,7 +27,23 @@ class IrodsBasicAPI:
         pass
 
     @classmethod
-    def set_acls(cls):
+    def add_or_replace_acl(cls):
+        pass
+
+    @classmethod
+    def add_or_replace_acls_as_batch(cls, path: str, acls: typing.List):
+        pass
+
+    @classmethod
+    def remove_acl(cls):
+        pass
+
+    @classmethod
+    def remove_all_acls(cls):
+        pass
+
+    @classmethod
+    def remove_acls_as_batch(cls, path, acls:typing.List):
         pass
 
     @classmethod
