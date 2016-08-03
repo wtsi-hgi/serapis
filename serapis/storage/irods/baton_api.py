@@ -64,7 +64,7 @@ class BatonBasicAPI(IrodsBasicAPI):
         return True
 
     @classmethod
-    def add_or_replace_acls_as_batch(cls, path: str, acls: typing.List):
+    def add_or_replace_a_list_of_acls(cls, path: str, acls: typing.List):
         """
         This method sets acls
         :param path:
@@ -84,26 +84,28 @@ class BatonBasicAPI(IrodsBasicAPI):
 
 
     @classmethod
-    def remove_acl(cls, path, acl):
+    def remove_acl_for_user(cls, path, acl):
         try:
             connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            baton_acl = ACLMapping.to_baton(acl)
-            connection.data_object.access_control.revoke(path, baton_acl)
+            baton_user = ACLMapping.build_baton_user_from_acl(acl)
+            connection.data_object.access_control.revoke(path, baton_user)
         except Exception as e:
             raise ACLRemovingException() from e
         return True
 
+
     @classmethod
-    def remove_acls_as_batch(cls, path, acls:typing.List):
+    def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
         try:
             connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            baton_acls = []
+            baton_users = []
             for acl in acls:
-                b_acl = ACLMapping.to_baton(acl)
-                baton_acls.append(b_acl)
-            connection.data_object.access_control.revoke(path, baton_acls)
+                user = ACLMapping.build_baton_user_from_acl(acl)
+                baton_users.append(user)
+            connection.data_object.access_control.revoke(path, baton_users)
         except Exception as e:
-            raise ACLRemovingException() from e
+            print(e)
+            raise ACLRemovingException(e)
         return True
 
 

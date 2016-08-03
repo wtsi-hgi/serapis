@@ -33,3 +33,6 @@ class ACLMapping:
         permission = getattr(AccessControl.Level, acl.permission)
         return AccessControl(User(acl.user, acl.zone), permission)
 
+    @staticmethod
+    def build_baton_user_from_acl(acl):
+        return User(acl.user, acl.zone)
