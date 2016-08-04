@@ -35,10 +35,20 @@ class BatonBasicAPI(IrodsBasicAPI):
     BATON_BIN_PATH = config.BATON_BIN
 
     @classmethod
+    def _get_connection(cls):
+        raise NotImplementedError
+
+    @classmethod
     def _get_acls(cls, path: str):
+        """
+        This private method is fetching all the ACLs from iRODS.
+        :param path: str - the path to the subject (data object/collection)
+        :param subject_type: str - can be either data_object or collection
+        :return:
+        """
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            baton_acls = connection.data_object.access_control.get_all(path)
+            connection = cls._get_connection()
+            baton_acls = connection.access_control.get_all(path)
         except Exception as e:
             raise ACLRetrievalException from e
         return {ACLMapping.from_baton(acl) for acl in baton_acls}
@@ -56,9 +66,9 @@ class BatonBasicAPI(IrodsBasicAPI):
         :return:
         """
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            connection = cls._get_connection()
             baton_acl = ACLMapping.to_baton(acl)
-            connection.data_object.access_control.add_or_replace(path, baton_acl)
+            connection.access_control.add_or_replace(path, baton_acl)
         except Exception as e:
             raise ACLRetrievalException() from e
         return True
@@ -72,12 +82,12 @@ class BatonBasicAPI(IrodsBasicAPI):
         :return:
         """
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            connection = cls._get_connection()
             baton_acls = []
             for acl in acls:
                 b_acl = ACLMapping.to_baton(acl)
                 baton_acls.append(b_acl)
-            connection.data_object.access_control.add_or_replace(path, baton_acls)
+            connection.access_control.add_or_replace(path, baton_acls)
         except Exception as e:
             raise ACLRetrievalException() from e
         return True
@@ -86,9 +96,9 @@ class BatonBasicAPI(IrodsBasicAPI):
     @classmethod
     def remove_acl_for_user(cls, path, acl):
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            connection = cls._get_connection()
             baton_user = ACLMapping.build_baton_user_from_acl(acl)
-            connection.data_object.access_control.revoke(path, baton_user)
+            connection.access_control.revoke(path, baton_user)
         except Exception as e:
             raise ACLRemovingException() from e
         return True
@@ -97,12 +107,12 @@ class BatonBasicAPI(IrodsBasicAPI):
     @classmethod
     def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            connection = cls._get_connection()
             baton_users = []
             for acl in acls:
                 user = ACLMapping.build_baton_user_from_acl(acl)
                 baton_users.append(user)
-            connection.data_object.access_control.revoke(path, baton_users)
+            connection.access_control.revoke(path, baton_users)
         except Exception as e:
             print(e)
             raise ACLRemovingException(e)
@@ -112,8 +122,8 @@ class BatonBasicAPI(IrodsBasicAPI):
     @classmethod
     def remove_all_acls(cls, path):
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
-            connection.data_object.access_control.revoke_all(path)
+            connection = cls._get_connection()
+            connection.access_control.revoke_all(path)
         except Exception as e:
             raise ACLRemovingException() from e
 
@@ -134,7 +144,17 @@ class BatonBasicAPI(IrodsBasicAPI):
         raise NotImplementedError("BATON does not support remove operation at the moment.")
 
 
-class BatonCollectionAPI(CollectionAPI):
+class BatonCollectionAPI(BatonBasicAPI):
+
+    @classmethod
+    def _get_connection(cls):
+        connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+        return connection.collection
+
+    @classmethod
+    def get_acls(cls):
+        pass
+
     @classmethod
     def create(cls):
         pass
@@ -144,7 +164,13 @@ class BatonCollectionAPI(CollectionAPI):
         pass
 
 
-class BatonDataObjectAPI(DataObjectAPI):
+class BatonDataObjectAPI(BatonBasicAPI):
+
+    @classmethod
+    def _get_connection(cls):
+        connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+        return connection.data_object
+
     @classmethod
     def checksum(cls, path, checksum_type='md5'):
         pass

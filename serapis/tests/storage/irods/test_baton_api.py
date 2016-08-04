@@ -25,10 +25,10 @@ from serapis.storage.irods.entities import ACL
 from serapis.storage.irods.baton_mappings import ACLMapping
 
 
-class GetACLSBatonBasicAPITest(unittest.TestCase):
+class GetACLSBatonDataObjectAPITest(unittest.TestCase):
 
     def test_get_acls_data_object(self):
-        result = BatonBasicAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test_acls.txt")
+        result = BatonDataObjectAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test_acls.txt")
         expected = {ACL(user='ic4', zone='humgen', permission='READ'),
                     ACL(user='ic4', zone='Sanger1', permission='READ'),
                     ACL(user='humgenadmin', zone='humgen', permission='OWN'),
@@ -38,8 +38,10 @@ class GetACLSBatonBasicAPITest(unittest.TestCase):
         }
         self.assertSetEqual(result, expected)
 
+
+class GetACLSBatonCollectionAPITest(unittest.TestCase):
     def test_get_acls_collection(self):
-        result = BatonBasicAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test-collection-acls")
+        result = BatonCollectionAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test-collection-acls")
         expected = {
                     ACL(user='ic4', zone='humgen', permission='OWN'),
                     ACL(user='ic4', zone='Sanger1', permission='READ'),
@@ -55,19 +57,19 @@ class GetACLSBatonBasicAPITest(unittest.TestCase):
         self.assertSetEqual(result, expected)
 
 
-class AddOrReplaceACLBatonBasicAPITest(unittest.TestCase):
+class AddOrReplaceACLBatonDataObjectAPITest(unittest.TestCase):
 
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
-        BatonBasicAPI.remove_all_acls(self.fpath)
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
 
     def tearDown(self):
-        BatonBasicAPI.remove_all_acls(self.fpath)
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
 
     def test_get_or_replace_acls_when_adding_a_new_acl(self):
         added_acl = ACL(user='mp15', zone='humgen', permission='OWN')
-        BatonBasicAPI.add_or_replace_acl(self.fpath, added_acl)
-        acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_acl(self.fpath, added_acl)
+        acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         found = False
         for acl in acls_set:
             if acl == added_acl:
@@ -76,67 +78,65 @@ class AddOrReplaceACLBatonBasicAPITest(unittest.TestCase):
 
     def test_get_or_replace_acls_when_replacing_an_acl(self):
         added_acl = ACL(user='cn13', zone='humgen', permission='OWN')
-        BatonBasicAPI.add_or_replace_acl(self.fpath, added_acl)
-        acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_acl(self.fpath, added_acl)
+        acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertSetEqual(acls_set, {added_acl})
         replacement_acl = ACL(user='cn13', zone='humgen', permission='READ')
-        BatonBasicAPI.add_or_replace_acl(self.fpath, replacement_acl)
-        acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_acl(self.fpath, replacement_acl)
+        acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertSetEqual(acls_set, {replacement_acl})
 
 
-class AddOrReplaceAsBatchBatonAPITest(unittest.TestCase):
+class AddOrReplaceAsBatchDataObjectAPITest(unittest.TestCase):
 
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
-        BatonBasicAPI.remove_all_acls(self.fpath)
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
 
     def test_add_or_replace_acls_as_batch(self):
         self.acls = [
             ACL(user='cn13', zone='humgen', permission='READ'),
             ACL(user='mp15', zone='humgen', permission='READ')
         ]
-        BatonBasicAPI.add_or_replace_a_list_of_acls(self.fpath, self.acls)
-        self.acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_a_list_of_acls(self.fpath, self.acls)
+        self.acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(len(self.acls_set), 2)
 
 
-class RemoveACLsAsBatchBatonAPITest(unittest.TestCase):
+class RemoveACLsAsBatchBatonDataObjectAPITest(unittest.TestCase):
 
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
-        BatonBasicAPI.remove_all_acls(self.fpath)
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
         self.acl = ACL(user='cn13', zone='humgen', permission='READ')
-        BatonBasicAPI.add_or_replace_acl(self.fpath, self.acl)
-        existing_acls = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_acl(self.fpath, self.acl)
+        existing_acls = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(len(existing_acls), 1)
 
     def test_remove_acls_as_batch(self):
-        BatonBasicAPI.remove_acls_for_a_list_of_users(self.fpath, [self.acl])
-        existing_acls = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.remove_acls_for_a_list_of_users(self.fpath, [self.acl])
+        existing_acls = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(0, len(existing_acls))
 
     def tearDown(self):
-        BatonBasicAPI.remove_all_acls(self.fpath)
-
-    #     @classmethod
-    # def remove_acls_as_batch(cls, path, acls:typing.List):
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
 
 
-class RemoveAllACLSBatonAPITest(unittest.TestCase):
+
+class RemoveAllACLSBatonDataObjectAPITest(unittest.TestCase):
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
         self.acls = [
             ACL(user='cn13', zone='humgen', permission='READ'),
             ACL(user='mp15', zone='humgen', permission='READ')
         ]
-        BatonBasicAPI.add_or_replace_a_list_of_acls(self.fpath, self.acls)
-        self.acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.add_or_replace_a_list_of_acls(self.fpath, self.acls)
+        self.acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertNotEqual(len(self.acls_set), 0)
 
     def test_remove_all_acls(self):
-        BatonBasicAPI.remove_all_acls(self.fpath)
-        acls_set = BatonBasicAPI.get_acls(self.fpath)
+        BatonDataObjectAPI.remove_all_acls(self.fpath)
+        acls_set = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(set(), acls_set)
 
 
