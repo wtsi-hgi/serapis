@@ -113,7 +113,7 @@ class RemoveACLsAsBatchBatonDataObjectAPITest(unittest.TestCase):
         existing_acls = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(len(existing_acls), 1)
 
-    def test_remove_acls_as_batch(self):
+    def test_remove_acls_for_a_list_of_users(self):
         BatonDataObjectAPI.remove_acls_for_a_list_of_users(self.fpath, [self.acl])
         existing_acls = BatonDataObjectAPI.get_acls(self.fpath)
         self.assertEqual(0, len(existing_acls))
@@ -140,38 +140,33 @@ class RemoveAllACLSBatonDataObjectAPITest(unittest.TestCase):
         self.assertEqual(set(), acls_set)
 
 
+class AbstractMethodsTests(unittest.TestCase):
+
+    def test_get_connection(self):
+        self.assertRaises(BatonBasicAPI._get_connection, NotImplementedError)
+
+    def test_upload_basic(self):
+        self.assertRaises(BatonBasicAPI.upload, '', NotImplementedError)
+
+    def test_remove_basic(self):
+        self.assertRaises(BatonBasicAPI.remove, '', NotImplementedError)
 
 
-# class BatonIrodsEntityAPI(IrodsEntityAPI):
-#     @classmethod
-#     def _get_acls(cls, path: str):
-#         try:
-#             connection = connect_to_irods_with_baton(config.BATON_BIN)
-#             connection.data_object.access_control.get_all(path)
-#         except Exception as e:
-#             raise ACLRetrievalException from e
-#         return True
-#
-#     @classmethod
-#     def get_acls(cls, path: str):
-#         return cls._get_acls(path)
-#
-#     @classmethod
-#     def set_acls(cls, path: str, acl):
-#         """
-#         This method sets acls
-#         :param path:
-#         :param acl: an ACL object of type serapis.storage.irods.entities.ACL
-#         :return:
-#         """
-#         try:
-#             connection = connect_to_irods_with_baton(config.BATON_BIN)
-#             acl = AccessControl(User(acl.user, acl.zone), acl.permission)
-#             connection.data_object.access_control.add_or_replace(path, acl)
-#         except Exception as e:
-#             raise ACLRetrievalException() from e
-#         return True
-#
-#     @classmethod
-#     def upload(cls):
-#         raise NotImplementedError("BATON does not support upload at the moment.")
+    def test_upload(self):
+        self.assertRaises(BatonDataObjectAPI.upload, '', NotImplementedError)
+
+    def test_move_basic(self):
+        self.assertRaises(BatonDataObjectAPI.move, '', NotImplementedError)
+
+    def test_remove_do(self):
+        self.assertRaises(BatonDataObjectAPI.remove, '', NotImplementedError)
+
+
+    def test_remove(self):
+        self.assertRaises(BatonCollectionAPI.remove, '', NotImplementedError)
+
+    def test_move(self):
+        self.assertRaises(BatonCollectionAPI.move, '', NotImplementedError)
+
+    def test_upload(self):
+        self.assertRaises(BatonCollectionAPI.upload, '', NotImplementedError)
