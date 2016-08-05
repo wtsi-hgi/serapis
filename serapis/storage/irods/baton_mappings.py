@@ -34,5 +34,5 @@ class ACLMapping:
         return AccessControl(User(acl.user, acl.zone), permission)
 
     @staticmethod
-    def build_baton_user_from_acl(acl):
-        return User(acl.user, acl.zone)
+    def build_baton_user(username, zone):
+        return User(username, zone)
