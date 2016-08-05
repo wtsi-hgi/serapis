@@ -17,6 +17,9 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Aug 01, 2016.
+
+This module holds the functionality for iRODS that is implemented within BATON. The methods from the iRODS API that
+are not implemented within BATON throw a NotImplementedException upon call.
 """
 from serapis import config
 from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
@@ -89,15 +92,16 @@ class BatonBasicAPI(IrodsBasicAPI):
                 baton_acls.append(b_acl)
             connection.access_control.add_or_replace(path, baton_acls)
         except Exception as e:
-            raise ACLRetrievalException() from e
+            raise e
+            raise ACLRetrievalException(e.args) from e
         return True
 
 
     @classmethod
-    def remove_acl_for_user(cls, path, acl):
+    def remove_acl_for_user(cls, path, username, zone):
         try:
             connection = cls._get_connection()
-            baton_user = ACLMapping.build_baton_user_from_acl(acl)
+            baton_user = ACLMapping.build_baton_user(username, zone)
             connection.access_control.revoke(path, baton_user)
         except Exception as e:
             raise ACLRemovingException() from e
@@ -105,12 +109,12 @@ class BatonBasicAPI(IrodsBasicAPI):
 
 
     @classmethod
-    def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
+    def remove_acls_for_a_list_of_users(cls, path, user_zone_tuples:typing.List):
         try:
             connection = cls._get_connection()
             baton_users = []
-            for acl in acls:
-                user = ACLMapping.build_baton_user_from_acl(acl)
+            for username, zone in user_zone_tuples:
+                user = ACLMapping.build_baton_user(username, zone)
                 baton_users.append(user)
             connection.access_control.revoke(path, baton_users)
         except Exception as e:
@@ -125,22 +129,22 @@ class BatonBasicAPI(IrodsBasicAPI):
             connection = cls._get_connection()
             connection.access_control.revoke_all(path)
         except Exception as e:
-            raise ACLRemovingException() from e
+            raise ACLRemovingException(e.args) from e
 
     @classmethod
-    def upload(cls):
+    def upload(cls, src_path, dest_path):
         raise NotImplementedError("BATON does not support upload at the moment.")
 
     @classmethod
-    def copy(cls):
+    def copy(cls, src_path, dest_path):
         raise NotImplementedError("BATON does not support copy operation at the moment.")
 
     @classmethod
-    def move(cls):
+    def move(cls, src_path, dest_path):
         raise NotImplementedError("BATON does not support move operation at the moment.")
 
     @classmethod
-    def remove(cls):
+    def remove(cls, path):
         raise NotImplementedError("BATON does not support remove operation at the moment.")
 
 
@@ -152,12 +156,8 @@ class BatonCollectionAPI(BatonBasicAPI):
         return connection.collection
 
     @classmethod
-    def get_acls(cls):
-        pass
-
-    @classmethod
     def create(cls):
-        pass
+        raise NotImplementedError("BATON does not support the operation for creating a collection")
 
     @classmethod
     def list_contents(cls):
