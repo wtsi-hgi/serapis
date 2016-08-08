@@ -22,6 +22,9 @@ This file has been created on Aug 02, 2016.
 from serapis.storage.irods.entities import ACL
 from baton.models import AccessControl, User
 
+from serapis.storage.irods.entities import IrodsMetadata
+
+
 class ACLMapping:
 
     @staticmethod
@@ -36,3 +39,16 @@ class ACLMapping:
     @staticmethod
     def build_baton_user(username, zone):
         return User(username, zone)
+
+
+class MetadataMapping:
+
+    @staticmethod
+    def from_baton(metadata):
+        tuples = metadata.items()
+        serapis_metadata = IrodsMetadata(avus=tuples)
+        return serapis_metadata
+
+
+
+
