@@ -19,6 +19,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
+from collections import defaultdict
+import typing
+
 
 class ACL:
     def __init__(self, user, zone, permission):
@@ -37,5 +40,29 @@ class ACL:
 
     def __repr__(self):
         return self.__str__()
+
+
+class IrodsMetadata:
+    def __init__(self, avus: typing.List[typing.Tuple]=None):
+        if not avus:
+            self.avus_dict = defaultdict(set)
+        else:
+            self.avus_dict = defaultdict()
+            for key, value in avus:
+                self.add_avu(key, value)
+
+    def add_avu(self, key, value):
+        self.avus_dict[key].add(value)
+
+    def get_avu(self, key):
+        return self.avus_dic.get(key)
+
+
+
+
+
+
+
+
 
 
