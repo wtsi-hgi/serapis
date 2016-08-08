@@ -131,6 +131,39 @@ class BatonBasicAPI(IrodsBasicAPI):
         except Exception as e:
             raise ACLRemovingException(e.args) from e
 
+
+    @classmethod
+    def get_all_metadata(cls, path):
+        try:
+            connection = cls._get_connection()
+            metadata = connection.metadata.get_all(path)
+        except Exception as e:
+            raise e # TODO: some exception, to see which one
+        return metadata
+
+
+    @classmethod
+    def remove_all_metadata(cls, path):
+        try:
+            connection = cls._get_connection()
+            connection.metadata.remove_all()
+        except Exception as e:
+            raise e # TODO: check what exc to raise
+        return True
+
+    @classmethod
+    def add_metadata(self, fpath, avu_dict):
+        pass
+
+    @classmethod
+    def remove_metadata(cls, path, avu_dict):
+        pass
+
+    @classmethod
+    def update_metadata(cls, old_key, new_key):
+        pass
+
+
     @classmethod
     def upload(cls, src_path, dest_path):
         raise NotImplementedError("BATON does not support upload at the moment.")
@@ -180,24 +213,32 @@ class BatonDataObjectAPI(BatonBasicAPI):
         pass
 
 
-class BatonMetadataAPI(MetadataAPI):
-    @classmethod
-    def add(cls, fpath, avu_dict):
-        pass
+#
+# class BatonMetadataAPI(MetadataAPI):
+#     @classmethod
+#     def add(cls, fpath, avu_dict):
+#         pass
+#
+#     @classmethod
+#     def get(cls, fpath):
+#         pass
+#
+#     @classmethod
+#     def update(cls, old_kv, new_kv):
+#         # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
+#         pass
+#
+#     @classmethod
+#     def remove(cls, path, avu_dict):
+#         pass
+#
+#     @classmethod
+#     def remove_all(cls, path):
+#         pass
 
-    @classmethod
-    def get(cls, fpath):
-        pass
+# IRODS_ERROR_USER_FILE_DOES_NOT_EXIST, IRODS_ERROR_CAT_INVALID_ARGUMENT+permission issue  -> FileNotFoundError(error_message)
+# IRODS_ERROR_CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME, IRODS_ERROR_CAT_SUCCESS_BUT_WITH_NO_INFO -> KeyError(error_message)
+# These are not exclusive to operations involving ACLs.
+# Anything that can cause the iRODS library that baton uses to raise a `USER_FILE_DOES_NOT_EXIST` exception (for example), will get wrapped into a `FileNotFound` python error.
 
-    @classmethod
-    def update(cls, old_kv, new_kv):
-        # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
-        pass
 
-    @classmethod
-    def remove(cls, path, avu_dict):
-        pass
-
-    @classmethod
-    def remove_all(cls, path):
-        pass
