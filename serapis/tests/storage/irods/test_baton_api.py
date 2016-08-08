@@ -179,25 +179,31 @@ class AbstractMethodsTests(unittest.TestCase):
         self.assertRaises(NotImplementedError, BatonCollectionAPI.move, '', '')
 
 
-
-
 # COLLECTION - RELATED TESTS:
 
 class GetACLSBatonCollectionAPITest(unittest.TestCase):
+    def setUp(self):
+        self.path = "/humgen/projects/serapis_staging/test-baton/test-collection-acls"
+        BatonCollectionAPI.remove_all_acls(self.path)
+        BatonCollectionAPI.add_or_replace_a_list_of_acls(self.path,
+                                                         [ACL(user='ic4', zone='humgen', permission='OWN'),
+                                                        ACL(user='ic4', zone='Sanger1', permission='READ')])
+
+
     def test_get_acls_collection(self):
         # TODO: modify the test so that it removes everything, and then adds the ACls before checking on their existence
-        result = BatonCollectionAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test-collection-acls")
+        result = BatonCollectionAPI._get_acls(self.path)
         expected = {
                     ACL(user='ic4', zone='humgen', permission='OWN'),
                     ACL(user='ic4', zone='Sanger1', permission='READ'),
-                    ACL(user='ic4', zone='humgen', permission='READ'),
-                    ACL(user='humgenadmin', zone='humgen', permission='OWN'),
-                    ACL(user='mercury', zone='Sanger1', permission='OWN'),
-                    ACL(user='irods', zone='humgen', permission='OWN'),
-                    ACL(user='serapis', zone='humgen', permission='OWN'),
-                    ACL(user='jr17', zone='humgen', permission='OWN'),
-                    ACL(user='pc7', zone='humgen', permission='OWN'),
-                    ACL(user='mp15', zone='humgen', permission='OWN'),
+                    #ACL(user='ic4', zone='humgen', permission='READ'),
+                    # ACL(user='humgenadmin', zone='humgen', permission='OWN'),
+                    # ACL(user='mercury', zone='Sanger1', permission='OWN'),
+                    # ACL(user='irods', zone='humgen', permission='OWN'),
+                    # ACL(user='serapis', zone='humgen', permission='OWN'),
+                    # ACL(user='jr17', zone='humgen', permission='OWN'),
+                    # ACL(user='pc7', zone='humgen', permission='OWN'),
+                    # ACL(user='mp15', zone='humgen', permission='OWN'),
         }
         self.assertSetEqual(result, expected)
 
