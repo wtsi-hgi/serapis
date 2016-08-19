@@ -60,9 +60,13 @@ class MetadataMapping:
         return baton_metadata
 
 
+class DataObjectMapping:
 
+    @staticmethod
+    def from_baton(data_object):
+        serapis_data_object = None
 
-# metadata_examples = [
-#     IrodsMetadata({"key": {value, }}),
-#     IrodsMetadata({"another_key": {value_1, value_2}}),
-# ]
+    @staticmethod
+    def to_baton(data_object):
+        pass
+
