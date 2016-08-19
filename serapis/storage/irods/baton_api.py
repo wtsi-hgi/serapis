@@ -25,7 +25,7 @@ from serapis import config
 from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
 from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.baton_mappings import ACLMapping
+from serapis.storage.irods.baton_mappings import ACLMapping, MetadataMapping
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
@@ -152,12 +152,25 @@ class BatonBasicAPI(IrodsBasicAPI):
         return True
 
     @classmethod
-    def add_metadata(self, fpath, avu_dict):
-        pass
+    def add_metadata(cls, path, avu_dict):
+        baton_avus = MetadataMapping.to_baton(avu_dict)
+        try:
+            connection = cls._get_connection()
+            connection.metadata.add(path, baton_avus)
+        except Exception as e:
+            raise e
+        return True
+
 
     @classmethod
     def remove_metadata(cls, path, avu_dict):
-        pass
+        baton_avus = MetadataMapping.to_baton(avu_dict)
+        try:
+            connection = cls._get_connection()
+            connection.metadata.remove(path, baton_avus)
+        except Exception as e:
+            raise e
+        return True
 
     @classmethod
     def update_metadata(cls, old_key, new_key):
@@ -206,7 +219,7 @@ class BatonDataObjectAPI(BatonBasicAPI):
 
     @classmethod
     def checksum(cls, path, checksum_type='md5'):
-        pass
+        raise NotImplementedError("BATON does not support recalculating checksums operation")
 
     @classmethod
     def get_checksum(cls, path):
