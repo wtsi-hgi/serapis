@@ -142,6 +142,30 @@ class RemoveAllACLSBatonDataObjectAPITest(unittest.TestCase):
         self.assertEqual(set(), acls_set)
 
 
+
+class AddMetadataBatonDataObjectAPITest(unittest.TestCase):
+    pass
+
+class RemoveMetadataBatonDataObjectAPITest(unittest.TestCase):
+    pass
+
+class UpdateMetadataBatonDataObjectAPITest(unittest.TestCase):
+    pass
+
+
+class AddMetadataBatonCollectionAPITest(unittest.TestCase):
+    pass
+
+class RemoveMetadataBatonCollectionAPITest(unittest.TestCase):
+    pass
+
+class UpdateMetadataBatonCollectionAPITest(unittest.TestCase):
+    pass
+
+class ListContentsBatonCollectionAPITest(unittest.TestCase):
+    pass
+
+
 # ABSTRACT - NOT IMPLEMENTED METHODS TESTS:
 
 class AbstractMethodsTests(unittest.TestCase):
@@ -207,6 +231,11 @@ class GetACLSBatonCollectionAPITest(unittest.TestCase):
         }
         self.assertSetEqual(result, expected)
 
+class GetACLSBatonCollectionAPITest2(unittest.TestCase):
+    def test_trigger_exception(self):
+        result = BatonCollectionAPI.get_acls('/smth/non-existing')
+        print("Results from trigger exception test; %s" % result)
+        self.assertEqual(1,2)
 
 
 class RemoveAllACLSBatonCollectionAPITest(unittest.TestCase):
