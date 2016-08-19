@@ -21,6 +21,8 @@ This file has been created on Aug 02, 2016.
 
 from serapis.storage.irods.entities import ACL
 from baton.models import AccessControl, User
+from baton.collections import IrodsMetadata
+
 
 from serapis.storage.irods.entities import IrodsMetadata
 
@@ -49,6 +51,18 @@ class MetadataMapping:
         serapis_metadata = IrodsMetadata(avus=tuples)
         return serapis_metadata
 
+    @staticmethod
+    def to_baton(avu_dict):
+        baton_metadata = []
+        for key, values in avu_dict.items():
+            baton_avu = IrodsMetadata({key: values})
+            baton_metadata.append(baton_avu)
+        return baton_metadata
 
 
 
+
+# metadata_examples = [
+#     IrodsMetadata({"key": {value, }}),
+#     IrodsMetadata({"another_key": {value_1, value_2}}),
+# ]
