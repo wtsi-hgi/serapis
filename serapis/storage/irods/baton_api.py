@@ -173,8 +173,14 @@ class BatonBasicAPI(IrodsBasicAPI):
         return True
 
     @classmethod
-    def update_metadata(cls, old_key, new_key):
-        pass
+    def update_metadata(cls, path, key, new_values):
+        baton_metadata = MetadataMapping.to_baton({key: new_values})
+        try:
+            connection = cls._get_connection()
+            connection.metadata.set(path, baton_metadata)
+        except Exception as e:
+            raise e
+        return True
 
 
     @classmethod
