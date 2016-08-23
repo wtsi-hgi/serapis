@@ -24,81 +24,81 @@ import typing
 class IrodsBasicAPI:
     @classmethod
     def get_acls(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def add_or_replace_acl(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def add_or_replace_a_list_of_acls(cls, path: str, acls: typing.List):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove_acl_for_user(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove_all_acls(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def get_all_metadata(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove_all_metadata(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def add_metadata(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove_metadata(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def update_metadata(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def upload(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def copy(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def move(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def remove(cls):
-        pass
+        raise NotImplementedError()
 
 
 class CollectionAPI(IrodsBasicAPI):
     @classmethod
     def create(cls):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def list_contents(cls):
-        pass
+        raise NotImplementedError()
 
 
 class DataObjectAPI:
     @classmethod
     def checksum(cls, path, checksum_type='md5'):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def get_checksum(cls, path):
-        pass
+        raise NotImplementedError()
 
