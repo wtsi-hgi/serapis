@@ -105,5 +105,20 @@ class ICmdsDataObjectAPI(DataObjectAPI):
 
 
     @classmethod
-    def checksum(cls):
-        raise NotImplementedError()
+    def recalculate_checksums(cls, path):
+        """
+        This method re-calculates the checksums on all replicas and stores them within iRODS.
+        It doesn't, however, display any "conclusion" after recalculating the checksums,
+        so one needs to check manually on the result, whether after checksuming
+        the checksums are still the same across all replicas.
+        :return:
+        """
+        cmd_args = cls._build_icmd_args('ichksum', [path], ['-a', '-K'])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
+
+
+
+
