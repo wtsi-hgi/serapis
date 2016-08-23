@@ -31,7 +31,7 @@ class IrodsBasicAPI:
         raise NotImplementedError()
 
     @classmethod
-    def add_or_replace_a_list_of_acls(cls, path: str, acls: typing.List):
+    def add_or_replace_a_list_of_acls(cls):
         raise NotImplementedError()
 
     @classmethod
@@ -43,7 +43,7 @@ class IrodsBasicAPI:
         raise NotImplementedError()
 
     @classmethod
-    def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
+    def remove_acls_for_a_list_of_users(cls):
         raise NotImplementedError()
 
     @classmethod
@@ -95,10 +95,10 @@ class CollectionAPI(IrodsBasicAPI):
 
 class DataObjectAPI:
     @classmethod
-    def checksum(cls, path, checksum_type='md5'):
+    def checksum(cls):
         raise NotImplementedError()
 
     @classmethod
-    def get_checksum(cls, path):
+    def get_checksum(cls):
         raise NotImplementedError()
 
