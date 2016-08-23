@@ -48,7 +48,7 @@ class ICmdsBasicAPI(IrodsBasicAPI):
         raise NotImplementedError()
 
 
-class ICmdsCollectionAPI(CollectionAPI):
+class ICmdsCollectionAPI(IrodsBasicAPI):
 
     @classmethod
     def create(cls, path):
@@ -68,7 +68,7 @@ class ICmdsCollectionAPI(CollectionAPI):
             raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
 
-class ICmdsDataObjectAPI(DataObjectAPI):
+class ICmdsDataObjectAPI(IrodsBasicAPI):
 
     @classmethod
     def upload(cls, src_path, dest_path):
