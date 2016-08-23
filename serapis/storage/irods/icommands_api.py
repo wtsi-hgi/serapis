@@ -24,28 +24,6 @@ from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAP
 import typing
 
 class ICmdsBasicAPI(IrodsBasicAPI):
-    def get_acls(self):
-        pass
-
-    def add_or_replace_acl(self):
-        pass
-
-    @classmethod
-    def add_or_replace_a_list_of_acls(cls, path: str, acls: typing.List):
-        pass
-
-    @classmethod
-    def remove_acl_for_user(cls):
-        pass
-
-    @classmethod
-    def remove_acls_for_a_list_of_users(cls, path, acls:typing.List):
-        pass
-
-    @classmethod
-    def remove_all_acls(cls):
-        pass
-
     def upload(self):
         pass
 
@@ -59,13 +37,8 @@ class ICmdsBasicAPI(IrodsBasicAPI):
         pass
 
 
-
-
 class ICmdsCollectionAPI(CollectionAPI):
     def create(self):
-        pass
-
-    def list_contents(self):
         pass
 
 
@@ -76,25 +49,3 @@ class ICmdsDataObjectAPI(DataObjectAPI):
     def get_checksum(self, path):
         pass
 
-
-class ICmdsMetadataAPI(MetadataAPI):
-    @classmethod
-    def add(cls, fpath, avu_dict):
-        pass
-
-    @classmethod
-    def get(cls, fpath):
-        pass
-
-    @classmethod
-    def update(self, old_kv, new_kv):
-        # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
-        pass
-
-    @classmethod
-    def remove(cls, path, avu_dict):
-        pass
-
-    @classmethod
-    def remove_all(cls, path):
-        pass
