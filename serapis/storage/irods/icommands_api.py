@@ -42,30 +42,9 @@ class ICmdsBasicAPI(IrodsBasicAPI):
         if err:
             raise exceptions.IrodsException(err, out, cmd=str(cmd_args))
 
-
     @classmethod
     def remove(cls, path):
         raise NotImplementedError()
-
-
-class ICmdsCollectionAPI(IrodsBasicAPI):
-
-    @classmethod
-    def create(cls, path):
-        cmd_args = cls._build_icmd_args('imkdir', [path])
-        try:
-            cls._run_icmd(cmd_args)
-        except exceptions.iRODSException as e:
-            raise exceptions.iMkDirException(error=e.err, output=e.out, cmd=e.cmd)
-
-    # TODO: distinguish somehow between different types of iRODS errors
-    @classmethod
-    def remove(cls, path):
-        cmd_args = cls._build_icmd_args('irm', [path], ["-r"])
-        try:
-            cls._run_icmd(cmd_args)
-        except exceptions.iRODSException as e:
-            raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
 
 class ICmdsDataObjectAPI(IrodsBasicAPI):
@@ -103,7 +82,6 @@ class ICmdsDataObjectAPI(IrodsBasicAPI):
         except exceptions.iRODSException as e:
             raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
-
     @classmethod
     def recalculate_checksums(cls, path):
         """
@@ -119,6 +97,25 @@ class ICmdsDataObjectAPI(IrodsBasicAPI):
         except exceptions.iRODSException as e:
             raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
+
+class ICmdsCollectionAPI(IrodsBasicAPI):
+
+    @classmethod
+    def create(cls, path):
+        cmd_args = cls._build_icmd_args('imkdir', [path])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iMkDirException(error=e.err, output=e.out, cmd=e.cmd)
+
+    # TODO: distinguish somehow between different types of iRODS errors
+    @classmethod
+    def remove(cls, path):
+        cmd_args = cls._build_icmd_args('irm', [path], ["-r"])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
 
 
