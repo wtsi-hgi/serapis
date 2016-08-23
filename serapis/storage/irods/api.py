@@ -47,6 +47,26 @@ class IrodsBasicAPI:
         pass
 
     @classmethod
+    def get_all_metadata(cls):
+        pass
+
+    @classmethod
+    def remove_all_metadata(cls):
+        pass
+
+    @classmethod
+    def add_metadata(cls):
+        pass
+
+    @classmethod
+    def remove_metadata(cls):
+        pass
+
+    @classmethod
+    def update_metadata(cls):
+        pass
+
+    @classmethod
     def upload(cls):
         pass
 
@@ -82,24 +102,3 @@ class DataObjectAPI:
     def get_checksum(cls, path):
         pass
 
-
-class MetadataAPI:
-    @classmethod
-    def add(cls, fpath, avu_dict):
-        pass
-
-    @classmethod
-    def get(cls, fpath):
-        pass
-
-    @classmethod
-    def update(cls, old_kv, new_kv):
-        pass
-
-    @classmethod
-    def remove(cls, path, avu_dict):
-        pass
-
-    @classmethod
-    def remove_all(cls, path):
-        pass
