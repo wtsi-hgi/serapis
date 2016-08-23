@@ -183,33 +183,12 @@ class BatonBasicAPI(IrodsBasicAPI):
         return True
 
 
-    @classmethod
-    def upload(cls, src_path, dest_path):
-        raise NotImplementedError("BATON does not support upload at the moment.")
-
-    @classmethod
-    def copy(cls, src_path, dest_path):
-        raise NotImplementedError("BATON does not support copy operation at the moment.")
-
-    @classmethod
-    def move(cls, src_path, dest_path):
-        raise NotImplementedError("BATON does not support move operation at the moment.")
-
-    @classmethod
-    def remove(cls, path):
-        raise NotImplementedError("BATON does not support remove operation at the moment.")
-
-
 class BatonCollectionAPI(BatonBasicAPI):
 
     @classmethod
     def _get_connection(cls):
         connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
         return connection.collection
-
-    @classmethod
-    def create(cls):
-        raise NotImplementedError("BATON does not support the operation for creating a collection")
 
     @classmethod
     def list_contents(cls, path):
