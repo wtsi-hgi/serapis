@@ -28,7 +28,7 @@ import subprocess
 class ICmdsBasicAPI(IrodsBasicAPI):
 
     @classmethod
-    def _build_icmd_args(cls, cmd_name, args_list, options=None):
+    def _build_icmd_args(cls, cmd_name: str, args_list: typing.List, options=None):
         cmd_list = [cmd_name]
         if options:
             cmd_list.extend(options)
@@ -43,25 +43,23 @@ class ICmdsBasicAPI(IrodsBasicAPI):
             raise exceptions.IrodsException(err, out, cmd=str(cmd_args))
 
 
-    def upload(self):
-        pass
-
-    def copy(self):
-        pass
-
-    def move(self):
-        pass
-
     @classmethod
     def remove(cls, path):
         raise NotImplementedError()
 
 
-
 class ICmdsCollectionAPI(CollectionAPI):
-    def create(self):
-        pass
 
+    @classmethod
+    def create(cls, path):
+        cmd_args = cls._build_icmd_args('imkdir', [path])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iMkDirException(error=e.err, output=e.out, cmd=e.cmd)
+
+    # TODO: distinguish somehow between different types of iRODS errors
+    @classmethod
     def remove(cls, path):
         cmd_args = cls._build_icmd_args('irm', [path], ["-r"])
         try:
@@ -69,7 +67,33 @@ class ICmdsCollectionAPI(CollectionAPI):
         except exceptions.iRODSException as e:
             raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
+
 class ICmdsDataObjectAPI(DataObjectAPI):
+
+    @classmethod
+    def upload(cls, src_path, dest_path):
+        # TODO: check if it is ever the case to give it extra options
+        cmd_args = cls._build_icmd_args('iput', [src_path, dest_path], options=["-K"])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
+
+    @classmethod
+    def copy(cls, src_path, dest_path):
+        cmd_args = cls._build_icmd_args('icp', [src_path, dest_path], options=[])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
+
+    @classmethod
+    def move(cls, src_path, dest_path):
+        cmd_args = cls._build_icmd_args('imv', [src_path, dest_path], options=[])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
 
     @classmethod
     def remove(cls, path):
@@ -79,4 +103,7 @@ class ICmdsDataObjectAPI(DataObjectAPI):
         except exceptions.iRODSException as e:
             raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
-    
+
+    @classmethod
+    def checksum(cls):
+        raise NotImplementedError()
