@@ -20,10 +20,29 @@ This file has been created on Aug 01, 2016.
 """
 
 from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
+from serapis.storage.irods import exceptions
 
 import typing
+import subprocess
 
 class ICmdsBasicAPI(IrodsBasicAPI):
+
+    @classmethod
+    def _build_icmd_args(cls, cmd_name, args_list, options=None):
+        cmd_list = [cmd_name]
+        if options:
+            cmd_list.extend(options)
+        cmd_list.extend(args_list)
+        return cmd_list
+
+    @classmethod
+    def _run_icmd(cls, cmd_args):
+        child_proc = subprocess.Popen(cmd_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        (out, err) = child_proc.communicate()
+        if err:
+            raise exceptions.IrodsException(err, out, cmd=str(cmd_args))
+
+
     def upload(self):
         pass
 
@@ -33,19 +52,31 @@ class ICmdsBasicAPI(IrodsBasicAPI):
     def move(self):
         pass
 
-    def remove(self):
-        pass
+    @classmethod
+    def remove(cls, path):
+        raise NotImplementedError()
+
 
 
 class ICmdsCollectionAPI(CollectionAPI):
     def create(self):
         pass
 
+    def remove(cls, path):
+        cmd_args = cls._build_icmd_args('irm', [path], ["-r"])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
 class ICmdsDataObjectAPI(DataObjectAPI):
-    def checksum(self, path, checksum_type='md5'):
-        pass
 
-    def get_checksum(self, path):
-        pass
+    @classmethod
+    def remove(cls, path):
+        cmd_args = cls._build_icmd_args('irm', [path])
+        try:
+            cls._run_icmd(cmd_args)
+        except exceptions.iRODSException as e:
+            raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
+    
