@@ -93,7 +93,7 @@ class CollectionAPI(IrodsBasicAPI):
         raise NotImplementedError()
 
 
-class DataObjectAPI:
+class DataObjectAPI(IrodsBasicAPI):
 
     @classmethod
     def recalculate_checksum(cls):
