@@ -27,7 +27,6 @@ from serapis.storage.irods.baton_mappings import ACLMapping
 # DATA OBJECT - related tests:
 
 class GetACLSBatonDataObjectAPITest(unittest.TestCase):
-
     def test_get_acls_data_object(self):
         result = BatonDataObjectAPI._get_acls("/humgen/projects/serapis_staging/test-baton/test_acls.txt")
         expected = {ACL(user='ic4', zone='humgen', permission='READ'),
@@ -41,7 +40,6 @@ class GetACLSBatonDataObjectAPITest(unittest.TestCase):
 
 
 class AddOrReplaceACLBatonDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
         BatonDataObjectAPI.remove_all_acls(self.fpath)
@@ -71,7 +69,6 @@ class AddOrReplaceACLBatonDataObjectAPITest(unittest.TestCase):
 
 
 class AddOrReplaceAsBatchDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
         BatonDataObjectAPI.remove_all_acls(self.fpath)
@@ -87,7 +84,6 @@ class AddOrReplaceAsBatchDataObjectAPITest(unittest.TestCase):
 
 
 class RemoveACLsForAListOfUsersDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
         BatonDataObjectAPI.remove_all_acls(self.fpath)
@@ -106,7 +102,6 @@ class RemoveACLsForAListOfUsersDataObjectAPITest(unittest.TestCase):
 
 
 class RemoveACLForUserDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.fpath = "/humgen/projects/serapis_staging/test-baton/test_add_acls.txt"
         BatonDataObjectAPI.remove_all_acls(self.fpath)
@@ -122,7 +117,6 @@ class RemoveACLForUserDataObjectAPITest(unittest.TestCase):
 
     def tearDown(self):
         BatonDataObjectAPI.remove_all_acls(self.fpath)
-
 
 
 class RemoveAllACLSBatonDataObjectAPITest(unittest.TestCase):
@@ -142,15 +136,46 @@ class RemoveAllACLSBatonDataObjectAPITest(unittest.TestCase):
         self.assertEqual(set(), acls_set)
 
 
-
 class AddMetadataBatonDataObjectAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.fpath = "/humgen/projects/serapis_staging/test-baton/test_metadata_add_rm.txt"
+        self.meta_dict = {'sample': {'sample2'}, 'sample_id': {'-1'}}
+
+    def test_add_metadata(self):
+        BatonDataObjectAPI.add_metadata(self.fpath, self.meta_dict)
+        metadata = BatonDataObjectAPI.get_all_metadata(self.fpath).to_dict()
+        self.assertDictEqual(self.meta_dict, metadata)
+
+    def tearDown(self):
+        BatonDataObjectAPI.remove_metadata(self.fpath, self.meta_dict)
+
 
 class RemoveMetadataBatonDataObjectAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.fpath = "/humgen/projects/serapis_staging/test-baton/test_metadata_add_rm.txt"
+        self.meta_dict = {'sample': {'sample2'}, 'sample_id': {'-1'}}
+        self.previous_meta = BatonDataObjectAPI.get_all_metadata(self.fpath)
+        BatonDataObjectAPI.add_metadata(self.fpath, self.meta_dict)
+
+    def test_remove_metadata(self):
+        BatonDataObjectAPI.remove_metadata(self.fpath, self.meta_dict)
+        crt_meta = BatonDataObjectAPI.get_all_metadata(self.fpath)
+        self.assertEqual(crt_meta, self.previous_meta)
+
 
 class UpdateMetadataBatonDataObjectAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.fpath = "/humgen/projects/serapis_staging/test-baton/test_metadata_add_rm.txt"
+        BatonDataObjectAPI.add_metadata(self.fpath, {'uniq_key': {'first_value'}})
+
+    def test_update_metadata(self):
+        BatonDataObjectAPI.update_metadata(self.fpath, 'uniq_key', {'second_value'})
+        updated_meta = BatonDataObjectAPI.get_all_metadata(self.fpath)
+        values = updated_meta.get_avu('uniq_key')
+        self.assertEqual(values, {'second_value'})
+
+    def tearDown(self):
+        BatonDataObjectAPI.remove_metadata(self.fpath, {'uniq_key': {'second_value'}})
 
 
 class AddMetadataBatonCollectionAPITest(unittest.TestCase):
@@ -231,11 +256,11 @@ class GetACLSBatonCollectionAPITest(unittest.TestCase):
         }
         self.assertSetEqual(result, expected)
 
-class GetACLSBatonCollectionAPITest2(unittest.TestCase):
-    def test_trigger_exception(self):
-        result = BatonCollectionAPI.get_acls('/smth/non-existing')
-        print("Results from trigger exception test; %s" % result)
-        self.assertEqual(1,2)
+# class GetACLSBatonCollectionAPITest2(unittest.TestCase):
+#     def test_trigger_exception(self):
+#         result = BatonCollectionAPI.get_acls('/smth/non-existing')
+#         print("Results from trigger exception test; %s" % result)
+   #     self.assertEqual(1,2)
 
 
 class RemoveAllACLSBatonCollectionAPITest(unittest.TestCase):
