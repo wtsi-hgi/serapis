@@ -22,7 +22,7 @@ This module holds the functionality for iRODS that is implemented within BATON. 
 are not implemented within BATON throw a NotImplementedException upon call.
 """
 from serapis import config
-from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI, MetadataAPI
+from serapis.storage.irods.api import IrodsBasicAPI, CollectionAPI, DataObjectAPI
 from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
 from serapis.storage.irods.baton_mappings import ACLMapping, MetadataMapping
@@ -139,7 +139,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             metadata = connection.metadata.get_all(path)
         except Exception as e:
             raise e # TODO: some exception, to see which one
-        return metadata
+        return MetadataMapping.from_baton(metadata)
 
 
     @classmethod
