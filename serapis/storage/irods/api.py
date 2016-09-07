@@ -67,19 +67,19 @@ class IrodsBasicAPI:
         raise NotImplementedError()
 
     @classmethod
-    def upload(cls):
+    def upload(cls, src_path, dest_path):
         raise NotImplementedError()
 
     @classmethod
-    def copy(cls):
+    def copy(cls, src_path, dest_path):
         raise NotImplementedError()
 
     @classmethod
-    def move(cls):
+    def move(cls, src_path, dest_path):
         raise NotImplementedError()
 
     @classmethod
-    def remove(cls):
+    def remove(cls, path):
         raise NotImplementedError()
 
 
