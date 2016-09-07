@@ -38,7 +38,7 @@ class UploadICmdsDataObjectAPITest(unittest.TestCase):
     def test_upload(self):
         ICmdsDataObjectAPI.upload(self.src_path, self.dest_path)
         files = BatonCollectionAPI.list_contents(self.dest_path)
-        self.assertTrue(basename(self.src_fname in files)
+        self.assertTrue(basename(self.src_fname in files))
         # TODO: check on what list_contents returns - is it full paths or just file names?
 
     # TODO: check that if setup is run before each test, or only at the beginning of all tests once
