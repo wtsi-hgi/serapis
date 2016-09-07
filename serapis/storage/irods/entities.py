@@ -43,21 +43,52 @@ class ACL:
 
 
 class IrodsMetadata:
-    def __init__(self, avus: typing.List[typing.Tuple]=None):
-        if not avus:
-            self.avus_dict = defaultdict(set)
-        else:
-            self.avus_dict = defaultdict()
-            for key, value in avus:
-                self.add_avu(key, value)
+    def __init__(self, avus: typing.Dict[str, typing.Set]):
+        self.avus_dict = avus
+    # def __init__(self, avus: typing.List[typing.Tuple]=None):
+    #     if not avus:
+    #         self.avus_dict = dict()
+    #     else:
+    #         self.avus_dict = dict(avus)
+    #         for key, value in avus.items():
+    #             self.add_avu(key, value)
 
     def add_avu(self, key, value):
-        self.avus_dict[key].add(value)
+        if key in self.avus_dict:
+            self.avus_dict[key].add(value)
+        else:
+            values = set()
+            values.add(value)
+            self.avus_dict[key] = values
 
     def get_avu(self, key):
-        return self.avus_dic.get(key)
+        return self.avus_dict.get(key)
 
+    def to_dict(self):
+        return self.avus_dict
 
+    def __eq__(self, other):
+        return self.avus_dict == other.avus_dict
+
+    def __hash__(self):
+        return hash(self.avus_dict)
+#
+# class IrodsMetadata:
+#     def __init__(self, avus: typing.List[typing.Tuple]=None):
+#         if not avus:
+#             self.avus_dict = defaultdict(set)
+#         else:
+#             self.avus_dict = defaultdict(set)
+#             for key, value in avus.items():
+#                 self.add_avu(key, value)
+#
+#     def add_avu(self, key, value):
+#         self.avus_dict[key].add(value)
+#
+#     def get_avu(self, key):
+#         return self.avus_dic.get(key)
+#
+#
 
 
 
