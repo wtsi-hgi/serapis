@@ -287,14 +287,6 @@ class GetACLSBatonCollectionAPITest(unittest.TestCase):
         expected = {
                     ACL(user='ic4', zone='humgen', permission='OWN'),
                     ACL(user='ic4', zone='Sanger1', permission='READ'),
-                    #ACL(user='ic4', zone='humgen', permission='READ'),
-                    # ACL(user='humgenadmin', zone='humgen', permission='OWN'),
-                    # ACL(user='mercury', zone='Sanger1', permission='OWN'),
-                    # ACL(user='irods', zone='humgen', permission='OWN'),
-                    # ACL(user='serapis', zone='humgen', permission='OWN'),
-                    # ACL(user='jr17', zone='humgen', permission='OWN'),
-                    # ACL(user='pc7', zone='humgen', permission='OWN'),
-                    # ACL(user='mp15', zone='humgen', permission='OWN'),
         }
         self.assertSetEqual(result, expected)
 
@@ -403,11 +395,4 @@ class AddOrReplaceAsBatchCollectionAPITest(unittest.TestCase):
         BatonCollectionAPI.add_or_replace_a_list_of_acls(self.path, self.acls)
         self.acls_set = BatonCollectionAPI.get_acls(self.path)
         self.assertEqual(len(self.acls_set), 2)
-
-
-
-
-
-
-
 
