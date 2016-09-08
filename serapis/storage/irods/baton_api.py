@@ -72,6 +72,8 @@ class BatonBasicAPI(IrodsBasicAPI):
             connection = cls._get_connection()
             baton_acl = ACLMapping.to_baton(acl)
             connection.access_control.add_or_replace(path, baton_acl)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             raise ACLRetrievalException() from e
         return True
@@ -93,7 +95,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             connection.access_control.add_or_replace(path, baton_acls)
         except Exception as e:
             raise e
-            raise ACLRetrievalException(e.args) from e
+            #raise ACLRetrievalException(e.args) from e
         return True
 
 
@@ -157,10 +159,11 @@ class BatonBasicAPI(IrodsBasicAPI):
         try:
             connection = cls._get_connection()
             connection.metadata.add(path, baton_avus)
-        except Exception as e:
-            raise e
+        except KeyError as e:
+            #  Already existing key -- I don't really care, all I want is for the key - val to be there.
+            # In this case returns: KeyError: "Failed to add metadata <key> -> <val> on <path>: error -809000 CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME"
+            pass
         return True
-
 
     @classmethod
     def remove_metadata(cls, path, avu_dict):
@@ -168,8 +171,9 @@ class BatonBasicAPI(IrodsBasicAPI):
         try:
             connection = cls._get_connection()
             connection.metadata.remove(path, baton_avus)
-        except Exception as e:
-            raise e
+        except KeyError:
+            # Thrown when the key doesn't exist, i am silencing it for now
+            pass
         return True
 
     @classmethod
@@ -223,29 +227,6 @@ class BatonDataObjectAPI(BatonBasicAPI):
     def get_checksum(cls, path):
         pass
 
-
-#
-# class BatonMetadataAPI(MetadataAPI):
-#     @classmethod
-#     def add(cls, fpath, avu_dict):
-#         pass
-#
-#     @classmethod
-#     def get(cls, fpath):
-#         pass
-#
-#     @classmethod
-#     def update(cls, old_kv, new_kv):
-#         # not sure if I need it, cause if it can't be done as an atomic operation within baton, then I may as well rely on add/remove
-#         pass
-#
-#     @classmethod
-#     def remove(cls, path, avu_dict):
-#         pass
-#
-#     @classmethod
-#     def remove_all(cls, path):
-#         pass
 
 # IRODS_ERROR_USER_FILE_DOES_NOT_EXIST, IRODS_ERROR_CAT_INVALID_ARGUMENT+permission issue  -> FileNotFoundError(error_message)
 # IRODS_ERROR_CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME, IRODS_ERROR_CAT_SUCCESS_BUT_WITH_NO_INFO -> KeyError(error_message)
