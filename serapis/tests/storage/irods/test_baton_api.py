@@ -179,16 +179,58 @@ class UpdateMetadataBatonDataObjectAPITest(unittest.TestCase):
 
 
 class AddMetadataBatonCollectionAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.coll_path = "/humgen/projects/serapis_staging/test-baton/test_coll_metadata"
+        self.meta_dict = {'key1': {'val1'}}
+
+    def test_add_metadata(self):
+        BatonCollectionAPI.add_metadata(self.coll_path, self.meta_dict)
+        crt_meta_dict = BatonCollectionAPI.get_all_metadata(self.coll_path).to_dict()
+        self.assertTrue('key1' in crt_meta_dict)
+
+    def tearDown(self):
+        BatonCollectionAPI.remove_metadata(self.coll_path, self.meta_dict)
+
 
 class RemoveMetadataBatonCollectionAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.coll_path = "/humgen/projects/serapis_staging/test-baton/test_coll_metadata"
+        self.meta_dict = {'key1': {'val1'}}
+        BatonCollectionAPI.add_metadata(self.coll_path, self.meta_dict)
+        crt_meta = BatonCollectionAPI.get_all_metadata(self.coll_path).to_dict()
+        self.assertTrue('key1' in crt_meta)
+
+    def test_rm_metadata(self):
+        BatonCollectionAPI.remove_metadata(self.coll_path, self.meta_dict)
+        new_meta = BatonCollectionAPI.get_all_metadata(self.coll_path).to_dict()
+        self.assertFalse('key1' in new_meta)
+
 
 class UpdateMetadataBatonCollectionAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.coll_path = "/humgen/projects/serapis_staging/test-baton/test_coll_metadata"
+        self.meta_dict = {'key1': {'val1'}}
+        BatonCollectionAPI.add_metadata(self.coll_path, self.meta_dict)
+        crt_meta = BatonCollectionAPI.get_all_metadata(self.coll_path).to_dict()
+        self.assertTrue('key1' in crt_meta)
+
+    def test_update_metadata(self):
+        BatonCollectionAPI.update_metadata(self.coll_path, 'key1', {'val2'})
+        crt_meta = BatonCollectionAPI.get_all_metadata(self.coll_path).to_dict()
+        self.assertTrue('key1' in crt_meta)
+        self.assertSetEqual(crt_meta['key1'], {'val2'})
+
+    def tearDown(self):
+        BatonCollectionAPI.remove_metadata(self.coll_path, {'key1': {'val2'}})
 
 class ListContentsBatonCollectionAPITest(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.coll_path = "/humgen/projects/serapis_staging/test-baton/test_coll_metadata"
+
+    def test_list_contents(self):
+        contents = BatonCollectionAPI.list_contents(self.coll_path)
+        self.assertEqual(len(contents), 1)
+        self.assertEqual(contents[0], "/humgen/projects/serapis_staging/test-baton/test_coll_metadata/test_list_coll.txt")
 
 
 # ABSTRACT - NOT IMPLEMENTED METHODS TESTS:
