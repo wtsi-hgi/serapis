@@ -25,34 +25,34 @@ from os.path import basename, join
 from serapis.storage.irods.icommands_api import ICmdsDataObjectAPI, ICmdsCollectionAPI, ICmdsBasicAPI
 
 # for testing purposes, I am going to use the functionality in BATON module for listing files
-from serapis.storage.irods.baton_api import BatonCollectionAPI
+from serapis.storage.irods.baton_api import BatonCollectionAPI, BatonDataObjectAPI
 
 class UploadICmdsDataObjectAPITest(unittest.TestCase):
 
     def setUp(self):
         self.src_path = os.path.realpath(__file__)
-        self.dest_path = "/humgen/projects/serapis_staging/test-icmds/test-iput"
+        self.dest_coll = "/humgen/projects/serapis_staging/test-icmds/test-iput"
         self.src_fname = basename(self.src_path)
-        self.dest_file_path = join(self.dest_path, self.src_fname)
+        self.dest_file_path = join(self.dest_coll, self.src_fname)
+        self.copy_fpath = join(self.dest_coll, "fcopy.txt")
 
     def test_upload(self):
-        ICmdsDataObjectAPI.upload(self.src_path, self.dest_path)
-        files = BatonCollectionAPI.list_contents(self.dest_path)
-        self.assertTrue(basename(self.src_fname in files))
+        ICmdsDataObjectAPI.upload(self.src_path, self.dest_coll)
+        files = BatonCollectionAPI.list_contents(self.dest_coll)
+        self.assertTrue(self.src_fname in files)
         # TODO: check on what list_contents returns - is it full paths or just file names?
 
     # TODO: check that if setup is run before each test, or only at the beginning of all tests once
     # If it's run before each test, this test needs to be moved
     def test_copy(self):
-        self.copy_fpath = join(self.dest_path, "fcopy.txt")
         ICmdsDataObjectAPI.copy(self.dest_file_path, self.copy_fpath)
-        files = BatonCollectionAPI.list_contents(self.dest_path)
+        files = BatonCollectionAPI.list_contents(self.dest_coll)
         self.assertTrue("fcopy.txt" in files)
 
 
     def tearDown(self):
         fname = basename(self.src_path)
-        dest_file_path = join(self.dest_path, fname)
+        dest_file_path = join(self.dest_coll, fname)
         ICmdsDataObjectAPI.remove(dest_file_path)
         # To be moved to the copy-tests
         ICmdsDataObjectAPI.remove(self.copy_fpath)
@@ -64,3 +64,7 @@ class UploadICmdsDataObjectAPITest(unittest.TestCase):
 #
 #     def test_copy(self):
 #         pass
+
+
+
+
