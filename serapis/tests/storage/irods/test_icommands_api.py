@@ -31,39 +31,87 @@ class UploadICmdsDataObjectAPITest(unittest.TestCase):
 
     def setUp(self):
         self.src_path = os.path.realpath(__file__)
-        self.dest_coll = "/humgen/projects/serapis_staging/test-icmds/test-iput"
         self.src_fname = basename(self.src_path)
-        self.dest_file_path = join(self.dest_coll, self.src_fname)
-        self.copy_fpath = join(self.dest_coll, "fcopy.txt")
-
+        self.dest_coll = "/humgen/projects/serapis_staging/test-icmds/test-iput"
+        self.dest_path = join(self.dest_coll, self.src_fname)
+#
     def test_upload(self):
-        ICmdsDataObjectAPI.upload(self.src_path, self.dest_coll)
+        ICmdsDataObjectAPI.upload(self.src_path, self.dest_path)
         files = BatonCollectionAPI.list_contents(self.dest_coll)
-        self.assertTrue(self.src_fname in files)
-        # TODO: check on what list_contents returns - is it full paths or just file names?
-
-    # TODO: check that if setup is run before each test, or only at the beginning of all tests once
-    # If it's run before each test, this test needs to be moved
-    def test_copy(self):
-        ICmdsDataObjectAPI.copy(self.dest_file_path, self.copy_fpath)
-        files = BatonCollectionAPI.list_contents(self.dest_coll)
-        self.assertTrue("fcopy.txt" in files)
-
+        self.assertTrue(self.dest_path in files)
 
     def tearDown(self):
         fname = basename(self.src_path)
         dest_file_path = join(self.dest_coll, fname)
         ICmdsDataObjectAPI.remove(dest_file_path)
-        # To be moved to the copy-tests
+
+
+class CopyICmdsDataObjectAPITest(unittest.TestCase):
+
+    def setUp(self):
+        self.coll = "/humgen/projects/serapis_staging/test-icmds/test-icp/"
+        self.orig_fpath = "/humgen/projects/serapis_staging/test-icmds/test-icp/original.txt"
+        self.copy_fpath = "/humgen/projects/serapis_staging/test-icmds/test-icp/copy.txt"
+        files = BatonCollectionAPI.list_contents(self.coll)
+        self.assertEqual(1, len(files))
+
+    def test_copy(self):
+        ICmdsDataObjectAPI.copy(self.orig_fpath, self.copy_fpath)
+        files = BatonCollectionAPI.list_contents(self.coll)
+        self.assertEqual(len(files), 2)
+
+    def tearDown(self):
         ICmdsDataObjectAPI.remove(self.copy_fpath)
-#
-# class CopyICmdsDataObjectAPITest(unittest.TestCase):
-#
-#     def setUp(self):
-#         pass
-#
-#     def test_copy(self):
-#         pass
+        files = BatonCollectionAPI.list_contents(self.coll)
+        self.assertEqual(len(files), 1)
+
+
+class MoveICmdsDataObjectAPITest(unittest.TestCase):
+
+    def setUp(self):
+        self.coll = "/humgen/projects/serapis_staging/test-icmds/test-imv"
+        self.fpath = "/humgen/projects/serapis_staging/test-icmds/test-imv/original_name.txt"
+        self.renamed_fpath = "/humgen/projects/serapis_staging/test-icmds/test-imv/renamed.txt"
+        files = BatonCollectionAPI.list_contents(self.coll)
+        self.assertEqual(len(files), 1)
+        self.assertTrue(self.fpath in files)
+
+    def test_move(self):
+        ICmdsDataObjectAPI.move(self.fpath, self.renamed_fpath)
+        files = BatonCollectionAPI.list_contents(self.coll)
+        self.assertTrue(self.renamed_fpath in files)
+        self.assertEqual(len(files), 1)
+
+    def tearDown(self):
+        ICmdsDataObjectAPI.move(self.renamed_fpath, self.fpath)
+
+
+
+class CreateIcmdsCollectionAPITest(unittest.TestCase):
+
+    def setUp(self):
+        self.parent_coll = "/humgen/projects/serapis_staging/test-icmds/test-mk-rm-coll"
+        self.coll_created = "/humgen/projects/serapis_staging/test-icmds/test-mk-rm-coll/new_coll"
+
+        files = BatonCollectionAPI.list_contents(self.parent_coll)
+        print("Files: %s" % files)
+        self.assertFalse(self.coll_created in files)
+
+    def test_create(self):
+        ICmdsCollectionAPI.create(self.coll_created)
+        contents = BatonCollectionAPI.list_contents(self.parent_coll)
+        print("Contents: %s" % contents)
+        self.assertTrue(self.coll_created in contents)
+
+    # def tearDown(self):
+    #     ICmdsCollectionAPI.remove(self.coll_created)
+    #     contents = BatonCollectionAPI.list_contents(self.parent_coll)
+    #     self.assertFalse(self.coll_created in contents)
+
+
+
+
+
 
 
 
