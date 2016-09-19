@@ -45,9 +45,6 @@ class ICmdsBasicAPI(IrodsBasicAPI):
             raise Exception(err)
         return out
 
-        # if err:
-        #     raise exceptions.IrodsException(err, out, cmd=str(cmd_args))
-
     @classmethod
     def remove(cls, path):
         raise NotImplementedError()
@@ -64,8 +61,6 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
         except Exception as e:
             # TODO: check on what type of exception is actually thrown here
             raise e
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
 
     @classmethod
     def copy(cls, src_path, dest_path):
@@ -76,9 +71,6 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
             # TODO: check on what type of exception is actually thrown here
             raise e
 
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
-
     @classmethod
     def move(cls, src_path, dest_path):
         cmd_args = cls._build_icmd_args('imv', [src_path, dest_path], options=[])
@@ -88,9 +80,6 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
             # TODO: check on what type of exception is actually thrown here
             raise e
 
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iPutException(error=e.err, output=e.out, cmd=cmd_args)
-
     @classmethod
     def remove(cls, path):
         cmd_args = cls._build_icmd_args('irm', [path])
@@ -98,8 +87,6 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
             cls._run_icmd(cmd_args)
         except Exception as e:
             raise e
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
     @classmethod
     def recalculate_checksums(cls, path):
@@ -117,9 +104,6 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
             # TODO: check on what type of exception is actually thrown here
             raise e
 
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
-
 
 class ICmdsCollectionAPI(ICmdsBasicAPI):
 
@@ -132,9 +116,6 @@ class ICmdsCollectionAPI(ICmdsBasicAPI):
             # TODO: check on what type of exception is actually thrown here
             raise e
 
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iMkDirException(error=e.err, output=e.out, cmd=e.cmd)
-
     # TODO: distinguish somehow between different types of iRODS errors
     @classmethod
     def remove(cls, path):
@@ -144,9 +125,6 @@ class ICmdsCollectionAPI(ICmdsBasicAPI):
         except Exception as e:
             # TODO: check on what type of exception is actually thrown here
             raise e
-
-        # except exceptions.iRODSException as e:
-        #     raise exceptions.iRMException(error=e.err, output=e.out, cmd=e.cmd)
 
 
 

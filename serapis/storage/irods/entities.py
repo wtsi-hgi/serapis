@@ -19,7 +19,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
-from collections import defaultdict
 import typing
 
 
@@ -45,13 +44,6 @@ class ACL:
 class IrodsMetadata:
     def __init__(self, avus: typing.Dict[str, typing.Set]):
         self.avus_dict = avus
-    # def __init__(self, avus: typing.List[typing.Tuple]=None):
-    #     if not avus:
-    #         self.avus_dict = dict()
-    #     else:
-    #         self.avus_dict = dict(avus)
-    #         for key, value in avus.items():
-    #             self.add_avu(key, value)
 
     def add_avu(self, key, value):
         if key in self.avus_dict:
@@ -72,23 +64,6 @@ class IrodsMetadata:
 
     def __hash__(self):
         return hash(self.avus_dict)
-#
-# class IrodsMetadata:
-#     def __init__(self, avus: typing.List[typing.Tuple]=None):
-#         if not avus:
-#             self.avus_dict = defaultdict(set)
-#         else:
-#             self.avus_dict = defaultdict(set)
-#             for key, value in avus.items():
-#                 self.add_avu(key, value)
-#
-#     def add_avu(self, key, value):
-#         self.avus_dict[key].add(value)
-#
-#     def get_avu(self, key):
-#         return self.avus_dic.get(key)
-#
-#
 
 
 
