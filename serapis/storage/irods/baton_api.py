@@ -196,6 +196,10 @@ class BatonCollectionAPI(BatonBasicAPI):
 
     @classmethod
     def list_contents(cls, path):
+        pass
+
+    @classmethod
+    def list_data_objects(cls, path):
         """
         This method lists the contents of a collection. It creates a different type of connection instead of using the class-defined one,
         because Colin refused to change the implementation so that connection.collection return stuff belonging
@@ -204,11 +208,28 @@ class BatonCollectionAPI(BatonBasicAPI):
         :return: list of file paths (strings)
         """
         try:
-            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH).data_object
-            data_objects = connection.get_all_in_collection(path)
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            data_objects = connection.data_object.get_all_in_collection(path)
         except Exception as e:
             raise e
         file_paths = [do.path for do in data_objects]
+        return file_paths
+
+    @classmethod
+    def list_collections(cls, path):
+        """
+        This method lists the contents of a collection. It creates a different type of connection instead of using the class-defined one,
+        because Colin refused to change the implementation so that connection.collection return stuff belonging
+        to that collection, but instead one has to create a connection.data_object and then call get_all_in_collection
+        in order to get the contents of a collection.
+        :return: list of file paths (strings)
+        """
+        try:
+            connection = connect_to_irods_with_baton(cls.BATON_BIN_PATH)
+            collections = connection.collection.get_all_in_collection(path)
+        except Exception as e:
+            raise e
+        file_paths = [coll.path for coll in collections]
         return file_paths
 
 

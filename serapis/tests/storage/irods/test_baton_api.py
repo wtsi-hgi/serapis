@@ -228,7 +228,7 @@ class ListContentsBatonCollectionAPITest(unittest.TestCase):
         self.coll_path = "/humgen/projects/serapis_staging/test-baton/test_coll_metadata"
 
     def test_list_contents(self):
-        contents = BatonCollectionAPI.list_contents(self.coll_path)
+        contents = BatonCollectionAPI.list_data_objects(self.coll_path)
         self.assertEqual(len(contents), 1)
         self.assertEqual(contents[0], "/humgen/projects/serapis_staging/test-baton/test_coll_metadata/test_list_coll.txt")
 
