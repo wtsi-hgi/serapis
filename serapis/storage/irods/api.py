@@ -89,7 +89,11 @@ class CollectionAPI(IrodsBasicAPI):
         raise NotImplementedError()
 
     @classmethod
-    def list_contents(cls):
+    def list_data_objects(cls):
+        raise NotImplementedError()
+
+    @classmethod
+    def list_collection(cls):
         raise NotImplementedError()
 
 
