@@ -7,7 +7,7 @@ Created on Oct 26, 2014
 from serapis.com import constants
 
 
-class StorageBasicAPI:
+class BasicStorageAPI:
 
     @classmethod
     def get_permissions(cls, path):
@@ -40,7 +40,7 @@ class StorageBasicAPI:
         pass
 
 
-class DirectoryAPI(StorageBasicAPI):
+class DirectoryAPI(BasicStorageAPI):
 
     @classmethod
     def create(cls, path):
@@ -55,7 +55,7 @@ class DirectoryAPI(StorageBasicAPI):
         pass
 
 
-class FileAPI(StorageBasicAPI):
+class FileAPI(BasicStorageAPI):
 
     @classmethod
     def is_file(cls, path):
@@ -64,4 +64,3 @@ class FileAPI(StorageBasicAPI):
     @classmethod
     def calculate_checksum(cls, path, checksum_type='md5'):
         pass
-    
