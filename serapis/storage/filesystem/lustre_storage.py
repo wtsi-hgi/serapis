@@ -42,6 +42,10 @@ class FileSystemBasicAPI(Storage):
     def delete(cls, path):
         raise NotImplementedError
 
+    @classmethod
+    def exists(cls, path):
+        return os.path.exists(path)
+
 
 class DirectoryAPI(FileSystemBasicAPI):
 
@@ -62,11 +66,7 @@ class DirectoryAPI(FileSystemBasicAPI):
             a list of file names and directory names contained in the directory given as parameter
         """
         return [f for f in os.listdir(path)]
-    
-    @classmethod
-    def exists(cls, path):
-        return os.path.exists(path)
-    
+
     @classmethod
     def is_dir(cls, path):
         return os.path.isdir(path)
