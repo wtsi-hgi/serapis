@@ -2,12 +2,12 @@ __author__ = 'ic4'
 __date__ = '1.12.2014'
 
 from serapis.com import wrappers
-from serapis.meta_external_resc import base
+from serapis.meta_external_resc import _base
 from serapis.seqscape import queries as seqsc
 from serapis.domain.models import data_entity as srp_entities
 
 
-class SeqscapeExternalResc(base.ExternalResc):
+class SeqscapeExternalResc(_base.ExternalResc):
 
     @classmethod
     @wrappers.check_args_not_none
@@ -75,7 +75,7 @@ class SeqscapeExternalResc(base.ExternalResc):
                 sample_internal_ids = [sample.internal_id for sample in samples]
                 if sample_internal_ids:
                     studies = cls.lookup_studies_given_samples(sample_internal_ids)
-        return base.LookupResult(samples=samples, libraries=libraries, studies=studies)
+        return _base.LookupResult(samples=samples, libraries=libraries, studies=studies)
 
 
     @classmethod

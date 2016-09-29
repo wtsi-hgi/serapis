@@ -2,12 +2,12 @@ __author__ = 'ic4'
 __date__ = '1.12.2014'
 
 from Celery_Django_Prj import configs
-from serapis.meta_external_resc import seqscape
+from serapis.meta_external_resc import _seqscape
 
 
 def get_external_resc_class_configured(ext_resc_type):
     if ext_resc_type == configs.SEQSCAPE:
-        return seqscape.SeqscapeExternalResc
+        return _seqscape.SeqscapeExternalResc
     else:
         msg = "The external service called: "+str(ext_resc_type)+\
               " is not implemented. Please extend meta_external_resc.base class"

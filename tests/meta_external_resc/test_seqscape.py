@@ -1,7 +1,7 @@
 __author__ = 'ic4'
 
 import unittest
-from serapis.meta_external_resc import seqscape as seqsc_ext_resc
+from serapis.meta_external_resc import _seqscape as seqsc_ext_resc
 from serapis.seqscape import models as seqsc_models
 from serapis.domain.models import data_entity
 
