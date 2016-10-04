@@ -41,15 +41,15 @@ class SeqscapeSampleProvider(SeqscapeEntityProvider):
 
     @classmethod
     def get_by_internal_id(cls, ss_connection, internal_id):
-        results = ss_connection.get_by_id(internal_id)
+        results = ss_connection.sample.get_by_id(internal_id)
 
     @classmethod
     def get_by_name(cls, ss_connection, name):
-        results = ss_connection.get_by_name(name)
+        results = ss_connection.sample.get_by_name(name)
 
     @classmethod
     def get_by_accession_number(cls, ss_connection, accession_number):
-        results = ss_connection.get_by_accession_number
+        results = ss_connection.sample.get_by_accession_number
 
 
 
