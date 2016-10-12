@@ -42,7 +42,6 @@ class SeqscapeEntityProvider:
     @classmethod
     def get_by_internal_id(cls, connection, entity_id):
         entity_api = getattr(connection, cls._entity_type)
-        #entity_api = cls._get_entity_api(connection, cls._entity_type)
         results = entity_api.get_by_id(entity_id)
         if len(results) > 1:
             raise NonUniqueEntity("There are more %s(s) in Seqscape with id = %s, %s(s) = %s" % (cls._entity_type, entity_id, results))
@@ -53,11 +52,8 @@ class SeqscapeEntityProvider:
 
     @classmethod
     def get_by_name(cls, connection, entity_name):
-        #entity_api = cls._get_entity_api(connection, cls._entity_type)
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_name(entity_name)
-        print("Resultssssssssssssssssssss: %s" % results)
-
         if len(results) > 1:
             raise NonUniqueEntity("There are more %s(s) in Seqscape with id = %s, %s(s) = %s" % (cls._entity_type, entity_name, results))
         elif len(results) < 1:
@@ -67,7 +63,6 @@ class SeqscapeEntityProvider:
 
     @classmethod
     def get_by_accession_number(cls, connection, entity_accession_number):
-        #entity_api = cls._get_entity_api(connection, cls._entity_type)
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_accession_number(entity_accession_number)
         if len(results) > 1:
@@ -79,35 +74,10 @@ class SeqscapeEntityProvider:
 
 class SeqscapeSampleProvider(SeqscapeEntityProvider):
     _entity_type = 'sample'
-    #
-    # @classmethod
-    # def get_by_internal_id(cls, connection, internal_id):
-    #     return super().get_by_internal_id(connection, cls._entity_type, internal_id)
-    #
-    # @classmethod
-    # def get_by_name(cls, connection, name):
-    #     return super().get_by_name(connection, cls._entity_type, name)
-    #
-    # @classmethod
-    # def get_by_accession_number(cls, connection, accession_number):
-    #     return super().get_by_accession_number(connection, cls._entity_type, accession_number)
 
 
 class SeqscapeStudyProvider(SeqscapeEntityProvider):
     _entity_type = 'study'
-
-    # @classmethod
-    # def get_by_internal_id(cls, connection, internal_id):
-    #     return super().get_by_internal_id(connection, cls._entity_type, internal_id)
-    #
-    # @classmethod
-    # def get_by_name(cls, connection, name):
-    #     return super().get_by_name(connection, cls._entity_type, name)
-    #
-    # @classmethod
-    # def get_by_accession_number(cls, connection, accession_number):
-    #     return super().get_by_accession_number(connection, cls._entity_type, accession_number)
-    #
 
 
 class SeqscapeLibraryProvider(SeqscapeEntityProvider):
