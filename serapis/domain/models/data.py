@@ -52,11 +52,11 @@ class GWASData(Data):
         self.study_type = study_type    # Can be: case-control, trio, etc.
 
 
-class DNAData(Data):
+class DNASequencingData(Data):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, library_strategy=None, library_source=None, genomic_regions=GenomeRegions(),
                  genome_reference=None):
-        super(DNAData, self).__init__(processing, pmid_list, security_level)
+        super(DNASequencingData, self).__init__(processing, pmid_list, security_level)
         self.libraries = data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
         self.samples = data_entity.SampleCollection()
         self.genomic_regions = genomic_regions  # this has GenomeRegions as type
@@ -64,18 +64,18 @@ class DNAData(Data):
         self.coverage_list = coverage_list
         self.genome_reference = genome_reference
 
-class DNASequenceData(DNAData):
+class DNASequencingDataAsReads(DNASequencingData):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, seq_centers=None,
                  genome_reference=None):
-        super(DNASequenceData, self).__init__(pmid_list, security_level, processing=processing, genome_reference=genome_reference,
+        super(DNASequencingDataAsReads, self).__init__(pmid_list, security_level, processing=processing, genome_reference=genome_reference,
                                               coverage_list=coverage_list, sorting_order=sorting_order,
                                               library_strategy=library_strategy, library_source=library_source,
                                               genomic_regions=genomic_regions)
         self.seq_centers = seq_centers
 
 
-class DNAVariationData(DNAData):
+class DNAVariationData(DNASequencingData):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, genome_reference=None):
         super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,

@@ -60,7 +60,7 @@ class SerapisFileBuilder(object):
 
         # Init data:
         if params.data_type == constants.SINGLE_SAMPLE_SEQUENCE_DATA:
-            new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing,
+            new_file.data = data.DNASequencingDataAsReads(params.pmid_list, params.security_level, processing=params.processing,
                                                  coverage_list=params.coverage_list, sorting_order=params.sorting_order,
                                                  genomic_reg=params.genomic_regions,
                                                  library_strategy=params.library_strategy,
@@ -80,7 +80,7 @@ class SerapisFileBuilder(object):
         # This part appears twice, WHY?
         #if params.data_type == constants.SINGLE_SAMPLE_MERGED_IMPROVED:
         if params.data_type == constants.SINGLE_SAMPLE_SEQUENCE_DATA:
-            new_file.data = data.DNASequenceData(params.pmid_list, params.security_level, processing=params.processing)
+            new_file.data = data.DNASequencingDataAsReads(params.pmid_list, params.security_level, processing=params.processing)
         elif params.data_type == constants.VARIATION_DATA:
             new_file.data = data.DNAVariationData(params.pmid_list, params.security_level, processing=params.processing)
         else:
@@ -319,7 +319,7 @@ class SerapisBAMFileFormat(SerapisFile):
         header = all_header_data.rg
 
         # We know that a BAM file has sequence data - so it shoudl return DNASequenceData
-        file_data = data.DNASequenceData()
+        file_data = data.DNASequencingDataAsReads()
         file_data.seq_centers = header.seq_centers
         # file_data.seq_dates = header.seq_dates
         # file_data.lanelets = header.lanelets
@@ -370,7 +370,7 @@ class SerapisBAMFileFormat(SerapisFile):
             libraries = [data_entity.Library.build_from_identifier(lib_id) for lib_id in header.libraries]
 
         # We know that a BAM file has sequence data - so it should return DNASequenceData
-        file_data = data.DNASequenceData()
+        file_data = data.DNASequencingDataAsReads()
         file_data.seq_centers = header.seq_centers
         # file_data.seq_dates = header.seq_dates
         # file_data.lanelets = header.lanelets
