@@ -41,6 +41,14 @@ class Data(object):
         pass
 
 
+class GWASData(Data):
+    def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
+                 disease_or_trait=None):
+        super(GWASData, self).__init__(processing, pmid_list, studies, security_level)
+        self.genome_reference = genome_reference
+        self.disease_or_trait = disease_or_trait
+
+
 class DNAData(Data):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, library_strategy=None, library_source=None, genomic_regions=GenomeRegions(),
