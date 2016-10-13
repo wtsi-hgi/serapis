@@ -42,18 +42,25 @@ class Data(object):
 
 
 class GenotypingData(Data):
-    pass
-
-
-class GWASData(GenotypingData):
     def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
-                 disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
+                 disease_or_trait=None, nr_samples=None, ethnicity=None):
         super(GWASData, self).__init__(processing, pmid_list, studies, security_level)
         self.genome_reference = genome_reference
         self.disease_or_trait = disease_or_trait
         self.nr_samples = nr_samples
         self.ethnicity = ethnicity
+
+
+class GWASData(GenotypingData):
+
+    def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
+                 disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
+        super(GWASData, self).__init__(processing, pmid_list, studies, security_level, genome_reference, disease_or_trait, nr_samples, ethnicity)
         self.study_type = study_type    # Can be: case-control, trio, etc.
+
+
+class GWASSummaryStatisticsData(GWASData):
+    pass
 
 
 class DNASequencingData(Data):
