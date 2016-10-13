@@ -47,18 +47,3 @@ class SeqscapeStudyProviderTest(unittest.TestCase):
         self.assertEqual(result.accession_number, 'EGAS00001000440')
         self.assertEqual(result.name, "SEQCAP_WGS_SEPI_SEQ")
 
-
-
-    #def get_by_accession_number(cls, connection, entity_accession_number):
-
-
-
-
-    # def test_lookup_samples(self):
-    #     # Test that for 2 sample ids of the same type, the fct can extract them from Seqscape:
-    #     sample_ids = [('name', 'VBSEQ5231029'), ('name', '2294STDY5395187')]
-    #     results = seqsc_ext_resc.SeqscapeExternalResc.lookup_samples(sample_ids)
-    #     self.assertEqual(len(results), 2)
-    #     a_sample = results[0]
-    #     self.assertIn(a_sample.name, ['VBSEQ5231029', '2294STDY5395187'])
-    #     self.assertIn(a_sample.accession_number, ['EGAN00001088115', 'EGAN00001029324'])
