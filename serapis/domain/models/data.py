@@ -79,26 +79,6 @@ class Data(object):
         # and report the missing fields if there are any...
         pass
 
-    # def query_external_db_by_name(self, entity_type, name, url_result):
-    # #         if not self.is_field_empty('accession_number'):
-    # #             field_name = 'accession_number'
-    # #             field_value = self.accession_number
-    # #         else:
-    # #             field_name = 'name'
-    # #             field_value = self.name
-    # task_args = SeqscapeDBQueryService.prepare_args(url_result, entity_type, 'name', name)
-    #         task_id = SeqscapeDBQueryService.call_service(task_args)
-    #         return task_id
-    #         #register_task_id
-
-    # @multimethod(data_entity.Study)
-    # def lookup_study_in_seqscape(self, study):
-    #     pass
-    #
-    # @multimethod(str, str)
-    # def lookup_study_in_seqscape(self, id_val, id_type):
-    #     pass
-
     @classmethod
     def get_metadata_for_studies_from_seqscape(cls, ids_as_tuples):
         #study_ids_as_tuples = [study.export_identifier_as_tuple() for study in studies]
@@ -154,6 +134,8 @@ class DNAData(Data):
     def remove_all_libraries(self):
         return self.libraries.remove_all()
 
+
+  ##### TO REMOVE THIS PART ######
     @classmethod
     @wrappers.check_args_not_none
     def get_metadata_for_samples_from_seqscape(cls, ids_as_tuples):
