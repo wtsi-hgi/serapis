@@ -19,7 +19,6 @@ from serapis.controller.logic.task_result_reporting import TaskResultReportingAd
 
 from serapis.header_parser import bam_hparser, vcf_hparser
 
-from serapis.meta_external_resc import _usage as ext_resc_usage
 
 
 class IndexFile(object):
