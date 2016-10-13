@@ -32,38 +32,32 @@ class Data(object):
         self.security_level = security_level
         self.studies = data_entity.StudyCollection(study_set=studies)  # This has the type StudyCollection
 
-
-    # def is_field_empty(self, field):
-    #     return not (hasattr(self, field) and getattr(self, field) is not None)
-
     def has_enough_metadata_for_submission(self):
         # TODO: re-write it so that "enough" is defined somewhere externally in a config file or so
-        #return not self.is_field_empty('security_level')
         pass
 
     def get_mandatory_fields_missing(self):
         # TODO: re-write it -- same reason, mandatory should be defined externally
-        result = {}
-        if self.is_field_empty('security_level'):
-            result['security_level'] = ''
-        return result
+        pass
 
 
 class DNAData(Data):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, library_strategy=None, library_source=None, genomic_regions=GenomeRegions()):
+                 sorting_order=None, library_strategy=None, library_source=None, genomic_regions=GenomeRegions(),
+                 genome_reference=None):
         super(DNAData, self).__init__(processing, pmid_list, security_level)
         self.libraries = data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
         self.samples = data_entity.SampleCollection()
         self.genomic_regions = genomic_regions  # this has GenomeRegions as type
         self.sorting_order = sorting_order
         self.coverage_list = coverage_list
-
+        self.genome_reference = genome_reference
 
 class DNASequenceData(DNAData):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, seq_centers=None):
-        super(DNASequenceData, self).__init__(pmid_list, security_level, processing=processing,
+                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, seq_centers=None,
+                 genome_reference=None):
+        super(DNASequenceData, self).__init__(pmid_list, security_level, processing=processing, genome_reference=genome_reference,
                                               coverage_list=coverage_list, sorting_order=sorting_order,
                                               library_strategy=library_strategy, library_source=library_source,
                                               genomic_regions=genomic_regions)
@@ -72,10 +66,11 @@ class DNASequenceData(DNAData):
 
 class DNAVariationData(DNAData):
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None):
+                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, genome_reference=None):
         super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,
                                                processing=processing, sorting_order=sorting_order, genomic_regions=genomic_regions,
-                                               library_strategy=library_strategy, library_source=library_source)
+                                               library_strategy=library_strategy, library_source=library_source,
+                                               genome_reference=genome_reference)
         # used_samtools = StringField()
         # used_unified_genotyper = BooleanField()
         #     used_haplotype_caller = BooleanField()
