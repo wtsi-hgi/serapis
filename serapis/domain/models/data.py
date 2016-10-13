@@ -41,7 +41,11 @@ class Data(object):
         pass
 
 
-class GWASData(Data):
+class GenotypingData(Data):
+    pass
+
+
+class GWASData(GenotypingData):
     def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
                  disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
         super(GWASData, self).__init__(processing, pmid_list, studies, security_level)
