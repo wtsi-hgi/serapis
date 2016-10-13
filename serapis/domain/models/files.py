@@ -321,9 +321,9 @@ class SerapisBAMFileFormat(SerapisFile):
         # We know that a BAM file has sequence data - so it shoudl return DNASequenceData
         file_data = data.DNASequenceData()
         file_data.seq_centers = header.seq_centers
-        file_data.seq_dates = header.seq_dates
-        file_data.lanelets = header.lanelets
-        file_data.instrument = header.platforms
+        # file_data.seq_dates = header.seq_dates
+        # file_data.lanelets = header.lanelets
+        # file_data.instrument = header.platforms
 
         sample_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
         seqsc_samples = data.get_metadata_for_samples_from_seqscape(sample_ids_as_tuples)
@@ -372,9 +372,9 @@ class SerapisBAMFileFormat(SerapisFile):
         # We know that a BAM file has sequence data - so it should return DNASequenceData
         file_data = data.DNASequenceData()
         file_data.seq_centers = header.seq_centers
-        file_data.seq_dates = header.seq_dates
-        file_data.lanelets = header.lanelets
-        file_data.instrument = header.platforms
+        # file_data.seq_dates = header.seq_dates
+        # file_data.lanelets = header.lanelets
+        # file_data.instrument = header.platforms
         file_data.samples = samples
         file_data.libraries = libraries
         file_data.studies = studies
