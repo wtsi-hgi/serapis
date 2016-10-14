@@ -277,19 +277,7 @@ class SerapisBAMFileFormat(SerapisFile):
         raw_header = bam_hparser.BAMHeaderParser.extract_header(self.src_path)
         return bam_hparser.BAMHeaderParser.parse(raw_header, rg=True, sq=False, hd=False, pg=False)
 
-    # def intergrate_header_as_metadata(self, header):
-    #     self.data.seq_centers = header.seq_centers
-    #     self.data.seq_dates = header.seq_dates
-    #     self.data.lanelets = header.lanelets
-    #     self.data.instrument = header.platforms
-    #
-    #     # if not Sanger sample:
-    #     samples = [data_entity.Sample.build_from_identifier(identif) for identif in header.samples]
-    #     libraries = [data_entity.Library.build_from_identifier(identif) for identif in header.libraries]
-    #
-    #     # Really?! Not sure about that...
-    #     self.data.add_all(samples)
-    #     self.data.add_all(libraries)
+ 
 
     def collect_metadata_from_header(self):
         # return a type of data
@@ -450,57 +438,6 @@ class VCFFileFormat(FileFormat):
     def __init__(self, format_version):
         self.format_version = format_version
 
-
-class FileHeader(object):
-    @abc.abstractmethod
-    def parse(self):
-        pass
-
-    @abc.abstractmethod
-    def process_header_metadata(self, header):
-        pass
-
-    @staticmethod
-    def build(file_format):
-        pass
-
-
-#
-# class HeaderParserServiceCaller(object):
-#
-#     @staticmethod
-#     def build(file_format):
-#         if file_format == constants.BAM_FILE:
-#             return BAMHeaderParserServiceCaller()
-#         elif file_format == constants.VCF_FILE:
-#             return VCFHeaderParserServiceCaller()
-#
-#
-# class BAMHeaderParserServiceCaller(HeaderParserServiceCaller):
-#
-#     @staticmethod
-#     def parse(self, path, url_result, user_id, serapis_metadata):
-#         task_args = BAMFileHeaderParserService.prepare_args(path, url_result, user_id)
-#         task_id = BAMFileHeaderParserService.call_service(task_args)
-#         serapis_metadata.register_deferred_task(task_id, task_type=constants.PARSE_HEADER_TASK)
-#
-# #         task_queue = task_launcher.QueueManager.get_queue_name_for_user(constants.PROCESS_MDATA_Q, self.creator_uid)
-# #         task_parameters = {'file_path': file_path}
-# #         task_args = task_launcher.TaskLauncherArguments(self.parse_BAM_header_task, task_parameters, task_queue=task_queue)
-# #         task_id = task_launcher.TaskLauncher.launch_task(task_args)
-# #         return task_id
-#
-# class VCFHeaderParserServiceCaller(HeaderParserServiceCaller):
-#
-#     @staticmethod
-#     def parse(self, file_path):
-#         header_str = headerg.VCFHeaderExtractor.extract(file_path)
-#         vcf_header = header_processing.VCFHeaderProcessor.process(header_str)   # type = VCFHeader
-#         return vcf_header
-#
-#
-#     def parse_header_remotely(self, file_path):
-#         pass
 
 
 class FileUtils:
