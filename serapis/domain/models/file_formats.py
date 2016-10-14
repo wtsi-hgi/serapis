@@ -24,13 +24,15 @@ from sam.header_parser import SAMFileHeaderParser, SAMFileRGTagParser
 
 
 class FileFormat:
-    pass
-
+    @classmethod
+    def extract_metadata_from_header(self, fpath):
+        pass
 
 
 class BAMFileFormat(FileFormat):
 
-    def parse_header(self, fpath):
+    @classmethod
+    def extract_metadata_from_header(self, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
         raw_header = SAMFileHeaderParser.parse(header_as_text)
         rg_tags_parsed = SAMFileRGTagParser.parse(raw_header.rg_tags)
@@ -38,11 +40,16 @@ class BAMFileFormat(FileFormat):
         # => getting the samples:
         samples = rg_tags_parsed.samples
         libraries = rg_tags_parsed.libraries
+        return {'samples': samples, 'libraries': libraries}
+
+class BAIFileFormat(FileFormat):
+    pass
 
 
 class CRAMFileFormat(FileFormat):
 
-    def parse_header(self, fpath):
+    @classmethod
+    def extract_metadata_from_header(self, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
         raw_header = SAMFileHeaderParser.parse(header_as_text)
         rg_tags_parsed = SAMFileRGTagParser.parse(raw_header.rg_tags)
@@ -50,10 +57,16 @@ class CRAMFileFormat(FileFormat):
         # => getting the samples:
         samples = rg_tags_parsed.samples
         libraries = rg_tags_parsed.libraries
+        return {'samples': samples, 'libraries': libraries}
 
+class CRAIFileFormat(FileFormat):
+    pass
 
 class VCFFileFormat(FileFormat):
 
-    def parse_header(self):
+    def extract_metadata_from_header(self, fpath):
         pass
+
+
+
 
