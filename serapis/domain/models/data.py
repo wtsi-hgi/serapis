@@ -97,3 +97,10 @@ class DNAVariationData(DNASequencingData):
         # used_unified_genotyper = BooleanField()
         #     used_haplotype_caller = BooleanField()
 
+class ArchiveData(Data):
+    """
+        This type of data corresponds to a tar/rar/etc. type of archive which can contain anything.
+    """
+    pass
+
+
