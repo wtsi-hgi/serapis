@@ -18,3 +18,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 14, 2016.
 """
+
+class SerapisFile:
+
+    def __init__(self, fpath, file_format, data):
+        self.fpath = fpath
+        self.file_format = file_format
+        self.data = data
+
+
+
+
+
+
+
+
