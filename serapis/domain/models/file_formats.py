@@ -24,13 +24,20 @@ from sam.header_parser import SAMFileHeaderParser, SAMFileRGTagParser
 
 
 class FileFormat:
+    pass
+
+
+class DataFileFormat(FileFormat):
     @classmethod
     def extract_metadata_from_header(self, fpath):
         pass
 
 
-class BAMFileFormat(FileFormat):
+class IndexFileFormat(FileFormat):
+    pass
 
+
+class BAMFileFormat(DataFileFormat):
     @classmethod
     def extract_metadata_from_header(self, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
@@ -42,12 +49,12 @@ class BAMFileFormat(FileFormat):
         libraries = rg_tags_parsed.libraries
         return {'samples': samples, 'libraries': libraries}
 
-class BAIFileFormat(FileFormat):
+
+class BAIFileFormat(IndexFileFormat):
     pass
 
 
-class CRAMFileFormat(FileFormat):
-
+class CRAMFileFormat(DataFileFormat):
     @classmethod
     def extract_metadata_from_header(self, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
@@ -59,13 +66,18 @@ class CRAMFileFormat(FileFormat):
         libraries = rg_tags_parsed.libraries
         return {'samples': samples, 'libraries': libraries}
 
-class CRAIFileFormat(FileFormat):
+
+class CRAIFileFormat(IndexFileFormat):
     pass
 
-class VCFFileFormat(FileFormat):
 
+class VCFFileFormat(DataFileFormat):
     def extract_metadata_from_header(self, fpath):
         pass
+
+
+class TBIFileFormat(IndexFileFormat):
+    pass
 
 
 

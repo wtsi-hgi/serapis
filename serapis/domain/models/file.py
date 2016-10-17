@@ -18,9 +18,3 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 14, 2016.
 """
-
-class DataFile:
-    pass
-
-class IndexFile:
-    pass
