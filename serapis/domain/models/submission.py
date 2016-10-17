@@ -2,7 +2,7 @@
 import os
 
 from serapis.com import utils, constants
-from Celery_Django_Prj import configs
+#from Celery_Django_Prj import configs
 
 from serapis.controller import exceptions
 
@@ -15,10 +15,8 @@ class Submission:
         self.irods_coll = irods_coll
         self.file_paths = file_paths
         self.status = None  # TODO: set a start_status
-        self.submission_date = None     # TODO: take the today's date
+        self.submission_date = submission_date     # TODO: take the today's date
         self.team_leaders = [] if not team_leaders else team_leaders
-
-
 
 
 
