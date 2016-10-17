@@ -116,7 +116,7 @@ class DNASequencingDataAsReads(DNASequencingData):
 
 class DNAVariationData(DNASequencingData):
     """
-
+        This class holds variation data.
     """
 
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
