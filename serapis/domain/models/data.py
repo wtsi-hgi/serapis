@@ -42,13 +42,6 @@ class Data(object):
     def __hash__(self):
         return hash(self.pmid_list) + hash(self.security_level)
 
-    def has_enough_metadata_for_submission(self):
-        # TODO: re-write it so that "enough" is defined somewhere externally in a config file or so
-        pass
-
-    def get_mandatory_fields_missing(self):
-        # TODO: re-write it -- same reason, mandatory should be defined externally
-        pass
 
 
 class GenotypingData(Data):
