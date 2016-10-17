@@ -20,7 +20,9 @@ class DataProcessing(object):
 
 
 class GenomeRegions(object):
-    """ Contains a list of chromosomes or other details regarding which regions the data contains"""
+    """
+       Contains a list of chromosomes or other details regarding which regions the data contains.
+    """
 
     def __init__(self, chrom_list=['all']):
         self.chrom_list = chrom_list  # list of chromosomes
@@ -41,7 +43,6 @@ class Data(object):
 
     def __hash__(self):
         return hash(self.pmid_list) + hash(self.security_level)
-
 
 
 class GenotypingData(Data):
@@ -94,8 +95,8 @@ class DNASequencingData(Data):
         self.genome_reference = genome_reference
 
     def __eq__(self, other):
-        return super(DNASequencingData, self).__eq__(
-            other) and self.libraries == other.libraries and self.samples == other.samples and self.genomic_regions == other.genomic_regions
+        return super(DNASequencingData, self).__eq__(other) and self.libraries == other.libraries and \
+               self.samples == other.samples and self.genomic_regions == other.genomic_regions
 
     def __hash__(self):
         return super(DNASequencingData, self).__hash__()
@@ -114,6 +115,10 @@ class DNASequencingDataAsReads(DNASequencingData):
 
 
 class DNAVariationData(DNASequencingData):
+    """
+
+    """
+
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None,
                  genome_reference=None):
