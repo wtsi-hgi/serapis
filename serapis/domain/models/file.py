@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 14, 2016.
 """
 
+
 class SerapisFile:
 
     def __init__(self, fpath, file_format, data):
@@ -26,6 +27,11 @@ class SerapisFile:
         self.file_format = file_format
         self.data = data
 
+    def __eq__(self, other):
+        return self.fpath == other.fpath and self.data == other.data
+
+    def __hash__(self):
+        return hash(self.fpath) + hash(self.data)
 
 
 
