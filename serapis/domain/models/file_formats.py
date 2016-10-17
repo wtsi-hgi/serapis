@@ -28,12 +28,19 @@ class FileFormat:
 
 
 class DataFileFormat(FileFormat):
+    """
+        This class is a general type for the file formats that hold the actual data.
+    """
     @classmethod
     def extract_metadata_from_header(self, fpath):
         pass
 
 
 class IndexFileFormat(FileFormat):
+    """
+        This class is a general type for a index file format, which can't exist independent
+        but instead it is always related to another file (a data file).
+    """
     pass
 
 
@@ -51,6 +58,9 @@ class BAMFileFormat(DataFileFormat):
 
 
 class BAIFileFormat(IndexFileFormat):
+    """
+        Index file format for BAM file format.
+    """
     pass
 
 
@@ -68,6 +78,9 @@ class CRAMFileFormat(DataFileFormat):
 
 
 class CRAIFileFormat(IndexFileFormat):
+    """
+        Index file format for CRAM file format.
+    """
     pass
 
 
@@ -77,6 +90,9 @@ class VCFFileFormat(DataFileFormat):
 
 
 class TBIFileFormat(IndexFileFormat):
+    """
+        Index file format for VCF file format.
+    """
     pass
 
 
