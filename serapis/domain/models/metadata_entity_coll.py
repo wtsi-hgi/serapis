@@ -49,11 +49,6 @@ class NonAssociatedEntityIdsCollection:
             else:
                 names.add(identifier)
         return NonAssociatedEntityIdsCollection(names=names, internal_ids=ids, accession_numbers=accession_nrs)
-        # return {'name': names,
-        #         'accession_number': accession_nrs,
-        #         'internal_id': ids
-        # }
-
 
     def __eq__(self, other):
         return type(self) == type(other) and self.names == other.names and self.internal_ids == other.internal_ids and self.accession_numbers == other.accession_numbers
