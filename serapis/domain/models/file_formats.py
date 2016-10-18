@@ -44,7 +44,7 @@ class IndexFileFormat(FileFormat):
     pass
 
 
-class BAMFileFormat(DataFileFormat):
+class AlignedReadsFileFormat(DataFileFormat):
     @classmethod
     def extract_metadata_from_header(self, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
@@ -55,6 +55,10 @@ class BAMFileFormat(DataFileFormat):
         samples = rg_tags_parsed.samples
         libraries = rg_tags_parsed.libraries
         return {'samples': samples, 'libraries': libraries}
+
+
+class BAMFileFormat(AlignedReadsFileFormat):
+    pass
 
 
 class BAIFileFormat(IndexFileFormat):
@@ -64,17 +68,8 @@ class BAIFileFormat(IndexFileFormat):
     pass
 
 
-class CRAMFileFormat(DataFileFormat):
-    @classmethod
-    def extract_metadata_from_header(self, fpath):
-        header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
-        raw_header = SAMFileHeaderParser.parse(header_as_text)
-        rg_tags_parsed = SAMFileRGTagParser.parse(raw_header.rg_tags)
-
-        # => getting the samples:
-        samples = rg_tags_parsed.samples
-        libraries = rg_tags_parsed.libraries
-        return {'samples': samples, 'libraries': libraries}
+class CRAMFileFormat(AlignedReadsFileFormat):
+    pass
 
 
 class CRAIFileFormat(IndexFileFormat):
