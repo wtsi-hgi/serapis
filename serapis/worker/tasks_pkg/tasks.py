@@ -55,7 +55,7 @@ from serapis.seqscape import models as seqsc_models, queries as seqsc_queries, n
 from celery import Task #, current_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from celery.utils.log import get_task_logger
-from serapis.domain.models import identifiers
+from serapis.domain.models import metadata_entity_id
 from serapis.com import utils, wrappers
 
 logger = get_task_logger(__name__)
@@ -134,7 +134,7 @@ class CollectBAMFileMetadataTask(Task):
                 A dict of identifier_value : identifier_type, containing the identifier_values received as param
                 and the identifier_type inferred for each identifier_value.
         """
-        return {identif: identifiers.EntityIdentifier.guess_identifier_type(identif) for identif in identif_list}
+        return {identif: metadata_entity_id.EntityIdentifier.guess_identifier_type(identif) for identif in identif_list}
 
 
     @classmethod

@@ -9,7 +9,7 @@ from . import serapis_metadata
 from serapis.worker.tasks_pkg import tasks
 from serapis.com import constants, utils, wrappers
 # from serapis.domain import header_processing
-from serapis.domain.models import data_entity, data, identifiers
+from serapis.domain.models import data_entity, data, metadata_entity_id
 # from serapis.api import api_messages
 from serapis.external_services import remote_messages
 from serapis.external_services.services import UploaderService, BAMFileHeaderParserService, MD5CalculatorService, \
@@ -312,12 +312,12 @@ class SerapisBAMFileFormat(SerapisFile):
         # file_data.lanelets = header.lanelets
         # file_data.instrument = header.platforms
 
-        sample_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
+        sample_ids_as_tuples = [(metadata_entity_id.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
         seqsc_samples = data.get_metadata_for_samples_from_seqscape(sample_ids_as_tuples)
         srp_samples = [data_entity.Sample.build_from_seqsc_model(sampl) for sampl in seqsc_samples]
         file_data.samples = srp_samples
 
-        lib_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
+        lib_ids_as_tuples = [(metadata_entity_id.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
         seqsc_libs = data.get_metadata_for_libraries_from_seqscape(lib_ids_as_tuples)
         srp_libs = [data_entity.Library.build_from_seqsc_model(lib) for lib in seqsc_libs]
         file_data.libraries = srp_libs
@@ -344,8 +344,8 @@ class SerapisBAMFileFormat(SerapisFile):
         # Lookup the header entities for more information:
         samples, libraries, studies = [], [], []
         if external_resc_type:
-            sample_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
-            lib_ids_as_tuples = [(identifiers.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
+            sample_ids_as_tuples = [(metadata_entity_id.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.samples]
+            lib_ids_as_tuples = [(metadata_entity_id.EntityIdentifier.guess_identifier_type(id_val), id_val) for id_val in header.libraries]
             lookup_result = ext_resc_usage.lookup_entities_in_ext_resc(ext_resc_type=external_resc_type,
                                                                        sample_ids_tuples=sample_ids_as_tuples,
                                                                        library_ids_tuples=lib_ids_as_tuples)
@@ -394,13 +394,13 @@ class SerapisBAMFileFormat(SerapisFile):
         self.data.seq_date_list = header.seq_date_list
 
         for sample_id in header.sample_list:
-            identifier_type = identifiers.EntityIdentifier.guess_identifier_type(sample_id)
+            identifier_type = metadata_entity_id.EntityIdentifier.guess_identifier_type(sample_id)
             sample = data_entity.Sample()
             setattr(sample, identifier_type, sample_id)
             self.data.add(sample)
             self.lookup_entity_in_ext_resc(constants.SAMPLE_TYPE, identifier_type, sample_id)
         for library_id in header.library_list:
-            idenfier_type = identifiers.EntityIdentifier.guess_identifier_type(library_id)
+            idenfier_type = metadata_entity_id.EntityIdentifier.guess_identifier_type(library_id)
             library = data_entity.Library()
             setattr(library, idenfier_type, library_id)
             self.data.add(library)
