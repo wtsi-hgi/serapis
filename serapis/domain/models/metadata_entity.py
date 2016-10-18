@@ -2,7 +2,7 @@ from fuzzywuzzy import process as fuzzy_process
 
 from serapis.controller import exceptions
 from serapis.com import constants, utils, wrappers
-from serapis.domain.models import identifiers
+from serapis.domain.models import metadata_entity_id
 
 
 class MetadataEntity(object):
@@ -34,7 +34,7 @@ class MetadataEntity(object):
 
     @classmethod
     def build_from_identifier(cls, identifier):
-        identifier_type = identifiers.EntityIdentifier.guess_identifier_type(identifier)
+        identifier_type = metadata_entity_id.EntityIdentifier.guess_identifier_type(identifier)
         return cls(**{identifier_type: identifier})
 
     def export_identifier_as_tuple(self):
