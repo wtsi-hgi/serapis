@@ -1,4 +1,4 @@
--"""
+"""
 Copyright (C) 2016  Genome Research Ltd.
 
 Author: Irina Colgiu <ic4@sanger.ac.uk>
