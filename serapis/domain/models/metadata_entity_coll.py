@@ -22,7 +22,7 @@ This file has been created on Oct 18, 2016.
 from serapis.domain.models.metadata_entity_id import EntityIdentifier
 
 
-class NonassociatedEntityIdsCollection:
+class NonAssociatedEntityIdsCollection:
     """
         This class holds metadata entity ids but in a non-associated way:
         the different types of ids may of may not correspond to the same entities.
@@ -48,7 +48,7 @@ class NonassociatedEntityIdsCollection:
                 accession_nrs.add(identifier)
             else:
                 names.add(identifier)
-        return NonassociatedEntityIdsCollection(names=names, internal_ids=ids, accession_numbers=accession_nrs)
+        return NonAssociatedEntityIdsCollection(names=names, internal_ids=ids, accession_numbers=accession_nrs)
         # return {'name': names,
         #         'accession_number': accession_nrs,
         #         'internal_id': ids

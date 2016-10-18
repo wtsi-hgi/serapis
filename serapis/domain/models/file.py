@@ -20,7 +20,7 @@ This file has been created on Oct 14, 2016.
 """
 
 from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
-from serapis.domain.models.metadata_entity_coll import NonassociatedEntityIdsCollection
+from serapis.domain.models.metadata_entity_coll import NonAssociatedEntityIdsCollection
 
 class SerapisFile:
 
@@ -39,8 +39,8 @@ class SerapisFile:
 
     def gather_metadata(self):
         header_metadata = self.file_format.extract_metadata_from_header()
-        sample_ids_by_type = NonassociatedEntityIdsCollection.from_ids_list(header_metadata['samples'])
-        library_ids_by_type = NonassociatedEntityIdsCollection.from_ids_list(header_metadata['libraries'])
+        sample_ids_by_type = NonAssociatedEntityIdsCollection.from_ids_list(header_metadata['samples'])
+        library_ids_by_type = NonAssociatedEntityIdsCollection.from_ids_list(header_metadata['libraries'])
 
         # looking it up in Seqscape:
         seqscape_samples = set()
