@@ -19,6 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 14, 2016.
 """
 
+from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
+from serapis.domain.models.metadata_entity_coll import NonassociatedEntityIdsCollection
 
 class SerapisFile:
 
@@ -35,6 +37,27 @@ class SerapisFile:
 
 
 
+    def gather_metadata(self):
+        header_metadata = self.file_format.extract_metadata_from_header()
+        sample_ids_by_type = NonassociatedEntityIdsCollection.from_ids_list(header_metadata['samples'])
+        library_ids_by_type = NonassociatedEntityIdsCollection.from_ids_list(header_metadata['libraries'])
+
+        # looking it up in Seqscape:
+        seqscape_samples = set()
+        for acc_nr in sample_ids_by_type.accession_numbers:
+            sample = SeqscapeSampleProvider.get_by_accession_number(connection, acc_nr)
+            seqscape_samples.add(sample)
+
+        for internal_id in sample_ids_by_type.internal_ids:
+            sample = SeqscapeSampleProvider.get_by_internal_id(connection, internal_id)
+            seqscape_samples.add(sample)
+
+        for name in sample_ids_by_type.names:
+            sample = SeqscapeSampleProvider.get_by_name(connection, name)
+            seqscape_samples.add(sample)
+
+        seqscape_libraries = set()
+        # same stuff, maybe should be done somewhere else...
 
 
 
