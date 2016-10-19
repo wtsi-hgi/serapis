@@ -19,8 +19,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 14, 2016.
 """
 
+from sequencescape import connect_to_sequencescape, Sample, Study, Library
 from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
-from serapis.domain.models.metadata_entity_coll import NonAssociatedEntityIdsCollection
+
 
 class SerapisFile:
 
@@ -36,28 +37,36 @@ class SerapisFile:
         return hash(self.fpath) + hash(self.data)
 
 
+    # Metadata-related logic:
+    def _lookup_entity_ids_in_seqscape(self, ids_coll, seqscape_provider_class):
+        entities = set()
+        for acc_nr in ids_coll.accession_numbers:
+            ent = seqscape_provider_class.get_by_accession_number(acc_nr)
+            entities.add(ent)
+
+        for internal_id in ids_coll.internal_ids:
+            ent = seqscape_provider_class.get_by_internal_id(internal_id)
+            entities.add(ent)
+
+        for name in ids_coll.names:
+            ent = seqscape_provider_class.get_by_name(name)
+            entities.add(ent)
+        return entities
+
+    #def gather_from_header(self):
+
+
 
     def gather_metadata(self):
-        header_metadata = self.file_format.extract_metadata_from_header()
-        sample_ids_by_type = NonAssociatedEntityIdsCollection.from_ids_list(header_metadata['samples'])
-        library_ids_by_type = NonAssociatedEntityIdsCollection.from_ids_list(header_metadata['libraries'])
+        header_metadata = self.file_format.get_header_metadata(self.fpath)
 
         # looking it up in Seqscape:
-        seqscape_samples = set()
-        for acc_nr in sample_ids_by_type.accession_numbers:
-            sample = SeqscapeSampleProvider.get_by_accession_number(connection, acc_nr)
-            seqscape_samples.add(sample)
+        samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider)
+        libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
+        studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
 
-        for internal_id in sample_ids_by_type.internal_ids:
-            sample = SeqscapeSampleProvider.get_by_internal_id(connection, internal_id)
-            seqscape_samples.add(sample)
 
-        for name in sample_ids_by_type.names:
-            sample = SeqscapeSampleProvider.get_by_name(connection, name)
-            seqscape_samples.add(sample)
 
-        seqscape_libraries = set()
-        # same stuff, maybe should be done somewhere else...
 
 
 
