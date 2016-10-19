@@ -3,7 +3,7 @@ __author__ = 'ic4'
 import unittest
 from serapis.controller import exceptions
 from serapis.domain.models import data_entity as ent
-from serapis.domain.models import data_entity_collection as ent_coll
+from serapis.domain.models import _data_entity_collection as ent_coll
 
 class TestMetadataCollection(unittest.TestCase):
 
