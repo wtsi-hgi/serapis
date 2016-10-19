@@ -59,7 +59,7 @@ class DataObjectMapping:
 
     @staticmethod
     def from_baton(data_object):
-        serapis_data_object = None
+        pass
 
     @staticmethod
     def to_baton(data_object):
