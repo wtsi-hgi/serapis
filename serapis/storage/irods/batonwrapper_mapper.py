@@ -28,7 +28,7 @@ from serapis.storage.irods.entities import IrodsMetadata as SerapisIrodsMetadata
 from serapis.storage.irods.entities import IrodsMetadata
 
 
-class ACLMapping:
+class ACLMapper:
 
     @staticmethod
     def from_baton(acl):
@@ -44,7 +44,7 @@ class ACLMapping:
         return User(username, zone)
 
 
-class MetadataMapping:
+class MetadataMapper:
 
     @staticmethod
     def from_baton(metadata):
@@ -55,7 +55,7 @@ class MetadataMapping:
         return BatonIrodsMetadata(avu_dict)
 
 
-class DataObjectMapping:
+class DataObjectMapper:
 
     @staticmethod
     def from_baton(data_object):

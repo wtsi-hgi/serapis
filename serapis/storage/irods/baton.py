@@ -22,10 +22,10 @@ This module holds the functionality for iRODS that is implemented within BATON. 
 are not implemented within BATON throw a NotImplementedException upon call.
 """
 from serapis import config
-from serapis.storage.irods.api_base import IrodsBasicAPI, CollectionAPI, DataObjectAPI
+from serapis.storage.irods.base import IrodsBasicAPI, CollectionAPI, DataObjectAPI
 from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.baton_mappings import ACLMapping, MetadataMapping
+from serapis.storage.irods.batonwrapper_mapper import ACLMapper, MetadataMapper
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
@@ -54,7 +54,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             baton_acls = connection.access_control.get_all(path)
         except Exception as e:
             raise ACLRetrievalException from e
-        return {ACLMapping.from_baton(acl) for acl in baton_acls}
+        return {ACLMapper.from_baton(acl) for acl in baton_acls}
 
     @classmethod
     def get_acls(cls, path: str):
@@ -70,7 +70,7 @@ class BatonBasicAPI(IrodsBasicAPI):
         """
         try:
             connection = cls._get_connection()
-            baton_acl = ACLMapping.to_baton(acl)
+            baton_acl = ACLMapper.to_baton(acl)
             connection.access_control.add_or_replace(path, baton_acl)
         except FileNotFoundError as e:
             raise e
@@ -90,7 +90,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             connection = cls._get_connection()
             baton_acls = []
             for acl in acls:
-                b_acl = ACLMapping.to_baton(acl)
+                b_acl = ACLMapper.to_baton(acl)
                 baton_acls.append(b_acl)
             connection.access_control.add_or_replace(path, baton_acls)
         except Exception as e:
@@ -103,7 +103,7 @@ class BatonBasicAPI(IrodsBasicAPI):
     def remove_acl_for_user(cls, path, username, zone):
         try:
             connection = cls._get_connection()
-            baton_user = ACLMapping.build_baton_user(username, zone)
+            baton_user = ACLMapper.build_baton_user(username, zone)
             connection.access_control.revoke(path, baton_user)
         except Exception as e:
             raise ACLRemovingException() from e
@@ -116,7 +116,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             connection = cls._get_connection()
             baton_users = []
             for username, zone in user_zone_tuples:
-                user = ACLMapping.build_baton_user(username, zone)
+                user = ACLMapper.build_baton_user(username, zone)
                 baton_users.append(user)
             connection.access_control.revoke(path, baton_users)
         except Exception as e:
@@ -141,7 +141,7 @@ class BatonBasicAPI(IrodsBasicAPI):
             metadata = connection.metadata.get_all(path)
         except Exception as e:
             raise e # TODO: some exception, to see which one
-        return MetadataMapping.from_baton(metadata)
+        return MetadataMapper.from_baton(metadata)
 
 
     @classmethod
@@ -155,7 +155,7 @@ class BatonBasicAPI(IrodsBasicAPI):
 
     @classmethod
     def add_metadata(cls, path, avu_dict):
-        baton_avus = MetadataMapping.to_baton(avu_dict)
+        baton_avus = MetadataMapper.to_baton(avu_dict)
         try:
             connection = cls._get_connection()
             connection.metadata.add(path, baton_avus)
@@ -167,7 +167,7 @@ class BatonBasicAPI(IrodsBasicAPI):
 
     @classmethod
     def remove_metadata(cls, path, avu_dict):
-        baton_avus = MetadataMapping.to_baton(avu_dict)
+        baton_avus = MetadataMapper.to_baton(avu_dict)
         try:
             connection = cls._get_connection()
             connection.metadata.remove(path, baton_avus)
@@ -178,7 +178,7 @@ class BatonBasicAPI(IrodsBasicAPI):
 
     @classmethod
     def update_metadata(cls, path, key, new_values):
-        baton_metadata = MetadataMapping.to_baton({key: new_values})
+        baton_metadata = MetadataMapper.to_baton({key: new_values})
         try:
             connection = cls._get_connection()
             connection.metadata.set(path, baton_metadata)
