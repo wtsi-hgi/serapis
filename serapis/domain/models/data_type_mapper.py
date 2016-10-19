@@ -20,19 +20,43 @@ This file has been created on Oct 19, 2016.
 """
 
 from enum import Enum
+from serapis.domain.models.data_types import ArchiveData, Data, DNASequencingData, DNAVariationData, \
+    GenotypingData, GWASData, GWASSummaryStatisticsData
 
-
-class DataTypeName(Enum):
+class DataTypeNames(Enum):
     """
     Names of the data types. They all correspond to the python data types defined in data_types.py.
     """
-    
+    GENERIC_DATA = "GENERIC_DATA"
+    GENOTYPING_DATA = "GENOTYPING_DATA"
+    GWAS_DATA = "GWAS_DATA"
+    GWAS_SUMMARY_STATS_DATA = "GWAS_SUMMARY_STATS_DATA"
+    DNA_SEQSUENCING_DATA = "DNA_SEQSUENCING_DATA"
+    DNA_VARIATION_DATA = "DNA_VARIATION_DATA"
+    ARCHIVE_DATA = "ARCHIVE_DATA"
+
 
 
 class DataTypeMapper:
 
     @classmethod
     def map_name_to_type(cls, data_name):
+        if data_name == DataTypeNames.ARCHIVE_DATA:
+            return ArchiveData()
+        elif data_name == DataTypeNames.DNA_SEQSUENCING_DATA:
+            return DNASequencingData()
+        elif data_name == DataTypeNames.DNA_VARIATION_DATA:
+            return DNAVariationData()
+        elif data_name == DataTypeNames.GENERIC_DATA:
+            return Data()
+        elif data_name == DataTypeNames.GENOTYPING_DATA:
+            return GenotypingData()
+        elif data_name == DataTypeNames.GWAS_DATA:
+            return GWASData()
+        elif data_name == DataTypeNames.GWAS_SUMMARY_STATS_DATA:
+            return GWASSummaryStatisticsData()
+        else:
+            raise ValueError("Unknown data type.")
 
 
 
