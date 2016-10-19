@@ -21,18 +21,34 @@ This file has been created on Oct 14, 2016.
 
 from sam.header_extractor import IrodsSamFileHeaderExtractor, LustreSamFileHeaderExtractor
 from sam.header_parser import SAMFileHeaderParser, SAMFileRGTagParser
-
+from serapis.domain.models.metadata_entity_ids_coll import NonAssociatedEntityIdsCollection
 
 class FileFormat:
     pass
-
 
 class DataFileFormat(FileFormat):
     """
         This class is a general type for the file formats that hold the actual data.
     """
+    class HeaderMetadata:
+        def __init__(self, samples=None, libraries=None, studies=None):
+            self.samples = samples
+            self.libraries = libraries
+            self.studies = studies
+
+        def __eq__(self, other):
+            return type(self) == type(other) and self.samples == other.samples and \
+                   self.libraries == other.libraries and self.studies == other.studies
+
+        def __hash__(self):
+            return hash(self.samples) + hash(self.studies) + hash(self.libraries)
+
     @classmethod
-    def extract_metadata_from_header(self, fpath):
+    def _extract_metadata_from_header(self, fpath):
+        pass
+
+    @classmethod
+    def get_header_metadata(cls, fpath):
         pass
 
 
@@ -46,16 +62,26 @@ class IndexFileFormat(FileFormat):
 
 class AlignedReadsFileFormat(DataFileFormat):
     @classmethod
-    def extract_metadata_from_header(self, fpath):
+    def _extract_metadata_from_header(cls, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
         raw_header = SAMFileHeaderParser.parse(header_as_text)
         rg_tags_parsed = SAMFileRGTagParser.parse(raw_header.rg_tags)
 
-        # => getting the samples:
         samples = rg_tags_parsed.samples
         libraries = rg_tags_parsed.libraries
-        return {'samples': samples, 'libraries': libraries}
+        return cls.HeaderMetadata(samples=samples, libraries=libraries)
 
+    @classmethod
+    def _structure_metadata_from_header(cls, header_metadata):
+        sample_ids_coll = NonAssociatedEntityIdsCollection.from_ids_list(getattr(header_metadata, 'samples', None))
+        library_ids_coll = NonAssociatedEntityIdsCollection.from_ids_list(getattr(header_metadata, 'libraries', None))
+        study_ids_coll = NonAssociatedEntityIdsCollection.from_ids_list(getattr(header_metadata, 'studies', None))
+        return cls.HeaderMetadata(samples=sample_ids_coll, libraries=library_ids_coll, studies=study_ids_coll)
+
+    @classmethod
+    def get_header_metadata(cls, fpath):
+        header = cls._extract_metadata_from_header(fpath)
+        return cls._structure_metadata_from_header(header)
 
 class BAMFileFormat(AlignedReadsFileFormat):
     pass
@@ -80,7 +106,7 @@ class CRAIFileFormat(IndexFileFormat):
 
 
 class VCFFileFormat(DataFileFormat):
-    def extract_metadata_from_header(self, fpath):
+    def _extract_metadata_from_header(self, fpath):
         pass
 
 
