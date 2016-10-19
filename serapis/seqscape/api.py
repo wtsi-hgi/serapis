@@ -28,17 +28,6 @@ class SeqscapeEntityProvider:
     def _get_connection(cls, host, port, db_name, user):
         return connect_to_sequencescape("mysql://" + user + ":@" + host + ":" + str(port) + "/" + db_name)
 
-    # @classmethod
-    # def _get_entity_api(cls, connection, entity_type):
-    #     if entity_type == 'sample':
-    #         return connection.sample
-    #     elif entity_type == 'study':
-    #         return connection.study
-    #     elif entity_type == 'library':
-    #         return connection.library
-    #     else:
-    #         raise ValueError("Entity %s unknown!" % entity_type)
-
     @classmethod
     @property
     def _entity_type(cls):
