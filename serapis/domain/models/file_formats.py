@@ -23,8 +23,10 @@ from sam.header_extractor import IrodsSamFileHeaderExtractor, LustreSamFileHeade
 from sam.header_parser import SAMFileHeaderParser, SAMFileRGTagParser
 from serapis.domain.models.metadata_entity_ids_coll import NonAssociatedEntityIdsCollection
 
+
 class FileFormat:
     pass
+
 
 class DataFileFormat(FileFormat):
     """
@@ -44,12 +46,12 @@ class DataFileFormat(FileFormat):
             return hash(self.samples) + hash(self.studies) + hash(self.libraries)
 
     @classmethod
-    def _extract_metadata_from_header(self, fpath):
-        pass
+    def _extract_metadata_from_header(cls, fpath):
+        return cls.HeaderMetadata()
 
     @classmethod
     def get_header_metadata(cls, fpath):
-        pass
+        return cls.HeaderMetadata()
 
 
 class IndexFileFormat(FileFormat):
@@ -106,7 +108,8 @@ class CRAIFileFormat(IndexFileFormat):
 
 
 class VCFFileFormat(DataFileFormat):
-    def _extract_metadata_from_header(self, fpath):
+    @classmethod
+    def _extract_metadata_from_header(cls, fpath):
         pass
 
 
