@@ -18,9 +18,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 03, 2016.
 """
-
+from serapis import config
 from sequencescape import connect_to_sequencescape, Sample, Study, Library
-from serapis.meta_external_resc.exceptions import NonUniqueEntity
+from serapis.seqscape.exceptions import NonUniqueEntity
 
 class SeqscapeEntityProvider:
 
@@ -28,19 +28,25 @@ class SeqscapeEntityProvider:
     def _get_connection(cls, host, port, db_name, user):
         return connect_to_sequencescape("mysql://" + user + ":@" + host + ":" + str(port) + "/" + db_name)
 
-    @classmethod
-    def _get_entity_api(cls, connection, entity_type):
-        if entity_type == 'sample':
-            return connection.sample
-        elif entity_type == 'study':
-            return connection.study
-        elif entity_type == 'library':
-            return connection.library
-        else:
-            raise ValueError("Entity %s unknown!" % entity_type)
+    # @classmethod
+    # def _get_entity_api(cls, connection, entity_type):
+    #     if entity_type == 'sample':
+    #         return connection.sample
+    #     elif entity_type == 'study':
+    #         return connection.study
+    #     elif entity_type == 'library':
+    #         return connection.library
+    #     else:
+    #         raise ValueError("Entity %s unknown!" % entity_type)
 
     @classmethod
-    def get_by_internal_id(cls, connection, entity_id):
+    @property
+    def _entity_type(cls):
+        raise NotImplementedError("This class is a generic interface, can't be used for actual querying Seqscape.")
+
+    @classmethod
+    def get_by_internal_id(cls, entity_id):
+        connection = cls._get_connection(config.SEQSC_HOST, config.SEQSC_PORT, config.SEQSC_DB_NAME, config.SEQSC_USER)
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_id(entity_id)
         if len(results) > 1:
@@ -51,7 +57,8 @@ class SeqscapeEntityProvider:
             return results[0]
 
     @classmethod
-    def get_by_name(cls, connection, entity_name):
+    def get_by_name(cls, entity_name):
+        connection = cls._get_connection(config.SEQSC_HOST, config.SEQSC_PORT, config.SEQSC_DB_NAME, config.SEQSC_USER)
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_name(entity_name)
         if len(results) > 1:
@@ -62,7 +69,8 @@ class SeqscapeEntityProvider:
             return results[0]
 
     @classmethod
-    def get_by_accession_number(cls, connection, entity_accession_number):
+    def get_by_accession_number(cls, entity_accession_number):
+        connection = cls._get_connection(config.SEQSC_HOST, config.SEQSC_PORT, config.SEQSC_DB_NAME, config.SEQSC_USER)
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_accession_number(entity_accession_number)
         if len(results) > 1:
