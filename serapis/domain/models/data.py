@@ -156,8 +156,7 @@ class DNAVariationData(DNASequencingData):
     """
 
     def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None,
-                 genome_reference=None):
+                 sorting_order=None, genomic_regions=None, genome_reference=None):# library_strategy=None, library_source=None,
         super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,
                                                processing=processing, sorting_order=sorting_order,
                                                genomic_regions=genomic_regions,
