@@ -20,7 +20,6 @@ This module is implementing the functionality related to the metadata of the dat
 where by data we refer to the actual information content of a file.
 """
 
-#from . import data_entity
 from serapis.com import constants
 
 
@@ -47,7 +46,7 @@ class GenomeRegions(object):
 
 class Data(object):
     """
-        This is a general type for any kind of data to be archived. Holds general attributes.
+        This is a generic type for any kind of data to be archived. Holds general attributes.
     """
     def __init__(self, processing, pmid_list, studies=None, security_level=constants.SECURITY_LEVEL_2):
         self.processing = processing
