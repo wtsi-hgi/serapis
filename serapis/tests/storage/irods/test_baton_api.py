@@ -20,9 +20,9 @@ This file has been created on Aug 02, 2016.
 """
 
 import unittest
-from serapis.storage.irods.baton_api import BatonBasicAPI, BatonDataObjectAPI, BatonCollectionAPI
+from serapis.storage.irods.baton import BatonBasicAPI, BatonDataObjectAPI, BatonCollectionAPI
 from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.baton_mappings import ACLMapping
+from serapis.storage.irods.batonwrapper_mapper import ACLMapper
 
 # DATA OBJECT - related tests:
 

@@ -22,10 +22,10 @@ This file has been created on Aug 23, 2016.
 import unittest
 import os
 from os.path import basename, join
-from serapis.storage.irods.icommands_api import ICmdsDataObjectAPI, ICmdsCollectionAPI, ICmdsBasicAPI
+from serapis.storage.irods.icommands import ICmdsDataObjectAPI, ICmdsCollectionAPI, ICmdsBasicAPI
 
 # for testing purposes, I am going to use the functionality in BATON module for listing files
-from serapis.storage.irods.baton_api import BatonCollectionAPI, BatonDataObjectAPI
+from serapis.storage.irods.baton import BatonCollectionAPI, BatonDataObjectAPI
 
 class UploadICmdsDataObjectAPITest(unittest.TestCase):
 

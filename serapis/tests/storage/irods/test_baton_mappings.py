@@ -20,7 +20,7 @@ This file has been created on Aug 02, 2016.
 """
 
 import unittest
-from serapis.storage.irods.baton_mappings import ACLMapping
+from serapis.storage.irods.batonwrapper_mapper import ACLMapper
 from serapis.storage.irods.entities import ACL
 from baton.models import AccessControl, User
 
@@ -29,19 +29,19 @@ class ACLMappingTests(unittest.TestCase):
 
     def test_from_baton_when_ok(self):
         baton_acl = AccessControl(User('ic4', 'humgen'), AccessControl.Level.READ)
-        serapis_acl = ACLMapping.from_baton(baton_acl)
+        serapis_acl = ACLMapper.from_baton(baton_acl)
         expected = ACL(user='ic4', zone='humgen', permission='READ')
         self.assertEqual(serapis_acl, expected)
 
     def test_from_baton_when_more_acls(self):
         baton_acl = AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.WRITE)
-        result = ACLMapping.from_baton(baton_acl)
+        result = ACLMapper.from_baton(baton_acl)
         expected = ACL(user='ic4', zone='Sanger1', permission='WRITE')
         self.assertEqual(result, expected)
 
     def test_to_baton_when_ok(self):
         acl = ACL(user='ic4', zone='Sanger1', permission='OWN')
-        result = ACLMapping.to_baton(acl)
+        result = ACLMapper.to_baton(acl)
         expected = AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.OWN)
         self.assertEqual(result, expected)
 
