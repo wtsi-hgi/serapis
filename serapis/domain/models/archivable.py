@@ -23,7 +23,7 @@ from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 
 
 class Archivable:
-    def __init__(self, src_path, dest_path, file_obj):
+    def __init__(self, src_path, dest_path):
         self.src_path = src_path
         self.dest_path = dest_path
 
@@ -42,7 +42,7 @@ class Archivable:
 
 class ArchivableFile(Archivable):
 
-    def __init__(self, src_path, dest_path, file_obj):
+    def __init__(self, src_path, dest_path, file_obj=None):
         self.src_path = src_path
         self.dest_path = dest_path
         self.file_obj = file_obj
@@ -51,12 +51,12 @@ class ArchivableFile(Archivable):
         DataObjectAPI.upload(self.src_path, self.dest_path)
 
     def _gather_metadata(self):
-        self.file_obj.gather_metadata()
+        self.file_obj.gather_metadata(self.src_path)
 
     def stage(self):
         self._upload()
         self._gather_metadata()
-        self._save_metadata_to_db()
+        #self._save_metadata_to_db()
 
     def archive(self):
         #check if metadata enough
@@ -70,6 +70,25 @@ class ArchivableFile(Archivable):
     def __hash__(self):
         return hash(self.src_path) + hash(self.dest_path)
 
+    def __str__(self):
+        return "Src path: " + str(self.src_path) + ", dest path: " + str(self.dest_path) + \
+               ", file metadata: " + str(self.file_obj)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class ArchivableDirectory(Archivable):
     pass
+
+
+import os
+from serapis.domain.models.file import SerapisFile
+from serapis.domain.models.file_formats import BAMFileFormat
+from serapis.domain.models.data_type_mapper import DataTypeNames
+src_path = os.path.realpath(__file__)
+dest_path = '/humgen/projects/serapis_staging/test-archivable'
+file = SerapisFile(file_format=BAMFileFormat(), data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
+archivable = ArchivableFile(src_path, dest_path, file)
+archivable.stage()
+print("Archivable: %s" % archivable)
