@@ -22,23 +22,21 @@ This file has been created on Oct 14, 2016.
 from sequencescape import connect_to_sequencescape, Sample, Study, Library
 from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
 from serapis.domain.models.data_type_mapper import DataTypeMapper
-from serapis.storage.irods.baton_api import BatonDataObjectAPI
+from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
+
 
 class SerapisFile:
 
-    def __init__(self, fpath, file_format, data_type=None):
-        self.fpath = fpath
+    def __init__(self, file_format, data_type=None):
         self.file_format = file_format
-        self._data_type = data_type
-        self.data = DataTypeMapper.map_name_to_type(self._data_type) if self._data_type else None
+        self.data = DataTypeMapper.map_name_to_type(data_type) if data_type else None
 
     def __eq__(self, other):
-        return self.fpath == other.fpath and self.data == other.data
+        return type(self) == type(other) and self.data == other.data and self.file_format == other.file_format
 
     def __hash__(self):
-        return hash(self.fpath) + hash(self.data)
+        return hash(self.data) + hash(self.file_format)
 
-    # Metadata-related logic:
     @classmethod
     def _lookup_entity_ids_in_seqscape(cls, ids_coll, seqscape_provider_class):
         entities = set()
@@ -56,12 +54,12 @@ class SerapisFile:
         return entities
 
     def gather_metadata(self):
-        header_metadata = self.file_format.get_header_metadata(self.fpath)
+        header_metadata = self.file_format.get_header_metadata(self.src_path)
 
-        # Looking it up in Seqscape:
-        self.data.samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider)
-        self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
-        self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
+        if header_metadata:
+            self.data.samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider)
+            self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
+            self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
 
 
 
