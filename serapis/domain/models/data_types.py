@@ -74,7 +74,7 @@ class GenotypingData(Data):
     """
         This type holds information for the genotyping data.
     """
-    def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
+    def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
                  disease_or_trait=None, nr_samples=None, ethnicity=None):
         super(GenotypingData, self).__init__(processing, pmid_list, studies, security_level)
         self.genome_reference = genome_reference
@@ -92,7 +92,7 @@ class GenotypingData(Data):
                hash(self.disease_or_trait) + hash(self.nr_samples)
 
     def __str__(self):
-        return super(GenotypingData, self) + ", ethnicity: " + str(self.ethnicity) + ", number of samples: " + \
+        return super(GenotypingData, self).__str__() + ", ethnicity: " + str(self.ethnicity) + ", number of samples: " + \
                str(self.nr_samples) + ", disease or trait: " + str(self.disease_or_trait)
 
     def __repr__(self):
@@ -103,8 +103,8 @@ class GWASData(GenotypingData):
     """
         This type holds the information for the GWAS data (genome-wide association studies).
     """
-    def __init__(self, processing, pmid_list, studies, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
-                 disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
+    def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2,
+                 genome_reference=None, disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
         super(GWASData, self).__init__(processing, pmid_list, studies, security_level, genome_reference,
                                        disease_or_trait, nr_samples, ethnicity)
         self.study_type = study_type  # Can be: case-control, trio, etc.
@@ -116,7 +116,7 @@ class GWASData(GenotypingData):
         return super(GWASData, self).__hash__()
 
     def __str__(self):
-        return super(GWASData, self) + ", study type: " + str(self.study_type)
+        return super(GWASData, self).__str__() + ", study type: " + str(self.study_type)
 
     def __repr__(self):
         return self.__str__()
@@ -133,7 +133,7 @@ class DNASequencingData(Data):
     """
         This type holds information for the raw sequencing data.
     """
-    def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
+    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, libraries=None, samples=None, genomic_regions=GenomeRegions(), # library_strategy=None, library_source=None,
                  genome_reference=None):
         super(DNASequencingData, self).__init__(processing, pmid_list, security_level)
@@ -152,7 +152,7 @@ class DNASequencingData(Data):
         return super(DNASequencingData, self).__hash__()
 
     def __str__(self):
-        return super(DNASequencingData, self) + ", libraries: " + str(self.libraries) + ", samples: " + \
+        return super(DNASequencingData, self).__str__() + ", libraries: " + str(self.libraries) + ", samples: " + \
                str(self.samples) + ", coverage: " + str(self.coverage_list) + ", reference: " + str(self.genome_reference)
 
 
@@ -160,7 +160,7 @@ class DNASequencingDataAsReads(DNASequencingData):
     """
         This type holds the information for the sequencing data kept as reads aligned to a reference genome.
     """
-    def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
+    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
                  sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, seq_centers=None,
                  genome_reference=None):
         super(DNASequencingDataAsReads, self).__init__(pmid_list, security_level, processing=processing,
