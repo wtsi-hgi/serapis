@@ -25,7 +25,7 @@ from serapis import config
 from serapis.storage.irods.base import IrodsBasicAPI, CollectionAPI, DataObjectAPI
 from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.batonwrapper_mapper import ACLMapper, MetadataMapper
+from serapis.storage.irods.baton_wrapper_mapper import ACLMapper, MetadataMapper
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
