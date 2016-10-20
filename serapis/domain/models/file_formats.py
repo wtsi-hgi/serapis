@@ -45,6 +45,9 @@ class DataFileFormat(FileFormat):
         def __hash__(self):
             return hash(self.samples) + hash(self.studies) + hash(self.libraries)
 
+        def __str__(self):
+            return "Samples: " + str(self.samples) + ", libraries: " + str(self.libraries) + \
+                   ", studies: " + str(self.studies)
     @classmethod
     def _extract_metadata_from_header(cls, fpath):
         return cls.HeaderMetadata()
@@ -84,6 +87,7 @@ class AlignedReadsFileFormat(DataFileFormat):
     def get_header_metadata(cls, fpath):
         header = cls._extract_metadata_from_header(fpath)
         return cls._structure_metadata_from_header(header)
+
 
 class BAMFileFormat(AlignedReadsFileFormat):
     pass
