@@ -63,6 +63,12 @@ class Data(object):
     def __hash__(self):
         return hash(self.pmid_list) + hash(self.security_level)
 
+    def __str__(self):
+        return "Studies: " + str(self.studies) + ", security level: " + str(self.security_level) + ", pmid list: " + str(self.pmid_list)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class GenotypingData(Data):
     """
@@ -85,6 +91,13 @@ class GenotypingData(Data):
         return super(GenotypingData, self).__hash__() + hash(self.genome_reference) + \
                hash(self.disease_or_trait) + hash(self.nr_samples)
 
+    def __str__(self):
+        return super(GenotypingData, self) + ", ethnicity: " + str(self.ethnicity) + ", number of samples: " + \
+               str(self.nr_samples) + ", disease or trait: " + str(self.disease_or_trait)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class GWASData(GenotypingData):
     """
@@ -101,6 +114,12 @@ class GWASData(GenotypingData):
 
     def __hash__(self):
         return super(GWASData, self).__hash__()
+
+    def __str__(self):
+        return super(GWASData, self) + ", study type: " + str(self.study_type)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class GWASSummaryStatisticsData(GWASData):
@@ -131,6 +150,10 @@ class DNASequencingData(Data):
 
     def __hash__(self):
         return super(DNASequencingData, self).__hash__()
+
+    def __str__(self):
+        return super(DNASequencingData, self) + ", libraries: " + str(self.libraries) + ", samples: " + \
+               str(self.samples) + ", coverage: " + str(self.coverage_list) + ", reference: " + str(self.genome_reference)
 
 
 class DNASequencingDataAsReads(DNASequencingData):
