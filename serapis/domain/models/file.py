@@ -47,8 +47,8 @@ class SerapisFile:
             entities.add(ent)
         return entities
 
-    def gather_metadata(self):
-        header_metadata = self.file_format.get_header_metadata(self.src_path)
+    def gather_metadata(self, fpath):
+        header_metadata = self.file_format.get_header_metadata(fpath)
 
         if header_metadata:
             self.data.samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider)
