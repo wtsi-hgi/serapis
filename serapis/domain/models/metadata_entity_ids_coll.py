@@ -41,13 +41,14 @@ class NonAssociatedEntityIdsCollection:
         :return: an EntityIdentifiersNonassociatedCollection object
         """
         ids, names, accession_nrs = set(), set(), set()
-        for identifier in identifiers:
-            if EntityIdentifier.is_internal_id(identifier):
-                ids.add(identifier)
-            elif EntityIdentifier.is_accession_nr(identifier):
-                accession_nrs.add(identifier)
-            else:
-                names.add(identifier)
+        if identifiers:
+            for identifier in identifiers:
+                if EntityIdentifier.is_internal_id(identifier):
+                    ids.add(identifier)
+                elif EntityIdentifier.is_accession_nr(identifier):
+                    accession_nrs.add(identifier)
+                else:
+                    names.add(identifier)
         return NonAssociatedEntityIdsCollection(names=names, internal_ids=ids, accession_numbers=accession_nrs)
 
     def __eq__(self, other):
