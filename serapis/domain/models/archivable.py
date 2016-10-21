@@ -95,13 +95,12 @@ import os
 from serapis.domain.models.file import SerapisFile
 from serapis.domain.models.file_formats import BAMFileFormat
 from serapis.domain.models.data_type_mapper import DataTypeNames
-#src_path = os.path.realpath(__file__)
-src_path = "/lustre/scratch113/projects/hematopoiesis/release-reheadered/SC_BLUE5620014.reheaded.bam"
+src_path = os.path.realpath(__file__)
 
 dest_path = '/humgen/projects/serapis_staging/test-archivable'
 file = SerapisFile(file_format=BAMFileFormat(), data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
 archivable = ArchivableFile(src_path, dest_path, file)
-#archivable.stage()
+archivable.stage()
 print("Archivable: %s" % archivable)
 archivable.unstage()
 
