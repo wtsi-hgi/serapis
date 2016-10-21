@@ -18,6 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 19, 2016.
 """
+
+from os.path import split, abspath, join
+import os
+
 from serapis.storage.irods.baton import BatonCollectionAPI, BatonDataObjectAPI
 from serapis.storage.irods.icommands import ICmdsDataObjectAPI, ICmdsCollectionAPI
 
@@ -103,6 +107,12 @@ class CollectionAPI(API):
     def list_collections(cls, path):
         return cls._BATON_CLASS_NAME.list_collections(path)
 
+    @classmethod
+    def exists(cls, path):
+        parent = abspath(join(path, os.pardir))
+        contents = CollectionAPI.list_collections(parent)
+        return path in contents
+
 
 class DataObjectAPI(API):
     _BATON_CLASS_NAME = BatonDataObjectAPI
@@ -117,6 +127,11 @@ class DataObjectAPI(API):
         # TODO: implement this in BatonDataObjectAPI (missing atm)
         raise NotImplementedError()
 
+    @classmethod
+    def exists(cls, path):
+        directory, fname = split(path)
+        files = CollectionAPI.list_data_objects(directory)
+        return path in files
 
 
 
