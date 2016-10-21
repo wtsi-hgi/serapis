@@ -28,6 +28,12 @@ from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 class SerapisFile:
 
     def __init__(self, file_format, data_type=None):
+        """
+        This class holds the functionality related to a file.
+        :param file_format: a class from file_formats
+        :param data_type: an actual data object
+        :return:
+        """
         self.file_format = file_format
         self.data = DataTypeMapper.map_name_to_type(data_type) if data_type else None
 
