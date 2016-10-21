@@ -25,12 +25,12 @@ from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 
 
 class Archivable:
-    def __init__(self, src_path, dest_path):
+    def __init__(self, src_path, dest_dir):
         self.src_path = src_path
-        self.dest_dir = dest_path
+        self.dest_dir = dest_dir
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.src_path == other.src_path and self.dest_dir == other.dest_path
+        return type(self) == type(other) and self.src_path == other.src_path and self.dest_dir == other.dest_dir
 
     def __hash__(self):
         return hash(self.src_path) + hash(self.dest_dir)
@@ -45,27 +45,63 @@ class Archivable:
 class ArchivableFile(Archivable):
 
     def __init__(self, src_path, dest_dir, file_obj=None):
-        self.src_path = src_path
-        self.dest_path = os.path.join(dest_dir, os.path.basename(src_path))
-        self._dest_dir = dest_dir
+        super(ArchivableFile, self).__init__(src_path, dest_dir)
         self.file_obj = file_obj
 
-    def _upload(self):
-        DataObjectAPI.upload(self.src_path, self._dest_dir)
-
-    def _remove_file(self):
-        DataObjectAPI.remove(self.dest_path)
-
-    def _gather_metadata(self):
-        self.file_obj.gather_metadata(self.src_path)
+    def get_dest_path(self):
+        return os.path.join(self.dest_dir, os.path.basename(self.src_path))
 
     def stage(self):
-        self._upload()
-        self._gather_metadata()
+        DataObjectAPI.upload(self.src_path, self.dest_dir)
+        DataObjectAPI.upload(self.idx_src_path, self.dest_dir)
+        self.file_obj.gather_metadata(self.src_path)
+
+    def unstage(self):
+        DataObjectAPI.remove(self.dest_path)
+
+    def archive(self):
+        #check if metadata enough
+        # add metadata to the staged file
+        DataObjectAPI.move(self.src_path, self.dest_dir)
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.src_path == other.src_path and \
+               self.dest_dir == other.dest_path and self.file_obj == other.file_obj
+
+    def __hash__(self):
+        return hash(self.src_path) + hash(self.dest_dir)
+
+    def __str__(self):
+        return "Src path: " + str(self.src_path) + ", dest path: " + str(self.dest_dir) + \
+               ", file metadata: " + str(self.file_obj)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class ArchivableFileWithIndex(ArchivableFile):
+
+    def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None):
+        super(ArchivableFileWithIndex, self).__init(src_path, dest_dir, file_obj)
+        self.idx_src_path = idx_src_path
+        self.idx_dest_path = os.path.join(dest_dir, os.path.basename(idx_src_path))
+
+    @property
+    def dest_idx_fpath(self):
+        return os.path.join(self.dest_dir, os.path.basename(self.idx_src_path))
+
+    def stage(self):
+        DataObjectAPI.upload(self.src_path, self._dest_dir)
+        DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
+        self.file_obj.gather_metadata(self.src_path)
+        # self._upload()
+        # self._gather_metadata()
         #self._save_metadata_to_db()
 
     def unstage(self):
-        self._remove_file()
+        DataObjectAPI.remove(self.dest_path)
+        DataObjectAPI.remove(self.dest_idx_fpath())
+        # remove_metadata_from_db()
 
     def archive(self):
         #check if metadata enough
@@ -85,6 +121,7 @@ class ArchivableFile(Archivable):
 
     def __repr__(self):
         return self.__str__()
+
 
 
 class ArchivableDirectory(Archivable):
