@@ -48,12 +48,12 @@ class ArchivableFile(Archivable):
         super(ArchivableFile, self).__init__(src_path, dest_dir)
         self.file_obj = file_obj
 
-    def get_dest_path(self):
+    @property
+    def dest_path(self):
         return os.path.join(self.dest_dir, os.path.basename(self.src_path))
 
     def stage(self):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
-        DataObjectAPI.upload(self.idx_src_path, self.dest_dir)
         self.file_obj.gather_metadata(self.src_path)
 
     def unstage(self):
@@ -121,7 +121,6 @@ class ArchivableFileWithIndex(ArchivableFile):
 
     def __repr__(self):
         return self.__str__()
-
 
 
 class ArchivableDirectory(Archivable):
