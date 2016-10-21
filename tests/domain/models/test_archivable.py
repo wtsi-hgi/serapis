@@ -31,19 +31,23 @@ from serapis.domain.models.data_type_mapper import DataTypeNames
 
 
 class ArchivableFileTest(unittest.TestCase):
+    def setUp(self):
+        self.src_path = os.path.realpath(__file__)
+        self.dest_dir = '/humgen/projects/serapis_staging/test-archivable'
 
     def test_stage(self):
-        src_path = os.path.realpath(__file__)
-        src_fname = basename(src_path)
-        dest_dir = '/humgen/projects/serapis_staging/test-archivable'
+        self.dest_dir = '/humgen/projects/serapis_staging/test-archivable'
         file = SerapisFile(file_format=BAMFileFormat, data_type=DataTypeNames.GENERIC_DATA)
-        file = ArchivableFile(src_path, dest_dir, file)
-        file.stage()
+        self.archivable = ArchivableFile(self.src_path, self.dest_dir, file)
+        self.archivable.stage()
 
         # testing that it all worked:
-        src_fname = basename(src_path)
-        dest_path = os.path.join(dest_dir, src_fname)
-        self.assertTrue(DataObjectAPI.exists(dest_path))
+        src_fname = basename(self.src_path)
+        self.dest_path = os.path.join(self.dest_dir, src_fname)
+        self.assertTrue(DataObjectAPI.exists(self.dest_path))
+
+    def tearDown(self):
+        self.archivable.unstage()
 
 
 
