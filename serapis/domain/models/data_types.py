@@ -48,7 +48,7 @@ class Data(object):
     """
         This is a generic type for any kind of data to be archived. Holds general attributes.
     """
-    def __init__(self, processing, pmid_list, studies=None, security_level=constants.SECURITY_LEVEL_2):
+    def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2):
         self.processing = processing
         self.pmid_list = pmid_list
         self.security_level = security_level
