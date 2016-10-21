@@ -23,6 +23,8 @@ import os
 from os.path import basename, join
 import unittest
 
+from serapis.domain.models.file import SerapisFile
+from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 from serapis.domain.models.archivable import ArchivableFile
 
 
@@ -31,44 +33,49 @@ class ArchivableFileTest(unittest.TestCase):
     def test_stage(self):
         src_path = os.path.realpath(__file__)
         src_fname = basename(src_path)
-        dest_path = '/humgen/projects/serapis_staging/test-archivable'
-        file = ArchivableFile(src_path, dest_path)
+        dest_dir = '/humgen/projects/serapis_staging/test-archivable'
+        file = SerapisFile(file_format=)
+        file = ArchivableFile(src_path, dest_dir)
         file.stage()
 
+        # file = SerapisFile(file_format=BAMFileFormat(), data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
+        # archivable = ArchivableFile(src_path, dest_path, file)
+        # archivable.stage()
+
+
         # testing that it all worked:
+        src_fname = basename(src_path)
+        files = CollectionAPI.list_data_objects(dest_dir)
+        dest_path = os.path.join(dest_dir, src_fname)
+        self.assertTrue(dest_path in files)
 
 
 
-#
+
+
 # class ArchivableFile(Archivable):
 #
-#     def __init__(self, src_path, dest_path, file_obj):
-#         self.src_path = src_path
-#         self.dest_path = dest_path
+#     def __init__(self, src_path, dest_dir, file_obj=None):
+#         super(ArchivableFile, self).__init__(src_path, dest_dir)
 #         self.file_obj = file_obj
 #
-#     def _upload(self):
-#         DataObjectAPI.upload(self.src_path, self.dest_path)
-#
-#     def _gather_metadata(self):
-#         self.file_obj.gather_metadata()
+#     @property
+#     def dest_path(self):
+#         return os.path.join(self.dest_dir, os.path.basename(self.src_path))
 #
 #     def stage(self):
-#         self._upload()
-#         self._gather_metadata()
-#         self._save_metadata_to_db()
+#         DataObjectAPI.upload(self.src_path, self.dest_dir)
+#         self.file_obj.gather_metadata(self.src_path)
+#
+#     def unstage(self):
+#         DataObjectAPI.remove(self.dest_path)
 #
 #     def archive(self):
 #         #check if metadata enough
 #         # add metadata to the staged file
-#         DataObjectAPI.move(self.src_path, self.dest_path)
+#         DataObjectAPI.move(self.src_path, self.dest_dir)
 #
-#     def __eq__(self, other):
-#         return type(self) == type(other) and self.src_path == other.src_path and \
-#                self.dest_path == other.dest_path and self.file_obj == other.file_obj
-#
-#     def __hash__(self):
-#         return hash(self.src_path) + hash(self.dest_path)
+
 
 
 
