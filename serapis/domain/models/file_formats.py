@@ -25,7 +25,10 @@ from serapis.domain.models.metadata_entity_ids_coll import NonAssociatedEntityId
 
 
 class FileFormat:
-    pass
+
+    @classmethod
+    def get_format_name(cls):
+        return cls().__class__.__name__
 
 
 class DataFileFormat(FileFormat):
