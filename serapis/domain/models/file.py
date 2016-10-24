@@ -62,6 +62,15 @@ class SerapisFile:
             self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
             self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
 
+    def has_enough_metadata(self):
+        return self.data.has_enough_metadata()
+
+    def get_missing_mandatory_metadata(self):
+        return self.data.get_missing_mandatory_metadata()
+
+    def get_all_missing_metadata(self):
+        return self.data.get_all_missing_metadata()
+
     def __eq__(self, other):
         return type(self) == type(other) and self.data == other.data and self.checksum == other.checksum and \
                self.file_format.get_format_name() == other.file_format.get_format_name()
