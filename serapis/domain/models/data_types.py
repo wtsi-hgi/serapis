@@ -61,25 +61,36 @@ class Data(object):
     def _all_fields(self):
         return ['security_level', 'studies', 'processing', 'pmid_list']
 
-    def has_enough_metadata(self):
-        for field in self._mandatory_fields:
-            if not getattr(self, field):
-                return False
-        return True
-
-    def get_all_missing_fields(self):
+    def _get_missing_fields(self, field_names):
         missing_fields = []
         for field in self._all_fields:
             if not getattr(self, field):
                 missing_fields.append(field)
         return missing_fields
 
+    def has_enough_metadata(self):
+        missing_mandatory_fields = self._get_missing_fields(self._mandatory_fields)
+        return True if not missing_mandatory_fields else False
+        # for field in self._mandatory_fields:
+        #     if not getattr(self, field):
+        #         return False
+        # return True
+
+    def get_all_missing_fields(self):
+        return self._get_missing_fields(self._all_fields)
+        # missing_fields = []
+        # for field in self._all_fields:
+        #     if not getattr(self, field):
+        #         missing_fields.append(field)
+        # return missing_fields
+
     def get_missing_mandatory_fields(self):
-        missing_fields = []
-        for field in self._mandatory_fields:
-            if not getattr(self, field):
-                missing_fields.append(field)
-        return missing_fields
+        return self._get_missing_fields(self._mandatory_fields)
+        # missing_fields = []
+        # for field in self._mandatory_fields:
+        #     if not getattr(self, field):
+        #         missing_fields.append(field)
+        # return missing_fields
 
     # def has_enough_metadata(self):
     #     return self.security_level and self.studies
