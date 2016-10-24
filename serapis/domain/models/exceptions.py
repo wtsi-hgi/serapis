@@ -21,3 +21,7 @@ This file has been created on Oct 24, 2016.
 
 class NotEnoughMetadata(Exception):
     pass
+
+
+class ErrorStagingFile(Exception):
+    pass
