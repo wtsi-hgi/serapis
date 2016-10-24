@@ -63,7 +63,7 @@ class Data(object):
 
     def _get_missing_fields(self, field_names):
         missing_fields = []
-        for field in self._all_fields:
+        for field in field_names:
             if not getattr(self, field):
                 missing_fields.append(field)
         return missing_fields
@@ -224,10 +224,11 @@ class DNASequencingData(Data):
     """
         This type holds information for the raw sequencing data.
     """
-    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, libraries=None, samples=None, genomic_regions=GenomeRegions(), # library_strategy=None, library_source=None,
+    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, studies=None,
+                 coverage_list=None, sorting_order=None, libraries=None, samples=None, genomic_regions=GenomeRegions(), # library_strategy=None, library_source=None,
                  genome_reference=None):
-        super(DNASequencingData, self).__init__(processing, pmid_list, security_level)
+        super(DNASequencingData, self).__init__(processing=processing, pmid_list=pmid_list,
+                                                security_level=security_level, studies=studies)
         self.libraries = libraries  # data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
         self.samples = samples  # data_entity.SampleCollection()
         self.genomic_regions = genomic_regions  # this has GenomeRegions as type
@@ -264,13 +265,12 @@ class DNASequencingDataAsReads(DNASequencingData):
     """
         This type holds the information for the sequencing data kept as reads aligned to a reference genome.
     """
-    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
-                 sorting_order=None, genomic_regions=None, library_strategy=None, library_source=None, seq_centers=None,
-                 genome_reference=None):
-        super(DNASequencingDataAsReads, self).__init__(pmid_list, security_level, processing=processing,
-                                                       genome_reference=genome_reference,
-                                                       coverage_list=coverage_list, sorting_order=sorting_order,
-                                                       libraries=None, samples=None,
+    def __init__(self, pmid_list=None, security_level=constants.SECURITY_LEVEL_2, processing=None, studies=None,
+                 coverage_list=None, sorting_order=None, genomic_regions=None, library_strategy=None,
+                 library_source=None, seq_centers=None, genome_reference=None):
+        super(DNASequencingDataAsReads, self).__init__(pmid_list, security_level, processing=processing,studies=studies,
+                                                       genome_reference=genome_reference,coverage_list=coverage_list,
+                                                       sorting_order=sorting_order, libraries=None, samples=None,
                                                        #library_strategy=library_strategy, library_source=library_source,
                                                        genomic_regions=genomic_regions)
         self.seq_centers = seq_centers
@@ -286,12 +286,11 @@ class DNAVariationData(DNASequencingData):
         This class holds variation data.
     """
 
-    def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None,
+    def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None, studies=None,
                  sorting_order=None, genomic_regions=None, genome_reference=None):# library_strategy=None, library_source=None,
         super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,
-                                               processing=processing, sorting_order=sorting_order,
-                                               genomic_regions=genomic_regions,
-                                               libraries=None, samples=None,
+                                               studies=studies, processing=processing, sorting_order=sorting_order,
+                                               genomic_regions=genomic_regions, libraries=None, samples=None,
                                                #library_strategy=library_strategy, library_source=library_source,
                                                genome_reference=genome_reference)
 
