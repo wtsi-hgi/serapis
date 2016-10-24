@@ -62,10 +62,9 @@ class SerapisFile:
             self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
             self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
 
-
     def __eq__(self, other):
-        return type(self) == type(other) and self.data == other.data and \
-               self.file_format == other.file_format and self.checksum == other.checksum
+        return type(self) == type(other) and self.data == other.data and self.checksum == other.checksum and \
+               self.file_format.get_format_name() == other.file_format.get_format_name()
 
     def __hash__(self):
         return hash(self.checksum)
