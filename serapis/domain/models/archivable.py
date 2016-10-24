@@ -81,10 +81,11 @@ class ArchivableFile(Archivable):
 
 class ArchivableFileWithIndex(ArchivableFile):
 
-    def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None):
-        super(ArchivableFileWithIndex, self).__init(src_path, dest_dir, file_obj)
+    def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None, idx_file_obj=None):
+        super(ArchivableFileWithIndex, self).__init__(src_path, dest_dir, file_obj)
         self.idx_src_path = idx_src_path
         self.idx_dest_path = os.path.join(dest_dir, os.path.basename(idx_src_path))
+        self.idx_file_obj = idx_file_obj
 
     @property
     def dest_idx_fpath(self):
@@ -94,8 +95,6 @@ class ArchivableFileWithIndex(ArchivableFile):
         DataObjectAPI.upload(self.src_path, self._dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
         self.file_obj.gather_metadata(self.src_path)
-        # self._upload()
-        # self._gather_metadata()
         #self._save_metadata_to_db()
 
     def unstage(self):
