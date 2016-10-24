@@ -65,10 +65,10 @@ class SerapisFile:
     def has_enough_metadata(self):
         return self.data.has_enough_metadata()
 
-    def get_missing_mandatory_metadata(self):
+    def get_missing_mandatory_metadata_fields(self):
         return self.data.get_missing_mandatory_metadata()
 
-    def get_all_missing_metadata(self):
+    def get_all_missing_metadata_fields(self):
         return self.data.get_all_missing_metadata()
 
     def __eq__(self, other):
