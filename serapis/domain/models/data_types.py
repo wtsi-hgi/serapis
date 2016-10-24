@@ -27,9 +27,9 @@ class DataProcessing(object):
     """
         This class keeps the collection of processings done on the actual data.
     """
-
     def __init__(self, processing_list=[]):
         self.processing_list = processing_list  # items in this list can be:
+        # Example of data processings:
         # hgi_bam_improvement -> or this can be synonym with a list of processings...
         # spatial_filter,
         # merged_lanelets, not sure what type they are yet
@@ -39,7 +39,6 @@ class GenomeRegions(object):
     """
        Contains a list of chromosomes or other details regarding which regions the data contains.
     """
-
     def __init__(self, chrom_list=['all']):
         self.chrom_list = chrom_list  # list of chromosomes
 
@@ -53,6 +52,9 @@ class Data(object):
         self.pmid_list = pmid_list
         self.security_level = security_level
         self.studies = studies
+
+    def is_enough_metadata(self):
+        return self.security_level and self.studies
 
     def __eq__(self, other):
         if type(other) != type(self):
@@ -74,13 +76,17 @@ class GenotypingData(Data):
     """
         This type holds information for the genotyping data.
     """
-    def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2, genome_reference=None,
-                 disease_or_trait=None, nr_samples=None, ethnicity=None):
+    def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2,
+                 genome_reference=None, disease_or_trait=None, nr_samples=None, ethnicity=None):
         super(GenotypingData, self).__init__(processing, pmid_list, studies, security_level)
         self.genome_reference = genome_reference
         self.disease_or_trait = disease_or_trait
         self.nr_samples = nr_samples
         self.ethnicity = ethnicity
+
+    def is_enough_metadata(self):
+        return super(GenotypingData, self).is_enough_metadata() and self.disease_or_trait and \
+               self.nr_samples and self.genome_reference
 
     def __eq__(self, other):
         return super(GenotypingData, self).__eq__(other) and self.genome_reference == other.genome_reference and \
@@ -108,6 +114,7 @@ class GWASData(GenotypingData):
         super(GWASData, self).__init__(processing, pmid_list, studies, security_level, genome_reference,
                                        disease_or_trait, nr_samples, ethnicity)
         self.study_type = study_type  # Can be: case-control, trio, etc.
+
 
     def __eq__(self, other):
         return super(GWASData, self).__eq__(other)
@@ -143,6 +150,9 @@ class DNASequencingData(Data):
         self.sorting_order = sorting_order
         self.coverage_list = coverage_list
         self.genome_reference = genome_reference
+
+    def is_enough_metadata(self):
+        return super(DNASequencingData, self).is_enough_metadata() and self.samples and self.coverage_list
 
     def __eq__(self, other):
         return super(DNASequencingData, self).__eq__(other) and self.libraries == other.libraries and \
