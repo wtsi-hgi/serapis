@@ -30,6 +30,9 @@ class FileFormat:
     def get_format_name(cls):
         return cls().__class__.__name__
 
+    def __eq__(self, other):
+        return self.get_format_name() == other.get_format_name()
+
 
 class DataFileFormat(FileFormat):
     """
