@@ -22,7 +22,8 @@ This file has been created on Oct 20, 2016.
 import os
 
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
-from serapis.domain.models.exceptions import NotEnoughMetadata
+from serapis.domain.models.exceptions import NotEnoughMetadata, ErrorStagingFile
+from serapis.storage.filesystem.lustre_storage import FileAPI
 
 class Archivable:
     def __init__(self, src_path, dest_dir):
@@ -95,18 +96,39 @@ class ArchivableFileWithIndex(ArchivableFile):
         self.idx_file_obj = idx_file_obj
 
     def get_checksum_for_src_file(self, fpath):
-        pass
+        return FileAPI.calculate_checksum(fpath)
 
     def get_checksum_for_dest_file(self, fpath):
-        pass
+        return DataObjectAPI.get_checksum(fpath)
 
     @property
     def dest_idx_fpath(self):
         return os.path.join(self.dest_dir, os.path.basename(self.idx_src_path))
 
+    def check_checksum(self, src_path, dest_path):
+        pass
+
     def stage(self):
         DataObjectAPI.upload(self.src_path, self._dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
+
+        # checking checksums:
+        src_checksum = self.get_checksum_for_src_file(self.src_path)
+        self.file_obj.checksum = src_checksum
+
+        src_idx_checksum = self.get_checksum_for_src_file(self.idx_src_path)
+        self.idx_file_obj.checksum = src_idx_checksum
+
+        dest_idx_checksum = self.get_checksum_for_dest_file(self.dest_idx_fpath)
+
+        dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
+        if dest_checksum != src_checksum:
+            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (self.src_path, self.dest_path)
+            raise ErrorStagingFile(message)
+        if dest_idx_checksum != src_idx_checksum:
+            message = "The file index at src path = % has a different checksum than the idx file at dest path = %s" % (self.idx_src_path, self.dest_idx_fpath)
+            raise ErrorStagingFile(message)
+
         self.file_obj.gather_metadata(self.src_path)
         #self._save_metadata_to_db()
 
