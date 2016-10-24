@@ -27,7 +27,7 @@ from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 
 class SerapisFile:
 
-    def __init__(self, file_format, data_type=None):
+    def __init__(self, file_format, data_type=None, checksum=None):
         """
         This class holds the functionality related to a file.
         :param file_format: a class from file_formats
@@ -36,6 +36,7 @@ class SerapisFile:
         """
         self.file_format = file_format
         self.data = DataTypeMapper.map_name_to_type(data_type) if data_type else None
+        self.checksum = checksum
 
     @classmethod
     def _lookup_entity_ids_in_seqscape(cls, ids_coll, seqscape_provider_class):
@@ -63,10 +64,11 @@ class SerapisFile:
 
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.data == other.data and self.file_format == other.file_format
+        return type(self) == type(other) and self.data == other.data and \
+               self.file_format == other.file_format and self.checksum == other.checksum
 
     def __hash__(self):
-        return hash(self.data) + hash(self.file_format)
+        return hash(self.checksum)
 
     def __str__(self):
         return "File format: " + str(self.file_format) + ", data: " + str(self.data)
