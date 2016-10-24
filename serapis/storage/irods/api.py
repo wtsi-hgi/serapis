@@ -123,7 +123,8 @@ class DataObjectAPI(API):
         return cls._ICMDS_CLASS_NAME.recalculate_checksums(path)
 
     @classmethod
-    def get_checksum(cls):
+    def get_checksum(cls, path):
+        # TODO: check that the path is actually a file, before checksumming it
         # TODO: implement this in BatonDataObjectAPI (missing atm)
         raise NotImplementedError()
 
