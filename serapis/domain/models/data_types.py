@@ -53,8 +53,52 @@ class Data(object):
         self.security_level = security_level
         self.studies = studies
 
-    def is_enough_metadata(self):
-        return self.security_level and self.studies
+    @property
+    def _mandatory_fields(self):
+        return ['security_level', 'studies']
+
+    @property
+    def _all_fields(self):
+        return ['security_level', 'studies', 'processing', 'pmid_list']
+
+    def has_enough_metadata(self):
+        for field in self._mandatory_fields:
+            if not getattr(self, field):
+                return False
+        return True
+
+    def get_all_missing_fields(self):
+        missing_fields = []
+        for field in self._all_fields:
+            if not getattr(self, field):
+                missing_fields.append(field)
+        return missing_fields
+
+    def get_missing_mandatory_fields(self):
+        missing_fields = []
+        for field in self._mandatory_fields:
+            if not getattr(self, field):
+                missing_fields.append(field)
+        return missing_fields
+
+    # def has_enough_metadata(self):
+    #     return self.security_level and self.studies
+
+    # def get_all_missing_metadata(self):
+    #     missing_fields = self.get_missing_mandatory_metadata()
+    #     if not self.processing:
+    #         missing_fields.append('processing')
+    #     if not self.pmid_list:
+    #         missing_fields.append('pmid_list')
+    #     return missing_fields
+    #
+    # def get_missing_mandatory_metadata(self):
+    #     missing_fields = []
+    #     if not self.security_level:
+    #         missing_fields.append('security_level')
+    #     if not self.studies:
+    #         missing_fields.append('studies')
+    #     return missing_fields
 
     def __eq__(self, other):
         if type(other) != type(self):
@@ -84,9 +128,35 @@ class GenotypingData(Data):
         self.nr_samples = nr_samples
         self.ethnicity = ethnicity
 
-    def is_enough_metadata(self):
-        return super(GenotypingData, self).is_enough_metadata() and self.disease_or_trait and \
-               self.nr_samples and self.genome_reference
+    @property
+    def _mandatory_fields(self):
+        return super(GenotypingData, self)._mandatory_fields + ['disease_or_trait', 'nr_samples', 'genome_reference']
+
+    @property
+    def _all_fields(self):
+        return super(GenotypingData, self)._all_fields + ['disease_or_trait', 'nr_samples', 'genome_reference', 'ethnicity']
+
+
+    # def has_enough_metadata(self):
+    #     return super(GenotypingData, self).has_enough_metadata() and self.disease_or_trait and \
+    #            self.nr_samples and self.genome_reference
+    #
+    # def get_all_missing_metadata(self):
+    #     missing_fields = super(GenotypingData, self).get_all_missing_metadata()
+    #     missing_fields.extend(self.get_missing_mandatory_metadata())
+    #     if not self.ethnicity:
+    #         missing_fields.append('ethnicity')
+    #     return missing_fields
+    #
+    # def get_missing_mandatory_metadata(self):
+    #     missing_fields = super(GenotypingData, self).get_missing_mandatory_metadata()
+    #     if not self.genome_reference:
+    #         missing_fields.append('genome_reference')
+    #     if not self.disease_or_trait:
+    #         missing_fields.append('disease_or_trait')
+    #     if not self.nr_samples:
+    #         missing_fields.append('nr_samples')
+    #     return missing_fields
 
     def __eq__(self, other):
         return super(GenotypingData, self).__eq__(other) and self.genome_reference == other.genome_reference and \
@@ -115,6 +185,9 @@ class GWASData(GenotypingData):
                                        disease_or_trait, nr_samples, ethnicity)
         self.study_type = study_type  # Can be: case-control, trio, etc.
 
+    @property
+    def _all_fields(self):
+        return super(GWASData, self)._all_fields + ['study_type']
 
     def __eq__(self, other):
         return super(GWASData, self).__eq__(other)
@@ -151,8 +224,18 @@ class DNASequencingData(Data):
         self.coverage_list = coverage_list
         self.genome_reference = genome_reference
 
-    def is_enough_metadata(self):
-        return super(DNASequencingData, self).is_enough_metadata() and self.samples and self.coverage_list
+
+    @property
+    def _mandatory_fields(self):
+        return super(DNASequencingData, self)._mandatory_fields + ['samples', 'coverage_list']
+
+    @property
+    def _all_fields(self):
+        return super(DNASequencingData, self)._all_fields + ['samples', 'coverage_list', 'libraries',
+                                                             'genomic_regions', 'sorting_order', 'genome_reference']
+
+    # def has_enough_metadata(self):
+    #     return super(DNASequencingData, self).has_enough_metadata() and self.samples and self.coverage_list
 
     def __eq__(self, other):
         return super(DNASequencingData, self).__eq__(other) and self.libraries == other.libraries and \
@@ -180,6 +263,11 @@ class DNASequencingDataAsReads(DNASequencingData):
                                                        #library_strategy=library_strategy, library_source=library_source,
                                                        genomic_regions=genomic_regions)
         self.seq_centers = seq_centers
+
+
+    @property
+    def _all_fields(self):
+        return super(DNASequencingDataAsReads, self)._all_fields + ['seq_centers']
 
 
 class DNAVariationData(DNASequencingData):
