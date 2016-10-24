@@ -63,13 +63,23 @@ class SerapisFile:
             self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
 
     def has_enough_metadata(self):
-        return self.data.has_enough_metadata()
+        return self.data.has_enough_metadata() and self.file_format and self.checksum
 
     def get_missing_mandatory_metadata_fields(self):
-        return self.data.get_missing_mandatory_fields()
+        missing_fields = self.data.get_missing_mandatory_fields()
+        if not self.file_format:
+            missing_fields.append('file_format')
+        if not self.checksum:
+            missing_fields.append('checksum')
+        return missing_fields
 
     def get_all_missing_metadata_fields(self):
-        return self.data.get_all_missing_fields()
+        missing_fields = self.data.get_all_missing_fields()
+        if not self.file_format:
+            missing_fields.append('file_format')
+        if not self.checksum:
+            missing_fields.append('checksum')
+        return missing_fields
 
     def __eq__(self, other):
         return type(self) == type(other) and self.data == other.data and self.checksum == other.checksum and \
