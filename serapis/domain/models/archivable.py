@@ -83,12 +83,22 @@ class ArchivableFile(Archivable):
 
 
 class ArchivableFileWithIndex(ArchivableFile):
+    """
+        This class assumes implicitly that the source path is in a standard filesystem (e.g. lustre),
+        while the dest filepath it is assumed to be in iRODS.
+    """
 
     def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None, idx_file_obj=None):
         super(ArchivableFileWithIndex, self).__init__(src_path, dest_dir, file_obj)
         self.idx_src_path = idx_src_path
         self.idx_dest_path = os.path.join(dest_dir, os.path.basename(idx_src_path))
         self.idx_file_obj = idx_file_obj
+
+    def get_checksum_for_src_file(self, fpath):
+        pass
+
+    def get_checksum_for_dest_file(self, fpath):
+        pass
 
     @property
     def dest_idx_fpath(self):
@@ -130,6 +140,23 @@ class ArchivableFileWithIndex(ArchivableFile):
 
 class ArchivableDirectory(Archivable):
     pass
+
+
+class ArchivableFileWithinIRODS(ArchivableFile):
+    """
+        This class is for archiving a file that is already present within iRODS =>
+        src_path is in iRODS, and so is dest_path. Basically this class deals with moving/copying the file within iRODS
+        and attaching to it metadata.
+    """
+    # stage = move/copy from src in iRODS to dest in iRODS
+    pass
+
+class ArchivableFileWithIndexWithinIRODS(ArchivableFileWithinIRODS):
+    """
+        Just like the immediate parent class, but with an index attached to it.
+    """
+    pass
+
 
 
 import os
