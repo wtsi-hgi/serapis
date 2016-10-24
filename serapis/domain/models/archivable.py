@@ -22,7 +22,7 @@ This file has been created on Oct 20, 2016.
 import os
 
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
-
+from serapis.domain.models.exceptions import NotEnoughMetadata
 
 class Archivable:
     def __init__(self, src_path, dest_dir):
@@ -60,7 +60,10 @@ class ArchivableFile(Archivable):
         DataObjectAPI.remove(self.dest_path)
 
     def archive(self):
-        #check if metadata enough
+        if not self.file_obj.has_enough_metadata():
+            missing_fields = self.file_obj.get_missing_mandatory_metadata_fields()
+            message = "The following mandatory fields are missing: %s " % missing_fields
+            raise NotEnoughMetadata(message)
         # add metadata to the staged file
         DataObjectAPI.move(self.src_path, self.dest_dir)
 
