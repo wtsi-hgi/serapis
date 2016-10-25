@@ -49,6 +49,15 @@ class ArchivableFile(Archivable):
         super(ArchivableFile, self).__init__(src_path, dest_dir)
         self.file_obj = file_obj
 
+    @classmethod
+    def _get_and_verify_checksums_on_src_and_dest(self, src_path, dest_path):
+        src_checksum = self.get_checksum_for_src_file(src_path)
+        dest_checksum = self.get_checksum_for_dest_file(dest_path)
+        if dest_checksum != src_checksum:
+            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (src_fpath, dest_fpath)
+            raise ErrorStagingFile(message)
+        return src_checksum
+
     @property
     def dest_path(self):
         return os.path.join(self.dest_dir, os.path.basename(self.src_path))
@@ -56,6 +65,7 @@ class ArchivableFile(Archivable):
     def stage(self):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
         self.file_obj.gather_metadata(self.src_path)
+        self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
 
     def unstage(self):
         DataObjectAPI.remove(self.dest_path)
@@ -110,24 +120,24 @@ class ArchivableFileWithIndex(ArchivableFile):
 
     @classmethod
     def _verify_checksums_equal(cls, src_checksum, dest_checksum, src_fpath, dest_fpath):
-        if dest_checksum != src_checksum:
-            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (src_fpath, dest_fpath)
-            raise ErrorStagingFile(message)
+        pass
 
     def stage(self):
         DataObjectAPI.upload(self.src_path, self._dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
 
         # checking checksums:
-        src_checksum = self.get_checksum_for_src_file(self.src_path)
-        dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
-        self._verify_checksums_equal(src_checksum, dest_checksum, self.src_path, self.dest_path)   # Throws exception, shall I catch it?!
-        self.file_obj.checksum = src_checksum
+        # src_checksum = self.get_checksum_for_src_file(self.src_path)
+        # dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
+        # self._verify_checksums_equal(src_checksum, dest_checksum, self.src_path, self.dest_path)   # Throws exception, shall I catch it?!
+        self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
 
-        src_idx_checksum = self.get_checksum_for_src_file(self.idx_src_path)
-        dest_idx_checksum = self.get_checksum_for_dest_file(self.dest_idx_fpath)
-        self._verify_checksums_equal(src_idx_checksum, dest_idx_checksum, self.idx_src_path, self.dest_idx_fpath)   # Throws exception, shall I catch it?!
-        self.idx_file_obj.checksum = src_idx_checksum
+        self.idx_file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.idx_src_path, self.idx_dest_path)
+
+        # src_idx_checksum = self.get_checksum_for_src_file(self.idx_src_path)
+        # dest_idx_checksum = self.get_checksum_for_dest_file(self.dest_idx_fpath)
+        # self._verify_checksums_equal(src_idx_checksum, dest_idx_checksum, self.idx_src_path, self.dest_idx_fpath)   # Throws exception, shall I catch it?!
+        # self.idx_file_obj.checksum = src_idx_checksum
 
         self.file_obj.gather_metadata(self.src_path)
         #self._save_metadata_to_db()
