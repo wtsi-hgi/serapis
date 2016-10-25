@@ -25,6 +25,7 @@ from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 from serapis.domain.models.exceptions import NotEnoughMetadata, ErrorStagingFile
 from serapis.storage.filesystem.lustre_storage import FileAPI
 
+
 class Archivable:
     def __init__(self, src_path, dest_dir):
         self.src_path = src_path
@@ -42,21 +43,51 @@ class Archivable:
     def stage(self):
         raise NotImplementedError("Archivable is an interface, hence it contains only abstract methods.")
 
+    def unstage(self):
+        raise NotImplementedError("Archivable is an interface, hence it contains only abstract methods.")
+
 
 class ArchivableFile(Archivable):
-
+    """
+    This class is an interface for any type of file to be archived (ie stored in a specific location within iRODS
+    humgen, with a bare minimum of metadata attached to it.
+    """
     def __init__(self, src_path, dest_dir, file_obj=None):
         super(ArchivableFile, self).__init__(src_path, dest_dir)
         self.file_obj = file_obj
 
     @classmethod
-    def _get_and_verify_checksums_on_src_and_dest(self, src_path, dest_path):
-        src_checksum = self.get_checksum_for_src_file(src_path)
-        dest_checksum = self.get_checksum_for_dest_file(dest_path)
+    def get_checksum_for_src_file(cls, fpath):
+        raise NotImplementedError()
+
+    @classmethod
+    def get_checksum_for_dest_file(cls, fpath):
+        raise NotImplementedError()
+
+    @classmethod
+    def _get_and_verify_checksums_on_src_and_dest(cls, src_path, dest_path):
+        src_checksum = cls.get_checksum_for_src_file(src_path)
+        dest_checksum = cls.get_checksum_for_dest_file(dest_path)
         if dest_checksum != src_checksum:
-            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (src_fpath, dest_fpath)
+            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (src_path, dest_path)
             raise ErrorStagingFile(message)
         return src_checksum
+
+
+class ArchivableFileFromFS(ArchivableFile):
+    """
+    This class assumes the archiving happens for a file stored on a standard filesystem -> iRODS.
+    """
+    def __init__(self, src_path, dest_dir, file_obj=None):
+        super().__init__(src_path, dest_dir, file_obj)
+
+    @classmethod
+    def get_checksum_for_src_file(cls, fpath):
+        return FileAPI.calculate_checksum(fpath)
+
+    @classmethod
+    def get_checksum_for_dest_file(cls, fpath):
+        return DataObjectAPI.get_checksum(fpath)
 
     @property
     def dest_path(self):
@@ -93,23 +124,17 @@ class ArchivableFile(Archivable):
         return self.__str__()
 
 
-class ArchivableFileWithIndex(ArchivableFile):
+class ArchivableFileWithIndexFromFS(ArchivableFile):
     """
         This class assumes implicitly that the source path is in a standard filesystem (e.g. lustre),
         while the dest filepath it is assumed to be in iRODS.
     """
 
     def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None, idx_file_obj=None):
-        super(ArchivableFileWithIndex, self).__init__(src_path, dest_dir, file_obj)
+        super(ArchivableFileWithIndexFromFS, self).__init__(src_path, dest_dir, file_obj)
         self.idx_src_path = idx_src_path
         self.idx_dest_path = os.path.join(dest_dir, os.path.basename(idx_src_path))
         self.idx_file_obj = idx_file_obj
-
-    def get_checksum_for_src_file(self, fpath):
-        return FileAPI.calculate_checksum(fpath)
-
-    def get_checksum_for_dest_file(self, fpath):
-        return DataObjectAPI.get_checksum(fpath)
 
     @property
     def dest_idx_fpath(self):
