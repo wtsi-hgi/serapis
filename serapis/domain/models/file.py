@@ -89,7 +89,7 @@ class SerapisFile:
         return hash(self.checksum)
 
     def __str__(self):
-        return "File format: " + str(self.file_format) + ", data: " + str(self.data)
+        return "File format: " + str(self.file_format) + ", data: " + str(self.data) + ", checksum: %s" + str(self.checksum)
 
     def __repr__(self):
         return self.__str__()
