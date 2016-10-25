@@ -8,11 +8,12 @@ Created on Oct 31, 2014
 import os
 import hashlib
 
-from serapis.storage.base import Storage
+#from serapis.storage.base import Storage
+from serapis.storage.base import FileAPI, DirectoryAPI
 from serapis.com import wrappers
 
 
-class FileSystemBasicAPI(Storage):
+class FileSystemBasicAPI(FileAPI):
 
     @classmethod
     def get_permissions(cls, path):
@@ -47,7 +48,7 @@ class FileSystemBasicAPI(Storage):
         return os.path.exists(path)
 
 
-class DirectoryAPI(FileSystemBasicAPI):
+class DirectoryAPI(DirectoryAPI):
 
     @classmethod
     def create(cls, path):
@@ -79,16 +80,22 @@ class FileAPI(FileSystemBasicAPI):
         return os.path.isfile(path)
     
     @classmethod
-    def _calculate_md5(cls, path, BLOCK_SIZE=1048576):
-        fd = open(path, 'r')
-        file_obj = fd
-        md5_sum = hashlib.md5()
-        while True:
-            data = file_obj.read(BLOCK_SIZE/4)
-            if not data:
-                break
-            md5_sum.update(data)
-        return md5_sum.hexdigest()
+    def _calculate_md5(fname, BLOCK_SIZE=1048576):
+        hash_md5 = hashlib.md5()
+        with open(fname, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    # def _calculate_md5(cls, path, BLOCK_SIZE=1048576):
+    #     fd = open(path, 'r')
+    #     file_obj = fd
+    #     md5_sum = hashlib.md5()
+    #     while True:
+    #         data = file_obj.read(BLOCK_SIZE)
+    #         if not data:
+    #             break
+    #         md5_sum.update(data)
+    #     return md5_sum.hexdigest()
     
     @classmethod
     def calculate_checksum(cls, path, checksum_type='md5'):
