@@ -108,26 +108,26 @@ class ArchivableFileWithIndex(ArchivableFile):
     def check_checksum(self, src_path, dest_path):
         pass
 
+    @classmethod
+    def _verify_checksums_equal(cls, src_checksum, dest_checksum, src_fpath, dest_fpath):
+        if dest_checksum != src_checksum:
+            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (src_fpath, dest_fpath)
+            raise ErrorStagingFile(message)
+
     def stage(self):
         DataObjectAPI.upload(self.src_path, self._dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
 
         # checking checksums:
         src_checksum = self.get_checksum_for_src_file(self.src_path)
+        dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
+        self._verify_checksums_equal(src_checksum, dest_checksum, self.src_path, self.dest_path)   # Throws exception, shall I catch it?!
         self.file_obj.checksum = src_checksum
 
         src_idx_checksum = self.get_checksum_for_src_file(self.idx_src_path)
-        self.idx_file_obj.checksum = src_idx_checksum
-
         dest_idx_checksum = self.get_checksum_for_dest_file(self.dest_idx_fpath)
-
-        dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
-        if dest_checksum != src_checksum:
-            message = "The file at src path = %s as a different checksum that the file at dest path = %s" % (self.src_path, self.dest_path)
-            raise ErrorStagingFile(message)
-        if dest_idx_checksum != src_idx_checksum:
-            message = "The file index at src path = % has a different checksum than the idx file at dest path = %s" % (self.idx_src_path, self.dest_idx_fpath)
-            raise ErrorStagingFile(message)
+        self._verify_checksums_equal(src_idx_checksum, dest_idx_checksum, self.idx_src_path, self.dest_idx_fpath)   # Throws exception, shall I catch it?!
+        self.idx_file_obj.checksum = src_idx_checksum
 
         self.file_obj.gather_metadata(self.src_path)
         #self._save_metadata_to_db()
