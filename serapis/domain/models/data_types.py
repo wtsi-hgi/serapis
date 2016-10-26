@@ -48,10 +48,10 @@ class Data(object):
         This is a generic type for any kind of data to be archived. Holds general attributes.
     """
     def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2):
-        self.processing = processing
-        self.pmid_list = pmid_list
+        self.processing = processing if processing else []
+        self.pmid_list = pmid_list if pmid_list else []
         self.security_level = security_level
-        self.studies = studies  # TODO: implement a way to deal with studies that are not in seqscape
+        self.studies = studies if studies else [] # TODO: implement a way to deal with studies that are not in seqscape
 
     @property
     def _mandatory_fields(self):
@@ -201,11 +201,11 @@ class DNASequencingData(Data):
                  genome_reference=None):
         super(DNASequencingData, self).__init__(processing=processing, pmid_list=pmid_list,
                                                 security_level=security_level, studies=studies)
-        self.libraries = libraries  # data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
-        self.samples = samples  # data_entity.SampleCollection()
+        self.libraries = libraries if libraries else [] # data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
+        self.samples = samples if samples else [] # data_entity.SampleCollection()
         #self.genomic_regions = genomic_regions  # this has GenomeRegions as type
         self.sorting_order = sorting_order
-        self.coverage_list = coverage_list
+        self.coverage_list = coverage_list if coverage_list else []
         self.genome_reference = genome_reference
 
     def export_metadata_as_tuples(self):
