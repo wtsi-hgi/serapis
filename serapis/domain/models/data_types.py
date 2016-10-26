@@ -51,7 +51,7 @@ class Data(object):
         self.processing = processing
         self.pmid_list = pmid_list
         self.security_level = security_level
-        self.studies = studies
+        self.studies = studies  # TODO: implement a way to deal with studies that are not in seqscape
 
     @property
     def _mandatory_fields(self):
@@ -77,6 +77,20 @@ class Data(object):
 
     def get_missing_mandatory_fields(self):
         return self._get_missing_fields(self._mandatory_fields)
+
+    def export_metadata_as_tuples(self):
+        metadata = set()
+        for proc in self.processing:
+            metadata.add(('processing', proc))
+        for pmid in self.pmid_list:
+            metadata.add(('pmid', pmid))
+        for study in self.studies:
+            if type(study) == str:
+                metadata.add(('study_name', study))
+            # todo: check what type each study is and if it is a baton study then we need an extra method for it
+            pass
+        metadata.add(('security_level', self.security_level))
+        return metadata
 
     def __eq__(self, other):
         if type(other) != type(self):
@@ -105,6 +119,14 @@ class GenotypingData(Data):
         self.disease_or_trait = disease_or_trait
         self.nr_samples = nr_samples
         self.ethnicity = ethnicity
+
+    def export_metadata_as_tuples(self):
+        metadata = super().export_metadata_as_tuples()
+        metadata.add(('reference', self.genome_reference))
+        metadata.add(('disease_or_trait', self.disease_or_trait))
+        metadata.add(('nr_samples', self.nr_samples))
+        metadata.add(('ethnicity', self.ethnicity))
+        return metadata
 
     @property
     def _mandatory_fields(self):
@@ -141,6 +163,11 @@ class GWASData(GenotypingData):
                                        disease_or_trait, nr_samples, ethnicity)
         self.study_type = study_type  # Can be: case-control, trio, etc.
 
+    def export_metadata_as_tuples(self):
+        metadata = super().export_metadata_as_tuples()
+        metadata.add(('study_type', self.study_type))
+        return metadata
+
     @property
     def _all_fields(self):
         return super(GWASData, self)._all_fields + ['study_type']
@@ -176,11 +203,24 @@ class DNASequencingData(Data):
                                                 security_level=security_level, studies=studies)
         self.libraries = libraries  # data_entity.LibraryCollection(strategy=library_strategy, source=library_source)
         self.samples = samples  # data_entity.SampleCollection()
-        self.genomic_regions = genomic_regions  # this has GenomeRegions as type
+        #self.genomic_regions = genomic_regions  # this has GenomeRegions as type
         self.sorting_order = sorting_order
         self.coverage_list = coverage_list
         self.genome_reference = genome_reference
 
+    def export_metadata_as_tuples(self):
+        metadata = super().export_metadata_as_tuples()
+        for lib in self.libraries:
+            # todo: check on the type
+            #metadata
+            pass
+        for sample in self.samples:
+            pass
+        for cov in self.coverage_list:
+            metadata.add(('coverage', cov))
+        metadata.add(('reference', self.genome_reference))
+        metadata.add(('sorting_order', self.sorting_order))
+        return metadata
 
     @property
     def _mandatory_fields(self):
@@ -217,6 +257,11 @@ class DNASequencingDataAsReads(DNASequencingData):
                                                        genomic_regions=genomic_regions)
         self.seq_centers = seq_centers
 
+    def export_metadata_as_tuples(self):
+        metadata = super().export_metadata_as_tuples()
+        for center in self.seq_centers:
+            metadata.add(('seq_center', center))
+        return metadata
 
     @property
     def _all_fields(self):
