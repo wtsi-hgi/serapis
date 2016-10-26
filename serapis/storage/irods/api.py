@@ -134,4 +134,11 @@ class DataObjectAPI(API):
         files = CollectionAPI.list_data_objects(directory)
         return path in files
 
+    @classmethod
+    def get_checksum(cls, path):
+        return cls._BATON_CLASS_NAME.get_checksum(path)
+
+    @classmethod
+    def validate_checksum_across_replicas(cls, path):
+        return cls._BATON_CLASS_NAME.validate_checksum_across_replicas(path)
 
