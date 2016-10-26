@@ -85,25 +85,28 @@ class IrodsBasicAPI:
 
 class CollectionAPI(IrodsBasicAPI):
     @classmethod
-    def create(cls):
+    def create(cls, path):
         raise NotImplementedError()
 
     @classmethod
-    def list_data_objects(cls):
+    def list_data_objects(cls, path):
         raise NotImplementedError()
 
     @classmethod
-    def list_collections(cls):
+    def list_collections(cls, path):
         raise NotImplementedError()
 
 
 class DataObjectAPI(IrodsBasicAPI):
 
     @classmethod
-    def recalculate_checksum(cls):
+    def recalculate_checksum(cls, path):
         raise NotImplementedError()
 
     @classmethod
-    def get_checksum(cls):
+    def get_checksum(cls, path):
         raise NotImplementedError()
 
+    @classmethod
+    def validate_checksum_across_replicas(cls, path):
+        raise NotImplementedError()
