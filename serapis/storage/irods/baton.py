@@ -26,6 +26,7 @@ from serapis.storage.irods.base import IrodsBasicAPI, CollectionAPI, DataObjectA
 from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
 from serapis.storage.irods.entities import ACL
 from serapis.storage.irods.baton_wrapper_mapper import ACLMapper, MetadataMapper
+from serapis.storage.irods.exceptions import DifferentChecksumsAcrossReplicas
 
 from baton.api import connect_to_irods_with_baton
 from baton.models import SearchCriterion, User, AccessControl
@@ -246,7 +247,20 @@ class BatonDataObjectAPI(BatonBasicAPI):
 
     @classmethod
     def get_checksum(cls, path):
-        pass
+        connection = cls._get_connection()
+        replicas = connection.get_by_path(path, load_metadata=False).replicas
+        for replica in replicas:
+            return replica.checksum
+        raise ValueError("Something extremely weird going on: there is no replica for file %s" % path)
+
+    def validate_checksum_across_replicas(cls, path):
+        connection = cls._get_connection()
+        replicas = connection.get_by_path(path, load_metadata=False).replicas
+        checksums = set()
+        for replica in replicas:
+            checksums.add(replica.checksum)
+        if len(checksums) != 1:
+            raise DifferentChecksumsAcrossReplicas("Different replicas of this file: %s have different checksums: %s" % (path, checksums))
 
 
 # IRODS_ERROR_USER_FILE_DOES_NOT_EXIST, IRODS_ERROR_CAT_INVALID_ARGUMENT+permission issue  -> FileNotFoundError(error_message)
