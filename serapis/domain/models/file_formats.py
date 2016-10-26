@@ -25,7 +25,9 @@ from serapis.domain.models.metadata_entity_ids_coll import NonAssociatedEntityId
 
 
 class FileFormat:
-
+    """
+        (Abstract class)
+    """
     @classmethod
     def get_format_name(cls):
         return cls().__class__.__name__
@@ -37,6 +39,7 @@ class FileFormat:
 class DataFileFormat(FileFormat):
     """
         This class is a general type for the file formats that hold the actual data.
+        (Abstract class)
     """
     class HeaderMetadata:
         def __init__(self, samples=None, libraries=None, studies=None):
@@ -67,11 +70,16 @@ class IndexFileFormat(FileFormat):
     """
         This class is a general type for a index file format, which can't exist independent
         but instead it is always related to another file (a data file).
+        (Abstract class)
     """
     pass
 
 
 class AlignedReadsFileFormat(DataFileFormat):
+    """
+        Generalization of BAM and CRAM - both sharing the same code for extracting metadata from the header,
+        hence I've created this class for the shared functionality between SAM/BAM/CRAM file formats.
+    """
     @classmethod
     def _extract_metadata_from_header(cls, fpath):
         header_as_text = LustreSamFileHeaderExtractor.extract(fpath)
@@ -96,6 +104,10 @@ class AlignedReadsFileFormat(DataFileFormat):
 
 
 class BAMFileFormat(AlignedReadsFileFormat):
+    """
+        BAM file format.
+    """
+    short_name = 'bam'
     pass
 
 
@@ -103,10 +115,15 @@ class BAIFileFormat(IndexFileFormat):
     """
         Index file format for BAM file format.
     """
+    short_name = 'bai'
     pass
 
 
 class CRAMFileFormat(AlignedReadsFileFormat):
+    """
+        CRAM file format.
+    """
+    short_name = 'cram'
     pass
 
 
@@ -114,10 +131,15 @@ class CRAIFileFormat(IndexFileFormat):
     """
         Index file format for CRAM file format.
     """
+    short_name = 'crai'
     pass
 
 
 class VCFFileFormat(DataFileFormat):
+    """
+        VCF file format.
+    """
+    short_name = 'vcf'
     @classmethod
     def _extract_metadata_from_header(cls, fpath):
         pass
@@ -127,6 +149,7 @@ class TBIFileFormat(IndexFileFormat):
     """
         Index file format for VCF file format.
     """
+    short_name = 'tbi'
     pass
 
 
