@@ -247,20 +247,19 @@ class BatonDataObjectAPI(BatonBasicAPI):
 
     @classmethod
     def get_checksum(cls, path):
-        connection = cls._get_connection()
-        replicas = connection.get_by_path(path, load_metadata=False).replicas
-        for replica in replicas:
-            return replica.checksum
-        raise ValueError("Something extremely weird going on: there is no replica for file %s" % path)
-
+        return cls.validate_checksum_across_replicas(path)
+    
     def validate_checksum_across_replicas(cls, path):
         connection = cls._get_connection()
         replicas = connection.get_by_path(path, load_metadata=False).replicas
         checksums = set()
         for replica in replicas:
             checksums.add(replica.checksum)
-        if len(checksums) != 1:
+        if len(checksums) > 1:
             raise DifferentChecksumsAcrossReplicas("Different replicas of this file: %s have different checksums: %s" % (path, checksums))
+        elif len(checksums) < 1:
+            raise ValueError("Something extremely weird going on: there is no replica for file %s" % path)
+        return checksums.pop()
 
 
 # IRODS_ERROR_USER_FILE_DOES_NOT_EXIST, IRODS_ERROR_CAT_INVALID_ARGUMENT+permission issue  -> FileNotFoundError(error_message)
