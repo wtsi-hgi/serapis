@@ -38,6 +38,12 @@ class SerapisFile:
         self.data = DataTypeMapper.map_name_to_type(data_type) if data_type else None
         self.checksum = checksum
 
+    def export_metadata_as_tuples(self):
+        metadata = self.data.export_metadata_as_tuples()
+        metadata.add(('md5', self.checksum))    # TODO: abstract somehow the notion of checksum, here it is bound to md5
+        metadata.add(('file_type', self.file_format.short_name))
+        return metadata
+
     @classmethod
     def _lookup_entity_ids_in_seqscape(cls, ids_coll, seqscape_provider_class):
         entities = set()
