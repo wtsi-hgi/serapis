@@ -81,6 +81,10 @@ class ArchivableFileFromFS(ArchivableFile):
     def __init__(self, src_path, dest_dir, file_obj=None):
         super().__init__(src_path, dest_dir, file_obj)
 
+
+    def extract_metadata(self):
+        return self.file_obj.export_metadata_as_tuples()
+
     @classmethod
     def get_checksum_for_src_file(cls, fpath):
         return FileAPI.calculate_checksum(fpath)
@@ -97,6 +101,8 @@ class ArchivableFileFromFS(ArchivableFile):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
         self.file_obj.gather_metadata(self.src_path)
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
+        metadata = self.extract_metadata()
+        print("MEtadata gathered: %s" % metadata)
 
     def unstage(self):
         DataObjectAPI.remove(self.dest_path)
@@ -165,6 +171,8 @@ class ArchivableFileWithIndexFromFS(ArchivableFile):
         # self.idx_file_obj.checksum = src_idx_checksum
 
         self.file_obj.gather_metadata(self.src_path)
+        metadata = self.extract_metadata()
+        print("MEtadata gathered: %s" % metadata)
         #self._save_metadata_to_db()
 
     def unstage(self):
