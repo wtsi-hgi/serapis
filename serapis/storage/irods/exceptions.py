@@ -33,4 +33,7 @@ class ACLModificationException(IrodsException):
 class ACLRemovingException(IrodsException):
     pass
 
+class DifferentChecksumsAcrossReplicas(IrodsException):
+    pass
+
 
