@@ -248,7 +248,8 @@ class BatonDataObjectAPI(BatonBasicAPI):
     @classmethod
     def get_checksum(cls, path):
         return cls.validate_checksum_across_replicas(path)
-    
+
+    @classmethod
     def validate_checksum_across_replicas(cls, path):
         connection = cls._get_connection()
         replicas = connection.get_by_path(path, load_metadata=False).replicas
