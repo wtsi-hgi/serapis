@@ -40,7 +40,8 @@ class SerapisFile:
         self.checksum = checksum
 
     def export_metadata_as_tuples(self):
-        metadata = self.data.export_metadata_as_tuples()
+        if self.data:
+            metadata = self.data.export_metadata_as_tuples()
         metadata.add(('md5', self.checksum))    # TODO: abstract somehow the notion of checksum, here it is bound to md5
         metadata.add(('file_type', self.file_format.short_name))
         return metadata
