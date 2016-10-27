@@ -154,6 +154,9 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
     def _verify_checksums_equal(cls, src_checksum, dest_checksum, src_fpath, dest_fpath):
         pass
 
+    def export_metadata_from_idx_file(self):
+        return self.idx_file_obj.export_metadata_as_tuples()
+
     def stage(self):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self.dest_dir)
@@ -161,7 +164,9 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
         self.idx_file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.idx_src_path, self.idx_dest_path)
         self.file_obj.gather_metadata(self.src_path)
-        metadata = self.extract_metadata()
+        metadata_file = self.export_metadata_from_file()
+        metadata_idx = self.export_metadata_from_idx_file()
+        metadata = metadata_file.union(metadata_idx)
         print("MEtadata gathered: %s" % metadata)
         #self._save_metadata_to_db()
 
