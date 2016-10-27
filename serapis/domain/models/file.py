@@ -23,6 +23,7 @@ from sequencescape import connect_to_sequencescape, Sample, Study, Library
 from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
 from serapis.domain.models.data_type_mapper import DataTypeMapper
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
+from serapis.seqscape.exceptions import NonUniqueEntity
 
 
 class SerapisFile:
@@ -45,28 +46,59 @@ class SerapisFile:
         return metadata
 
     @classmethod
-    def _lookup_entity_ids_in_seqscape(cls, ids_coll, seqscape_provider_class):
+    def _lookup_entity_ids_in_seqscape(cls, ids_coll, seqscape_provider_class, entity_type):
         entities = set()
         for acc_nr in ids_coll.accession_numbers:
-            ent = seqscape_provider_class.get_by_accession_number(acc_nr)
+            found = False
+            try:
+                ent = seqscape_provider_class.get_by_accession_number(acc_nr)
+                found = True
+            except NonUniqueEntity:
+                pass
+            if not found:
+                ent = cls._from_id_to_entity('accession_number', acc_nr, entity_type)
             entities.add(ent)
 
         for internal_id in ids_coll.internal_ids:
-            ent = seqscape_provider_class.get_by_internal_id(internal_id)
+            found = False
+            try:
+                ent = seqscape_provider_class.get_by_internal_id(internal_id)
+                found = True
+            except NonUniqueEntity:
+                pass
+            if not found:
+                ent = cls._from_id_to_entity('internal_id', internal_id, entity_type)
             entities.add(ent)
 
         for name in ids_coll.names:
-            ent = seqscape_provider_class.get_by_name(name)
+            found = False
+            try:
+                ent = seqscape_provider_class.get_by_name(name)
+                found = True
+            except NonUniqueEntity:
+                pass
+            if not found:
+                ent = cls._from_id_to_entity('name', name, entity_type)
             entities.add(ent)
         return entities
 
+    @classmethod
+    def _from_id_to_entity(cls, id_type, id_value, entity_type):
+        if entity_type == 'sample':
+            entity = Sample()
+        elif entity_type == 'study':
+            entity = Study()
+        elif entity_type == 'library':
+            entity = Library()
+        setattr(entity, id_type, id_value)
+        return entity
+
     def gather_metadata(self, fpath):
         header_metadata = self.file_format.get_header_metadata(fpath)
-
         if header_metadata:
-            self.data.samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider)
-            self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider)
-            self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider)
+            self.data.samples = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'samples', None), SeqscapeSampleProvider, 'sample')
+            self.data.libraries = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'libraries', None), SeqscapeLibraryProvider, 'library')
+            self.data.studies = self._lookup_entity_ids_in_seqscape(getattr(header_metadata, 'studies', None), SeqscapeStudyProvider, 'study')
 
     def has_enough_metadata(self):
         return self.data.has_enough_metadata() and self.file_format and self.checksum
