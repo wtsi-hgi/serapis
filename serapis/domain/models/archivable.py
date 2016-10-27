@@ -129,7 +129,7 @@ class ArchivableFileFromFS(ArchivableFile):
         return self.__str__()
 
 
-class ArchivableFileWithIndexFromFS(ArchivableFile):
+class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
     """
         This class assumes implicitly that the source path is in a standard filesystem (e.g. lustre),
         while the dest filepath it is assumed to be in iRODS.
