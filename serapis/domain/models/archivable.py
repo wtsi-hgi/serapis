@@ -22,7 +22,7 @@ This file has been created on Oct 20, 2016.
 import os
 
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
-from serapis.domain.models.exceptions import NotEnoughMetadata, ErrorStagingFile
+from serapis.domain.models.exceptions import NotEnoughMetadata, ErrorStagingFile, FileNotUploaded
 from serapis.storage.filesystem.lustre_storage import FileAPI
 
 
@@ -98,6 +98,8 @@ class ArchivableFileFromFS(ArchivableFile):
 
     def stage(self):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
+        if not DataObjectAPI.exists(self.dest_path):
+            raise FileNotUploaded("File %s was not uploaded." % self.dest_path)
         self.file_obj.gather_metadata(self.src_path)
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
         metadata = self.export_metadata_from_file()
