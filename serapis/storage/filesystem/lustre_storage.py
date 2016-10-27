@@ -78,20 +78,18 @@ class FileAPI(FileSystemBasicAPI):
     @classmethod
     def is_file(cls, path):
         return os.path.isfile(path)
-    
+
     @classmethod
-    def _calculate_md5(cls, fpath, hasher, blocksize=65536):
-        fd = open(fpath, 'r', encoding='utf-8')
-        buf = fd.read(blocksize)
-        while len(buf) > 0:
-            hasher.update(buf.encode('utf-8'))
-            buf = fd.read(blocksize)
+    def _calculate_hash(cls, fpath, hasher, blocksize=65536):
+        with open(fpath, "rb") as f:
+            for chunk in iter(lambda: f.read(blocksize), b""):
+                hasher.update(chunk)
         return hasher.hexdigest()
 
     @classmethod
     def calculate_checksum(cls, fpath, checksum_type='md5'):
         if checksum_type == 'md5':
-            return cls._calculate_md5(fpath, hashlib.md5())
+            return cls._calculate_hash(fpath, hashlib.md5())
         else:
             raise NotImplementedError('Lustre API doesnt support at the moment other type of checksum')
 
