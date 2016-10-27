@@ -81,8 +81,7 @@ class ArchivableFileFromFS(ArchivableFile):
     def __init__(self, src_path, dest_dir, file_obj=None):
         super().__init__(src_path, dest_dir, file_obj)
 
-
-    def extract_metadata(self):
+    def export_metadata_from_file(self):
         return self.file_obj.export_metadata_as_tuples()
 
     @classmethod
@@ -101,7 +100,7 @@ class ArchivableFileFromFS(ArchivableFile):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
         self.file_obj.gather_metadata(self.src_path)
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
-        metadata = self.extract_metadata()
+        metadata = self.export_metadata_from_file()
         print("MEtadata gathered: %s" % metadata)
 
     def unstage(self):
