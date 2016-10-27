@@ -25,3 +25,6 @@ class NotEnoughMetadata(Exception):
 
 class ErrorStagingFile(Exception):
     pass
+
+class FileNotUploaded(Exception):
+    pass
