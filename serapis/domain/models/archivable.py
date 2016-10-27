@@ -124,7 +124,7 @@ class ArchivableFileFromFS(ArchivableFile):
         return hash(self.src_path) + hash(self.dest_dir)
 
     def __str__(self):
-        return "Src path: " + str(self.src_path) + ", dest path: " + str(self.dest_dir) + \
+        return "Src path: " + str(self.src_path) + ", dest path: " + str(self.dest_path) + \
                ", file metadata: " + str(self.file_obj)
 
     def __repr__(self):
