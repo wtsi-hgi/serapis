@@ -153,8 +153,8 @@ class ArchivableFileWithIndexFromFS(ArchivableFile):
         pass
 
     def stage(self):
-        DataObjectAPI.upload(self.src_path, self._dest_dir)
-        DataObjectAPI.upload(self.idx_src_path, self._dest_dir)
+        DataObjectAPI.upload(self.src_path, self.dest_dir)
+        DataObjectAPI.upload(self.idx_src_path, self.dest_dir)
 
         # checking checksums:
         # src_checksum = self.get_checksum_for_src_file(self.src_path)
@@ -185,17 +185,17 @@ class ArchivableFileWithIndexFromFS(ArchivableFile):
             message = "The following mandatory fields are missing: %s " % missing_fields
             raise NotEnoughMetadata(message)
         # add metadata to the staged file
-        DataObjectAPI.move(self.src_path, self._dest_dir)
+        DataObjectAPI.move(self.src_path, self.dest_dir)
 
     def __eq__(self, other):
         return type(self) == type(other) and self.src_path == other.src_path and \
-               self._dest_dir == other.dest_path and self.file_obj == other.file_obj
+               self.dest_dir == other.dest_path and self.file_obj == other.file_obj
 
     def __hash__(self):
-        return hash(self.src_path) + hash(self._dest_dir)
+        return hash(self.src_path) + hash(self.dest_dir)
 
     def __str__(self):
-        return "Src path: " + str(self.src_path) + ", dest path: " + str(self._dest_dir) + \
+        return "Src path: " + str(self.src_path) + ", dest path: " + str(self.dest_dir) + \
                ", file metadata: " + str(self.file_obj)
 
     def __repr__(self):
