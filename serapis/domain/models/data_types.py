@@ -85,10 +85,12 @@ class Data(object):
         for pmid in self.pmid_list:
             metadata.add(('pmid', pmid))
         for study in self.studies:
-            if type(study) == str:
-                metadata.add(('study_name', study))
-            # todo: check what type each study is and if it is a baton study then we need an extra method for it
-            pass
+            metadata.add(('study_name', study.name))
+            metadata.add(('study_internal_id', study.internal_id))
+            metadata.add(('study_accession_number', study.accession_number))
+            metadata.add(('study_type', study.study_type))
+            metadata.add(('faculty_sponsor', study.faculty_sponsor))
+            metadata.add(('study_description', study.description))
         metadata.add(('security_level', self.security_level))
         return metadata
 
@@ -211,11 +213,17 @@ class DNASequencingData(Data):
     def export_metadata_as_tuples(self):
         metadata = super().export_metadata_as_tuples()
         for lib in self.libraries:
-            # todo: check on the type
-            #metadata
-            pass
+            metadata.add(('library_name', lib.name))
+            metadata.add(('library_internal_id', lib.internal_id))
+            metadata.add(('library_type', lib.library_type))
         for sample in self.samples:
-            pass
+            metadata.add(('sample_name', sample.name))
+            metadata.add(('samples_accession_number', sample.accession_number))
+            metadata.add(('sample_internal_id', sample.internal_id))
+            metadata.add(('cohort', sample.cohort))
+            metadata.add(('gender', sample.gender))
+            metadata.add(('organism', sample.organism))
+            metadata.add(('taxon_id', sample.taxon_id))
         for cov in self.coverage_list:
             metadata.add(('coverage', cov))
         metadata.add(('reference', self.genome_reference))
