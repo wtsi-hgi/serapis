@@ -156,19 +156,8 @@ class ArchivableFileWithIndexFromFS(ArchivableFile):
         DataObjectAPI.upload(self.src_path, self.dest_dir)
         DataObjectAPI.upload(self.idx_src_path, self.dest_dir)
 
-        # checking checksums:
-        # src_checksum = self.get_checksum_for_src_file(self.src_path)
-        # dest_checksum = self.get_checksum_for_dest_file(self.dest_path)
-        # self._verify_checksums_equal(src_checksum, dest_checksum, self.src_path, self.dest_path)   # Throws exception, shall I catch it?!
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
-
         self.idx_file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.idx_src_path, self.idx_dest_path)
-
-        # src_idx_checksum = self.get_checksum_for_src_file(self.idx_src_path)
-        # dest_idx_checksum = self.get_checksum_for_dest_file(self.dest_idx_fpath)
-        # self._verify_checksums_equal(src_idx_checksum, dest_idx_checksum, self.idx_src_path, self.dest_idx_fpath)   # Throws exception, shall I catch it?!
-        # self.idx_file_obj.checksum = src_idx_checksum
-
         self.file_obj.gather_metadata(self.src_path)
         metadata = self.extract_metadata()
         print("MEtadata gathered: %s" % metadata)
