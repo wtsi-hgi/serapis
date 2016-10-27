@@ -52,7 +52,8 @@ class SerapisFile:
             found = False
             try:
                 ent = seqscape_provider_class.get_by_accession_number(acc_nr)
-                found = True
+                if ent:
+                    found = True
             except NonUniqueEntity:
                 pass
             if not found:
@@ -63,7 +64,8 @@ class SerapisFile:
             found = False
             try:
                 ent = seqscape_provider_class.get_by_internal_id(internal_id)
-                found = True
+                if ent:
+                    found = True
             except NonUniqueEntity:
                 pass
             if not found:
@@ -74,7 +76,8 @@ class SerapisFile:
             found = False
             try:
                 ent = seqscape_provider_class.get_by_name(name)
-                found = True
+                if ent:
+                    found = True
             except NonUniqueEntity:
                 pass
             if not found:
