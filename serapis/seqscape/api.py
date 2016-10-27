@@ -51,7 +51,7 @@ class SeqscapeEntityProvider:
         entity_api = getattr(connection, cls._entity_type)
         results = entity_api.get_by_name(entity_name)
         if len(results) > 1:
-            raise NonUniqueEntity("There are more %s(s) in Seqscape with id = %s, %s(s) = %s" % (cls._entity_type, entity_name, results))
+            raise NonUniqueEntity("There are more %s(s) in Seqscape with id = %s: %s" % (cls._entity_type, entity_name, results))
         elif len(results) < 1:
             return None
         else:
