@@ -62,7 +62,7 @@ class ArchivableFile(Archivable):
         result = defaultdict(set)
         for tup in tuples_list:
             if tup[1]:
-                result[tup[0]].add(tup[1])
+                result[tup[0]].add(str(tup[1]))
         return result
 
     def export_metadata_from_file(self):
@@ -113,6 +113,17 @@ class ArchivableFileFromFS(ArchivableFile):
         self.file_obj.gather_metadata(self.src_path)
         self.file_obj.checksum = self._get_and_verify_checksums_on_src_and_dest(self.src_path, self.dest_path)
         metadata = self.export_metadata_from_file()
+        print("Metadata before adding it to the file: %s" % metadata)
+
+        # to be moved in the archive
+        if not self.file_obj.has_enough_metadata():
+            print("The file doesn't have enough metadata!!!!!!!!!!!!!!!!!!!!!!!!")
+        DataObjectAPI.add_metadata(self.dest_path, metadata)
+        existing_metadata = DataObjectAPI.get_all_metadata(self.dest_path)
+        if metadata == existing_metadata.to_dict():
+            print("Metadata is identical!")
+        else:
+            print("Extracted: %s" % existing_metadata)
         print("MEtadata gathered: %s" % metadata)
 
     def unstage(self):
