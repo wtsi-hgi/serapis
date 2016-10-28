@@ -20,7 +20,7 @@ This file has been created on Oct 24, 2016.
 """
 
 import unittest
-
+from sequencescape import connect_to_sequencescape, Sample, Study, Library
 from serapis.domain.models.data_types import Data, DNASequencingData, GenotypingData, GWASSummaryStatisticsData
 
 
@@ -82,3 +82,67 @@ class DNASequencingDataTest(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertTrue(data.has_enough_metadata())
 
+    def test_export_metadata_as_tuples(self):
+        data = Data()
+        data.pmid_list = [1, 2, 3]
+        data.studies = [Study(name='AStudy', accession_number='EGA')]
+        expected = [('pmid', 1), ('pmid', 2), ('pmid', 3), ('study_name', 'AStudy'), ('study_accession_number', 'EGA'),
+                    ('study_type', None), ('security_level', '2'), ('study_description', None),
+                    ('study_internal_id', None), ('faculty_sponsor', None)]
+        result = data.export_metadata_as_tuples()
+        self.assertSetEqual(set(expected), set(result))
+
+
+# class Data(object):
+#     """
+#         This is a generic type for any kind of data to be archived. Holds general attributes.
+#     """
+#     def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2):
+#         self.processing = processing if processing else set()
+#         self.pmid_list = pmid_list if pmid_list else set()
+#         self.security_level = security_level
+#         self.studies = studies if studies else set()
+
+    # def export_metadata_as_tuples(self):
+    #     metadata = set()
+    #     for proc in self.processing:
+    #         metadata.add(('processing', proc))
+    #     for pmid in self.pmid_list:
+    #         metadata.add(('pmid', pmid))
+    #     for study in self.studies:
+    #         metadata.add(('study_name', study.name))
+    #         metadata.add(('study_internal_id', study.internal_id))
+    #         metadata.add(('study_accession_number', study.accession_number))
+    #         metadata.add(('study_type', study.study_type))
+    #         metadata.add(('faculty_sponsor', study.faculty_sponsor))
+    #         metadata.add(('study_description', study.description))
+    #     metadata.add(('security_level', self.security_level))
+    #     return metadata
+
+# class DNASequencingData(Data):
+#         self.libraries = libraries if libraries else set() # set of seqscape.Library
+#         self.samples = samples if samples else set()   # set of seqscape.Sample
+#         #self.genomic_regions = genomic_regions  # this has GenomeRegions as type
+#         self.sorting_order = sorting_order
+#         self.coverage_list = coverage_list if coverage_list else set()
+#         self.genome_reference = genome_reference
+#
+#     def export_metadata_as_tuples(self):
+#         metadata = super().export_metadata_as_tuples()
+#         for lib in self.libraries:
+#             metadata.add(('library_name', lib.name))
+#             metadata.add(('library_internal_id', lib.internal_id))
+#             metadata.add(('library_type', lib.library_type))
+#         for sample in self.samples:
+#             metadata.add(('sample_name', sample.name))
+#             metadata.add(('samples_accession_number', sample.accession_number))
+#             metadata.add(('sample_internal_id', sample.internal_id))
+#             metadata.add(('cohort', sample.cohort))
+#             metadata.add(('gender', sample.gender))
+#             metadata.add(('organism', sample.organism))
+#             metadata.add(('taxon_id', sample.taxon_id))
+#         for cov in self.coverage_list:
+#             metadata.add(('coverage', cov))
+#         metadata.add(('reference', self.genome_reference))
+#         metadata.add(('sorting_order', self.sorting_order))
+#         return metadata
