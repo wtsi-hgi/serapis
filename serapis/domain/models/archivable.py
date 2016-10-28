@@ -20,6 +20,7 @@ This file has been created on Oct 20, 2016.
 """
 
 import os
+from collections import defaultdict
 
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 from serapis.domain.models.exceptions import NotEnoughMetadata, ErrorStagingFile, FileNotUploaded
@@ -57,6 +58,18 @@ class ArchivableFile(Archivable):
         self.file_obj = file_obj
 
     @classmethod
+    def _from_tuples_to_dict(cls, tuples_list):
+        result = defaultdict(set)
+        for tup in tuples_list:
+            if tup[1]:
+                result[tup[0]].add(tup[1])
+        return result
+
+    def export_metadata_from_file(self):
+        metadata_as_tuples = self.file_obj.export_metadata_as_tuples()
+        return self._from_tuples_to_dict(metadata_as_tuples)
+
+    @classmethod
     def get_checksum_for_src_file(cls, fpath):
         raise NotImplementedError()
 
@@ -80,9 +93,6 @@ class ArchivableFileFromFS(ArchivableFile):
     """
     def __init__(self, src_path, dest_dir, file_obj=None):
         super().__init__(src_path, dest_dir, file_obj)
-
-    def export_metadata_from_file(self):
-        return self.file_obj.export_metadata_as_tuples()
 
     @classmethod
     def get_checksum_for_src_file(cls, fpath):
@@ -146,9 +156,6 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
     @property
     def dest_idx_fpath(self):
         return os.path.join(self.dest_dir, os.path.basename(self.idx_src_path))
-
-    def check_checksum(self, src_path, dest_path):
-        pass
 
     @classmethod
     def _verify_checksums_equal(cls, src_checksum, dest_checksum, src_fpath, dest_fpath):
