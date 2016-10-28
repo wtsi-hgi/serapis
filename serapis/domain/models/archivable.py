@@ -117,7 +117,9 @@ class ArchivableFileFromFS(ArchivableFile):
 
         # to be moved in the archive
         if not self.file_obj.has_enough_metadata():
-            print("The file doesn't have enough metadata!!!!!!!!!!!!!!!!!!!!!!!!")
+            missing = self.file_obj.get_missing_mandatory_metadata_fields()
+            print("The file doesn't have enough metadata!!!!!!!!!!!!!!!!!!!!!!!! Missing: %s" % missing)
+
         DataObjectAPI.add_metadata(self.dest_path, metadata)
         existing_metadata = DataObjectAPI.get_all_metadata(self.dest_path)
         if metadata == existing_metadata.to_dict():
