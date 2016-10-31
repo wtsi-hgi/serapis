@@ -22,9 +22,11 @@ This file has been created on Oct 24, 2016.
 class NotEnoughMetadata(Exception):
     pass
 
-
 class ErrorStagingFile(Exception):
     pass
 
 class FileNotUploaded(Exception):
+    pass
+
+class AlreadyExistingFile(Exception):
     pass
