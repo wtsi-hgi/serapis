@@ -102,7 +102,6 @@ class ArchivableFileFromFS(ArchivableFile):
     """
     This class assumes the archiving happens for a file stored on a standard filesystem -> iRODS.
     """
-
     def __init__(self, src_path, dest_dir, file_obj=None, staging_dir=None):
         super().__init__(src_path, dest_dir, file_obj, staging_dir)
 
@@ -120,7 +119,7 @@ class ArchivableFileFromFS(ArchivableFile):
                 "This file %s can't be staged because there is a file with the same name "
                 "in the given staging directory: %s" % (self.src_path, self.staging_path))
         DataObjectAPI.upload(self.src_path, self.staging_dir)
-        if not DataObjectAPI.exists(self.staging_dir):
+        if not DataObjectAPI.exists(self.staging_path):
             raise exceptions.FileNotUploaded("File %s was not uploaded." % self.staging_dir)
 
         self.file_obj.gather_metadata(self.src_path)
