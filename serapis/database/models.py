@@ -63,7 +63,7 @@ class Data(DynamicDocument):
 class GenotypingData(Data):
     genome_reference = StringField()
     disease_or_trait = StringField()
-    nr_samples = IntegerField()
+    nr_samples = IntField()
     ethnicity = StringField()
 
 
