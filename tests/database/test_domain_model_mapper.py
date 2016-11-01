@@ -21,9 +21,9 @@ This file has been created on Nov 01, 2016.
 
 import unittest
 from serapis.database.domain_model_mapper import DataMapper, DNASequencingDataMapper, GWASDataMapper, LibraryMapper, StudyMapper, SampleMapper
-from serapis.database.models import Sample, Study, Library, Data, DNASequencingDataAsReads, DNASequencingData, GenotypingData, GWASData
 from sequencescape import connect_to_sequencescape, Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
-
+from serapis.database.models import Sample, Study, Library, Data, DNASequencingDataAsReads, DNASequencingData, GenotypingData, GWASData
+from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData, GenotypingData as DomainGenotypingData
 
 class SampleMapperTest(unittest.TestCase):
 
@@ -41,9 +41,17 @@ class SampleMapperTest(unittest.TestCase):
 
 
 
+class DataMapperTest(unittest.TestCase):
 
-
-
+    def test_to_db_model(self):
+        domain_obj = DomainData()
+        domain_obj.pmid_list = [1,2]
+        result = DataMapper.to_db_model(domain_obj)
+        expected = Data()
+        expected.pmid_list = [1,2]
+        expected.security_level = "2"
+        expected.processing = set()
+        self.assertEqual(result, expected)
 
 
 
