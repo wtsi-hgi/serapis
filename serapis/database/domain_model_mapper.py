@@ -18,6 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 31, 2016.
 """
+from serapis.database.models import Library as DBLibrary, Sample as DBSample, Study as DBStudy, Data as DBData, \
+    DNASequencingData as DBDNASequencingData, DNASequencingDataAsReads as DBDNASequencingDataAsReads, \
+    GenotypingData as DBGenotypingData, GWASData as DBGWASData
+
 
 
 class Mapper:
@@ -29,35 +33,82 @@ class Mapper:
     def from_db_model(obj):
         pass
 
-class LibraryMapper:
+class LibraryMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        lib = existing_db_obj if existing_db_obj else DBLibrary()
+        lib.internal_id = getattr(obj, 'internal_id')
+        lib.name = getattr(obj, 'name')
+        lib.library_type = getattr(obj, 'library_type')
+        return lib
+
+class SampleMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        sample = existing_db_obj if existing_db_obj else DBSample()
+        sample.name = getattr(obj, 'name')
+        sample.internal_id = getattr(obj, 'internal_id')
+        sample.accession_number = getattr(obj, 'accession_number')
+        sample.organism = getattr(obj, 'organism')
+        sample.common_name = getattr(obj, 'common_name')
+        sample.taxon_id = getattr(obj, 'taxon_id')
+        sample.ethnicity = getattr(obj, 'ethnicity')
+        sample.cohort = getattr(obj, 'cohort')
+        sample.country_of_origin = getattr(obj, 'country_of_origin')
+        sample.geographical_region = getattr(obj, 'geograhical_region')
+        return sample
 
 
+class StudyMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        study = existing_db_obj if existing_db_obj else DBStudy()
+        study.name = getattr(obj, 'name')
+        study.internal_id = getattr(obj, 'internal_id')
+        study.accession_number = getattr(obj, 'accession_number')
+        study.study_type = getattr(obj, 'study_type')
+        study.description = getattr(obj, 'description')
+        study.study_title = getattr(obj, 'study_title')
+        study.study_visibility = getattr(obj, 'study_visibility')
+        study.faculty_sponsor = getattr(obj, 'faculty_sponsor')
+        return study
 
 
-# class Library(DynamicEmbeddedDocument):
-#     name = StringField()
-#     internal_id = StringField()
-#     library_type = StringField()
-#
-#
-# class Sample(DynamicEmbeddedDocument):
-#     name = StringField()
-#     internal_id = StringField()
-#     accession_number = StringField()
-#     organism = StringField()
-#     taxon_id = IntField()
-#     gender = StringField()
-#     cohort = StringField()
-#     country_of_origin = StringField()
-#     geographical_region = StringField()
-#
-#
-# class Study(DynamicEmbeddedDocument):
-#     name = StringField()
-#     internal_id = StringField()
-#     accession_number = StringField()
-#     study_type = StringField()
-#     description = StringField()
-#     study_title = StringField()
-#     study_visibility = StringField()
-#     faculty_sponsor = StringField()
+class DataMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DBData()
+        data.processing = getattr(obj, 'processing')
+        data.pmid_list = getattr(obj, 'pmid_list')
+        data.security_level = getattr(obj, 'security_level')
+        data.studies = []
+        for study in getattr(obj, 'studies'):
+            db_study = StudyMapper.to_db_model(study)
+            data.studies.append(db_study)
+        return data
+
+
+class GenotypingDataMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DBGenotypingData()
+        data = DataMapper.to_db_model(obj, data)
+        data.genome_reference = getattr(obj, 'genome_reference')
+        data.disease_or_trait = getattr(obj, 'disease_or_trait')
+        data.nr_samples = getattr(obj, 'nr_samples')
+        data.ethnicity = getattr(obj, 'ethnicity')
+        return data
+
+class GWASDataMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DBGWASData()
+        data = GenotypingDataMapper.to_db_model(obj, data)
+        data.study_type = getattr(obj, 'study_type')
+
+
+class DNASequencingDataMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        pass
+
