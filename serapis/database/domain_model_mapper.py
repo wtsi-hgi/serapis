@@ -78,8 +78,9 @@ class DataMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBData()
-        data.processing = getattr(obj, 'processing')
-        data.pmid_list = getattr(obj, 'pmid_list')
+        data.processing = getattr(obj, 'processing') if getattr(obj, 'processing') else set()
+        print("Data.processing: %s and getattr: %s " % (str(data.processing), str(getattr(obj, 'processing'))))
+        data.pmid_list = getattr(obj, 'pmid_list') if getattr(obj, 'pmid_list') else set()
         data.security_level = getattr(obj, 'security_level')
         data.studies = []
         for study in getattr(obj, 'studies'):
