@@ -55,7 +55,7 @@ class SampleMapper(Mapper):
         sample.ethnicity = getattr(obj, 'ethnicity')
         sample.cohort = getattr(obj, 'cohort')
         sample.country_of_origin = getattr(obj, 'country_of_origin')
-        sample.geographical_region = getattr(obj, 'geograhical_region')
+        sample.geographical_region = getattr(obj, 'geographical_region')
         return sample
 
 
