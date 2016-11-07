@@ -47,7 +47,7 @@ class Library(Entity):
         return super().__str__() + ", internal_id: %s, library_type: %s" % (self.internal_id, self.library_type)
 
     def __eq__(self, other):
-        return super()._eq__(other) and self.internal_id == other.internal_id and self.library_type == other.library_type
+        return super().__eq__(other) and self.internal_id == other.internal_id and self.library_type == other.library_type
 
 
 class Sample(Entity):
@@ -149,7 +149,7 @@ class DNASequencingData(Data):
                ", genome_reference: " + str(self.genome_reference)
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.libraries == other.liraries and self.samples == other.samples and \
+        return super().__eq__(other) and self.libraries == other.libraries and self.samples == other.samples and \
                self.sorting_order == other.sorting_order and self.coverage_list == other.coverage_list and \
                self.genome_reference == other.genome_reference
 
