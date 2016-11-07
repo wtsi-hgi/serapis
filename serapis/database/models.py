@@ -21,8 +21,9 @@ This file has been created on Oct 31, 2016.
 
 from mongoengine import *
 
-connect(
-    'testdb')  # , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk', port=27017)    # , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk'
+connect('testdb')
+# , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk', port=27017)
+#  , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk'
 
 
 class Entity(DynamicEmbeddedDocument):
@@ -162,6 +163,10 @@ class DNASequencingDataAsReads(DNASequencingData):
 
     def __eq__(self, other):
         return super().__eq__(other) and self.seq_centers == other.seq_centers
+
+
+class DNAVariationData(DNASequencingData):
+    pass
 
 
 # index_file = EmbeddedDocumentField(IndexFile)
