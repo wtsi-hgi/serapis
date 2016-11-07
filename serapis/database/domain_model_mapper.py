@@ -20,7 +20,7 @@ This file has been created on Oct 31, 2016.
 """
 from serapis.database.models import Library as DBLibrary, Sample as DBSample, Study as DBStudy, Data as DBData, \
     DNASequencingData as DBDNASequencingData, DNASequencingDataAsReads as DBDNASequencingDataAsReads, \
-    GenotypingData as DBGenotypingData, GWASData as DBGWASData
+    GenotypingData as DBGenotypingData, GWASData as DBGWASData, DNAVariationData as DBDNAVariationData
 
 
 
@@ -79,7 +79,6 @@ class DataMapper(Mapper):
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBData()
         data.processing = getattr(obj, 'processing') if getattr(obj, 'processing') else set()
-        print("Data.processing: %s and getattr: %s " % (str(data.processing), str(getattr(obj, 'processing'))))
         data.pmid_list = getattr(obj, 'pmid_list') if getattr(obj, 'pmid_list') else set()
         data.security_level = getattr(obj, 'security_level')
         data.studies = []
@@ -100,16 +99,53 @@ class GenotypingDataMapper(Mapper):
         data.ethnicity = getattr(obj, 'ethnicity')
         return data
 
+
 class GWASDataMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBGWASData()
         data = GenotypingDataMapper.to_db_model(obj, data)
         data.study_type = getattr(obj, 'study_type')
+        return data
 
 
 class DNASequencingDataMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
-        pass
+        data = existing_db_obj if existing_db_obj else DBDNASequencingData()
+        data = DataMapper.to_db_model(obj, data)
+        data.libraries = []
+        for lib in getattr(obj, 'libraries'):
+            data.libraries.append(lib)
+        for sample in getattr(obj, 'samples'):
+            data.samples.append(sample)
+        data.sorting_order = getattr(obj, 'sorting_order')
+        data.coverage_list = getattr(obj, 'coverage_list')
+        data.genome_reference = getattr(obj, 'genome_reference')
+        return data
+
+
+class DNASequencingDataAsReads(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DBDNASequencingDataAsReads()
+        data = DNASequencingDataMapper.to_db_model(obj, data)
+        data.seq_centers = getattr(obj, 'seq_centers')
+        return data
+
+
+class DNAVariationDataMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj):
+        data = existing_db_obj if existing_db_obj else DBDNAVariationData()
+        data = DNASequencingDataMapper.to_db_model(obj, data)
+        return data
+
+
+
+
+
+
+
+
 
