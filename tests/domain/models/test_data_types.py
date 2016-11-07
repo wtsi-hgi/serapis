@@ -55,6 +55,26 @@ class DataTest(unittest.TestCase):
         result = data.get_missing_mandatory_fields()
         self.assertEqual(len(result), 2)
 
+    def test_eq_when_eq(self):
+        data1 = Data()
+        data2 = Data()
+        self.assertEqual(data1, data2)
+
+    def test_eq_when_eq2(self):
+        data1 = Data(pmid_list=[1,2,3], studies=[Study(name='std1')])
+        data2 = Data(pmid_list=[1,2,3], studies=[Study(name='std1')])
+        self.assertEqual(data1, data2)
+
+    def test_eq_when_not_eq1(self):
+        data1 = Data(pmid_list=[1,2], studies=[Study(name='std1')])
+        data2 = Data(pmid_list=[1,2], studies=[Study(name='std2')])
+        self.assertNotEqual(data2, data1)
+
+    def test_eq_when_not_eq2(self):
+        data1 = Data(pmid_list=[123], security_level=3)
+        data2 = Data(studies=[Study()])
+        self.assertNotEqual(data1, data2)
+
 
 class GenotypingDataTest(unittest.TestCase):
 
