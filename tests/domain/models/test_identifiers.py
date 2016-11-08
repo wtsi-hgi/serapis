@@ -5,57 +5,56 @@ from serapis.domain.models import metadata_entity_id
 
 
 class TestIdentifiers(unittest.TestCase):
-    
-    
+
     def test_is_accession_nr(self):
         acc_nr = None
-        self.assertRaises(ValueError, metadata_entity_id.EntityIdentifier._is_accession_nr, acc_nr)
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
 
         acc_nr = 123
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_accession_nr(acc_nr))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
         
         acc_nr = "123"
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_accession_nr(acc_nr))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
         
         acc_nr = 123
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_accession_nr(acc_nr))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
 
         acc_nr = "ERS216847"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_accession_nr(acc_nr))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
         
         acc_nr = "EGAS123"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_accession_nr(acc_nr))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_accession_nr(acc_nr))
     
     
     def test_is_internal_id(self):
         int_id = 12
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_internal_id(int_id))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_internal_id(int_id))
         
         int_id = 'asd'
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_internal_id(int_id))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_internal_id(int_id))
         
         int_id = "12"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_internal_id(int_id))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_internal_id(int_id))
         
         identif = 808346
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_internal_id(identif))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_internal_id(identif))
  
 
     def test_is_name(self):
         name = "john"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_name(name))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_name(name))
         
         name = "Sampl123"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_name(name))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_name(name))
 
         name = "123"
-        self.assertTrue(metadata_entity_id.EntityIdentifier._is_name(name))
+        self.assertTrue(metadata_entity_id.EntityIdentifier.is_name(name))
 
         name = 123
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_name(name))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_name(name))
 
         name = 'hgi_project'
-        self.assertFalse(metadata_entity_id.EntityIdentifier._is_name(name))
+        self.assertFalse(metadata_entity_id.EntityIdentifier.is_name(name))
 
 
     def test_guess_identifier_type(self): 
