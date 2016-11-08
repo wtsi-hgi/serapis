@@ -280,20 +280,19 @@ class DNAVariationData(DNASequencingData):
     """
         This class holds variation data.
     """
-
-    def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None, studies=None,
-                 sorting_order=None, genomic_regions=None, genome_reference=None):# library_strategy=None, library_source=None,
-        super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,
-                                               studies=studies, processing=processing, sorting_order=sorting_order,
-                                               genomic_regions=genomic_regions, libraries=None, samples=None,
-                                               #library_strategy=library_strategy, library_source=library_source,
-                                               genome_reference=genome_reference)
+    #
+    # def __init__(self, pmid_list, security_level=constants.SECURITY_LEVEL_2, processing=None, coverage_list=None, studies=None,
+    #              sorting_order=None, genomic_regions=None, genome_reference=None):# library_strategy=None, library_source=None,
+    #     super(DNAVariationData, self).__init__(pmid_list, security_level=security_level, coverage_list=coverage_list,
+    #                                            studies=studies, processing=processing, sorting_order=sorting_order,
+    #                                            genomic_regions=genomic_regions, libraries=None, samples=None,
+    #                                            #library_strategy=library_strategy, library_source=library_source,
+    #                                            genome_reference=genome_reference)
 
 
 class ArchiveData(Data):
     """
         This type of data corresponds to a tar/rar/etc. type of archive which can contain anything.
     """
-    pass
 
 
