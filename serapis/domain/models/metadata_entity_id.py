@@ -33,6 +33,8 @@ class EntityIdentifier(object):
         """
             The ENA accession numbers all start with: ERS, SRS, DRS or EGA.
         """
+        if not type(field) == str:
+            return False
         if type(field) == int:
             return False
         if field.startswith('ER') or field.startswith('SR') or field.startswith('DR') or field.startswith('EGA'):
@@ -65,6 +67,8 @@ class EntityIdentifier(object):
             This method receives the value of an identifier and returns its inferred type,
             where the identifier type options are: internal_id, name and accession_number
         """
+        if not identifier:
+            raise ValueError("%s is no identifier type" % str(identifier))
         if cls.is_accession_nr(identifier):
             identifier_type = 'accession_number'
         elif cls.is_internal_id(identifier):
