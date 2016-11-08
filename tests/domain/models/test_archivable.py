@@ -56,9 +56,9 @@ class ArchivableFileTest(unittest.TestCase):
 class ArhivableFileTest(unittest.TestCase):
 
     def test_from_tuples_to_dict_when_ok(self):
-        tuples_list = [('sample', 1), ('sample', 2)]
+        tuples_list = [('sample', '1'), ('sample', '2')]
         expected = defaultdict(set)
-        expected['sample'] = set([1, 2])
+        expected['sample'] = {'1', '2'}
         result = ArchivableFile._from_tuples_to_dict(tuples_list)
         self.assertDictEqual(expected, result)
 
@@ -69,18 +69,18 @@ class ArhivableFileTest(unittest.TestCase):
         self.assertDictEqual(expected, result)
 
     def test_from_tuples_to_dict_when_more_keys(self):
-        tuples_list = [('sample', 1), ('sample', 2), ('library', 1), ('study', 1)]
+        tuples_list = [('sample', '1'), ('sample', '2'), ('library', '1'), ('study', '1')]
         expected = defaultdict(set)
-        expected['sample'] = set([1, 2])
-        expected['library'] = set([1])
-        expected['study'] = set([1])
+        expected['sample'] = {'1', '2'}
+        expected['library'] = {'1'}
+        expected['study'] = {'1'}
         result = ArchivableFile._from_tuples_to_dict(tuples_list)
         self.assertDictEqual(expected, result)
 
     def test_from_tuples_to_dict_when_None(self):
-        tuples_list = [('sample', None), ('library', 1)]
+        tuples_list = [('sample', None), ('library', '1')]
         expected = defaultdict(set)
-        expected['library'] = set([1])
+        expected['library'] = set(['1'])
         result = ArchivableFile._from_tuples_to_dict(tuples_list)
         self.assertDictEqual(expected, result)
 
