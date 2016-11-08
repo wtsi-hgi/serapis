@@ -40,7 +40,6 @@ class SampleMapperTest(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
-
 class DataMapperTest(unittest.TestCase):
 
     def test_to_db_model(self):
@@ -52,6 +51,27 @@ class DataMapperTest(unittest.TestCase):
         expected.security_level = "2"
         expected.processing = set()
         self.assertEqual(result, expected)
+
+
+class DNASequencingDataMapperTest(unittest.TestCase):
+
+    def test_to_db_model(self):
+        domain_obj = DomainDNASequencingData()
+        domain_obj.samples = [DomainSample(name='sam1')]
+        domain_obj.coverage_list = ['2x']
+        domain_obj.pmid_list = set()
+        domain_obj.processing = set()
+        result = DNASequencingDataMapper.to_db_model(domain_obj)
+        expected = DNASequencingData()
+        expected.samples = [Sample(name='sam1')]
+        expected.coverage_list = ['2x']
+        expected.security_level = '2'
+        expected.pmid_list = set()
+        print("expected: %s" % expected)
+        print("result: %s" % result)
+        self.assertEqual(result, expected)
+
+
 
 
 
