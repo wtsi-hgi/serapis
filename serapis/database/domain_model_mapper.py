@@ -22,16 +22,25 @@ from serapis.database.models import Library as DBLibrary, Sample as DBSample, St
     DNASequencingData as DBDNASequencingData, DNASequencingDataAsReads as DBDNASequencingDataAsReads, \
     GenotypingData as DBGenotypingData, GWASData as DBGWASData, DNAVariationData as DBDNAVariationData
 
-
+from abc import abstractclassmethod
 
 class Mapper:
-    @classmethod
+    @abstractclassmethod
     def to_db_model(cls, obj):
-        pass
+        """
 
-    @classmethod
+        :param obj:
+        :return:
+        """
+
+    @abstractclassmethod
     def from_db_model(obj):
-        pass
+        """
+
+        :param obj:
+        :return:
+        """
+
 
 class LibraryMapper(Mapper):
     @classmethod
@@ -110,6 +119,7 @@ class GWASDataMapper(Mapper):
 
 
 class DNASequencingDataMapper(Mapper):
+
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNASequencingData()
@@ -136,7 +146,7 @@ class DNASequencingDataAsReads(Mapper):
 
 class DNAVariationDataMapper(Mapper):
     @classmethod
-    def to_db_model(cls, obj, existing_db_obj):
+    def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNAVariationData()
         data = DNASequencingDataMapper.to_db_model(obj, data)
         return data
