@@ -21,6 +21,7 @@ This file has been created on Oct 03, 2016.
 from serapis import config
 from sequencescape import connect_to_sequencescape, Sample, Study, Library
 from serapis.seqscape.exceptions import NonUniqueEntity
+from abc import abstractproperty
 
 class SeqscapeEntityProvider:
 
@@ -29,9 +30,13 @@ class SeqscapeEntityProvider:
         return connect_to_sequencescape("mysql://" + user + ":@" + host + ":" + str(port) + "/" + db_name)
 
     @classmethod
-    @property
+    @abstractproperty
     def _entity_type(cls):
-        raise NotImplementedError("This class is a generic interface, can't be used for actual querying Seqscape.")
+        """
+
+        :return:
+        """
+        #raise NotImplementedError("This class is a generic interface, can't be used for actual querying Seqscape.")
 
     @classmethod
     def get_by_internal_id(cls, entity_id):
