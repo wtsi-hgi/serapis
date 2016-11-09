@@ -22,135 +22,232 @@ from serapis.database.models import Library as DBLibrary, Sample as DBSample, St
     DNASequencingData as DBDNASequencingData, DNASequencingDataAsReads as DBDNASequencingDataAsReads, \
     GenotypingData as DBGenotypingData, GWASData as DBGWASData, DNAVariationData as DBDNAVariationData
 
-from abc import abstractclassmethod
+from serapis.database.models import Sample, Study, Library, Data, DNASequencingDataAsReads, DNASequencingData, GenotypingData, GWASData
 
-class Mapper:
-    @abstractclassmethod
-    def to_db_model(cls, obj):
+from abc import abstractclassmethod, ABCMeta, abstractmethod
+
+class Mapper(metaclass=ABCMeta):
+    @classmethod
+    @abstractmethod
+    def _set_fields(cls, old_obj, new_obj):
+        """
+        This method is used for setting fields on an object (whatever type that object has, the fields are the same).
+        :param old_obj: object from which the fields to be copied over to the new instance.
+        :param new_obj: object to be populated with the field values from old_obj
+        :return: the new obj after populating its fields
+        """
+
+    @classmethod
+    @abstractmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
         """
         This method converts between the domain model and the database model.
-        :param obj:
-        :return:
+        :param obj: object from which the fields to be copied over to the new instance.
+        :param existing_db_obj: if this is None, then a new object will be instantiated. If it is non-None, than this
+        object will be populated with the field values of obj parameter.
+        :return: the new object or the existing object with the field values copied from obj
         """
 
-    @abstractclassmethod
-    def from_db_model(cls, obj):
+    @classmethod
+    @abstractmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
         """
         This method converts between the database model and the domain model.
-        :param obj:
-        :return:
+        :param obj: object from which the fields to be copied over to the new instance.
+        :param existing_db_obj: if this is None, then a new object will be instantiated. If it is non-None, than this
+        object will be populated with the field values of obj parameter.
+        :return: the new object or the existing object with the field values copied from obj
         """
 
 
 class LibraryMapper(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.internal_id = getattr(old_obj, 'internal_id')
+        new_obj.name = getattr(old_obj, 'name')
+        new_obj.library_type = getattr(old_obj, 'library_type')
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         lib = existing_db_obj if existing_db_obj else DBLibrary()
-        lib.internal_id = getattr(obj, 'internal_id')
-        lib.name = getattr(obj, 'name')
-        lib.library_type = getattr(obj, 'library_type')
-        return lib
+        return cls._set_fields(obj, lib)
 
-    
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        lib = existing_db_obj if existing_db_obj else Library
+        return cls._set_fields(obj, lib)
+
+
 class SampleMapper(Mapper):
+    @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.name = getattr(old_obj, 'name')
+        new_obj.internal_id = getattr(old_obj, 'internal_id')
+        new_obj.accession_number = getattr(old_obj, 'accession_number')
+        new_obj.organism = getattr(old_obj, 'organism')
+        new_obj.common_name = getattr(old_obj, 'common_name')
+        new_obj.taxon_id = getattr(old_obj, 'taxon_id')
+        new_obj.ethnicity = getattr(old_obj, 'ethnicity')
+        new_obj.cohort = getattr(old_obj, 'cohort')
+        new_obj.country_of_origin = getattr(old_obj, 'country_of_origin')
+        new_obj.geographical_region = getattr(old_obj, 'geographical_region')
+        return new_obj
+
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         sample = existing_db_obj if existing_db_obj else DBSample()
-        sample.name = getattr(obj, 'name')
-        sample.internal_id = getattr(obj, 'internal_id')
-        sample.accession_number = getattr(obj, 'accession_number')
-        sample.organism = getattr(obj, 'organism')
-        sample.common_name = getattr(obj, 'common_name')
-        sample.taxon_id = getattr(obj, 'taxon_id')
-        sample.ethnicity = getattr(obj, 'ethnicity')
-        sample.cohort = getattr(obj, 'cohort')
-        sample.country_of_origin = getattr(obj, 'country_of_origin')
-        sample.geographical_region = getattr(obj, 'geographical_region')
         return sample
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        sample = existing_db_obj if existing_db_obj else Sample()
+        return cls._set_fields(obj, sample)
 
 
 class StudyMapper(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.name = getattr(old_obj, 'name')
+        new_obj.internal_id = getattr(old_obj, 'internal_id')
+        new_obj.accession_number = getattr(old_obj, 'accession_number')
+        new_obj.study_type = getattr(old_obj, 'study_type')
+        new_obj.description = getattr(old_obj, 'description')
+        new_obj.study_title = getattr(old_obj, 'study_title')
+        new_obj.study_visibility = getattr(old_obj, 'study_visibility')
+        new_obj.faculty_sponsor = getattr(old_obj, 'faculty_sponsor')
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         study = existing_db_obj if existing_db_obj else DBStudy()
-        study.name = getattr(obj, 'name')
-        study.internal_id = getattr(obj, 'internal_id')
-        study.accession_number = getattr(obj, 'accession_number')
-        study.study_type = getattr(obj, 'study_type')
-        study.description = getattr(obj, 'description')
-        study.study_title = getattr(obj, 'study_title')
-        study.study_visibility = getattr(obj, 'study_visibility')
-        study.faculty_sponsor = getattr(obj, 'faculty_sponsor')
-        return study
+        return cls._set_fields(obj, study)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        study = existing_db_obj if existing_db_obj else Study()
+        return cls._set_fields(obj, study)
 
 
 class DataMapper(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.processing = getattr(old_obj, 'processing') if getattr(old_obj, 'processing') else set()
+        new_obj.pmid_list = getattr(old_obj, 'pmid_list') if getattr(old_obj, 'pmid_list') else set()
+        new_obj.security_level = getattr(old_obj, 'security_level')
+        new_obj.studies = []
+        for study in getattr(old_obj, 'studies'):
+            db_study = StudyMapper.to_db_model(study)
+            new_obj.studies.append(db_study)
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBData()
-        data.processing = getattr(obj, 'processing') if getattr(obj, 'processing') else set()
-        data.pmid_list = getattr(obj, 'pmid_list') if getattr(obj, 'pmid_list') else set()
-        data.security_level = getattr(obj, 'security_level')
-        data.studies = []
-        for study in getattr(obj, 'studies'):
-            db_study = StudyMapper.to_db_model(study)
-            data.studies.append(db_study)
-        return data
+        return cls._set_fields(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else Data()
+        return cls._set_fields(obj, data)
 
 
 class GenotypingDataMapper(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.genome_reference = getattr(old_obj, 'genome_reference')
+        new_obj.disease_or_trait = getattr(old_obj, 'disease_or_trait')
+        new_obj.nr_samples = getattr(old_obj, 'nr_samples')
+        new_obj.ethnicity = getattr(old_obj, 'ethnicity')
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBGenotypingData()
         data = DataMapper.to_db_model(obj, data)
-        data.genome_reference = getattr(obj, 'genome_reference')
-        data.disease_or_trait = getattr(obj, 'disease_or_trait')
-        data.nr_samples = getattr(obj, 'nr_samples')
-        data.ethnicity = getattr(obj, 'ethnicity')
-        return data
+        return cls._set_fields(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else Data()
+        data = DataMapper.from_db_model(obj, data)
+        return cls._set_fields(obj, data)
 
 
 class GWASDataMapper(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.study_type = getattr(old_obj, 'study_type')
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBGWASData()
         data = GenotypingDataMapper.to_db_model(obj, data)
-        data.study_type = getattr(obj, 'study_type')
-        return data
+        return cls._set_fields(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else GWASData()
+        data = GenotypingDataMapper.from_db_model(obj, data)
+        return cls._set_fields(obj, data)
 
 
 class DNASequencingDataMapper(Mapper):
+    @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.libraries = []
+        for lib in getattr(old_obj, 'libraries'):
+            new_obj.libraries.append(lib)
+        for sample in getattr(old_obj, 'samples'):
+            new_obj.samples.append(sample)
+        new_obj.sorting_order = getattr(old_obj, 'sorting_order')
+        new_obj.coverage_list = getattr(old_obj, 'coverage_list')
+        new_obj.genome_reference = getattr(old_obj, 'genome_reference')
+        return new_obj
 
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNASequencingData()
         data = DataMapper.to_db_model(obj, data)
-        data.libraries = []
-        for lib in getattr(obj, 'libraries'):
-            data.libraries.append(lib)
-        for sample in getattr(obj, 'samples'):
-            data.samples.append(sample)
-        data.sorting_order = getattr(obj, 'sorting_order')
-        data.coverage_list = getattr(obj, 'coverage_list')
-        data.genome_reference = getattr(obj, 'genome_reference')
-        return data
+        return cls._set_fields(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DNASequencingData()
+        data = DataMapper.from_db_model(obj, data)
+        return cls._set_fields(obj, data)
 
 
 class DNASequencingDataAsReads(Mapper):
     @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        new_obj.seq_centers = getattr(old_obj, 'seq_centers')
+        return new_obj
+
+    @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNASequencingDataAsReads()
         data = DNASequencingDataMapper.to_db_model(obj, data)
-        data.seq_centers = getattr(obj, 'seq_centers')
-        return data
+        return cls._set_fields(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DNASequencingDataAsReads()
+        data = DNASequencingDataMapper.from_db_model(obj, data)
+        return cls._set_fields(obj, data)
 
 
 class DNAVariationDataMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNAVariationData()
-        data = DNASequencingDataMapper.to_db_model(obj, data)
-        return data
+        return DNASequencingDataMapper.to_db_model(obj, data)
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        data = existing_db_obj if existing_db_obj else DBDNAVariationData()
+        return DNASequencingDataMapper.from_db_model(obj, data)
 
 
 
