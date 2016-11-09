@@ -22,8 +22,12 @@ This file has been created on Nov 01, 2016.
 import unittest
 from serapis.database.domain_model_mapper import DataMapper, DNASequencingDataMapper, GWASDataMapper, LibraryMapper, StudyMapper, SampleMapper
 from sequencescape import connect_to_sequencescape, Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
-from serapis.database.models import Sample, Study, Library, Data, DNASequencingDataAsReads, DNASequencingData, GenotypingData, GWASData
-from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData, GenotypingData as DomainGenotypingData
+from serapis.database.models import Sample as DBSample, Study as DBStudy, Library as DBLibrary, Data as DBData, \
+    DNASequencingDataAsReads as DBDNASequencingDataAsReads, DNASequencingData as DBDNASequencingData, \
+    GenotypingData as DBGenotypingData, GWASData as DBGWASData
+from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData, \
+    GenotypingData as DomainGenotypingData
+
 
 class SampleMapperTest(unittest.TestCase):
 
@@ -32,12 +36,23 @@ class SampleMapperTest(unittest.TestCase):
         domain_obj.name = "sample1"
         domain_obj.accession_number = 'EGA1'
         result = SampleMapper.to_db_model(domain_obj)
-        expected = Sample()
+        expected = DBSample()
         expected.name = "sample1"
         expected.accession_number = 'EGA1'
         print("Expected: %s" % expected)
         print("Result: %s" % result)
         self.assertEqual(result, expected)
+
+    def test_from_db_model(self):
+        db_obj = DBSample()
+        db_obj.name = 'sam1'
+        db_obj.accession_number = 'EGA1'
+        result = SampleMapper.from_db_model(db_obj)
+        expected = DomainSample()
+        expected.name = 'sam1'
+        expected.accession_number = 'EGA1'
+        self.assertEqual(result, expected)
+
 
 
 class DataMapperTest(unittest.TestCase):
@@ -46,7 +61,7 @@ class DataMapperTest(unittest.TestCase):
         domain_obj = DomainData()
         domain_obj.pmid_list = [1,2]
         result = DataMapper.to_db_model(domain_obj)
-        expected = Data()
+        expected = DBData()
         expected.pmid_list = [1,2]
         expected.security_level = "2"
         expected.processing = set()
@@ -62,7 +77,7 @@ class DNASequencingDataMapperTest(unittest.TestCase):
         domain_obj.pmid_list = set()
         domain_obj.processing = set()
         result = DNASequencingDataMapper.to_db_model(domain_obj)
-        expected = DNASequencingData()
+        expected = DBDNASequencingData()
         expected.samples = [DomainSample(name='sam1')]
         expected.coverage_list = ['2x']
         expected.security_level = '2'
