@@ -39,8 +39,6 @@ class SampleMapperTest(unittest.TestCase):
         expected = DBSample()
         expected.name = "sample1"
         expected.accession_number = 'EGA1'
-        print("Expected: %s" % expected)
-        print("Result: %s" % result)
         self.assertEqual(result, expected)
 
     def test_from_db_model(self):
@@ -51,6 +49,30 @@ class SampleMapperTest(unittest.TestCase):
         expected = DomainSample()
         expected.name = 'sam1'
         expected.accession_number = 'EGA1'
+        self.assertEqual(result, expected)
+
+
+class LibraryMapperTest(unittest.TestCase):
+    def test_to_db_model(self):
+        domain_obj = DomainLibrary()
+        domain_obj.name = 'lib1'
+        domain_obj.internal_id = '213'
+        result = LibraryMapper.to_db_model(domain_obj)
+        expected = DBLibrary()
+        expected.name = 'lib1'
+        expected.internal_id = '213'
+        self.assertEqual(result, expected)
+
+    def test_from_db_model(self):
+        db_obj = DBLibrary()
+        db_obj.name = 'lib'
+        db_obj.internal_id = '123'
+        result = LibraryMapper.from_db_model(db_obj)
+        expected = DomainLibrary()
+        expected.name = 'lib'
+        expected.internal_id = '123'
+        print("Expected: %s" % expected)
+        print("Result: %s" % result)
         self.assertEqual(result, expected)
 
 
