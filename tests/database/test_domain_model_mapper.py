@@ -63,10 +63,11 @@ class DNASequencingDataMapperTest(unittest.TestCase):
         domain_obj.processing = set()
         result = DNASequencingDataMapper.to_db_model(domain_obj)
         expected = DNASequencingData()
-        expected.samples = [Sample(name='sam1')]
+        expected.samples = [DomainSample(name='sam1')]
         expected.coverage_list = ['2x']
         expected.security_level = '2'
         expected.pmid_list = set()
+        expected.processing = set()
         print("expected: %s" % expected)
         print("result: %s" % result)
         self.assertEqual(result, expected)
