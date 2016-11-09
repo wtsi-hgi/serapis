@@ -78,7 +78,7 @@ class LibraryMapper(Mapper):
 
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
-        lib = existing_db_obj if existing_db_obj else DomainLibrary
+        lib = existing_db_obj if existing_db_obj else DomainLibrary()
         return cls._set_fields(obj, lib)
 
 
