@@ -28,15 +28,15 @@ class Mapper:
     @abstractclassmethod
     def to_db_model(cls, obj):
         """
-
+        This method converts between the domain model and the database model.
         :param obj:
         :return:
         """
 
     @abstractclassmethod
-    def from_db_model(obj):
+    def from_db_model(cls, obj):
         """
-
+        This method converts between the database model and the domain model.
         :param obj:
         :return:
         """
@@ -51,6 +51,7 @@ class LibraryMapper(Mapper):
         lib.library_type = getattr(obj, 'library_type')
         return lib
 
+    
 class SampleMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
