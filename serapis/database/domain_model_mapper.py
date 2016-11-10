@@ -138,20 +138,24 @@ class DataMapper(Mapper):
         new_obj.processing = getattr(old_obj, 'processing', None) if getattr(old_obj, 'processing', None) else set()
         new_obj.pmid_list = getattr(old_obj, 'pmid_list', None) if getattr(old_obj, 'pmid_list', None) else set()
         new_obj.security_level = getattr(old_obj, 'security_level', None)
-        new_obj.studies = []
-        for study in getattr(old_obj, 'studies', None):
-            db_study = StudyMapper.to_db_model(study)
-            new_obj.studies.append(db_study)
         return new_obj
 
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBData()
+        data.studies = set()
+        for study in getattr(obj, 'studies', None):
+            db_study = StudyMapper.to_db_model(study)
+            data.studies.add(db_study)
         return cls._set_fields(obj, data)
 
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DomainData()
+        data.studies = set()
+        for study in getattr(obj, 'studies', None):
+            db_study = StudyMapper.from_db_model(study)
+            data.studies.add(db_study)
         return cls._set_fields(obj, data)
 
 
@@ -199,11 +203,7 @@ class GWASDataMapper(Mapper):
 class DNASequencingDataMapper(Mapper):
     @classmethod
     def _set_fields(cls, old_obj, new_obj):
-        new_obj.libraries = []
-        for lib in getattr(old_obj, 'libraries', None):
-            new_obj.libraries.append(lib)
-        for sample in getattr(old_obj, 'samples', None):
-            new_obj.samples.append(sample)
+        new_obj.libraries = set()
         new_obj.sorting_order = getattr(old_obj, 'sorting_order', None)
         new_obj.coverage_list = getattr(old_obj, 'coverage_list', None)
         new_obj.genome_reference = getattr(old_obj, 'genome_reference', None)
@@ -213,12 +213,28 @@ class DNASequencingDataMapper(Mapper):
     def to_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DBDNASequencingData()
         data = DataMapper.to_db_model(obj, data)
+        data.libraries = set()
+        for lib in getattr(obj, 'libraries', None):
+            db_lib = LibraryMapper.to_db_model(lib)
+            data.libraries.add(db_lib)
+        data.samples = set()
+        for sample in getattr(obj, 'samples', None):
+            db_sample = SampleMapper.to_db_model(sample)
+            data.samples.add(db_sample)
         return cls._set_fields(obj, data)
 
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DomainDNASequencingData()
         data = DataMapper.from_db_model(obj, data)
+        data.libraries = set()
+        for lib in getattr(obj, 'libraries', None):
+            domain_lib = LibraryMapper.from_db_model(lib)
+            data.libraries.add(domain_lib)
+        data.samples = set()
+        for sample in getattr(obj, 'samples', None):
+            domain_sample = SampleMapper.from_db_model(sample)
+            data.samples.add(domain_sample)
         return cls._set_fields(obj, data)
 
 
