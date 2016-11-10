@@ -50,6 +50,9 @@ class Library(Entity):
     def __eq__(self, other):
         return super().__eq__(other) and self.internal_id == other.internal_id and self.library_type == other.library_type
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 class Sample(Entity):
     internal_id = StringField()
@@ -70,6 +73,9 @@ class Sample(Entity):
     def __eq__(self, other):
         return super().__eq__(other) and self.internal_id == other.internal_id and \
                self.accession_number == other.accession_number
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 class Study(Entity):
@@ -92,6 +98,9 @@ class Study(Entity):
         return super().__eq__(other) and self.internal_id == other.internal_id and \
                self.accession_number == other.accession_number
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 class Data(DynamicEmbeddedDocument):
     processing = ListField()
@@ -108,6 +117,9 @@ class Data(DynamicEmbeddedDocument):
     def __eq__(self, other):
         return type(self) == type(other) and self.studies == other.studies and self.pmid_list == other.pmid_list and \
                self.security_level == other.security_level and self.processing == other.processing
+
+    def __hash__(self):
+        return hash(self.studies)
 
 
 class GenotypingData(Data):
