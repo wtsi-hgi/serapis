@@ -71,10 +71,40 @@ class LibraryMapperTest(unittest.TestCase):
         expected = DomainLibrary()
         expected.name = 'lib'
         expected.internal_id = '123'
+
+        self.assertEqual(result, expected)
+
+
+class StudyMapperTest(unittest.TestCase):
+    def test_to_db_model(self):
+        domain_obj = DomainStudy()
+        domain_obj.name = 'blueprint'
+        domain_obj.accession_number = 'ega111'
+        domain_obj.internal_id='12'
+
+        expected = DBStudy()
+        expected.name = 'blueprint'
+        expected.accession_number = 'ega111'
+        expected.internal_id = '12'
+
+        result = StudyMapper.to_db_model(domain_obj)
+        self.assertEqual(result, expected)
+
+    def test_from_db_model(self):
+        db_model = DBStudy()
+        db_model.internal_id = '12'
+        db_model.name = 'abc'
+        db_model.accession_number = 'ega1'
+
+        expected = DomainStudy()
+        expected.internal_id = '12'
+        expected.name = 'abc'
+        expected.accession_number = 'ega1'
+
+        result = StudyMapper.from_db_model(db_model)
         print("Expected: %s" % expected)
         print("Result: %s" % result)
         self.assertEqual(result, expected)
-
 
 
 class DataMapperTest(unittest.TestCase):
@@ -88,6 +118,20 @@ class DataMapperTest(unittest.TestCase):
         expected.security_level = "2"
         expected.processing = set()
         self.assertEqual(result, expected)
+
+    def test_from_db_model(self):
+        db_obj = DBData()
+        db_obj.pmid_list = ['1']
+        db_obj.studies = [DBStudy(name='stud1')]
+
+        expected = DomainData()
+        expected.pmid_list = ['1']
+        expected.studies = [DomainStudy(name='stud1')]
+        expected.processing = set()
+        expected.security_level = '2'
+
+        result = DataMapper.from_db_model(db_obj)
+        self.assertEqual(expected, result)
 
 
 class DNASequencingDataMapperTest(unittest.TestCase):
