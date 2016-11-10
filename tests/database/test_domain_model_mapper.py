@@ -102,8 +102,6 @@ class StudyMapperTest(unittest.TestCase):
         expected.accession_number = 'ega1'
 
         result = StudyMapper.from_db_model(db_model)
-        print("Expected: %s" % expected)
-        print("Result: %s" % result)
         self.assertEqual(result, expected)
 
 
@@ -117,20 +115,27 @@ class DataMapperTest(unittest.TestCase):
         expected.pmid_list = [1,2]
         expected.security_level = "2"
         expected.processing = set()
+        expected.studies = set()
+        print("Expected: %s" % expected)
+        print("Result: %s" % result)
+
         self.assertEqual(result, expected)
 
     def test_from_db_model(self):
         db_obj = DBData()
         db_obj.pmid_list = ['1']
-        db_obj.studies = [DBStudy(name='stud1')]
+        db_obj.studies = set([DBStudy(name='stud1')])
 
         expected = DomainData()
         expected.pmid_list = ['1']
-        expected.studies = [DomainStudy(name='stud1')]
+        expected.studies = set([DomainStudy(name='stud1')])
         expected.processing = set()
-        expected.security_level = '2'
+        expected.security_level = None
 
         result = DataMapper.from_db_model(db_obj)
+        print("Expected: %s" % expected)
+        print("Result: %s" % result)
+
         self.assertEqual(expected, result)
 
 
@@ -144,16 +149,29 @@ class DNASequencingDataMapperTest(unittest.TestCase):
         domain_obj.processing = set()
         result = DNASequencingDataMapper.to_db_model(domain_obj)
         expected = DBDNASequencingData()
-        expected.samples = [DomainSample(name='sam1')]
+        expected.samples = set([DBSample(name='sam1')])
         expected.coverage_list = ['2x']
         expected.security_level = '2'
         expected.pmid_list = set()
         expected.processing = set()
+        expected.studies = set()
+        expected.libraries = set()
         print("expected: %s" % expected)
         print("result: %s" % result)
         self.assertEqual(result, expected)
 
 
+    def test_from_db_model(self):
+        db_obj = DBDNASequencingData()
+        db_obj.samples = set([DBSample(name='sam1')])
+        db_obj.libraries = set([DBLibrary(name='lib1')])
+        db_obj.coverage_list = ['1x']
 
+        result = DNASequencingDataMapper.from_db_model(db_obj)
+
+        expected = DomainDNASequencingData()
+        expected.samples = set([DomainSample(name='sam1')])
+        expected.libraries = set([DomainSample(name='lib1')])
+        expected.coverage_list = ['1x']
 
 
