@@ -25,9 +25,9 @@ from collections import defaultdict
 from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 from serapis.domain.models import exceptions
 from serapis.storage.filesystem.lustre_storage import FileAPI
+from abc import ABCMeta, abstractmethod
 
-
-class Archivable:
+class Archivable(metaclass=ABCMeta):
     def __init__(self, src_path, dest_dir, staging_dir=None):
         self.src_path = src_path
         self.dest_dir = dest_dir
@@ -39,14 +39,25 @@ class Archivable:
     def __hash__(self):
         return hash(self.src_path) + hash(self.dest_dir)
 
+    @abstractmethod
     def archive(self):
-        raise NotImplementedError("Archivable is an interface, hence it contains only abstract methods.")
+        """
+        This method is archiving data, ie moving it from the staging area to the permanent collection in iRODS.
+        """
 
+    @abstractmethod
     def stage(self):
-        raise NotImplementedError("Archivable is an interface, hence it contains only abstract methods.")
+        """
+        This method is staging a piece of data (file/directory/...), meaning it is used for copying it from the
+        source path to the staging area.
+        """
 
+    @abstractmethod
     def unstage(self):
-        raise NotImplementedError("Archivable is an interface, hence it contains only abstract methods.")
+        """
+        This method is used for unstaging a piece of data, meaning removing it from the staging area and removing also
+        from the database all the metadata associated with it.
+        """
 
 
 class ArchivableFile(Archivable):
