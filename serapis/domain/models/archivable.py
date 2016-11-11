@@ -177,12 +177,10 @@ class ArchivableFileFromFS(ArchivableFile):
         return self.__str__()
 
 
-class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
+class ArchivableFileWithIndex(ArchivableFile):
     """
-        This class assumes implicitly that the source path is in a standard filesystem (e.g. lustre),
-        while the dest filepath it is assumed to be in iRODS.
+        This is a class for any type of file to be archived together with its index.
     """
-
     def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None, idx_file_obj=None, staging_dir=None):
         super(ArchivableFileWithIndexFromFS, self).__init__(src_path, dest_dir, file_obj, staging_dir)
         self.idx_src_path = idx_src_path
@@ -197,12 +195,18 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS):
     def staging_idx_fpath(self):
         return os.path.join(self.staging_path, os.path.basename(self.idx_src_path))
 
+    def export_metadata_from_idx_file(self):
+        return self.idx_file_obj.export_metadata_as_tuples()
+
+
+class ArchivableFileWithIndexFromFS(ArchivableFileFromFS, ArchivableFileWithIndex):
+    """
+        This class assumes implicitly that the source path is in a standard filesystem (e.g. lustre),
+        while the dest filepath it is assumed to be in iRODS.
+    """
     @classmethod
     def _verify_checksums_equal(cls, src_checksum, dest_checksum, src_fpath, dest_fpath):
         pass
-
-    def export_metadata_from_idx_file(self):
-        return self.idx_file_obj.export_metadata_as_tuples()
 
     def stage(self):
         DataObjectAPI.upload(self.src_path, self.staging_dir)
