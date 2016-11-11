@@ -20,13 +20,11 @@ This file has been created on Nov 01, 2016.
 """
 
 import unittest
-from serapis.database.domain_model_mapper import DataMapper, DNASequencingDataMapper, GWASDataMapper, LibraryMapper, StudyMapper, SampleMapper
-from sequencescape import connect_to_sequencescape, Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
+
+from serapis.database.mappers.data_types_mapper import DataMapper, DNASequencingDataMapper, LibraryMapper, StudyMapper, SampleMapper
 from serapis.database.models import Sample as DBSample, Study as DBStudy, Library as DBLibrary, Data as DBData, \
-    DNASequencingDataAsReads as DBDNASequencingDataAsReads, DNASequencingData as DBDNASequencingData, \
-    GenotypingData as DBGenotypingData, GWASData as DBGWASData
-from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData, \
-    GenotypingData as DomainGenotypingData
+    DNASequencingData as DBDNASequencingData
+from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData
 
 
 class SampleMapperTest(unittest.TestCase):
