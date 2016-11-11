@@ -28,39 +28,7 @@ from serapis.domain.models.data_types import Data as DomainData, DNASequencingDa
     DNASequencingDataAsReads as DomainDNASequencingDataAsReads
 from abc import ABCMeta, abstractmethod
 
-
-class Mapper(metaclass=ABCMeta):
-    @classmethod
-    @abstractmethod
-    def _set_fields(cls, old_obj, new_obj):
-        """
-        This method is used for setting fields on an object (whatever type that object has, the fields are the same).
-        :param old_obj: object from which the fields to be copied over to the new instance.
-        :param new_obj: object to be populated with the field values from old_obj
-        :return: the new obj after populating its fields
-        """
-
-    @classmethod
-    @abstractmethod
-    def to_db_model(cls, obj, existing_db_obj=None):
-        """
-        This method converts between the domain model and the database model.
-        :param obj: object from which the fields to be copied over to the new instance.
-        :param existing_db_obj: if this is None, then a new object will be instantiated. If it is non-None, than this
-        object will be populated with the field values of obj parameter.
-        :return: the new object or the existing object with the field values copied from obj
-        """
-
-    @classmethod
-    @abstractmethod
-    def from_db_model(cls, obj, existing_db_obj=None):
-        """
-        This method converts between the database model and the domain model.
-        :param obj: object from which the fields to be copied over to the new instance.
-        :param existing_db_obj: if this is None, then a new object will be instantiated. If it is non-None, than this
-        object will be populated with the field values of obj parameter.
-        :return: the new object or the existing object with the field values copied from obj
-        """
+from serapis.database.mappers.base import Mapper
 
 
 class LibraryMapper(Mapper):
