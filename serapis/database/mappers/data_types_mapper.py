@@ -27,8 +27,9 @@ from serapis.domain.models.data_types import Data as DomainData, DNASequencingDa
     GenotypingData as DomainGenotypingData, GWASData as DomainGWASData, DNAVariationData as DomainDNAVariationData, \
     DNASequencingDataAsReads as DomainDNASequencingDataAsReads
 from abc import ABCMeta, abstractmethod
-
 from serapis.database.mappers.base import Mapper
+from serapis.domain.models import data_types
+
 
 
 class LibraryMapper(Mapper):
@@ -168,6 +169,13 @@ class GWASDataMapper(Mapper):
         return cls._set_fields(obj, data)
 
 
+class GWASSummaryStatisticsDataMapper(GWASDataMapper):
+    """
+    This mapper coresponds to GWASSummaryStatisticsData, and as the class contains
+    the same fields as the GWASDataMapper, I am only inheriting from it.
+    """
+
+
 class DNASequencingDataMapper(Mapper):
     @classmethod
     def _set_fields(cls, old_obj, new_obj):
@@ -206,7 +214,7 @@ class DNASequencingDataMapper(Mapper):
         return cls._set_fields(obj, data)
 
 
-class DNASequencingDataAsReads(Mapper):
+class DNASequencingDataAsReadsMapper(Mapper):
     @classmethod
     def _set_fields(cls, old_obj, new_obj):
         new_obj.seq_centers = getattr(old_obj, 'seq_centers', None)
@@ -235,6 +243,38 @@ class DNAVariationDataMapper(Mapper):
     def from_db_model(cls, obj, existing_db_obj=None):
         data = existing_db_obj if existing_db_obj else DomainDNAVariationData()
         return DNASequencingDataMapper.from_db_model(obj, data)
+
+
+class ArchiveDataMapper(DataMapper):
+    """
+    Abstract class.
+    """
+
+
+def determine_data_mapper(data_type):
+    """
+    This function takes as parameter a type and returns the type of mapper corresponding.
+    :param data_type: data type as defined in models.data_types.py
+    :return: a mapper type from the list defined above
+    """
+    if data_type == data_type.Data:
+        return DataMapper
+    elif data_type == data_types.GenotypingData:
+        return GenotypingDataMapper
+    elif data_type == data_types.GWASData:
+        return GWASDataMapper
+    elif data_type == data_types.GWASSummaryStatisticsData:
+        return GWASSummaryStatisticsDataMapper
+    elif data_type == data_types.DNASequencingData:
+        return DNASequencingDataMapper
+    elif data_type == data_types.DNASequencingDataAsReads:
+        return DNASequencingDataAsReadsMapper
+    elif data_type == data_types.DNAVariationData:
+        return DNAVariationDataMapper
+    elif data_type == data_types.ArchiveData:
+        return ArchiveDataMapper
+
+
 
 
 
