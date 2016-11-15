@@ -18,3 +18,36 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Nov 11, 2016.
 """
+
+from serapis.database.mappers.base import Mapper
+from serapis.database.mappers.data_types_mapper import determine_data_mapper
+from serapis.database.models import SerapisFile as DBSerapisFile
+from serapis.domain.models.file import SerapisFile as DomainSerapisFile
+
+
+
+class SerapisFileMapper(Mapper):
+    @classmethod
+    def to_db_model(cls, obj, existing_db_obj=None):
+        db_obj = existing_db_obj if existing_db_obj else DBSerapisFile
+        if getattr(obj, 'data'):
+            data_mapper = determine_data_mapper(type(obj.data))
+            db_obj.data = data_mapper.to_db_model(obj)
+        db_obj.checksum = getattr(obj, 'checksum')
+        return db_obj
+
+    @classmethod
+    def from_db_model(cls, obj, existing_db_obj=None):
+        domain_obj = existing_db_obj if existing_db_obj else DomainSerapisFile()
+        if getattr(obj, 'data'):
+            data_mapper = determine_data_mapper(type(obj.data))
+            domain_obj.data = data_mapper.from_db_model(obj)
+        domain_obj.checksum = getattr(obj, 'checksum')
+        return domain_obj
+
+
+
+
+
+
+
