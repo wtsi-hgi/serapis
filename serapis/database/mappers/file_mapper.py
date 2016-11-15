@@ -25,24 +25,24 @@ from serapis.database.models import SerapisFile as DBSerapisFile
 from serapis.domain.models.file import SerapisFile as DomainSerapisFile
 
 
-
 class SerapisFileMapper(Mapper):
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
         db_obj = existing_db_obj if existing_db_obj else DBSerapisFile
-        if getattr(obj, 'data'):
+        db_obj.file_format = getattr(obj, 'file_format', None)
+        if getattr(obj, 'data', None):
             data_mapper = determine_data_mapper(type(obj.data))
             db_obj.data = data_mapper.to_db_model(obj)
-        db_obj.checksum = getattr(obj, 'checksum')
+        db_obj.checksum = getattr(obj, 'checksum', None)
         return db_obj
 
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
         domain_obj = existing_db_obj if existing_db_obj else DomainSerapisFile()
-        if getattr(obj, 'data'):
+        if getattr(obj, 'data', None):
             data_mapper = determine_data_mapper(type(obj.data))
             domain_obj.data = data_mapper.from_db_model(obj)
-        domain_obj.checksum = getattr(obj, 'checksum')
+        domain_obj.checksum = getattr(obj, 'checksum', None)
         return domain_obj
 
 
