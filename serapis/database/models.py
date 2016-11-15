@@ -178,17 +178,68 @@ class DNASequencingDataAsReads(DNASequencingData):
 
 
 class DNAVariationData(DNASequencingData):
-    pass
+    """
+    Database model class for variation data.
+    """
 
 
-# index_file = EmbeddedDocumentField(IndexFile)
+class SerapisFile(DynamicEmbeddedDocument):
+    file_format = StringField()
+    data = EmbeddedDocumentField(Data)
+    checksum = StringField()
+
+    def __str__(self):
+        return "File format: " + str(self.file_format) + ", data: " + str(self.data) + ", checksum: " + str(self.checksum)
+
+    def __eq__(self, other):
+        return self.file_format == other.file_format and self.data == other.data and self.checksum == other.checksum
 
 
-class TestClass(Document):
-    title = StringField()
+class ArchivableFile(DynamicDocument):
+    """
+    This model is for anything inheriting from ArchivableFile. I have decided to go with this general
+    model because the differences between the child classes are involving the functionality in those classes and not
+    the actual data to be stored in the DB.
+    """
+    src_path = StringField()
+    dest_dir = StringField()
+    staging_dir = StringField()
+    file_obj = EmbeddedDocumentField(SerapisFile)
+
+    def __str__(self):
+        return "Src path: " + str(self.src_path) + ", dest_dir: " + str(self.dest_dir) + ", staging dir: " + \
+               str(self.staging_dir) + ", file obj: " + str(self.file_obj)
+
+    def __eq__(self, other):
+        return self.src_path == other.src_path and self.file_obj == other.file_obj and self.dest_dir == other.dest_dir
 
 
-test_inst = TestClass(title="test1")
-test_inst.save()
-titles = TestClass.objects()
-print("Titles: %s" % titles)
+class ArchivableFileWithIndex(ArchivableFile):
+    """
+    This model is for everything inheriting from ArchivableFileWithIndex. I have decided to go with this general
+    model because the differences between the child classes are involving the functionality in those classes and not
+    the actual data.
+    """
+    idx_src_path = StringField()
+    idx_dest_path = StringField()
+    idx_file_obj = EmbeddedDocumentField(SerapisFile)
+
+    def __str__(self):
+        return super().__str__() + ", index src path: " + str(self.idx_src_path) + ", index dest path: " + \
+               str(self.idx_dest_path) + ", index file obj: " + str(self.idx_file_obj)
+
+    def __eq__(self, other):
+        return super().__eq__() and self.idx_src_path == other.idx_src_path and \
+               self.idx_dest_path == other.idx_dest_path and self.idx_file_obj == other.idx_file_obj
+
+
+
+
+
+
+
+
+
+
+
+
