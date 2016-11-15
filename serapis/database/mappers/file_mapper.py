@@ -39,6 +39,7 @@ class SerapisFileMapper(Mapper):
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
         domain_obj = existing_db_obj if existing_db_obj else DomainSerapisFile()
+        domain_obj.file_format = getattr(obj, 'file_format', None)
         if getattr(obj, 'data', None):
             data_mapper = determine_data_mapper(type(obj.data))
             domain_obj.data = data_mapper.from_db_model(obj)
