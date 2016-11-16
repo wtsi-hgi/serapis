@@ -1,2 +1,0 @@
-
-from serapis import worker
