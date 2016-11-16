@@ -25,7 +25,7 @@ from serapis.database.mappers.data_types_mapper import DataMapper, DNASequencing
 from serapis.database.models import Sample as DBSample, Study as DBStudy, Library as DBLibrary, Data as DBData, \
     DNASequencingData as DBDNASequencingData
 from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData
-
+from sequencescape import connect_to_sequencescape, Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
 
 class SampleMapperTest(unittest.TestCase):
 
