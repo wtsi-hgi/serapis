@@ -206,6 +206,9 @@ class ArchivableFile(DynamicDocument):
     staging_dir = StringField()
     file_obj = EmbeddedDocumentField(SerapisFile)
 
+    meta = {'allow_inheritance': True}
+
+
     def __str__(self):
         return "Src path: " + str(self.src_path) + ", dest_dir: " + str(self.dest_dir) + ", staging dir: " + \
                str(self.staging_dir) + ", file obj: " + str(self.file_obj)
