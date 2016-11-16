@@ -171,5 +171,3 @@ class DNASequencingDataMapperTest(unittest.TestCase):
         expected.samples = set([DomainSample(name='sam1')])
         expected.libraries = set([DomainSample(name='lib1')])
         expected.coverage_list = ['1x']
-
-

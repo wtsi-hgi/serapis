@@ -44,5 +44,3 @@ class ACLMappingTests(unittest.TestCase):
         result = ACLMapper.to_baton(acl)
         expected = AccessControl(User('ic4', 'Sanger1'), AccessControl.Level.OWN)
         self.assertEqual(result, expected)
-
-

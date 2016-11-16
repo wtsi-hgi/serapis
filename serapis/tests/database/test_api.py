@@ -3,7 +3,7 @@ import unittest
 from serapis.database.api import ArchivableFileDBApi
 from serapis.domain.models.archivable import ArchivableFile
 from serapis.domain.models.data_types import Data
-from tests.database._mongo import start_mongo_container, stop_mongo_container
+from serapis.tests.database._mongo import start_mongo_container, stop_mongo_container
 
 TEST_DATABASE = "testing"
 

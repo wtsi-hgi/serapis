@@ -107,12 +107,3 @@ class CreateIcmdsCollectionAPITest(unittest.TestCase):
         ICmdsCollectionAPI.remove(self.coll_created)
         contents = BatonCollectionAPI.list_collections(self.parent_coll)
         self.assertFalse(self.coll_created in contents)
-
-
-
-
-
-
-
-
-

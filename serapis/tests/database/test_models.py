@@ -146,10 +146,3 @@ class DNASequencingDataTests(unittest.TestCase):
         data2 = DNASequencingData()
         data2.samples = [Sample(name='s1')]
         self.assertEqual(data1, data2)
-
-
-
-
-
-
-

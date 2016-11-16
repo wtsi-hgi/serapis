@@ -30,6 +30,3 @@ class SerapisFileMapperTest(unittest.TestCase):
 
     def test_to_db_model(self):
         domain_file = SerapisFile()
-
-
-

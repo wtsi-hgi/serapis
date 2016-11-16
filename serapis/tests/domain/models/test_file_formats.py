@@ -33,7 +33,3 @@ class FileFormatTest(unittest.TestCase):
 class BAMFileFormatTest(unittest.TestCase):
     def test_get_format_name(self):
         self.assertEqual(BAMFileFormat.get_format_name(), 'BAMFileFormat')
-
-
-
-

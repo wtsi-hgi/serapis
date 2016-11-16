@@ -102,14 +102,3 @@ class ArhivableFileTest(unittest.TestCase):
 #             result[tup[0]].add(tup[1])
 #         return result
 #
-
-
-
-
-
-
-
-
-
-
-

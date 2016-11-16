@@ -395,4 +395,3 @@ class AddOrReplaceAsBatchCollectionAPITest(unittest.TestCase):
         BatonCollectionAPI.add_or_replace_a_list_of_acls(self.path, self.acls)
         self.acls_set = BatonCollectionAPI.get_acls(self.path)
         self.assertEqual(len(self.acls_set), 2)
-

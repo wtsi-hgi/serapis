@@ -45,5 +45,3 @@ class CollectionAPITest(unittest.TestCase):
     def test_exists_when_existing(self):
         path = "/humgen/projects"
         self.assertTrue(CollectionAPI.exists(path))
-
-
