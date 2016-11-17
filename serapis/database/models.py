@@ -146,7 +146,7 @@ class GWASData(GenotypingData):
         return super().__str__() + ", study_type: " + str(self.study_type)
 
     def __eq__(self, other):
-        return super().__eq__() and type(self) == type(other) and self.study_type == other.study_type
+        return super().__eq__(other) and type(self) == type(other) and self.study_type == other.study_type
 
 
 class DNASequencingData(Data):
@@ -232,5 +232,5 @@ class ArchivableFileWithIndex(ArchivableFile):
                str(self.idx_dest_path) + ", index file obj: " + str(self.idx_file_obj)
 
     def __eq__(self, other):
-        return super().__eq__() and self.idx_src_path == other.idx_src_path and \
+        return super().__eq__(other) and self.idx_src_path == other.idx_src_path and \
                self.idx_dest_path == other.idx_dest_path and self.idx_file_obj == other.idx_file_obj
