@@ -18,8 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 31, 2016.
 """
-
-from mongoengine import *
+from mongoengine import DynamicEmbeddedDocument, connect, StringField, IntField, ListField, EmbeddedDocumentField, \
+    DynamicDocument
 
 connect('testdb')
 # , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk', port=27017)
@@ -234,15 +234,3 @@ class ArchivableFileWithIndex(ArchivableFile):
     def __eq__(self, other):
         return super().__eq__() and self.idx_src_path == other.idx_src_path and \
                self.idx_dest_path == other.idx_dest_path and self.idx_file_obj == other.idx_file_obj
-
-
-
-
-
-
-
-
-
-
-
-
