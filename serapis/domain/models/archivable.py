@@ -20,15 +20,18 @@ This file has been created on Oct 20, 2016.
 """
 
 import os
+import uuid
+from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 
-from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
 from serapis.domain.models import exceptions
 from serapis.storage.filesystem.lustre_storage import FileAPI
-from abc import ABCMeta, abstractmethod
+from serapis.storage.irods.api import DataObjectAPI
+
 
 class Archivable(metaclass=ABCMeta):
     def __init__(self, src_path, dest_dir, staging_dir=None):
+        self.id = str(uuid.uuid4())
         self.src_path = src_path
         self.dest_dir = dest_dir
         self.staging_dir = staging_dir

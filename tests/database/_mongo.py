@@ -1,6 +1,5 @@
 import atexit
 import logging
-from time import sleep
 from typing import Optional
 
 from docker.errors import APIError
@@ -8,8 +7,6 @@ from docker.errors import APIError
 from hgicommon.docker.client import create_client
 from hgicommon.docker.models import Container
 from hgicommon.helpers import create_random_string, get_open_port
-
-logging.root.setLevel(logging.DEBUG)
 
 MONGO_DOCKER_REPOSITORY = "mongo"
 MONGO_DOCKER_TAG = "3"
@@ -35,6 +32,7 @@ class MongoContainer(Container):
     def __init__(self):
         super().__init__()
         self.port = None
+        self.host = "localhost"
 
 
 def stop_mongo_container(container: MongoContainer):
@@ -71,4 +69,11 @@ def start_mongo_container() -> MongoContainer:
 
     atexit.register(stop_mongo_container, container)
     _docker_client.start(container.native_object)
+
+    for line in _docker_client.logs(container.native_object, stream=True):
+        line = str(line)
+        logging.debug(line)
+        if "waiting for connections on port" in line:
+            break
+
     return container

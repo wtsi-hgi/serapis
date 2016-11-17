@@ -21,10 +21,6 @@ This file has been created on Oct 31, 2016.
 from mongoengine import DynamicEmbeddedDocument, connect, StringField, IntField, ListField, EmbeddedDocumentField, \
     DynamicDocument
 
-connect('testdb')
-# , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk', port=27017)
-#  , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk'
-
 
 class Entity(DynamicEmbeddedDocument):
     name = StringField()
@@ -195,19 +191,20 @@ class SerapisFile(DynamicEmbeddedDocument):
         return self.file_format == other.file_format and self.data == other.data and self.checksum == other.checksum
 
 
+# TODO: This should probably inherit from `Archieve`
 class ArchivableFile(DynamicDocument):
     """
     This model is for anything inheriting from ArchivableFile. I have decided to go with this general
     model because the differences between the child classes are involving the functionality in those classes and not
     the actual data to be stored in the DB.
     """
+    id = StringField(primary_key=True)
     src_path = StringField()
     dest_dir = StringField()
     staging_dir = StringField()
     file_obj = EmbeddedDocumentField(SerapisFile)
 
     meta = {'allow_inheritance': True}
-
 
     def __str__(self):
         return "Src path: " + str(self.src_path) + ", dest_dir: " + str(self.dest_dir) + ", staging dir: " + \

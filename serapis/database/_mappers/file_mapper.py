@@ -18,17 +18,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Nov 11, 2016.
 """
-
-from serapis.database.mappers.base import Mapper
-from serapis.database.mappers.data_types_mapper import determine_data_mapper
-from serapis.database.models import SerapisFile as DBSerapisFile
+from serapis.database._mappers.base import Mapper
+from serapis.database._mappers.data_types_mapper import determine_data_mapper
+from serapis.database._models import SerapisFile as DBSerapisFile
 from serapis.domain.models.file import SerapisFile as DomainSerapisFile
 
 
 class SerapisFileMapper(Mapper):
+    # FIXME: The interface defines that this method must exist, despite it not being used here
+    @classmethod
+    def _set_fields(cls, old_obj, new_obj):
+        pass
+
     @classmethod
     def to_db_model(cls, obj, existing_db_obj=None):
-        db_obj = existing_db_obj if existing_db_obj else DBSerapisFile
+        db_obj = existing_db_obj if existing_db_obj else DBSerapisFile()
         db_obj.file_format = getattr(obj, 'file_format', None)
         if getattr(obj, 'data', None):
             data_mapper = determine_data_mapper(type(obj.data))
@@ -38,7 +42,7 @@ class SerapisFileMapper(Mapper):
 
     @classmethod
     def from_db_model(cls, obj, existing_db_obj=None):
-        domain_obj = existing_db_obj if existing_db_obj else DomainSerapisFile()
+        domain_obj = existing_db_obj if existing_db_obj else DomainSerapisFile(obj.file_format)
         domain_obj.file_format = getattr(obj, 'file_format', None)
         if getattr(obj, 'data', None):
             data_mapper = determine_data_mapper(type(obj.data))

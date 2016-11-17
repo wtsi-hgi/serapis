@@ -20,6 +20,7 @@ This file has been created on Nov 11, 2016.
 """
 from abc import ABCMeta, abstractmethod
 
+
 class Mapper(metaclass=ABCMeta):
     @classmethod
     @abstractmethod
@@ -52,4 +53,3 @@ class Mapper(metaclass=ABCMeta):
         object will be populated with the field values of obj parameter.
         :return: the new object or the existing object with the field values copied from obj
         """
-

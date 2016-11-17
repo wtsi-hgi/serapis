@@ -20,7 +20,7 @@ This file has been created on Nov 01, 2016.
 """
 
 import unittest
-from serapis.database.models import GenotypingData, DNASequencingData, Data, Study, Sample, Library, GWASData, DNASequencingDataAsReads
+from serapis.database._models import GenotypingData, DNASequencingData, Data, Study, Sample, Library, GWASData, DNASequencingDataAsReads
 
 
 class SampleTests(unittest.TestCase):
