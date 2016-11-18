@@ -56,7 +56,7 @@ def start_mongo_container() -> MongoContainer:
     Starts a Mongo container. Will be killed on exit if it is still running.
     :return: model of the running container
     """
-    if len(_get_mongo_docker_image()) == 0:
+    if _get_mongo_docker_image() is None:
         # Docker image doesn't exist locally: getting from DockerHub
         _docker_client.pull(MONGO_DOCKER_REPOSITORY, MONGO_DOCKER_TAG)
 
