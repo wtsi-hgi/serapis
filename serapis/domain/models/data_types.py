@@ -23,7 +23,7 @@ where by data we refer to the actual information content of a file.
 from serapis.com import constants
 
 
-class DataProcessing(object):
+class DataProcessing:
     """
         This class keeps the collection of processings done on the actual data.
     """
@@ -35,7 +35,7 @@ class DataProcessing(object):
         # merged_lanelets, not sure what type they are yet
 
 
-class GenomeRegions(object):
+class GenomeRegions:
     """
        Contains a list of chromosomes or other details regarding which regions the data contains.
     """
@@ -43,7 +43,7 @@ class GenomeRegions(object):
         self.chrom_list = chrom_list  # list of chromosomes
 
 
-class Data(object):
+class Data:
     """
         This is a generic type for any kind of data to be archived. Holds general attributes.
     """
@@ -116,7 +116,7 @@ class GenotypingData(Data):
     """
     def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2,
                  genome_reference=None, disease_or_trait=None, nr_samples=None, ethnicity=None):
-        super(GenotypingData, self).__init__(processing, pmid_list, studies, security_level)
+        super().__init__(processing, pmid_list, studies, security_level)
         self.genome_reference = genome_reference
         self.disease_or_trait = disease_or_trait
         self.nr_samples = nr_samples
@@ -161,8 +161,8 @@ class GWASData(GenotypingData):
     """
     def __init__(self, processing=None, pmid_list=None, studies=None, security_level=constants.SECURITY_LEVEL_2,
                  genome_reference=None, disease_or_trait=None, nr_samples=None, ethnicity=None, study_type=None):
-        super(GWASData, self).__init__(processing, pmid_list, studies, security_level, genome_reference,
-                                       disease_or_trait, nr_samples, ethnicity)
+        super().__init__(processing, pmid_list, studies, security_level, genome_reference, disease_or_trait, nr_samples,
+                         ethnicity)
         self.study_type = study_type  # Can be: case-control, trio, etc.
 
     def export_metadata_as_tuples(self):
@@ -191,7 +191,7 @@ class GWASSummaryStatisticsData(GWASData):
     """
         This type holds information for the aggregate statistics data obtained from GWAS studies.
     """
-    pass
+    raise NotImplementedError()
 
 
 class DNASequencingData(Data):
@@ -288,11 +288,11 @@ class DNAVariationData(DNASequencingData):
     #                                            genomic_regions=genomic_regions, libraries=None, samples=None,
     #                                            #library_strategy=library_strategy, library_source=library_source,
     #                                            genome_reference=genome_reference)
+    raise NotImplementedError()
 
 
 class ArchiveData(Data):
     """
         This type of data corresponds to a tar/rar/etc. type of archive which can contain anything.
     """
-
-
+    raise NotImplementedError()

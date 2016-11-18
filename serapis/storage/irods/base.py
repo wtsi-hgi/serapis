@@ -19,7 +19,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
-import typing
 
 class IrodsBasicAPI:
     @classmethod

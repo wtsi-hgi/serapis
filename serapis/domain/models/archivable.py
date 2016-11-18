@@ -68,9 +68,8 @@ class ArchivableFile(Archivable):
     This class is an interface for any type of file to be archived (ie stored in a specific location within iRODS
     humgen, with a bare minimum of metadata attached to it.
     """
-
     def __init__(self, src_path, dest_dir, file_obj=None, staging_dir=None):
-        super(ArchivableFile, self).__init__(src_path, dest_dir, staging_dir)
+        super().__init__(src_path, dest_dir, staging_dir)
         self.file_obj = file_obj
 
     @classmethod
@@ -185,7 +184,7 @@ class ArchivableFileWithIndex(ArchivableFile):
         This is a class for any type of file to be archived together with its index.
     """
     def __init__(self, src_path, idx_src_path, dest_dir, file_obj=None, idx_file_obj=None, staging_dir=None):
-        super(ArchivableFileWithIndexFromFS, self).__init__(src_path, dest_dir, file_obj, staging_dir)
+        super().__init__(src_path, dest_dir, file_obj, staging_dir)
         self.idx_src_path = idx_src_path
         self.idx_dest_path = os.path.join(dest_dir, os.path.basename(idx_src_path))
         self.idx_file_obj = idx_file_obj
@@ -255,7 +254,7 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS, ArchivableFileWithInde
 
 
 class ArchivableDirectory(Archivable):
-    pass
+    raise NotImplementedError()
 
 
 class ArchivableFileWithinIRODS(ArchivableFile):
@@ -265,14 +264,12 @@ class ArchivableFileWithinIRODS(ArchivableFile):
         and attaching to it metadata.
     """
     # stage = move/copy from src in iRODS to dest in iRODS
-    pass
+    raise NotImplementedError()
 
 
 class ArchivableFileWithIndexWithinIRODS(ArchivableFileWithinIRODS):
     """
         Just like the immediate parent class, but with an index attached to it.
     """
-    pass
-
-
+    raise NotImplementedError()
 

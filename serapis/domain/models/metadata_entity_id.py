@@ -20,9 +20,6 @@
 #################################################################################
 
 
-from typing import List, Dict
-
-
 class EntityIdentifier(object):
     @classmethod
     def is_identifier(cls, identifier: str):

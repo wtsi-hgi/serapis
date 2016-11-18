@@ -18,10 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 03, 2016.
 """
-from serapis import config
-from sequencescape import connect_to_sequencescape, Sample, Study, Library
-from serapis.seqscape.exceptions import NonUniqueEntity
 from abc import abstractproperty
+
+from sequencescape import connect_to_sequencescape
+from serapis import config
+from serapis.seqscape.exceptions import NonUniqueEntity
+
 
 class SeqscapeEntityProvider:
 
@@ -33,7 +35,7 @@ class SeqscapeEntityProvider:
     @abstractproperty
     def _entity_type(cls):
         """
-
+        TODO
         :return:
         """
         #raise NotImplementedError("This class is a generic interface, can't be used for actual querying Seqscape.")
@@ -84,14 +86,3 @@ class SeqscapeStudyProvider(SeqscapeEntityProvider):
 
 class SeqscapeLibraryProvider(SeqscapeEntityProvider):
     _entity_type = 'library'
-
-
-
-
-
-
-
-
-
-
-

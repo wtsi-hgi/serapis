@@ -19,5 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 05, 2016.
 """
 
+
 class NonUniqueEntity(Exception):
-    pass
+    """
+    TODO
+    """

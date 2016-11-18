@@ -1,11 +1,4 @@
 
-import os
-
-from serapis.com import utils, constants
-#from Celery_Django_Prj import configs
-
-from serapis.controller import exceptions
-
 
 class Submission:
 
@@ -27,8 +20,3 @@ class Submission:
 
     def __hash__(self):
         return hash(self.file_paths) + hash(self.team_leaders) + hash(self.submitter_user_id) + hash(self.access_group)
-
-
-
-
-

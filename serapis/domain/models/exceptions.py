@@ -20,13 +20,24 @@ This file has been created on Oct 24, 2016.
 """
 
 class NotEnoughMetadata(Exception):
-    pass
+    """
+    TODO
+    """
+
 
 class ErrorStagingFile(Exception):
-    pass
+    """
+    TODO
+    """
+
 
 class FileNotUploaded(Exception):
-    pass
+    """
+    TODO
+    """
+
 
 class AlreadyExistingFile(Exception):
-    pass
+    """
+    TODO
+    """

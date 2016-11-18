@@ -19,11 +19,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 01, 2016.
 """
 
-from serapis.storage.irods.base import IrodsBasicAPI, CollectionAPI, DataObjectAPI
-from serapis.storage.irods import exceptions
-
-import typing
 import subprocess
+import typing
+
+from serapis.storage.irods.base import IrodsBasicAPI
 
 
 class ICmdsBasicAPI(IrodsBasicAPI):
@@ -125,6 +124,3 @@ class ICmdsCollectionAPI(ICmdsBasicAPI):
         except Exception as e:
             # TODO: check on what type of exception is actually thrown here
             raise e
-
-
-

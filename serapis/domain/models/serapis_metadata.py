@@ -5,9 +5,9 @@ import abc
 from serapis.com import constants, utils
 from serapis.controller.logic.task_result_reporting import TaskResultReportingAddress
 
-from serapis.external_services import deferred_service_handle 
+from serapis.external_services import deferred_service_handle
 # DeferredServiceHandleCollection
-        
+
         
 class SerapisMetadata(object):
     

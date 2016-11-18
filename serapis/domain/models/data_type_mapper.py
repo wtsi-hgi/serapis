@@ -20,8 +20,10 @@ This file has been created on Oct 19, 2016.
 """
 
 from enum import Enum
+
 from serapis.domain.models.data_types import ArchiveData, Data, DNASequencingData, DNAVariationData, \
     GenotypingData, GWASData, GWASSummaryStatisticsData
+
 
 class DataTypeNames(Enum):
     """
@@ -36,9 +38,7 @@ class DataTypeNames(Enum):
     ARCHIVE_DATA = "ARCHIVE_DATA"
 
 
-
 class DataTypeMapper:
-
     @classmethod
     def map_name_to_type(cls, data_name):
         if data_name == DataTypeNames.ARCHIVE_DATA:
@@ -57,9 +57,3 @@ class DataTypeMapper:
             return GWASSummaryStatisticsData()
         else:
             raise ValueError("Unknown data type.")
-
-
-
-
-
-

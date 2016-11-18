@@ -18,16 +18,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 14, 2016.
 """
+from abc import ABCMeta
 
-from sam.header_extractor import IrodsSamFileHeaderExtractor, LustreSamFileHeaderExtractor
+from sam.header_extractor import LustreSamFileHeaderExtractor
 from sam.header_parser import SAMFileHeaderParser, SAMFileRGTagParser
+
 from serapis.domain.models.metadata_entity_ids_coll import NonAssociatedEntityIdsCollection
 
 
-class FileFormat:
-    """
-        (Abstract class)
-    """
+class FileFormat(metaclass=ABCMeta):
     @classmethod
     def get_format_name(cls):
         return cls().__class__.__name__
@@ -36,10 +35,9 @@ class FileFormat:
         return self.get_format_name() == other.get_format_name()
 
 
-class DataFileFormat(FileFormat):
+class DataFileFormat(FileFormat, metaclass=ABCMeta):
     """
         This class is a general type for the file formats that hold the actual data.
-        (Abstract class)
     """
     class HeaderMetadata:
         def __init__(self, samples=None, libraries=None, studies=None):
@@ -66,13 +64,11 @@ class DataFileFormat(FileFormat):
         return cls.HeaderMetadata()
 
 
-class IndexFileFormat(FileFormat):
+class IndexFileFormat(FileFormat, metaclass=ABCMeta):
     """
         This class is a general type for a index file format, which can't exist independent
         but instead it is always related to another file (a data file).
-        (Abstract class)
     """
-    pass
 
 
 class AlignedReadsFileFormat(DataFileFormat):
@@ -108,7 +104,6 @@ class BAMFileFormat(AlignedReadsFileFormat):
         BAM file format.
     """
     short_name = 'bam'
-    pass
 
 
 class BAIFileFormat(IndexFileFormat):
@@ -116,7 +111,6 @@ class BAIFileFormat(IndexFileFormat):
         Index file format for BAM file format.
     """
     short_name = 'bai'
-    pass
 
 
 class CRAMFileFormat(AlignedReadsFileFormat):
@@ -124,7 +118,6 @@ class CRAMFileFormat(AlignedReadsFileFormat):
         CRAM file format.
     """
     short_name = 'cram'
-    pass
 
 
 class CRAIFileFormat(IndexFileFormat):
@@ -132,7 +125,6 @@ class CRAIFileFormat(IndexFileFormat):
         Index file format for CRAM file format.
     """
     short_name = 'crai'
-    pass
 
 
 class VCFFileFormat(DataFileFormat):
@@ -140,9 +132,11 @@ class VCFFileFormat(DataFileFormat):
         VCF file format.
     """
     short_name = 'vcf'
+
     @classmethod
     def _extract_metadata_from_header(cls, fpath):
-        pass
+        # TODO: Is this correct or is expected that this method shouldn't do anything?
+        raise NotImplementedError()
 
 
 class TBIFileFormat(IndexFileFormat):
@@ -150,8 +144,3 @@ class TBIFileFormat(IndexFileFormat):
         Index file format for VCF file format.
     """
     short_name = 'tbi'
-    pass
-
-
-
-

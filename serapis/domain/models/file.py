@@ -19,15 +19,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 14, 2016.
 """
 
-from sequencescape import connect_to_sequencescape, Sample, Study, Library
-from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
+from sequencescape import Sample, Study, Library
 from serapis.domain.models.data_type_mapper import DataTypeMapper
-from serapis.storage.irods.api import CollectionAPI, DataObjectAPI
+from serapis.seqscape.api import SeqscapeLibraryProvider, SeqscapeSampleProvider, SeqscapeStudyProvider
 from serapis.seqscape.exceptions import NonUniqueEntity
 
 
 class SerapisFile:
-
     def __init__(self, file_format, data_type=None, checksum=None):
         """
         This class holds the functionality related to a file.
@@ -135,17 +133,3 @@ class SerapisFile:
 
     def __repr__(self):
         return self.__str__()
-
-
-
-
-
-
-
-
-
-
-
-
-
-

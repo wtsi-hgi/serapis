@@ -7,6 +7,8 @@ Created on Oct 26, 2014
 from serapis.com import constants
 
 
+# FIXME: Should the classes in this file be abstract (in addition to their noop methods?)
+
 class BasicStorageAPI:
 
     @classmethod

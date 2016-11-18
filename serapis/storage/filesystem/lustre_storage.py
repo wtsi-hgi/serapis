@@ -4,13 +4,10 @@ Created on Oct 31, 2014
 @author: ic4
 '''
 
-
-import os
 import hashlib
+import os
 
-#from serapis.storage.base import Storage
 from serapis.storage.base import FileAPI, DirectoryAPI
-from serapis.com import wrappers
 
 
 class FileSystemBasicAPI(FileAPI):
@@ -48,6 +45,7 @@ class FileSystemBasicAPI(FileAPI):
         return os.path.exists(path)
 
 
+# FIXME: Name collision!
 class DirectoryAPI(DirectoryAPI):
 
     @classmethod
@@ -92,6 +90,3 @@ class FileAPI(FileSystemBasicAPI):
             return cls._calculate_hash(fpath, hashlib.md5())
         else:
             raise NotImplementedError('Lustre API doesnt support at the moment other type of checksum')
-
-
-
