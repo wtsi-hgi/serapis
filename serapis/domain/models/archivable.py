@@ -254,7 +254,10 @@ class ArchivableFileWithIndexFromFS(ArchivableFileFromFS, ArchivableFileWithInde
 
 
 class ArchivableDirectory(Archivable):
-    raise NotImplementedError()
+    """
+    TODO
+    """
+    # TODO: Should there be anything here?
 
 
 class ArchivableFileWithinIRODS(ArchivableFile):
@@ -264,12 +267,12 @@ class ArchivableFileWithinIRODS(ArchivableFile):
         and attaching to it metadata.
     """
     # stage = move/copy from src in iRODS to dest in iRODS
-    raise NotImplementedError()
+    # TODO: Should there be anything here?
 
 
 class ArchivableFileWithIndexWithinIRODS(ArchivableFileWithinIRODS):
     """
         Just like the immediate parent class, but with an index attached to it.
     """
-    raise NotImplementedError()
+    # TODO: Should there be anything here?
 

@@ -2,10 +2,9 @@
 import unittest
 from serapis.com import utils, constants
 
-import sets
 
 class TestUtils(unittest.TestCase):
-
+    # TODO?
 #    def test_is_Date_correct(self):
 #        date = '20130909'
 #        self.assertTrue(utils.is_date_correct(date))
@@ -38,9 +37,6 @@ class TestUtils(unittest.TestCase):
         utils.extend_errors_dict(error_list2, constants.NON_EXISTING_FILE, error_res)
         self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : ["1st-file", "2nd-file", "f3.bam"], constants.NOT_SUPPORTED_FILE_TYPE : error_list})
 
-
-
-
     def test_get_file_permissions(self):
         path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
         permission = utils.get_file_permissions(path)
@@ -58,7 +54,6 @@ class TestUtils(unittest.TestCase):
 #         permission = utils.get_file_permissions(path)
 #         self.assertEqual(permission, constants.READ_ACCESS)
 #
-
 
     def test_get_file_duplicates(self):
         paths = ["/first/path.bam", "/dupl/dupl.bam", "/sec/path.vcf", "/dupl/dupl.bam", "", ""]
@@ -80,9 +75,6 @@ class TestUtils(unittest.TestCase):
         paths = ["a/b.txt", "/lustre/scratch113/aa.txt"]
         duplic = utils.get_file_duplicates(paths)
         self.assertEqual(duplic, [])
-
-
-
 
     def test_detect_file_type(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
@@ -127,7 +119,6 @@ class TestUtils(unittest.TestCase):
         res = utils.detect_file_type(path)
         self.assertEqual(res, constants.TBI_FILE)
 
-
     def test_check_for_invalid_file_types(self):
         paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", "/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]
         self.assertListEqual(utils.check_for_invalid_file_types(paths), ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"])
@@ -143,7 +134,7 @@ class TestUtils(unittest.TestCase):
         invalid_paths = utils.check_for_invalid_file_types(paths)
         self.assertListEqual(paths, invalid_paths)
 
-
+    # TODO?
     @unittest.skip("This is not a good function, I intend to remove it at some point.")
     def test_check_for_invalid_paths(self):
         paths = ['/an/invalid/path', 'another/invalid/path']
@@ -158,8 +149,6 @@ class TestUtils(unittest.TestCase):
         path = ['']
         res = utils.filter_out_invalid_paths(path)
         self.assertEqual(res, path)
-
-
 
     def test_check_all_files_same_type(self):
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam',
@@ -178,7 +167,6 @@ class TestUtils(unittest.TestCase):
         res = utils.check_all_files_same_type(paths)
         self.assertTrue(res)
 
-
     def test_unicode2string(self):
         task_dict={'400f65eb-16d4-4e6b-80d5-4d1113fcfdf4': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.UpdateFileMdataTask'},
                    '397df5da-7dd1-4068-9a67-9ebac1a64472': {'status': 'SUCCESS', 'type': 'serapis.worker.tasks.ParseBAMHeaderTask'},
@@ -187,7 +175,6 @@ class TestUtils(unittest.TestCase):
         task_dict_str = utils.unicode2string(task_dict)
         print("TASK DICT AFTER UNICODE CONVERT: %s" % repr(task_dict_str))
         self.assertDictEqual(task_dict, task_dict_str)
-
 
     def test_is_hgi_prj(self):
         prj = 'yo-psc'
@@ -207,7 +194,6 @@ class TestUtils(unittest.TestCase):
 
         prj = 'hgi'
         self.assertTrue(utils.is_hgi_project(prj))
-
 
     def test_is_coverage(self):
         cov = '2x'
@@ -230,7 +216,6 @@ class TestUtils(unittest.TestCase):
         res = utils.is_coverage(cov)
         self.assertFalse(res)
 
-
     def test_is_library_source(self):
         lib = "GENOMIC"
         res = utils.is_library_source(lib)
@@ -248,10 +233,6 @@ class TestUtils(unittest.TestCase):
         res = utils.is_library_source(lib)
         self.assertFalse(res)
 
-
-
-
-
     def test_infer_hgi_prj(self):
         prj_path = '/lustre/scratch113/projects/esgi-vbseq/NEW_FROM_HSR'
         match = utils.infer_hgi_project_from_path(prj_path)
@@ -268,7 +249,6 @@ class TestUtils(unittest.TestCase):
         prj_path = '/lustre/scratch111/teams/hgi'
         match = utils.infer_hgi_project_from_path(prj_path)
         self.assertEqual(None, match)
-
 
     def test_list_and_filter_files_from_dir(self):
         dir_path = '/home/ic4/data-test/bams'
@@ -294,7 +274,6 @@ class TestUtils(unittest.TestCase):
 
         dir_path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
         self.assertRaises(OSError, utils.list_and_filter_files_from_dir, dir_path, constants.ACCEPTED_FILE_EXTENSIONS)
-
 
     def test_extract_basename(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
@@ -329,9 +308,6 @@ class TestUtils(unittest.TestCase):
         ext = utils.extract_file_extension(path)
         self.assertEqual(ext, 'md5')
 
-
-
-
     def test_extract_fname_et_ext(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
         fname, ext = utils.extract_fname_and_ext(path)
@@ -347,7 +323,6 @@ class TestUtils(unittest.TestCase):
         fname, ext = utils.extract_fname_and_ext(path)
         self.assertEqual(fname, 'UC749210.bam.bai')
         self.assertEqual(ext, 'md5')
-
 
     def test_extract_index_fname(self):
         path = '/lustre/scratch113/projects/crohns/uc_data/release/20130520/sample_improved_bams_hgi_2/UC749210.bam.bai'
@@ -384,7 +359,6 @@ class TestUtils(unittest.TestCase):
         fname = utils.infer_filename_from_idxfilename(idx_path, constants.BAI_FILE)
         self.assertEqual(fname, '/lustre/scratch113/projects/crohns/IBD_1.bam')
 
-
     #@unittest.skip("No idea why this fails!")
     def test_is_date_correct(self):
         date = "2020-10-10"
@@ -399,8 +373,6 @@ class TestUtils(unittest.TestCase):
         date = "blah"
         self.assertRaises(ValueError, utils.is_date_correct, date)
 
-
-
     def test_determine_storage_type_from_path(self):
         path = '/lustre/scratch113/projects/ddd/1.vcf'
         res = utils.determine_storage_type_from_path(path)
@@ -413,7 +385,6 @@ class TestUtils(unittest.TestCase):
         path = '/nfs/users/nfs_i/ic4/1.bam'
         res = utils.determine_storage_type_from_path(path)
         self.assertEqual(res, constants.NFS)
-
 
     def test_is_user_id(self):
 
@@ -442,9 +413,6 @@ class TestUtils(unittest.TestCase):
         res = utils.is_user_id(user_id)
         self.assertFalse(res)
 
-
-
-
     def test_compare_strings(self):
         str1 = 'joe'
         str2 = 'ant'
@@ -462,7 +430,6 @@ class TestUtils(unittest.TestCase):
         str1 = 'Jen'
         self.assertRaises(ValueError, utils.compare_strings, None, str1)
 
-
     def test_compare_strings_ignore_case(self):
         str1 = 'joe'
         str2 = 'Joe'
@@ -472,7 +439,6 @@ class TestUtils(unittest.TestCase):
         str2 = 'JOE'
         res = utils.compare_strings_ignore_case(str1, str2)
         self.assertTrue(res)
-
 
     def test_levenshtein(self):
         str1 = 'joe-ann'
@@ -495,7 +461,6 @@ class TestUtils(unittest.TestCase):
         res = utils.levenshtein(str1, str2)
         self.assertEqual(res, 1)
 
-
     def test_filter_invalid_paths(self):
         fpaths = [' ', '/lustre/scratch/1.txt']
         res = utils.filter_out_invalid_paths(fpaths)
@@ -506,7 +471,6 @@ class TestUtils(unittest.TestCase):
         res = utils.filter_out_invalid_paths(fpaths)
         expected = []
         self.assertEqual(res, expected)
-
 
     def test_get_key_counts(self):
         tuples = [('a', 1), ('a', 3)]
@@ -524,7 +488,7 @@ class TestUtils(unittest.TestCase):
         expected = {'a' : 1}
         self.assertEqual(res, expected)
 
-
+# TODO?
 # def get_key_counts(tuples_list):
 #     '''
 #         This function calculates the number of occurences of
@@ -536,15 +500,12 @@ class TestUtils(unittest.TestCase):
 #         key_freq_dict[item[0]] += 1
 #     return key_freq_dict
 
-
-
     @unittest.skip("Obsolete, this function has been moved into the submission")
     def test_build_irods_permanent_project_path(self):
         subm_date = '20140909'
         hgi_prj = 'hgi'
         res = utils.build_irods_permanent_project_path(subm_date, hgi_prj)
         self.assertEqual(res, '/humgen/projects/hgi/20140909')
-
 
         subm_date = '20141010'
         hgi_prj = 'helic'

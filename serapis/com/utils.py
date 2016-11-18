@@ -19,24 +19,16 @@
 # 
 #################################################################################
 
-import re
+import collections
+import datetime
 import os
-import errno
+import re
 import time
 import unicodedata
-import datetime
-import logging
-import collections
-
-from os.path import isfile, join, exists
 from collections import defaultdict
+from os.path import isfile, join
 
 from serapis.com import constants, wrappers
-from Celery_Django_Prj import configs
-
-
-
-
 
 #################################################################################
 '''

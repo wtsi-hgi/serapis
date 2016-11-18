@@ -191,7 +191,7 @@ class GWASSummaryStatisticsData(GWASData):
     """
         This type holds information for the aggregate statistics data obtained from GWAS studies.
     """
-    raise NotImplementedError()
+    # TODO: Should there be anything here?
 
 
 class DNASequencingData(Data):
@@ -288,11 +288,11 @@ class DNAVariationData(DNASequencingData):
     #                                            genomic_regions=genomic_regions, libraries=None, samples=None,
     #                                            #library_strategy=library_strategy, library_source=library_source,
     #                                            genome_reference=genome_reference)
-    raise NotImplementedError()
+    # TODO: Should there be anything here?
 
 
 class ArchiveData(Data):
     """
         This type of data corresponds to a tar/rar/etc. type of archive which can contain anything.
     """
-    raise NotImplementedError()
+    # TODO: Should there be anything here?
