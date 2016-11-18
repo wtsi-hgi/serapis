@@ -20,11 +20,11 @@ This file has been created on Nov 01, 2016.
 """
 
 import unittest
-from serapis.database._models import GenotypingData, DNASequencingData, Data, Study, Sample, Library, GWASData, DNASequencingDataAsReads
+
+from serapis.database._models import DNASequencingData, Data, Study, Sample, Library
 
 
 class SampleTests(unittest.TestCase):
-
     def test_eq_when_not_eq1(self):
         s1 = Sample()
         s1.name = 'S1'
@@ -100,7 +100,6 @@ class StudyTests(unittest.TestCase):
 
 
 class DataTests(unittest.TestCase):
-
     def test_eq_when_not_eq(self):
         data1 = Data()
         data1.pmid_list = [1,2]
@@ -117,7 +116,6 @@ class DataTests(unittest.TestCase):
 
 
 class DNASequencingDataTests(unittest.TestCase):
-
     def test_eq_when_not_eq1(self):
         data1 = DNASequencingData()
         data1.samples = [Sample(name='s1')]

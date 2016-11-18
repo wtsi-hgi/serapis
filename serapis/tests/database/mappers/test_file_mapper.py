@@ -19,14 +19,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Nov 15, 2016.
 """
 
-
 import unittest
 
-from serapis.database.mappers.file_mapper import SerapisFileMapper
 from serapis.domain.models.file import SerapisFile
 
 
 class SerapisFileMapperTest(unittest.TestCase):
-
+    # TODO: Incomplete test(s)
+    @unittest.skip
     def test_to_db_model(self):
         domain_file = SerapisFile()

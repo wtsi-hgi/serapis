@@ -1,11 +1,7 @@
-
-
 import unittest
-from serapis.domain.models import data_entity
-from serapis.controller import exceptions
-from serapis.seqscape import  models as seqsc_models
 
-
+# FIXME: Delete these tests?
+@unittest.skip
 class TestMetadataEntity(unittest.TestCase):
 
     def test_eq(self):

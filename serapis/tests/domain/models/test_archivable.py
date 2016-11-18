@@ -20,18 +20,18 @@ This file has been created on Oct 20, 2016.
 """
 
 import os
-from os.path import basename, join
 import unittest
 from collections import defaultdict
+from os.path import basename
 
-from serapis.domain.models.file import SerapisFile
-from serapis.storage.irods.api import DataObjectAPI
 from serapis.domain.models.archivable import ArchivableFile
-from serapis.domain.models.file_formats import BAMFileFormat
 from serapis.domain.models.data_type_mapper import DataTypeNames
+from serapis.domain.models.file import SerapisFile
+from serapis.domain.models.file_formats import BAMFileFormat
+from serapis.storage.irods.api import DataObjectAPI
 
 
-
+# TODO: Why skip?
 @unittest.skip
 class ArchivableFileTest(unittest.TestCase):
     def setUp(self):
@@ -54,7 +54,6 @@ class ArchivableFileTest(unittest.TestCase):
 
 
 class ArhivableFileTest(unittest.TestCase):
-
     def test_from_tuples_to_dict_when_ok(self):
         tuples_list = [('sample', '1'), ('sample', '2')]
         expected = defaultdict(set)
@@ -85,7 +84,7 @@ class ArhivableFileTest(unittest.TestCase):
         self.assertDictEqual(expected, result)
 
 
-
+# TODO?
 # class ArchivableFile(Archivable):
 #     """
 #     This class is an interface for any type of file to be archived (ie stored in a specific location within iRODS

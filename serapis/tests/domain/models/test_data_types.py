@@ -20,12 +20,12 @@ This file has been created on Oct 24, 2016.
 """
 
 import unittest
-from sequencescape import connect_to_sequencescape, Sample, Study, Library
-from serapis.domain.models.data_types import Data, DNASequencingData, GenotypingData, GWASSummaryStatisticsData
+
+from sequencescape import Study
+from serapis.domain.models.data_types import Data, DNASequencingData, GenotypingData
 
 
 class DataTest(unittest.TestCase):
-
     def test_get_missing_fields_when_ok(self):
         data = Data(pmid_list=[1234], studies="Some Study")
         result = data._get_missing_fields(data._mandatory_fields)
@@ -77,7 +77,6 @@ class DataTest(unittest.TestCase):
 
 
 class GenotypingDataTest(unittest.TestCase):
-
     def test_get_missing_mandatory_fields_when_all_missing(self):
         data = GenotypingData()
         result = data.get_missing_mandatory_fields()
@@ -90,7 +89,6 @@ class GenotypingDataTest(unittest.TestCase):
 
 
 class DNASequencingDataTest(unittest.TestCase):
-
     def test_get_missing_mandatory_fields_when_missing(self):
         data = DNASequencingData()
         result = data.get_missing_mandatory_fields()
@@ -113,6 +111,7 @@ class DNASequencingDataTest(unittest.TestCase):
         self.assertSetEqual(set(expected), set(result))
 
 
+# TODO?
 # class Data(object):
 #     """
 #         This is a generic type for any kind of data to be archived. Holds general attributes.

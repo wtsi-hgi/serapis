@@ -25,7 +25,6 @@ from serapis.storage.irods.api import DataObjectAPI, CollectionAPI
 
 
 class DataObjectAPITest(unittest.TestCase):
-
     def test_exists_when_nonexisting(self):
         path = "/humgen/random_path.txt"
         self.assertFalse(DataObjectAPI.exists(path))
@@ -35,9 +34,7 @@ class DataObjectAPITest(unittest.TestCase):
         self.assertTrue(DataObjectAPI.exists(path))
 
 
-
 class CollectionAPITest(unittest.TestCase):
-
     def test_exists_when_nonexisting(self):
         path = "/humgen/projects/random_nonexisting"
         self.assertFalse(CollectionAPI.exists(path))

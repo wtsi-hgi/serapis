@@ -26,7 +26,6 @@ from baton.models import AccessControl, User
 
 
 class ACLMappingTests(unittest.TestCase):
-
     def test_from_baton_when_ok(self):
         baton_acl = AccessControl(User('ic4', 'humgen'), AccessControl.Level.READ)
         serapis_acl = ACLMapper.from_baton(baton_acl)

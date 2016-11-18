@@ -20,9 +20,10 @@ This file has been created on Aug 02, 2016.
 """
 
 import unittest
+
 from serapis.storage.irods.baton import BatonBasicAPI, BatonDataObjectAPI, BatonCollectionAPI
 from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.baton_wrapper_mapper import ACLMapper
+
 
 # DATA OBJECT - related tests:
 
@@ -233,6 +234,7 @@ class ListContentsBatonCollectionAPITest(unittest.TestCase):
         self.assertEqual(contents[0], "/humgen/projects/serapis_staging/test-baton/test_coll_metadata/test_list_coll.txt")
 
 
+# XXX: This seems like an odd set of sets...
 # ABSTRACT - NOT IMPLEMENTED METHODS TESTS:
 
 class AbstractMethodsTests(unittest.TestCase):
@@ -290,6 +292,7 @@ class GetACLSBatonCollectionAPITest(unittest.TestCase):
         }
         self.assertSetEqual(result, expected)
 
+# TODO?
 # class GetACLSBatonCollectionAPITest2(unittest.TestCase):
 #     def test_trigger_exception(self):
 #         result = BatonCollectionAPI.get_acls('/smth/non-existing')
@@ -333,7 +336,6 @@ class RemoveACLForUserCollectionAPITest(unittest.TestCase):
 
 
 class RemoveACLsForAListOfUsersCollectionAPITest(unittest.TestCase):
-
     def setUp(self):
         self.path = "/humgen/projects/serapis_staging/test-baton/test-collection-acls"
         BatonCollectionAPI.remove_all_acls(self.path)
@@ -352,7 +354,6 @@ class RemoveACLsForAListOfUsersCollectionAPITest(unittest.TestCase):
 
 
 class AddOrReplaceACLBatonCollectionAPITest(unittest.TestCase):
-
     def setUp(self):
         self.path = "/humgen/projects/serapis_staging/test-baton/test-collection-acls"
         BatonCollectionAPI.remove_all_acls(self.path)
@@ -382,7 +383,6 @@ class AddOrReplaceACLBatonCollectionAPITest(unittest.TestCase):
 
 
 class AddOrReplaceAsBatchCollectionAPITest(unittest.TestCase):
-
     def setUp(self):
         self.path = "/humgen/projects/serapis_staging/test-baton/test-collection-acls"
         BatonCollectionAPI.remove_all_acls(self.path)

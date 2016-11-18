@@ -19,10 +19,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Oct 24, 2016.
 """
 
-
 import unittest
 
-from serapis.domain.models.file_formats import BAMFileFormat, AlignedReadsFileFormat,BAIFileFormat, FileFormat
+from serapis.domain.models.file_formats import BAMFileFormat, FileFormat
 
 
 class FileFormatTest(unittest.TestCase):

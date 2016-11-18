@@ -1,10 +1,14 @@
 __author__ = 'ic4'
 
 import unittest
+
 from serapis.domain.models.data_types import DNASequencingData
+
 
 #get_metadata_for_samples_from_seqscape(cls, ids_as_tuples):
 
+# FIXME: Delete these tests?
+@unittest.skip
 class TestDNAData(unittest.TestCase):
 
     def test_get_metadata_for_samples_from_seqscape(self):

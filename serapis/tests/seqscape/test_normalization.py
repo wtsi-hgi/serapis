@@ -5,10 +5,9 @@ Created on Nov 7, 2014
 '''
 import unittest
 
-from serapis.seqscape import normalization
 
-
-
+# FIXME: Delete these tests?
+@unittest.skip
 class TestNormalization(unittest.TestCase):
 
 

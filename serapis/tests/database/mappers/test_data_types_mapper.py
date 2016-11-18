@@ -21,11 +21,13 @@ This file has been created on Nov 01, 2016.
 
 import unittest
 
-from serapis.database.mappers.data_types_mapper import DataMapper, DNASequencingDataMapper, LibraryMapper, StudyMapper, SampleMapper
+from sequencescape import Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
+from serapis.database._mappers.data_types_mapper import DataMapper, DNASequencingDataMapper, LibraryMapper, \
+    StudyMapper, SampleMapper
 from serapis.database._models import Sample as DBSample, Study as DBStudy, Library as DBLibrary, Data as DBData, \
     DNASequencingData as DBDNASequencingData
 from serapis.domain.models.data_types import Data as DomainData, DNASequencingData as DomainDNASequencingData
-from sequencescape import connect_to_sequencescape, Sample as DomainSample, Study as DomainStudy, Library as DomainLibrary
+
 
 class SampleMapperTest(unittest.TestCase):
 
@@ -122,11 +124,11 @@ class DataMapperTest(unittest.TestCase):
     def test_from_db_model(self):
         db_obj = DBData()
         db_obj.pmid_list = ['1']
-        db_obj.studies = set([DBStudy(name='stud1')])
+        db_obj.studies = {[DBStudy(name='stud1')]}
 
         expected = DomainData()
         expected.pmid_list = ['1']
-        expected.studies = set([DomainStudy(name='stud1')])
+        expected.studies = {[DomainStudy(name='stud1')]}
         expected.processing = set()
         expected.security_level = None
 
@@ -147,7 +149,7 @@ class DNASequencingDataMapperTest(unittest.TestCase):
         domain_obj.processing = set()
         result = DNASequencingDataMapper.to_db_model(domain_obj)
         expected = DBDNASequencingData()
-        expected.samples = set([DBSample(name='sam1')])
+        expected.samples = {[DBSample(name='sam1')]}
         expected.coverage_list = ['2x']
         expected.security_level = '2'
         expected.pmid_list = set()
@@ -161,13 +163,13 @@ class DNASequencingDataMapperTest(unittest.TestCase):
 
     def test_from_db_model(self):
         db_obj = DBDNASequencingData()
-        db_obj.samples = set([DBSample(name='sam1')])
-        db_obj.libraries = set([DBLibrary(name='lib1')])
+        db_obj.samples = {[DBSample(name='sam1')]}
+        db_obj.libraries = {[DBLibrary(name='lib1')]}
         db_obj.coverage_list = ['1x']
 
         result = DNASequencingDataMapper.from_db_model(db_obj)
 
         expected = DomainDNASequencingData()
-        expected.samples = set([DomainSample(name='sam1')])
-        expected.libraries = set([DomainSample(name='lib1')])
+        expected.samples = {[DomainSample(name='sam1')]}
+        expected.libraries = {[DomainSample(name='lib1')]}
         expected.coverage_list = ['1x']

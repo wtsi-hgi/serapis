@@ -19,16 +19,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Aug 23, 2016.
 """
 
-import unittest
 import os
+import unittest
 from os.path import basename, join
-from serapis.storage.irods.icommands import ICmdsDataObjectAPI, ICmdsCollectionAPI, ICmdsBasicAPI
 
-# for testing purposes, I am going to use the functionality in BATON module for listing files
-from serapis.storage.irods.baton import BatonCollectionAPI, BatonDataObjectAPI
+from serapis.storage.irods.baton import BatonCollectionAPI
+from serapis.storage.irods.icommands import ICmdsDataObjectAPI, ICmdsCollectionAPI
+
 
 class UploadICmdsDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.src_path = os.path.realpath(__file__)
         self.src_fname = basename(self.src_path)
@@ -47,7 +46,6 @@ class UploadICmdsDataObjectAPITest(unittest.TestCase):
 
 
 class CopyICmdsDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.coll = "/humgen/projects/serapis_staging/test-icmds/test-icp/"
         self.orig_fpath = "/humgen/projects/serapis_staging/test-icmds/test-icp/original.txt"
@@ -67,7 +65,6 @@ class CopyICmdsDataObjectAPITest(unittest.TestCase):
 
 
 class MoveICmdsDataObjectAPITest(unittest.TestCase):
-
     def setUp(self):
         self.coll = "/humgen/projects/serapis_staging/test-icmds/test-imv"
         self.fpath = "/humgen/projects/serapis_staging/test-icmds/test-imv/original_name.txt"
@@ -86,9 +83,7 @@ class MoveICmdsDataObjectAPITest(unittest.TestCase):
         ICmdsDataObjectAPI.move(self.renamed_fpath, self.fpath)
 
 
-
 class CreateIcmdsCollectionAPITest(unittest.TestCase):
-
     def setUp(self):
         self.parent_coll = "/humgen/projects/serapis_staging/test-icmds/test-mk-rm-coll"
         self.coll_created = "/humgen/projects/serapis_staging/test-icmds/test-mk-rm-coll/new_coll"
