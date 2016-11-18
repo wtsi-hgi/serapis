@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 31, 2016.
 """
-from serapis.database.models import Library as DBLibrary, Sample as DBSample, Study as DBStudy, Data as DBData, \
+from serapis.database._models import Library as DBLibrary, Sample as DBSample, Study as DBStudy, Data as DBData, \
     DNASequencingData as DBDNASequencingData, DNASequencingDataAsReads as DBDNASequencingDataAsReads, \
     GenotypingData as DBGenotypingData, GWASData as DBGWASData, DNAVariationData as DBDNAVariationData
 
@@ -27,7 +27,7 @@ from serapis.domain.models.data_types import Data as DomainData, DNASequencingDa
     GenotypingData as DomainGenotypingData, GWASData as DomainGWASData, DNAVariationData as DomainDNAVariationData, \
     DNASequencingDataAsReads as DomainDNASequencingDataAsReads
 from abc import ABCMeta, abstractmethod
-from serapis.database.mappers.base import Mapper
+from serapis.database._mappers.base import Mapper
 from serapis.domain.models import data_types
 
 

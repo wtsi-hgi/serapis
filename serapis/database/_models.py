@@ -18,12 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 31, 2016.
 """
-
-from mongoengine import *
-
-connect('testdb')
-# , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk', port=27017)
-#  , host='mongodb://hgi-serapis-farm3-dev.internal.sanger.ac.uk'
+from mongoengine import DynamicEmbeddedDocument, connect, StringField, IntField, ListField, EmbeddedDocumentField, \
+    DynamicDocument
 
 
 class Entity(DynamicEmbeddedDocument):
@@ -146,7 +142,7 @@ class GWASData(GenotypingData):
         return super().__str__() + ", study_type: " + str(self.study_type)
 
     def __eq__(self, other):
-        return super().__eq__() and type(self) == type(other) and self.study_type == other.study_type
+        return super().__eq__(other) and type(self) == type(other) and self.study_type == other.study_type
 
 
 class DNASequencingData(Data):
@@ -195,19 +191,20 @@ class SerapisFile(DynamicEmbeddedDocument):
         return self.file_format == other.file_format and self.data == other.data and self.checksum == other.checksum
 
 
+# TODO: This should probably inherit from `Archieve`
 class ArchivableFile(DynamicDocument):
     """
     This model is for anything inheriting from ArchivableFile. I have decided to go with this general
     model because the differences between the child classes are involving the functionality in those classes and not
     the actual data to be stored in the DB.
     """
+    id = StringField(primary_key=True)
     src_path = StringField()
     dest_dir = StringField()
     staging_dir = StringField()
     file_obj = EmbeddedDocumentField(SerapisFile)
 
     meta = {'allow_inheritance': True}
-
 
     def __str__(self):
         return "Src path: " + str(self.src_path) + ", dest_dir: " + str(self.dest_dir) + ", staging dir: " + \
@@ -232,17 +229,5 @@ class ArchivableFileWithIndex(ArchivableFile):
                str(self.idx_dest_path) + ", index file obj: " + str(self.idx_file_obj)
 
     def __eq__(self, other):
-        return super().__eq__() and self.idx_src_path == other.idx_src_path and \
+        return super().__eq__(other) and self.idx_src_path == other.idx_src_path and \
                self.idx_dest_path == other.idx_dest_path and self.idx_file_obj == other.idx_file_obj
-
-
-
-
-
-
-
-
-
-
-
-

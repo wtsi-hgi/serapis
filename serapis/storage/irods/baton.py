@@ -21,16 +21,13 @@ This file has been created on Aug 01, 2016.
 This module holds the functionality for iRODS that is implemented within BATON. The methods from the iRODS API that
 are not implemented within BATON throw a NotImplementedException upon call.
 """
-from serapis import config
-from serapis.storage.irods.base import IrodsBasicAPI, CollectionAPI, DataObjectAPI
-from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException
-from serapis.storage.irods.entities import ACL
-from serapis.storage.irods.baton_wrapper_mapper import ACLMapper, MetadataMapper
-from serapis.storage.irods.exceptions import DifferentChecksumsAcrossReplicas
-
 from baton.api import connect_to_irods_with_baton
-from baton.models import SearchCriterion, User, AccessControl
-from baton.collections import IrodsMetadata
+
+from serapis import config
+from serapis.storage.irods.base import IrodsBasicAPI
+from serapis.storage.irods.baton_wrapper_mapper import ACLMapper, MetadataMapper
+from serapis.storage.irods.exceptions import ACLRetrievalException, ACLRemovingException, DifferentChecksumsAcrossReplicas
+
 
 import typing
 
