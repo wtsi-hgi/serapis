@@ -1,1 +1,1 @@
-docker-py
+git+https://github.com/wtsi-hgi/startfortest.git@8ff9025185d88c555644e5a4e3a00249139a1d49#egg=startfortest

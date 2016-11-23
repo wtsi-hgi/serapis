@@ -3,14 +3,14 @@ import unittest
 from serapis.database.api import ArchivableFileDBApi
 from serapis.domain.models.archivable import ArchivableFile
 from serapis.domain.models.data_types import Data
-from serapis.tests.database._mongo import start_mongo_container, stop_mongo_container
+from startfortest.service.mongo import MongoController
 
 TEST_DATABASE = "testing"
 
 SRC_PATH = "/example/src_path"
 DEST_PATH = "/example/src_path"
 STAGING_PATH = "/example/staging_path"
-# TODO: Populate data model!
+# TODO: Populate data model with representative contents...
 DATA = Data()
 
 
@@ -33,14 +33,15 @@ class TestArchivableFileDBApi(unittest.TestCase):
     Tests for `ArchivableFileDBApi`.
     """
     def setUp(self):
-        self._mongo_container = start_mongo_container()
+        self._mongo_controller = MongoController()
+        self._mongo = self._mongo_controller.start_service()
         self.api = ArchivableFileDBApi(
-            host=self._mongo_container.host, port=self._mongo_container.port, database=TEST_DATABASE,
+            host=self._mongo.host, port=self._mongo.port, database=TEST_DATABASE,
             archivable_file_type=_DummyArchivableFile)
         self.archivable_file = _DummyArchivableFile(SRC_PATH, DEST_PATH, DATA, STAGING_PATH)
 
     def tearDown(self):
-        stop_mongo_container(self._mongo_container)
+        self._mongo_controller.stop_service(self._mongo)
 
     def test_save(self):
         self.api.save(self.archivable_file)

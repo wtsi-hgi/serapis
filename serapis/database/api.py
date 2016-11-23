@@ -74,7 +74,7 @@ class ArchivableFileDBApi(_MongoDAL):
         :param archivable_file_type: TODO
         """
         super().__init__(host, port, database)
-        self._archivable_file_type =archivable_file_type
+        self._archivable_file_type = archivable_file_type
 
     def save(self, archivable_file: ArchivableFile):
         with switch_db(ArchivableFileDatabaseModel, self._connection_id) as DatabaseModel:
