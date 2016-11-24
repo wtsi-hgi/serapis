@@ -1,4 +1,5 @@
+nose2
+cov-core
 git+https://github.com/wtsi-hgi/startfortest.git@8ff9025185d88c555644e5a4e3a00249139a1d49#egg=startfortest
-
 git+https://github.com/wtsi-hgi/test-with-irods.git@04eb9a11c3a050e745aa1ca4a167f51344a806e7#egg=testwithirods
 git+https://github.com/wtsi-hgi/test-with-baton.git@45192d3f8037c4d31be5972ea6e692927aedbe4e#egg=testwithbaton
