@@ -18,44 +18,32 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Oct 25, 2016.
 """
+from tempfile import NamedTemporaryFile
+from urllib import request
 
-from serapis.domain.models.archivable import ArchivableFileFromFS, ArchivableFileWithIndexFromFS
-
-
-import os
+from serapis.config import ICOMMANDS_BIN
+from serapis.domain.models.archivable import ArchivableFileFromFS
+from serapis.domain.models.data_type_mapper import DataTypeNames
 from serapis.domain.models.file import SerapisFile
 from serapis.domain.models.file_formats import BAMFileFormat
-from serapis.domain.models.data_type_mapper import DataTypeNames
+from testwithirods.helpers import SetupHelper
 
 
-# src_path = os.path.realpath(__file__)
-# dest_path = '/humgen/projects/serapis_staging/test-archivable'
-# file = SerapisFile(file_format=BAMFileFormat(), data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
-# archivable = ArchivableFileFromFS(src_path, dest_path, file)
-# archivable.stage()
-# print("Archivable: %s" % archivable)
-# archivable.unstage()
-#
-#
-# src_path = "/lustre/scratch113/projects/hematopoiesis/release-reheadered/SC_BLUE5619974.reheaded.bam"
-# idx_path = "/lustre/scratch113/projects/hematopoiesis/release-reheadered/SC_BLUE5619974.reheaded.bam.bai"
-# dest_path = '/humgen/projects/serapis_staging/test-archivable'
-# file = SerapisFile(file_format=BAMFileFormat, data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
-# idx_file = SerapisFile(file_format=BAMFileFormat)
-# archivable = ArchivableFileWithIndexFromFS(src_path, idx_path, dest_path, file, idx_file_obj=idx_file)
-# archivable.stage()
-# print("Archivable: %s" % archivable)
-# archivable.unstage()
+response = request.urlopen("https://github.com/wtsi-hgi/bam2cram-check/raw/master/tests/test-cases/1read.bam")
+with NamedTemporaryFile("wb") as data_file:
+    data_file.write(response.read())
+    helper = SetupHelper(ICOMMANDS_BIN)
 
+    src_path = data_file.name
+    dest_path = helper.create_collection("archived")
+    staging_path = helper.create_collection("staging")
 
-src_path = "/nfs/users/nfs_i/ic4/Projects/python3/serapis/test-data/A-J.19.10000000-11000000.bam"
-dest_path = '/humgen/projects/serapis_staging/test-archivable'
-file = SerapisFile(file_format=BAMFileFormat, data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
-idx_file = SerapisFile(file_format=BAMFileFormat)
-archivable = ArchivableFileFromFS(src_path, dest_path, file, "/humgen/projects/serapis_staging/test-archivable")
-archivable.stage()
-#print("Archivable: %s" % archivable)
-#archivable.unstage()
+    file = SerapisFile(file_format=BAMFileFormat, data_type=DataTypeNames.DNA_SEQSUENCING_DATA)
+    idx_file = SerapisFile(file_format=BAMFileFormat)
+    archivable = ArchivableFileFromFS(src_path, dest_path, file, staging_path)
+    archivable.stage()
+    print("Archivable: %s" % archivable)
+    #archivable.unstage()
 
 
 
