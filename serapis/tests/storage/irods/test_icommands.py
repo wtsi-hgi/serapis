@@ -33,7 +33,7 @@ class UploadICmdsDataObjectAPITest(unittest.TestCase):
         self.src_fname = basename(self.src_path)
         self.dest_coll = "/humgen/projects/serapis_staging/test-icmds/test-iput"
         self.dest_path = join(self.dest_coll, self.src_fname)
-#
+
     def test_upload(self):
         ICmdsDataObjectAPI.upload(self.src_path, self.dest_path)
         files = BatonCollectionAPI.list_data_objects(self.dest_coll)

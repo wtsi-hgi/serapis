@@ -18,8 +18,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 This file has been created on Jul 28, 2016.
 """
+import atexit
+from time import sleep
 
-BATON_BIN = "/software/hgi/pkglocal/baton-0.16.3/bin"
+from sequencescape.tests.sqlalchemy.stub_database import create_stub_database
+from testwithbaton.api import TestWithBaton, BatonSetup
+
+# baton and iRODS setup
+test_with_baton = TestWithBaton(baton_setup=BatonSetup.v0_17_0_WITH_IRODS_4_1_10)
+atexit.register(test_with_baton.tear_down)
+test_with_baton.setup()
+
+database_location, dialect = create_stub_database()
+
+BATON_BIN = test_with_baton.baton_location
+SEQUENCESCAPE_CONNECTION_STRING = "%s:///%s" % (dialect, database_location)
+ICOMMANDS_BIN = test_with_baton.icommands_location + "/"
+
+print("Setup complete!\nbaton binaries: %s\nicommands: %s" % (BATON_BIN, ICOMMANDS_BIN))
+
+# ICOMMANDS_BIN = ""
+# BATON_BIN = "/software/hgi/pkglocal/baton-0.16.3/bin"
 
 # Seqscape configurations:
 SEQSC_HOST 		= "seqw-db.internal.sanger.ac.uk"

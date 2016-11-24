@@ -22,6 +22,7 @@ from abc import abstractproperty
 
 from sequencescape import connect_to_sequencescape
 from serapis import config
+
 from serapis.seqscape.exceptions import NonUniqueEntity
 
 
@@ -29,7 +30,11 @@ class SeqscapeEntityProvider:
 
     @classmethod
     def _get_connection(cls, host, port, db_name, user):
-        return connect_to_sequencescape("mysql://" + user + ":@" + host + ":" + str(port) + "/" + db_name)
+        try:
+            from serapis.config import SEQUENCESCAPE_CONNECTION_STRING
+            return connect_to_sequencescape(SEQUENCESCAPE_CONNECTION_STRING)
+        except ImportError:
+            return connect_to_sequencescape("mysql://" + user + ":@" + host + ":" + str(port) + "/" + db_name)
 
     @classmethod
     @abstractproperty

@@ -22,6 +22,7 @@ This file has been created on Aug 01, 2016.
 import subprocess
 import typing
 
+from serapis.config import ICOMMANDS_BIN
 from serapis.storage.irods.base import IrodsBasicAPI
 
 
@@ -54,7 +55,7 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
     @classmethod
     def upload(cls, src_path, dest_path):
         # TODO: check if it is ever the case to give it extra options
-        cmd_args = cls._build_icmd_args('iput', [src_path, dest_path], options=["-K"])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'iput', [src_path, dest_path], options=["-K"])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -63,7 +64,7 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
 
     @classmethod
     def copy(cls, src_path, dest_path):
-        cmd_args = cls._build_icmd_args('icp', [src_path, dest_path], options=[])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'icp', [src_path, dest_path], options=[])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -72,7 +73,7 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
 
     @classmethod
     def move(cls, src_path, dest_path):
-        cmd_args = cls._build_icmd_args('imv', [src_path, dest_path], options=[])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'imv', [src_path, dest_path], options=[])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -81,7 +82,7 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
 
     @classmethod
     def remove(cls, path):
-        cmd_args = cls._build_icmd_args('irm', [path])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'irm', [path])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -96,7 +97,7 @@ class ICmdsDataObjectAPI(ICmdsBasicAPI):
         the checksums are still the same across all replicas.
         :return:
         """
-        cmd_args = cls._build_icmd_args('ichksum', [path], ['-a', '-K'])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'ichksum', [path], ['-a', '-K'])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -108,7 +109,7 @@ class ICmdsCollectionAPI(ICmdsBasicAPI):
 
     @classmethod
     def create(cls, path):
-        cmd_args = cls._build_icmd_args('imkdir', [path])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'imkdir', [path])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
@@ -118,7 +119,7 @@ class ICmdsCollectionAPI(ICmdsBasicAPI):
     # TODO: distinguish somehow between different types of iRODS errors
     @classmethod
     def remove(cls, path):
-        cmd_args = cls._build_icmd_args('irm', [path], ["-r"])
+        cmd_args = cls._build_icmd_args(ICOMMANDS_BIN + 'irm', [path], ["-r"])
         try:
             cls._run_icmd(cmd_args)
         except Exception as e:
