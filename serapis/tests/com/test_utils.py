@@ -37,6 +37,7 @@ class TestUtils(unittest.TestCase):
         utils.extend_errors_dict(error_list2, constants.NON_EXISTING_FILE, error_res)
         self.assertDictEqual(error_res, {constants.NON_EXISTING_FILE : ["1st-file", "2nd-file", "f3.bam"], constants.NOT_SUPPORTED_FILE_TYPE : error_list})
 
+    @unittest.skip("Relies on external data")
     def test_get_file_permissions(self):
         path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
         permission = utils.get_file_permissions(path)
@@ -76,6 +77,7 @@ class TestUtils(unittest.TestCase):
         duplic = utils.get_file_duplicates(paths)
         self.assertEqual(duplic, [])
 
+    @unittest.skip("Relies on external data")
     def test_detect_file_type(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
         self.assertEqual(utils.detect_file_type(path), 'bam')
@@ -119,6 +121,7 @@ class TestUtils(unittest.TestCase):
         res = utils.detect_file_type(path)
         self.assertEqual(res, constants.TBI_FILE)
 
+    @unittest.skip("Relies on external data")
     def test_check_for_invalid_file_types(self):
         paths = ["/home/ic4/media-tmp/bams/8887_8#94.bam", "/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"]
         self.assertListEqual(utils.check_for_invalid_file_types(paths), ["/home/ic4/media-tmp/bams/8887_8#94.bac", "/home/ic4/media-tmp/bams/8887_8#94.bb"])
@@ -135,6 +138,7 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(paths, invalid_paths)
 
     # TODO?
+    @unittest.skip("Relies on external data")
     @unittest.skip("This is not a good function, I intend to remove it at some point.")
     def test_check_for_invalid_paths(self):
         paths = ['/an/invalid/path', 'another/invalid/path']
@@ -150,6 +154,7 @@ class TestUtils(unittest.TestCase):
         res = utils.filter_out_invalid_paths(path)
         self.assertEqual(res, path)
 
+    @unittest.skip("Relies on external data")
     def test_check_all_files_same_type(self):
         paths = ['/home/ic4/data-test/unit-tests/bamfile1.bam',
                  '/home/ic4/data-test/unit-tests/bamfile2.bam']
@@ -250,6 +255,7 @@ class TestUtils(unittest.TestCase):
         match = utils.infer_hgi_project_from_path(prj_path)
         self.assertEqual(None, match)
 
+    @unittest.skip("Relies on external data")
     def test_list_and_filter_files_from_dir(self):
         dir_path = '/home/ic4/data-test/bams'
         files_list = utils.list_and_filter_files_from_dir(dir_path, constants.ACCEPTED_FILE_EXTENSIONS)
@@ -275,6 +281,7 @@ class TestUtils(unittest.TestCase):
         dir_path = '/home/ic4/data-test/unit-tests/bamfile1.bam'
         self.assertRaises(OSError, utils.list_and_filter_files_from_dir, dir_path, constants.ACCEPTED_FILE_EXTENSIONS)
 
+    @unittest.skip("Relies on external data")
     def test_extract_basename(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
         fname = utils.extract_basename(path)
@@ -285,6 +292,7 @@ class TestUtils(unittest.TestCase):
 #         self.assertEqual(fname, "UC749210")
 #
 
+    @unittest.skip("Relies on external data")
     def test_extract_dir_path(self):
 
         path = "/home/ic4/Work/Projects/cls_test.py"
@@ -295,6 +303,7 @@ class TestUtils(unittest.TestCase):
         res = utils.extract_dir_path(path)
         self.assertEqual(res, path)
 
+    @unittest.skip("Relies on external data")
     def test_extract_extension(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
         ext = utils.extract_file_extension(path)
@@ -308,6 +317,7 @@ class TestUtils(unittest.TestCase):
         ext = utils.extract_file_extension(path)
         self.assertEqual(ext, 'md5')
 
+    @unittest.skip("Relies on external data")
     def test_extract_fname_et_ext(self):
         path = "/home/ic4/media-tmp/bams/8887_8#94.bam"
         fname, ext = utils.extract_fname_and_ext(path)
@@ -324,6 +334,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(fname, 'UC749210.bam.bai')
         self.assertEqual(ext, 'md5')
 
+    @unittest.skip("Relies on external data")
     def test_extract_index_fname(self):
         path = '/lustre/scratch113/projects/crohns/uc_data/release/20130520/sample_improved_bams_hgi_2/UC749210.bam.bai'
         fname, ext = utils.extract_index_fname(path)
@@ -373,6 +384,7 @@ class TestUtils(unittest.TestCase):
         date = "blah"
         self.assertRaises(ValueError, utils.is_date_correct, date)
 
+    @unittest.skip("Relies on external data")
     def test_determine_storage_type_from_path(self):
         path = '/lustre/scratch113/projects/ddd/1.vcf'
         res = utils.determine_storage_type_from_path(path)
