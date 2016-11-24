@@ -19,7 +19,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 This file has been created on Jul 28, 2016.
 """
 import atexit
-from time import sleep
 
 from sequencescape.tests.sqlalchemy.stub_database import create_stub_database
 from testwithbaton.api import TestWithBaton, BatonSetup
